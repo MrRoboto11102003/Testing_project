@@ -1,0 +1,20 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..5fd618f9562ddcbbab044ae5c83b881a29fa6b76 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -3013,7 +3013,6 @@ def _validate_column(
+                         column=name,
+                         rule="custom",
+                         message=f"Custom validator {validator_name!r} is not registered",
+-                        severity=field_def.severity,
+                     )
+                 )
+             else:
+@@ -3050,7 +3049,6 @@ def _validate_column(
+                         column=name,
+                         rule="semantic",
+                         message=f"Unknown semantic type: {field_def.semantic}",
+-                        severity=field_def.severity,
+                     )
+                 )
+             else:

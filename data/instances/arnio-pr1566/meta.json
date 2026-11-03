@@ -1,0 +1,57 @@
+{
+ "id": "arnio-pr1566",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1455,
+ "issue_title": "Bug: diff_schema ignores validation severity changes",
+ "issue_body": "## Snapshot\nAudited after pulling `main` once at local HEAD `0450954`.\n\n## Severity\nMedium\n\n## Affected code\n- `arnio/schema.py:950-1035` (`diff_schema`)\n- `arnio/schema.py:2166-2182` (`_field_to_dict` omits `severity`)\n- `arnio/schema.py:2185-2198` (`_field_to_json_dict` includes `severity`)\n- `tests/test_diff_schema.py:137-138` covers dtype/nullable changed attrs only\n\n## Problem\n`diff_schema()` reports no change when a field's severity changes from `warning` to `error` or from `error` to `warning`.\n\n## Why it happens\n`diff_schema()` compares `_field_to_dict()` output. `_field_to_dict()` omits the `severity` attribute even though `_field_to_json_dict()` serializes it, and severity changes alter validation behavior.\n\n## Reproduction\n```python\nimport arnio as ar\n\nexpected = ar.Schema({\"age\": ar.Int64(severity=\"warning\")})\nobserved = ar.Schema({\"age\": ar.Int64(severity=\"error\")})\ndiff = ar.diff_schema(expected, observed)\nprint(diff.changed, diff.difference_count, diff.to_dict())\nprint(expected.to_json())\nprint(observed.to_json())\n```\n\nCurrent output:\n```text\nFalse 0 {'changed': False, 'difference_count': 0, 'differences': []}\n```\nThe JSON representations differ only by severity.\n\n## Real production impact\nSchema drift gates can miss warning-to-error escalations that start failing jobs, or error-to-warning relaxations that reduce enforcement. Both are contract changes and should be visible to CI/release checks.\n\n## Suggested fix\nInclude `severity` in `_field_to_dict()`, or compare a canonical representation that includes the same contract fields as JSON export. Add a `changed_field` difference for `attribute=\"severity\"`.\n\n## Test coverage\nNo test currently asserts severity diffs. Add tests for `warning -> error` and `error -> warning` changes.",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1455",
+ "pr": 1566,
+ "pr_title": "fix(schema): include severity in _field_to_dict for diff_schema detection",
+ "pr_body": "Fixes #1455\r\n\r\n## Problem\r\ndiff_schema() was not detecting severity changes because _field_to_dict() \r\ndid not include the severity attribute, even though _field_to_json_dict() did.\r\n\r\n## Fix\r\nAdded severity to _field_to_dict() so both serialization methods are consistent.\r\n\r\n## Tests\r\nAdded two new tests in tests/test_diff_schema.py:\r\n- warning -> error change is detected\r\n- error -> warning change is detected",
+ "fix_commit": "5e9e4d7826e9ecb6caea178e9db10269726ed978",
+ "merged_at": "2026-05-28T17:50:14Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "arnio/schema.py"
+ ],
+ "test_files": [
+  "tests/test_diff_schema.py"
+ ],
+ "target_symbols": [
+  "arnio/schema.py::_field_to_dict",
+  "arnio/schema.py::_field_to_json_dict"
+ ],
+ "fail_to_pass": [
+  "tests/test_diff_schema.py::TestDiffSchema::test_severity_error_to_warning",
+  "tests/test_diff_schema.py::TestDiffSchema::test_severity_warning_to_error"
+ ],
+ "pass_to_pass": [
+  "tests/test_diff_schema.py::TestDiffSchema::test_accepts_dict_input_for_both",
+  "tests/test_diff_schema.py::TestDiffSchema::test_accepts_dict_input_for_expected",
+  "tests/test_diff_schema.py::TestDiffSchema::test_accepts_dict_input_for_observed",
+  "tests/test_diff_schema.py::TestDiffSchema::test_changed_field_with_only_expected",
+  "tests/test_diff_schema.py::TestDiffSchema::test_changed_field_with_only_observed",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_different_rule_names",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_dtype_change_between_schemas",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_extra_column_in_second_schema",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_missing_column_in_second_schema",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_nullable_change",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_rule_count_changes",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_rules_present_vs_absent",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_strict_flag_change",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_unique_flag_change",
+  "tests/test_diff_schema.py::TestDiffSchema::test_multiple_changed_attributes",
+  "tests/test_diff_schema.py::TestDiffSchema::test_returns_empty_diff_for_identical_schemas",
+  "tests/test_diff_schema.py::TestDiffSchema::test_rule_callable_object_fallback_uses_type_name",
+  "tests/test_diff_schema.py::TestDiffSchema::test_rules_difference_renders_in_markdown",
+  "tests/test_diff_schema.py::TestDiffSchema::test_same_named_rules_are_unchanged",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiff_rejects_non_entry_objects",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiff_rejects_non_list_differences",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiffentry_rejects_invalid_attribute_type",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiffentry_rejects_invalid_change_type",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiffentry_rejects_invalid_column_type"
+ ],
+ "patch_lines": 1
+}

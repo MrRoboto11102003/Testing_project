@@ -1,0 +1,55 @@
+diff --git a/tests/test_schema.py b/tests/test_schema.py
+index ce61dde..b1ce75f 100644
+--- a/tests/test_schema.py
++++ b/tests/test_schema.py
+@@ -269,6 +269,24 @@ def test_schema_rejects_invalid_field_values_none(sample_csv):
+         ar.validate(frame, {"id": None})
+ 
+ 
++def test_schema_rejects_non_string_field_name_integer(sample_csv):
++    frame = ar.read_csv(sample_csv)
++    with pytest.raises(TypeError, match="Schema field names must be strings"):
++        ar.validate(frame, {1: ar.String()})
++
++
++def test_schema_rejects_non_string_field_name_none(sample_csv):
++    frame = ar.read_csv(sample_csv)
++    with pytest.raises(TypeError, match="Schema field names must be strings"):
++        ar.validate(frame, {None: ar.String()})
++
++
++def test_schema_rejects_non_string_field_name_tuple(sample_csv):
++    frame = ar.read_csv(sample_csv)
++    with pytest.raises(TypeError, match="Schema field names must be strings"):
++        ar.validate(frame, {("a", "b"): ar.String()})
++
++
+ def test_schema_validation_collects_row_level_issues(tmp_path):
+     path = tmp_path / "bad.csv"
+     path.write_text(
+diff --git a/tests/test_schema_typecheck.py b/tests/test_schema_typecheck.py
+index 0bee0d0..ae719f5 100644
+--- a/tests/test_schema_typecheck.py
++++ b/tests/test_schema_typecheck.py
+@@ -8,6 +8,21 @@ def test_schema_raises_type_error_for_list_of_fields():
+         ar.Schema([ar.String()])
+ 
+ 
++def test_schema_raises_type_error_for_integer_key():
++    with pytest.raises(TypeError, match="Schema field names must be strings"):
++        ar.Schema({1: ar.String()})
++
++
++def test_schema_raises_type_error_for_none_key():
++    with pytest.raises(TypeError, match="Schema field names must be strings"):
++        ar.Schema({None: ar.String()})
++
++
++def test_schema_raises_type_error_for_tuple_key():
++    with pytest.raises(TypeError, match="Schema field names must be strings"):
++        ar.Schema({("a", "b"): ar.String()})
++
++
+ @pytest.mark.parametrize("bad_strict", ["yes", 1, None, 0, "false", 1.0])
+ def test_schema_strict_rejects_non_bool(bad_strict):
+     with pytest.raises(TypeError, match="strict.*bool"):

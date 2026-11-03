@@ -1,0 +1,15 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..b1cb32a1de013fdc40a8eb2838a0eced536b2e97 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -1904,10 +1904,6 @@ def read_jsonl_chunked(
+     """
+     _validate_jsonl_encoding(encoding)
+ 
+-    if not isinstance(path, (str, os.PathLike)):
+-        raise TypeError(
+-            f"read_jsonl_chunked expected a filesystem path, got {type(path).__name__!r}"
+-        )
+     path = os.fspath(path)
+     encoding_errors = _validate_encoding_errors(encoding_errors)
+     nrows = _validate_jsonl_nrows(nrows)

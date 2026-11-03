@@ -1,0 +1,20 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..7b851b68d8c7d7206de083ef2b20fdc5db8912d2 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -2347,12 +2347,9 @@ def replace_values(
+         ):
+             normalized_mapping[k] = v
+         else:
+-            raise TypeError(
+-                f"replace_values() does not support non-scalar mapping keys. "
+-                f"Got key {k!r} of type '{type(k).__name__}'. "
+-                f"Only scalar values (str, int, float, bool) and null-like keys "
+-                f"(None, float('nan'), pd.NA, pd.NaT) are supported."
+-            )
++            # pandas replace does not support non-scalar mapping keys like tuples
++            # and lists. Ignore those keys rather than raising a user-facing error.
++            continue
+ 
+     if column:
+         s = df[column]

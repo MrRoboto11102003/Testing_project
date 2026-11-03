@@ -1,0 +1,26 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..34e900f64e8edb662b38d00fee36b65b2b1a8053 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -686,8 +686,8 @@ class ArFrame:
+         ------
+         ValueError
+             If neither *include* nor *exclude* is provided, if *include*
+-            and *exclude* overlap, or if an unrecognised dtype string is
+-            passed.
++            and *exclude* overlap, if an unrecognised dtype string is
++            passed, or if no columns match the filter.
+         TypeError
+             If *include* or *exclude* is not a string, list, or tuple of
+             strings.
+@@ -754,7 +754,9 @@ class ArFrame:
+             matched.append(col)
+ 
+         if not matched:
+-            return ArFrame(_Frame(len(self)), attrs=self._attrs.copy())
++            raise ValueError(
++                f"No columns match the dtype selection. Frame dtypes: {col_dtypes}."
++            )
+ 
+         return self.select_columns(matched)
+ 

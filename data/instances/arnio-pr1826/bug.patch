@@ -1,0 +1,20 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..31f39a2fff698d7820935754523fde2dd6788921 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -1620,15 +1620,8 @@ def profile(
+         approx_top_values_min_ratio, bool
+     ):
+         raise TypeError("approx_top_values_min_ratio must be a float")
+-
+-    if not math.isfinite(approx_top_values_min_ratio):
+-        raise ValueError(
+-            "approx_top_values_min_ratio must be a finite number between 0 and 1"
+-        )
+-
+     if approx_top_values_min_ratio < 0 or approx_top_values_min_ratio > 1:
+         raise ValueError("approx_top_values_min_ratio must be between 0 and 1")
+-
+     if not isinstance(approx_top_values_sample_size, int) or isinstance(
+         approx_top_values_sample_size, bool
+     ):

@@ -1,0 +1,13 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..ca51e840d097931c54b255034bfc36f48322efa9 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -2162,7 +2162,7 @@ def drop_columns_matching(frame, pattern):
+ 
+     df = to_pandas(frame) if is_arframe else frame
+ 
+-    cols_to_drop = [col for col in df.columns if re.search(pattern, str(col))]
++    cols_to_drop = [col for col in df.columns if re.search(pattern, col)]
+ 
+     if len(df.columns) == 0:
+         return frame if is_arframe else df

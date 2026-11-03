@@ -1,0 +1,87 @@
+diff --git a/tests/test_convert.py b/tests/test_convert.py
+index a0c6292..d6acacb 100644
+--- a/tests/test_convert.py
++++ b/tests/test_convert.py
+@@ -751,6 +751,51 @@ class TestFromPandas:
+         assert result.shape == (2, 2)
+         assert list(result.columns) == ["id", "name"]
+ 
++    def test_from_dict_rejects_scalar_value(self):
++        with pytest.raises(
++            TypeError,
++            match="Column 'a' must be a sequence of values",
++        ):
++            ar.from_dict({"a": 1})
++
++    def test_from_dict_rejects_mixed_scalar_and_list(self):
++        with pytest.raises(
++            TypeError,
++            match="Column 'b' must be a sequence of values",
++        ):
++            ar.from_dict(
++                {
++                    "a": [1, 2],
++                    "b": 3,
++                }
++            )
++
++    def test_from_dict_accepts_tuple_values(self):
++        frame = ar.from_dict(
++            {
++                "a": (1, 2),
++                "b": ("x", "y"),
++            }
++        )
++
++        result = ar.to_pandas(frame)
++
++        assert result.shape == (2, 2)
++
++    def test_from_dict_rejects_string_value(self):
++        with pytest.raises(
++            TypeError,
++            match="Column 'a' must be a sequence of values",
++        ):
++            ar.from_dict({"a": "abc"})
++
++    def test_from_dict_rejects_bytes_value(self):
++        with pytest.raises(
++            TypeError,
++            match="Column 'a' must be a sequence of values",
++        ):
++            ar.from_dict({"a": b"abc"})
++
+ 
+ class TestAttrsPreservation:
+     def test_attrs_roundtrip(self):
+diff --git a/tests/test_frame.py b/tests/test_frame.py
+index 8fce2c5..bdc3b5c 100644
+--- a/tests/test_frame.py
++++ b/tests/test_frame.py
+@@ -212,16 +212,22 @@ def test_length_mismatch_ArFrame():
+ 
+ 
+ def test_scalar_dict():
+-    # Pandas pd.DataFrame({"a": 1}) fails because it requires an index.
+     data = {"name": "Alice", "age": 25}
+-    with pytest.raises(ValueError):
++
++    with pytest.raises(
++        TypeError,
++        match="Column 'name' must be a sequence of values",
++    ):
+         ar.from_dict(data)
+ 
+ 
+ def test_scalar_dict_ArFrame():
+-    # Pandas pd.DataFrame({"a": 1}) fails because it requires an index.
+     data = {"name": "Alice", "age": 25}
+-    with pytest.raises(ValueError):
++
++    with pytest.raises(
++        TypeError,
++        match="Column 'name' must be a sequence of values",
++    ):
+         ar.ArFrame.from_dict(data)
+ 
+ 

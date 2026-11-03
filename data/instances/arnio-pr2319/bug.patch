@@ -1,0 +1,239 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..bb003313fb958088510769e385ba098b5c3d2d47 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -32,7 +32,7 @@ from ._core import (
+ )
+ from .convert import from_pandas, to_pandas
+ from .exceptions import TypeCastError
+-from .frame import ArFrame, _validate_arframe
++from .frame import ArFrame
+ 
+ # ---------------------------------------------------------------------------
+ # Report types for errors="report" mode
+@@ -128,7 +128,7 @@ def validate_columns_exist(
+     KeyError
+         If any requested column is missing.
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     _validate_existing_column_sequence(
+         columns,
+         available_columns=frame.columns,
+@@ -287,7 +287,7 @@ def drop_nulls(
+     >>> frame = ar.read_csv("data.csv")
+     >>> clean = ar.drop_nulls(frame, subset=["age", "name"])
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     if subset is not None:
+         subset = _validate_column_sequence(subset, argument_name="subset")
+         if len(subset) == 0:
+@@ -333,7 +333,7 @@ def drop_columns(frame: ArFrame, columns: Sequence[str]) -> ArFrame:
+     --------
+     >>> frame = ar.drop_columns(frame, ["debug_col"])
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     requested_columns = _validate_existing_column_sequence(
+         columns,
+         available_columns=frame.columns,
+@@ -456,7 +456,7 @@ def select_columns(frame: ArFrame, columns: Sequence[str]) -> ArFrame:
+     >>> frame = ar.read_csv("data.csv")
+     >>> subset = ar.select_columns(frame, ["name", "revenue"])
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     return frame.select_columns(columns)
+ 
+ 
+@@ -487,7 +487,7 @@ def fill_nulls(
+     >>> frame = ar.read_csv("data.csv")
+     >>> filled = ar.fill_nulls(frame, 0, subset=["age"])
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     if subset is not None:
+         subset = _validate_column_sequence(subset, argument_name="subset")
+         if len(subset) == 0:
+@@ -550,7 +550,7 @@ def drop_duplicates(
+     >>> frame = ar.read_csv("data.csv")
+     >>> unique = ar.drop_duplicates(frame, subset=["name"], keep="first")
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+ 
+     if subset is not None:
+         subset = _validate_column_sequence(subset, argument_name="subset")
+@@ -651,7 +651,7 @@ def drop_empty_columns(frame: ArFrame) -> ArFrame:
+     >>> frame = ar.read_csv("data.csv")
+     >>> reduced = ar.drop_empty_columns(frame)
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     from .convert import to_pandas
+ 
+     if frame.shape[0] == 0:
+@@ -730,7 +730,7 @@ def clip_numeric(
+     >>> frame = ar.read_csv("data.csv")
+     >>> clipped = ar.clip_numeric(frame, lower=0, upper=100)
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     if lower is not None:
+         if isinstance(lower, bool) or not isinstance(lower, (int, float)):
+             raise TypeError(
+@@ -1061,7 +1061,7 @@ def strip_whitespace(
+     >>> frame = ar.read_csv("data.csv")
+     >>> clean = ar.strip_whitespace(frame, subset=["name"])
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     if subset is not None:
+         subset = _validate_existing_column_sequence(
+             subset,
+@@ -1284,7 +1284,7 @@ def parse_bool_strings(
+     """
+     from .convert import from_pandas, to_pandas
+ 
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     if true_values is not None and isinstance(true_values, (str, bytes)):
+         raise TypeError(
+             "true_values must be a set/list/tuple of strings, not a bare string"
+@@ -1408,7 +1408,7 @@ def normalize_case(
+     >>> frame = ar.read_csv("data.csv")
+     >>> lower = ar.normalize_case(frame, case_type="lower")
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     if not isinstance(case_type, str):
+         raise TypeError("case_type must be a string")
+     valid_cases = {"lower", "upper", "title"}
+@@ -1466,7 +1466,7 @@ def normalize_unicode(
+     >>> frame = ar.read_csv("data.csv")
+     >>> normalized = ar.normalize_unicode(frame, form="NFC")
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     valid_forms = {"NFC", "NFD", "NFKC", "NFKD"}
+     if not isinstance(form, str):
+         raise TypeError("form must be a string")
+@@ -1536,7 +1536,7 @@ def rename_columns(
+     >>> frame = ar.read_csv("data.csv")
+     >>> renamed = ar.rename_columns(frame, {"old_name": "new_name"})
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     mapping = _validate_string_mapping(mapping, argument_name="mapping")
+     validate_columns_exist(
+         frame,
+@@ -1589,7 +1589,7 @@ def trim_column_names(frame: ArFrame) -> ArFrame:
+     >>> frame = ar.read_csv("data.csv")  # columns: [" name ", " age "]
+     >>> clean = ar.trim_column_names(frame)  # columns: ["name", "age"]
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     trimmed = [col.strip() for col in frame.columns]
+ 
+     if len(trimmed) != len(set(trimmed)):
+@@ -2582,7 +2582,7 @@ def clean_column_names(
+     ValueError
+         If case_type is invalid or if cleaning would create duplicate column names.
+     """
+-    _validate_arframe(frame)
++    frame, _ = _validate_frame(frame)
+     if not isinstance(case_type, str):
+         raise TypeError("case_type must be a string")
+     if case_type not in {"lower", "upper", "title", "camel", "none"}:
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..9f0ee554ad8b903e56e148e5f86ba12126dc27c2 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -8,7 +8,6 @@ from __future__ import annotations
+ import copy
+ import json
+ import math
+-from typing import Any
+ 
+ from ._core import _Frame
+ 
+@@ -18,11 +17,6 @@ _VALID_DTYPES: frozenset[str] = frozenset(
+ )
+ 
+ 
+-def _validate_arframe(frame: Any, argument_name: str = "frame") -> None:
+-    if not isinstance(frame, ArFrame):
+-        raise TypeError(f"{argument_name} must be an ArFrame")
+-
+-
+ class StatsDict(dict):
+     def __repr__(self) -> str:
+         return json.dumps(self, indent=2)
+@@ -636,7 +630,7 @@ class ArFrame:
+         missing = [col for col in unique_cols if col not in self.columns]
+         if missing:
+             raise ValueError(
+-                f"Unknown column(s): {missing}. Available columns: {self.columns}"
++                f"Unknown column(s): {missing}. " f"Available columns: {self.columns}"
+             )
+ 
+         # Empty input — return unchanged copy
+@@ -980,7 +974,8 @@ class ArFrame:
+         num_rows, num_cols = self.shape
+         if num_rows > 0 and num_cols == 0:
+             return (
+-                f"ArFrame preview: {num_rows} rows x 0 columns (no columns to display)"
++                f"ArFrame preview: {num_rows} rows x 0 columns "
++                "(no columns to display)"
+             )
+ 
+         if num_rows == 0:
+@@ -1100,7 +1095,9 @@ class ArFrame:
+             rows_html += f"<tr>{cells}</tr>"
+ 
+         tbody = f"<tbody>{rows_html}</tbody>"
+-        table = f"<table style='border-collapse:collapse;'>{header}{tbody}</table>"
++        table = (
++            "<table style='border-collapse:collapse;'>" f"{header}{tbody}" "</table>"
++        )
+ 
+         # ── truncation notice ─────────────────────────────────────────────
+         notice = ""
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..f237f88a8b1411b9c2b6beab5f87ac7740bb1467 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -26,7 +26,7 @@ from .cleaning import (
+     validate_columns_exist,
+ )
+ from .convert import to_pandas
+-from .frame import ArFrame, _validate_arframe
++from .frame import ArFrame
+ 
+ 
+ class CleaningSuggestion(tuple):
+@@ -1602,7 +1602,10 @@ def profile(
+     >>> report = ar.profile(frame, sample_size=3)
+     >>> report.summary()
+     """
+-    _validate_arframe(frame)
++    if not isinstance(frame, ArFrame):
++        raise TypeError(
++            f"profile() expects an ArFrame, got {type(frame).__name__}. Use arnio.from_pandas() first."
++        )
+ 
+     if not isinstance(sample_size, int) or isinstance(sample_size, bool):
+         raise TypeError("sample_size must be an integer")
+@@ -2666,7 +2669,10 @@ def auto_clean(
+     >>> clean, explanation = ar.auto_clean(frame, explain=True)
+     >>> print(explanation)
+     """
+-    _validate_arframe(frame)
++    if not isinstance(frame, ArFrame):
++        raise TypeError(
++            f"auto_clean() expects an ArFrame, got {type(frame).__name__}. Use arnio.from_pandas() first."
++        )
+ 
+     if not isinstance(mode, str) or mode not in {"safe", "strict"}:
+         raise ValueError("mode must be 'safe' or 'strict'")

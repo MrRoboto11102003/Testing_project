@@ -1,0 +1,17 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..3661e1fc7bae8e746ecc31f8f82305306e9aecc6 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -1401,10 +1401,8 @@ def write_csv(
+     delimiter = _validate_delimiter(delimiter)
+     if not isinstance(line_terminator, str):
+         raise TypeError("line_terminator must be a string")
+-    if line_terminator not in {"\n", "\r\n", "\r"}:
+-        raise ValueError(
+-            f"line_terminator must be one of '\\n', '\\r\\n', or '\\r', got {line_terminator!r}"
+-        )
++    if line_terminator == "":
++        raise ValueError("line_terminator must not be empty")
+ 
+     # Validate encoding and encoding_errors before any file I/O.
+     _validate_jsonl_encoding(encoding)

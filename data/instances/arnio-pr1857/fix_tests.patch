@@ -1,0 +1,26 @@
+diff --git a/tests/test_frame.py b/tests/test_frame.py
+index d94b27d..33380ba 100644
+--- a/tests/test_frame.py
++++ b/tests/test_frame.py
+@@ -184,14 +184,18 @@ def test_nested_dict_values_ArFrame():
+ def test_nested_dictvalues():
+     data = {"info": {"city": "NY", "age": 25}}
+ 
+-    with pytest.raises(ValueError):
++    with pytest.raises(
++        ValueError, match="Nested objects are not supported in column 'info'"
++    ):
+         ar.from_dict(data)
+ 
+ 
+-def test_nested_dictvalues_ArrFrame():
++def test_nested_dictvalues_ArFrame():
+     data = {"info": {"city": "NY", "age": 25}}
+ 
+-    with pytest.raises(ValueError):
++    with pytest.raises(
++        ValueError, match="Nested objects are not supported in column 'info'"
++    ):
+         ar.ArFrame.from_dict(data)
+ 
+ 

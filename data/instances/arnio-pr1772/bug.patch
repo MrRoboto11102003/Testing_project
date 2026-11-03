@@ -1,0 +1,25 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..c4d1ab0f9981c682378cb33fb10dc0e6b1551d0b 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -133,20 +133,6 @@ class ArFrame:
+         if len(records) == 0:
+             raise ValueError("records must be non-empty")
+ 
+-        if columns is not None:
+-            if isinstance(columns, (str, bytes)):
+-                raise TypeError(
+-                    "columns must be a list or tuple of strings, not a string or bytes"
+-                )
+-
+-            if not isinstance(columns, (list, tuple)):
+-                raise TypeError("columns must be a list or tuple of strings")
+-
+-            non_strings = [col for col in columns if not isinstance(col, str)]
+-
+-            if non_strings:
+-                raise TypeError("columns must contain only strings")
+-
+         first = records[0]
+ 
+         if isinstance(first, dict):

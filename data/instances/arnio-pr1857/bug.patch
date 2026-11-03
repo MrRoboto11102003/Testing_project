@@ -1,0 +1,13 @@
+diff --git a/arnio/convert.py b/arnio/convert.py
+index 0c74714701c0095a5d0280e4765ab9681afc1fbf..3149d2e7d109aebe3576b01eefbe7e5d87be02ff 100644
+--- a/arnio/convert.py
++++ b/arnio/convert.py
+@@ -676,7 +676,7 @@ def from_dict(data: dict) -> ArFrame:
+ 
+     for col_name, value in data.items():
+         if isinstance(value, dict):
+-            raise ValueError(f"Nested objects are not supported in column '{col_name}'")
++            raise ValueError(f"Nested objects are not supported in column {col_name}")
+ 
+         if isinstance(value, (str, bytes)):
+             raise TypeError(

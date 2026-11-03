@@ -1,0 +1,14 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..e0bbed98539a28a3e28b0b9ecbe695d95bee6356 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -1319,9 +1319,6 @@ class ValidationResult:
+ 
+     def to_pandas(self) -> pd.DataFrame:
+         """Return issues as a pandas DataFrame."""
+-        if not self.issues:
+-            return pd.DataFrame(columns=ISSUE_COLUMNS)
+-
+         return pd.DataFrame([issue.to_dict() for issue in self.issues])
+ 
+     def to_markdown(

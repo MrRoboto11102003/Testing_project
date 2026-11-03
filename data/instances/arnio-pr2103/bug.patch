@@ -1,0 +1,16 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..4f141c89918594370fdf99f2dcdf1c175f602567 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -489,11 +489,6 @@ def fill_nulls(
+     """
+     _validate_arframe(frame)
+     if subset is not None:
+-        subset = _validate_column_sequence(subset, argument_name="subset")
+-        if len(subset) == 0:
+-            raise ValueError(
+-                "fill_nulls: subset cannot be empty; pass subset=None to fill all columns"
+-            )
+         subset = _validate_existing_column_sequence(
+             subset,
+             available_columns=frame.columns,

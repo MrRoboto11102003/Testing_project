@@ -1,0 +1,38 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..cb1a2371de36616f20d6162d38092007d2ffca25 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -584,9 +584,7 @@ class ArFrame:
+         if missing:
+             raise ValueError(f"Unknown columns: {missing}")
+ 
+-        return ArFrame(
+-            self._frame.select_columns(columns), attrs=copy.deepcopy(self._attrs)
+-        )
++        return ArFrame(self._frame.select_columns(columns))
+ 
+     def drop_columns(self, cols: list[str] | tuple[str, ...]) -> ArFrame:
+         """Return a new ArFrame with the specified columns removed.
+@@ -641,10 +639,7 @@ class ArFrame:
+ 
+         # Empty input — return unchanged copy
+         if not unique_cols:
+-            return ArFrame(
+-                self._frame.select_columns(self.columns),
+-                attrs=copy.deepcopy(self._attrs),
+-            )
++            return ArFrame(self._frame.select_columns(self.columns))
+ 
+         # Preserve original order of remaining columns
+         drop_set = set(unique_cols)
+@@ -654,9 +649,7 @@ class ArFrame:
+         if not remaining:
+             raise ValueError("drop_columns cannot remove all columns from the frame")
+ 
+-        return ArFrame(
+-            self._frame.select_columns(remaining), attrs=copy.deepcopy(self._attrs)
+-        )
++        return ArFrame(self._frame.select_columns(remaining))
+ 
+     def select_dtypes(
+         self,

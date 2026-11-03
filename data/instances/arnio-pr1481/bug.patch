@@ -1,0 +1,18 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..38703710d8e5915f487b85836db4cb0ac0a82908 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -1810,13 +1810,6 @@ def filter_rows(
+ 
+     frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+ 
+-    if not isinstance(column, str) or not column.strip():
+-        raise TypeError(
+-            f"filter_rows: column must be a non-empty string, got {type(column).__name__!r}"
+-        )
+-
+-    if not isinstance(op, str):
+-        raise TypeError(f"filter_rows: op must be a string, got {type(op).__name__!r}")
+     df = to_pandas(frame) if is_arframe else frame
+ 
+     ops = {

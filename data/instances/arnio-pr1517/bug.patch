@@ -1,0 +1,18 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..d27fb65ac59103b2d0f1abbaea3739e03e0c77ff 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -966,13 +966,6 @@ class Schema:
+             raise TypeError(
+                 f"Schema 'fields' must be a mapping (like a dict), got {type(self.fields).__name__}"
+             )
+-
+-        for key in self.fields:
+-            if not isinstance(key, str):
+-                raise TypeError(
+-                    f"Schema field names must be strings, got {type(key).__name__!r}: {key!r}"
+-                )
+-
+         for name, field_def in self.fields.items():
+             if not isinstance(field_def, Field):
+                 raise TypeError(

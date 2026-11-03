@@ -1,0 +1,34 @@
+diff --git a/tests/test_pipeline.py b/tests/test_pipeline.py
+index c54e489..910221c 100644
+--- a/tests/test_pipeline.py
++++ b/tests/test_pipeline.py
+@@ -631,8 +631,13 @@ class TestPipeline:
+             ar.unregister_step("missing_step")
+ 
+     def test_unregister_builtin_python_step(self):
+-        with pytest.raises(ar.UnknownStepError):
+-            ar.unregister_step("standardize_missing_tokens")
++        for step_name in [
++            "standardize_missing_tokens",
++            "filter_rows",
++            "replace_values",
++        ]:
++            with pytest.raises(ValueError):
++                ar.unregister_step(step_name)
+ 
+     def test_unregister_custom_step(self):
+         def custom_step(df):
+diff --git a/tests/test_register_step_safety.py b/tests/test_register_step_safety.py
+index 640d297..42648b7 100644
+--- a/tests/test_register_step_safety.py
++++ b/tests/test_register_step_safety.py
+@@ -153,8 +153,7 @@ class TestUnregisterStepBuiltinAlias:
+         Ensures the fix does not weaken protection for real built-in names
+         such as 'filter_rows', 'normalize_whitespace', 'coalesce_columns'.
+         """
+-        from arnio.exceptions import UnknownStepError
+ 
+         for step_name in list(_BUILTIN_PYTHON_STEP_REGISTRY):
+-            with pytest.raises(UnknownStepError):
++            with pytest.raises(ValueError):
+                 unregister_step(step_name)

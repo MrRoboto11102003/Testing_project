@@ -1,0 +1,39 @@
+{
+ "id": "arnio-pr1862",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1658,
+ "issue_title": "Bug: prevent custom steps from overwriting Python-backed built-ins",
+ "issue_body": "## Summary\n\n`register_step(..., overwrite=True)` can currently replace Python-backed built-in pipeline steps such as `filter_rows`, `safe_divide_columns`, `replace_values`, and `standardize_missing_tokens`.\n\nThe protection in `register_step()` only checks the native `_STEP_REGISTRY`, so built-ins stored in `_PYTHON_STEP_REGISTRY` can be overwritten by user code. That makes pipeline behavior depend on previous custom registrations and can silently replace official Arnio behavior.\n\n## Why it matters\n\nPipeline step names are part of Arnio's public API. Built-in step names should be stable and predictable, especially for reusable cleaning pipelines, examples, and GSSoC contributor work.\n\nIf a custom step accidentally reuses a built-in Python-backed name, future pipeline calls may execute unrelated code without a clear warning.\n\n## Evidence\n\n- `arnio/pipeline.py`: `register_step()` protects names only when `name in _STEP_REGISTRY`.\n- `arnio/pipeline.py`: Python-backed built-ins are stored separately in `_PYTHON_STEP_REGISTRY` / `_BUILTIN_PYTHON_STEP_REGISTRY`.\n- The runtime behavior allows replacing a built-in Python-backed step name when `overwrite=True` is passed.\n\n## Reproduction or trigger\n\n1. Register a custom step using the name of a Python-backed built-in:\n\n   ```python\n   import pandas as pd\n   import arnio as ar\n   from arnio.pipeline import register_step, reset_steps\n\n   def fake_step(frame, **kwargs):\n       print(\"fake step called\")\n       return frame\n\n   register_step(\"filter_rows\", fake_step, overwrite=True)\n   frame = ar.from_pandas(pd.DataFrame({\"value\": [1, 2, 3]}))\n   ar.pipeline(frame, [(\"filter_rows\", {\"column\": \"value\", \"op\": \">\", \"value\": 1})])\n   reset_steps()\n   ```\n\n2. The custom step runs instead of the official `filter_rows` implementation.\n\n## Expected behavior\n\nOfficial built-in pipeline step names should not be overwritten accidentally. If overwriting built-ins is intentionally supported, it should require an explicit maintainer-only/unsafe API and be documented clearly.\n\n## Actual behavior\n\n`overwrite=True` can replace Python-backed built-in names because only native `_STEP_REGISTRY` names are protected.\n\n## Suggested direction\n\nUpdate `register_step()` so it treats `_BUILTIN_PYTHON_STEP_REGISTRY` names as protected built-ins too. Add tests for:\n\n- refusing to overwrite native built-ins\n- refusing to overwrite Python-backed built-ins\n- still allowing overwrite of previously registered custom steps when `overwrite=True`\n- keeping `reset_steps()` behavior unchanged\n\n## References\n\n- `arnio/pipeline.py`\n- Existing built-in Python-backed steps: `filter_rows`, `safe_divide_columns`, `replace_values`, `standardize_missing_tokens`\r\n",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1658",
+ "pr": 1862,
+ "pr_title": "fix(pipeline): prevent custom steps from overwriting Python-backed built-in steps",
+ "pr_body": "Resolves #1658. This PR fixes the issue where \\\register_step\\ would allow developers to mistakenly overwrite Python-backed built-in steps (like \\\filter_rows\\ or \\safe_divide_columns\\) when \\overwrite=True\\ is passed. It updates the internal check to respect \\_BUILTIN_PYTHON_STEP_REGISTRY\\ as a protected namespace, and includes a comprehensive suite of unit tests to prevent future regressions.",
+ "fix_commit": "adf372f3696a69546bad204923c33a2b31aefb79",
+ "merged_at": "2026-05-28T19:27:49Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "arnio/pipeline.py"
+ ],
+ "test_files": [
+  "tests/test_register_step_safety.py"
+ ],
+ "target_symbols": [
+  "arnio/pipeline.py::register_step",
+  "arnio/pipeline.py::reset_steps"
+ ],
+ "fail_to_pass": [
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_prevent_overwriting_builtin_python_steps_with_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_prevent_overwriting_builtin_python_steps_without_overwrite"
+ ],
+ "pass_to_pass": [
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_custom_step_registration_and_explicit_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_prevent_overwriting_builtin_cpp_steps_with_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_prevent_overwriting_builtin_cpp_steps_without_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_reset_steps_behavior_remains_unchanged",
+  "tests/test_register_step_safety.py::TestUnregisterStepBuiltinAlias::test_builtin_python_step_names_remain_protected",
+  "tests/test_register_step_safety.py::TestUnregisterStepBuiltinAlias::test_custom_alias_of_builtin_function_can_be_unregistered"
+ ],
+ "patch_lines": 8
+}

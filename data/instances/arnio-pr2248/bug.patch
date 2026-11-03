@@ -1,0 +1,41 @@
+diff --git a/arnio/pipeline.py b/arnio/pipeline.py
+index 33f52d567ffb2370a3bb698940e45887374da735..e05a5dff7b7d66fb2d2d7daa80bbe08b97c5d79b 100644
+--- a/arnio/pipeline.py
++++ b/arnio/pipeline.py
+@@ -368,27 +368,6 @@ def _resolve_step_name(name: str, deprecated_step_aliases: dict[str, str]) -> st
+     return canonical_name
+ 
+ 
+-def _validate_pipeline_step_container(steps: Any) -> None:
+-    if steps is None:
+-        raise TypeError("steps must be a list of step tuples, got None")
+-
+-    if isinstance(steps, (str, bytes)):
+-        raise TypeError(
+-            f"steps must be a list of step tuples, got {type(steps).__name__}. "
+-            "Each step must be (name,) or (name, kwargs), for example "
+-            '[("drop_nulls",)].'
+-        )
+-    if isinstance(steps, tuple):
+-        raise TypeError(
+-            f"steps must be a list of step tuples, got bare step tuple {steps!r}. "
+-            f"Use [{steps!r}] instead."
+-        )
+-    if not isinstance(steps, list):
+-        raise TypeError(
+-            f"steps must be a list of step tuples, got {type(steps).__name__}. "
+-        )
+-
+-
+ def _validate_pipeline_steps(
+     steps: list[tuple],
+     python_step_registry: dict[str, Callable],
+@@ -562,8 +541,6 @@ def pipeline(
+         namespaced_builtin_steps = _get_namespaced_builtin_steps(python_step_registry)
+         deprecated_step_aliases = dict(_DEPRECATED_STEP_ALIASES)
+ 
+-    _validate_pipeline_step_container(steps)
+-
+     _validate_pipeline_steps(
+         steps,
+         python_step_registry,

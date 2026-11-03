@@ -1,0 +1,23 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..0ba5eb7bcdce0971cb6bee6dc5e041710c8390be 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -754,15 +754,9 @@ def clip_numeric(
+         return dtypes.get(col_name) in ("int64", "float64")
+ 
+     if subset is not None:
+-        subset = _validate_existing_column_sequence(
+-            subset,
+-            available_columns=frame.columns,
+-            argument_name="subset",
+-            missing_error=ValueError,
+-            missing_message=lambda missing, _available: (
+-                f"Unknown columns in subset: {missing}"
+-            ),
+-        )
++        unknown_columns = [col for col in subset if col not in dtypes]
++        if unknown_columns:
++            raise ValueError(f"Unknown columns in subset: {unknown_columns}")
+ 
+         non_numeric_columns = [col for col in subset if not _is_supported_numeric(col)]
+         if non_numeric_columns:

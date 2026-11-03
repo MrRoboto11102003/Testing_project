@@ -1,0 +1,25 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..df0f616da05ca0c0beff95192015e5043b80cb4f 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -582,13 +582,13 @@ class DataQualityReport:
+                 warnings = ", ".join(column.warnings) if column.warnings else "-"
+ 
+                 lines.append(
+-                    f"| {_markdown_cell(column.name)} "
+-                    f"| {_markdown_cell(column.dtype)} "
+-                    f"| {_markdown_cell(column.semantic_type)} "
+-                    f"| {_markdown_cell(column.null_count)} "
+-                    f"| {_markdown_cell(column.unique_count)} "
+-                    f"| {_markdown_cell(f'{column.unique_ratio:.2%}')} "
+-                    f"| {_markdown_cell(warnings)} |"
++                    f"| {column.name} "
++                    f"| {column.dtype} "
++                    f"| {column.semantic_type} "
++                    f"| {column.null_count} "
++                    f"| {column.unique_count} "
++                    f"| {column.unique_ratio:.2%} "
++                    f"| {warnings} |"
+                 )
+ 
+             lines.append("")

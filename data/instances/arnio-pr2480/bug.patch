@@ -1,0 +1,25 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..092bae6393980039546dbb846d83aa92e6b7f2f8 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -2262,8 +2262,8 @@ def write_parquet(
+     ImportError
+         If ``pyarrow`` is not installed.
+     TypeError
+-        If ``preserve_attrs`` is not a boolean, or if ``preserve_attrs`` is
+-        ``True`` and ``DataFrame.attrs`` contains non-JSON-serializable values.
++        If ``preserve_attrs`` is ``True`` and ``DataFrame.attrs``
++        contains non-JSON-serializable values.
+     ValueError
+         If the file extension is not ``.parquet`` or ``.pq``, if
+         ``compression`` is not a recognised codec, or if
+@@ -2309,9 +2309,6 @@ def write_parquet(
+         if row_group_size <= 0:
+             raise ValueError("row_group_size must be a positive integer")
+ 
+-    if not isinstance(preserve_attrs, bool):
+-        raise TypeError("preserve_attrs must be a bool")
+-
+     try:
+         import pyarrow  # noqa: F401 — presence check only
+     except ImportError as exc:

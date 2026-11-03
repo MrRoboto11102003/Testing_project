@@ -1,0 +1,33 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..da8032db0dfe3b7368f6405d718b6e7d30832de9 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -588,12 +588,12 @@ class ArFrame:
+             self._frame.select_columns(columns), attrs=copy.deepcopy(self._attrs)
+         )
+ 
+-    def drop_columns(self, cols: list[str] | tuple[str, ...]) -> ArFrame:
++    def drop_columns(self, cols: list[str]) -> ArFrame:
+         """Return a new ArFrame with the specified columns removed.
+ 
+         Parameters
+         ----------
+-        cols : list[str] | tuple[str, ...]
++        cols : list[str]
+             Column names to drop. Duplicates are silently ignored.
+             An empty list returns a copy of the frame unchanged.
+ 
+@@ -614,11 +614,10 @@ class ArFrame:
+         --------
+         >>> frame = ar.read_csv("data.csv")
+         >>> smaller = frame.drop_columns(["col1", "col2"])
+-        >>> smaller = frame.drop_columns(("col1", "col2"))
+         """
+-        if not isinstance(cols, (list, tuple)):
++        if not isinstance(cols, list):
+             raise TypeError(
+-                f"cols must be a list or tuple of column names, got {type(cols).__name__!r}"
++                f"cols must be a list of column names, got {type(cols).__name__!r}"
+             )
+ 
+         if any(not isinstance(col, str) for col in cols):

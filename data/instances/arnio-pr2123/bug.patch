@@ -1,0 +1,15 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..abe9afa1e54c00bec089db5ba36741117bdf7a41 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -3521,8 +3521,8 @@ def register_validator(
+     """
+     if not callable(fn):
+         raise TypeError("fn must be callable")
+-    if not isinstance(name, str) or not name.strip():
+-        raise ValueError("Validator name must be a non-empty, non-whitespace string")
++    if not isinstance(name, str) or not name:
++        raise ValueError("name must be a non-empty string")
+     if name in _CUSTOM_VALIDATORS and not overwrite:
+         raise ValueError(
+             f"Validator {name!r} is already registered. "

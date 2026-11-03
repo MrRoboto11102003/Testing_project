@@ -1,0 +1,58 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..57e46dbba16a0a6975b2271011e86f0a2c66b8bf 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -7,7 +7,6 @@ from __future__ import annotations
+ 
+ import codecs
+ import io
+-import json
+ import os
+ import re as _re
+ import shutil
+@@ -1155,6 +1154,8 @@ def read_csv_chunked(
+     null_values : list[str], optional
+         Strings treated as null values.
+ 
++
++
+     mode : {"strict", "permissive"}, default "strict"
+         Controls malformed row handling.
+         Both modes reject extra fields; permissive mode only allows missing
+@@ -2226,7 +2227,6 @@ def write_parquet(
+     *,
+     compression: str = "snappy",
+     row_group_size: int | None = None,
+-    preserve_attrs: bool = True,
+ ) -> None:
+     """Write an ArFrame to a Parquet file via pyarrow.
+ 
+@@ -2274,7 +2274,6 @@ def write_parquet(
+     >>> ar.write_parquet(frame, "output.parquet")
+     >>> ar.write_parquet(frame, "output.pq", compression="zstd")
+     >>> ar.write_parquet(frame, "output.parquet", row_group_size=50_000)
+-    >>> ar.write_parquet(frame, "output.parquet", preserve_attrs=False)
+     """
+     if not isinstance(frame, ArFrame):
+         raise TypeError("frame must be an ArFrame")
+@@ -2328,20 +2327,6 @@ def write_parquet(
+ 
+     df = to_pandas(frame)
+ 
+-    if df.attrs:
+-        if preserve_attrs:
+-            try:
+-                json.dumps(df.attrs)
+-            except (TypeError, ValueError) as exc:
+-                raise TypeError(
+-                    "write_parquet() requires that DataFrame.attrs contain only "
+-                    "JSON-serializable values (str, int, float, bool, list, dict, None). "
+-                    f"Serialization failed: {exc}. "
+-                    "To export without metadata, pass preserve_attrs=False."
+-                ) from exc
+-        else:
+-            df.attrs = {}
+-
+     kwargs: dict = {
+         "engine": "pyarrow",
+         "compression": None if compression == "none" else compression,

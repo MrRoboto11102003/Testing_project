@@ -1,0 +1,106 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..eb513c3e553bccc5aed0803d264233704bd7e661 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -69,82 +69,16 @@ def _utf8_csv_path(
+                 "w", encoding="utf-8", newline="", suffix=".csv", delete=False
+             ) as tmp:
+                 if sample_rows is not None:
+-                    # Preserve the original decoded CSV text while sampling
+-                    # complete logical records so scan_schema does not see a
+-                    # rewritten file with normalized quoting or line endings.
+-                    row_count = 0
+-                    in_quotes = False
+-                    pending_quote = False
+-                    pending_cr = False
+-                    last_char_was_terminator = False
+-                    sample_complete = False
+-
+-                    while chunk := src.read(8192):
+-                        chunk_len = len(chunk)
+-                        index = 0
+-                        while index < chunk_len:
+-                            char = chunk[index]
+-
+-                            if sample_complete:
+-                                if pending_cr and char == "\n":
+-                                    tmp.write(char)
+-                                pending_cr = False
+-                                break
+-
+-                            tmp.write(char)
+-
+-                            if pending_cr:
+-                                pending_cr = False
+-                                if char == "\n":
+-                                    last_char_was_terminator = True
+-                                    index += 1
+-                                    continue
+-
+-                            if char == '"':
+-                                if pending_quote:
+-                                    pending_quote = False
+-                                elif in_quotes:
+-                                    pending_quote = True
+-                                else:
+-                                    in_quotes = True
+-                                last_char_was_terminator = False
+-                            else:
+-                                if pending_quote:
+-                                    in_quotes = False
+-                                    pending_quote = False
+-
+-                                if not in_quotes and char in {"\n", "\r"}:
+-                                    row_count += 1
+-                                    last_char_was_terminator = True
+-                                    if char == "\r":
+-                                        if (
+-                                            index + 1 < chunk_len
+-                                            and chunk[index + 1] == "\n"
+-                                        ):
+-                                            tmp.write("\n")
+-                                            index += 1
+-                                        else:
+-                                            pending_cr = True
+-                                    if row_count >= sample_rows:
+-                                        sample_complete = True
+-                                        break
+-                                else:
+-                                    last_char_was_terminator = False
+-
+-                            index += 1
+-
+-                        if sample_complete and not pending_cr:
++                    # Use csv.reader so we advance through complete CSV records
++                    # rather than raw physical lines. This prevents a quoted
++                    # multiline field from being split at the sampling boundary,
++                    # which would produce an invalid partial CSV for scan_schema.
++                    reader = csv.reader(src, delimiter=delimiter)
++                    writer = csv.writer(tmp, delimiter=delimiter)
++                    for row_count, row in enumerate(reader):
++                        if row_count >= sample_rows:
+                             break
+-
+-                    if (
+-                        sample_rows > 0
+-                        and not last_char_was_terminator
+-                        and tmp.tell() > 0
+-                    ):
+-                        # Count a final record that reaches EOF without a line
+-                        # terminator so sampling semantics match the previous
+-                        # logical-record-based behavior.
+-                        row_count += 1
++                        writer.writerow(row)
+                 else:
+                     shutil.copyfileobj(src, tmp)
+                 tmp_name = tmp.name
+@@ -1629,7 +1563,8 @@ def scan_csv(
+         # Schema inference only needs a sample, avoiding full-file transcode.
+         # For scan_csv, if sample_rows is specified, we use that for sniffing the schema.
+         # sample_rows is passed so _utf8_csv_path uses record-aware sampling
+-        # without rewriting decoded CSV text before native parsing.
++        # via csv.reader, which correctly handles quoted multiline fields that
++        # straddle the boundary.
+         with _utf8_csv_path(
+             native_path,
+             encoding,

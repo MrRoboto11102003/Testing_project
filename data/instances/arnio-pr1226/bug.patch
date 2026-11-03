@@ -1,0 +1,16 @@
+diff --git a/arnio/convert.py b/arnio/convert.py
+index 0c74714701c0095a5d0280e4765ab9681afc1fbf..2dc1d040aecf80ed24950d9c8129e864681474a7 100644
+--- a/arnio/convert.py
++++ b/arnio/convert.py
+@@ -213,11 +213,6 @@ def to_pandas(frame: ArFrame, *, copy: bool = False) -> pd.DataFrame:
+     if not isinstance(copy, bool):
+         raise TypeError("copy must be a bool")
+ 
+-    if not isinstance(frame, ArFrame):
+-        raise TypeError(
+-            f"to_pandas() expects an ArFrame, got {type(frame).__name__}. Use arnio.from_pandas() first."
+-        )
+-
+     cpp_frame = frame._frame
+     data = {}
+ 

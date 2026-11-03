@@ -1,0 +1,17 @@
+diff --git a/arnio/integrations/duckdb.py b/arnio/integrations/duckdb.py
+index 69d2dee292890182cbfe8c18703fde68d2c2f3eb..e0b08300a4c365b4eca181c3e1d1eaf7796e5531 100644
+--- a/arnio/integrations/duckdb.py
++++ b/arnio/integrations/duckdb.py
+@@ -53,12 +53,5 @@ def register_duckdb(
+     if not name or not name.strip():
+         raise ValueError("name must not be empty or whitespace-only")
+ 
+-    register = getattr(conn, "register", None)
+-
+-    if not callable(register):
+-        raise TypeError(
+-            "conn must be a DuckDB connection with a callable register() method"
+-        )
+-
+     df = to_pandas(frame)
+     conn.register(name, df)

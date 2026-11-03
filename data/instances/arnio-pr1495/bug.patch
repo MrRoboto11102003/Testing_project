@@ -1,0 +1,34 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..c99986afbb7f98b91d7f2f272ce37fbbb2689278 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -1637,25 +1637,23 @@ def profile(
+     if approx_top_values_sample_size <= 0:
+         raise ValueError("approx_top_values_sample_size must be positive")
+ 
+-    normalized_exclude_columns: list[str] = []
++    has_exclusions = exclude_columns is not None and len(exclude_columns) > 0
+ 
+     if exclude_columns is not None:
+-        normalized_exclude_columns = _validate_column_sequence(
++        exclude_columns = _validate_column_sequence(
+             exclude_columns,
+             argument_name="exclude_columns",
+         )
+         validate_columns_exist(
+             frame,
+-            normalized_exclude_columns,
++            exclude_columns,
+             operation="profile",
+         )
+ 
+-    has_exclusions = len(normalized_exclude_columns) > 0
+-
+     df = to_pandas(frame)
+ 
+     if has_exclusions:
+-        df = df.drop(columns=normalized_exclude_columns)
++        df = df.drop(columns=list(exclude_columns))
+ 
+     row_count = len(df)
+     column_count = len(df.columns)

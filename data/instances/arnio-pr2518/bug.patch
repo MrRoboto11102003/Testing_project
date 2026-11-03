@@ -1,0 +1,19 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..c91713bd1f9eaafdca0c5352e17f1bf2588bcd82 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -848,14 +848,6 @@ def winsorize_outliers(
+     >>> clean = ar.winsorize_outliers(frame, lower=0.01, upper=0.99, subset=["revenue"])
+     """
+     _validate_arframe(frame)
+-
+-    for name, value in (("lower", lower), ("upper", upper)):
+-        if isinstance(value, bool) or not isinstance(value, (int, float)):
+-            raise TypeError(f"'{name}' must be an int or float")
+-
+-        if not math.isfinite(value):
+-            raise ValueError(f"'{name}' must be finite")
+-
+     if lower < 0 or upper > 1:
+         raise ValueError("lower and upper must be between 0 and 1")
+ 

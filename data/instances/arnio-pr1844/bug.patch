@@ -1,0 +1,13 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..0a16018920ae398601d1bd980648555ca03cd923 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -2904,7 +2904,7 @@ def _validate_column(
+             )
+         else:
+             trigger_mask = df[condition_column] == expected_value
+-            invalid = series[trigger_mask & is_null_mask]
++            invalid = series[trigger_mask & series.isna()]
+ 
+             issues.extend(
+                 _row_issues(

@@ -1,0 +1,13 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..2a9845bc7b64587fec8691331d63fc4ed130c493 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -200,8 +200,6 @@ _ALLOWED_SCHEMA_KEYS = {
+ 
+ def _validate_severity(severity: str) -> None:
+     """Raise ValueError if severity is not 'error' or 'warning'."""
+-    if not isinstance(severity, str):
+-        raise TypeError("severity must be a string")
+     if severity not in _VALID_SEVERITIES:
+         raise ValueError("severity must be 'error' or 'warning'")
+ 

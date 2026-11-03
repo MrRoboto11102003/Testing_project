@@ -1,0 +1,93 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..399305c39491f3e2f0190218c99307d728c41845 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -2377,7 +2377,7 @@ def replace_values(
+ 
+ 
+ def standardize_missing_tokens(frame, tokens=None, subset=None):
+-    """Convert null-like string tokens in the frame to the standard NaN form.
++    """Converting missing tokens in the DataFrame to the standard form NaN
+ 
+     Parameters
+     ----------
+@@ -2388,12 +2388,6 @@ def standardize_missing_tokens(frame, tokens=None, subset=None):
+     subset : list[str], optional
+         Column names to replace missing tokens in. If None, applies to all columns.
+ 
+-    Notes
+-    -----
+-    Matching is case-insensitive and trims surrounding whitespace before checking
+-    token membership. Values that do not match a missing token preserve their
+-    original whitespace.
+-
+     Returns
+     -------
+     ArFrame
+@@ -2403,8 +2397,6 @@ def standardize_missing_tokens(frame, tokens=None, subset=None):
+     --------
+     >>> frame = ar.from_pandas(pd.DataFrame({"value": [1, 2, "N/A"]}))
+     >>> result = ar.standardize_missing_tokens(frame)
+-    >>> frame = ar.from_pandas(pd.DataFrame({"value": [" NULL ", "\\tNaN\\t", "kept"]}))
+-    >>> result = ar.standardize_missing_tokens(frame)
+     """
+ 
+     from .convert import from_pandas, to_pandas
+@@ -2434,38 +2426,13 @@ def standardize_missing_tokens(frame, tokens=None, subset=None):
+                     f"tokens must be a list of strings, got {type(item).__name__!r} item"
+                 )
+ 
+-    default_tokens = [
+-        "N/A",
+-        "NA",
+-        "n/a",
+-        "na",
+-        "nan",
+-        "-",
+-        "none",
+-        "nil",
+-        "null",
+-        "",
+-        "?",
+-    ]
+-
+-    token_values = default_tokens if tokens is None else list(tokens)
+-    normalized_tokens = {
+-        token.strip().lower() for token in token_values if isinstance(token, str)
+-    }
+-
+-    def _normalize_missing_value(value):
+-        if not isinstance(value, str):
+-            return value
+-        if value.strip().lower() in normalized_tokens:
+-            return float("nan")
+-        return value
+-
+-    def _normalize_columns(columns):
+-        for column in columns:
+-            df[column] = df[column].map(_normalize_missing_value)
++    default_tokens = ["N/A", "NA", "n/a", "na", "-", "none", "nil", "null", "", "?"]
+ 
+     if subset is None:
+-        _normalize_columns(df.columns)
++        if tokens is None:
++            df = df.replace(default_tokens, float("nan"))
++        else:
++            df = df.replace(tokens, float("nan"))
+ 
+     else:
+         subset_columns = _validate_existing_column_sequence(
+@@ -2477,7 +2444,12 @@ def standardize_missing_tokens(frame, tokens=None, subset=None):
+                 f"Unknown columns in subset: {missing}"
+             ),
+         )
+-        _normalize_columns(subset_columns)
++        if tokens is None:
++            df[subset_columns] = df[subset_columns].replace(
++                default_tokens, float("nan")
++            )
++        else:
++            df[subset_columns] = df[subset_columns].replace(tokens, float("nan"))
+ 
+     return from_pandas(df) if is_arframe else df
+ 

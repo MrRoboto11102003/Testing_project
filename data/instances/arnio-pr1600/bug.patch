@@ -1,0 +1,13 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..a8e8ec25d63d421d474776563ed68ad5e3826d28 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -1348,8 +1348,6 @@ class ValidationResult:
+             raise TypeError("max_issues must be an integer or None")
+         if max_issues is not None and max_issues < 0:
+             raise ValueError("max_issues must be non-negative")
+-        if not isinstance(redact_values, bool):
+-            raise TypeError("redact_values must be a bool")
+ 
+         status = "passed" if self.passed else "failed"
+         lines = [

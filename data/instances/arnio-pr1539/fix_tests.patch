@@ -1,0 +1,47 @@
+diff --git a/tests/test_cleaning.py b/tests/test_cleaning.py
+index 1095b49..bf046c1 100644
+--- a/tests/test_cleaning.py
++++ b/tests/test_cleaning.py
+@@ -643,12 +643,23 @@ class TestDropColumns:
+         with pytest.raises(TypeError, match="only string column names"):
+             ar.drop_columns(frame, ["age", 1])
+ 
+-    def test_drop_columns_rejects_removing_all_columns(self):
++    def test_drop_columns_rejects_removing_all_columns_across_entry_points(self):
+         frame = ar.from_pandas(pd.DataFrame({"id": [1, 2], "name": ["a", "b"]}))
+ 
++        with pytest.raises(ValueError, match="drop_columns cannot remove all columns"):
++            frame.drop_columns(["id", "name"])
++
+         with pytest.raises(ValueError, match="drop_columns cannot remove all columns"):
+             ar.drop_columns(frame, ["id", "name"])
+ 
++        with pytest.raises(ValueError, match="drop_columns cannot remove all columns"):
++            ar.pipeline(
++                frame,
++                [
++                    ("drop_columns", {"columns": ["id", "name"]}),
++                ],
++            )
++
+ 
+ class TestDropConstantColumns:
+     def test_drop_constant_columns_removes_constant_columns(self):
+diff --git a/tests/test_frame.py b/tests/test_frame.py
+index de397b1..60dbda8 100644
+--- a/tests/test_frame.py
++++ b/tests/test_frame.py
+@@ -833,13 +833,6 @@ class TestDropColumns:
+         assert result.columns == ["a", "b"]
+         assert result.shape == frame.shape
+ 
+-    def test_drop_all_columns_returns_empty_frame(self):
+-        df = pd.DataFrame({"a": [1], "b": [2]})
+-        frame = ar.from_pandas(df)
+-        result = frame.drop_columns(["a", "b"])
+-        assert result.columns == []
+-        assert result.shape == (1, 0)
+-
+     def test_drop_duplicate_names_in_cols(self):
+         df = pd.DataFrame({"a": [1], "b": [2], "c": [3]})
+         frame = ar.from_pandas(df)

@@ -1,0 +1,63 @@
+diff --git a/tests/test_register_validator.py b/tests/test_register_validator.py
+index 40dc54b..a5f3ad1 100644
+--- a/tests/test_register_validator.py
++++ b/tests/test_register_validator.py
+@@ -318,6 +318,25 @@ class TestCustomValidatorReturnNormalization:
+         with pytest.raises(TypeError, match="returns_str"):
+             ar.validate(frame, {"x": ar.Custom("returns_str")})
+ 
++    def test_validator_exception_includes_schema_context(self):
++        """A validator exception is wrapped with column and validator context."""
++
++        def raises_for_value(value):
++            raise RuntimeError(f"bad value: {value}")
++
++        register_validator("raises_for_value", raises_for_value)
++        frame = ar.from_pandas(pd.DataFrame({"score": [42]}))
++
++        with pytest.raises(ar.ArnioError) as exc_info:
++            ar.validate(frame, {"score": ar.Custom("raises_for_value")})
++
++        message = str(exc_info.value)
++        assert "raises_for_value" in message
++        assert "score" in message
++        assert "42" in message
++        assert isinstance(exc_info.value.__cause__, RuntimeError)
++        assert str(exc_info.value.__cause__) == "bad value: 42"
++
+     def test_mixed_true_false_none_pd_na(self):
+         """Mixed True/False/None/pd.NA: only True rows pass, others fail."""
+ 
+diff --git a/tests/test_schema.py b/tests/test_schema.py
+index 71a4a1d..b8e1099 100644
+--- a/tests/test_schema.py
++++ b/tests/test_schema.py
+@@ -2866,7 +2866,7 @@ def test_register_validator_raises_for_empty_name():
+         raise AssertionError("Expected ValueError for empty name")
+ 
+ 
+-def test_custom_validator_exceptions_propagate(tmp_path):
++def test_custom_validator_exceptions_include_schema_context(tmp_path):
+     def broken_validator(value):
+         raise RuntimeError("validator exploded")
+ 
+@@ -2875,13 +2875,17 @@ def test_custom_validator_exceptions_propagate(tmp_path):
+     path = tmp_path / "scores.csv"
+     path.write_text("score\n1\n")
+ 
+-    with pytest.raises(RuntimeError) as exc:
++    with pytest.raises(ar.ArnioError) as exc:
+         ar.validate(
+             ar.read_csv(path),
+             {"score": ar.Custom("broken")},
+         )
+ 
+-    assert "validator exploded" in str(exc.value)
++    message = str(exc.value)
++    assert "broken" in message
++    assert "score" in message
++    assert "validator exploded" in message
++    assert isinstance(exc.value.__cause__, RuntimeError)
+ 
+ 
+ def test_schema_rules_multiple_rules_all_run(tmp_path):

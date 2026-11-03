@@ -1,0 +1,18 @@
+diff --git a/arnio/schema_export.py b/arnio/schema_export.py
+index c8c4a337b08d7d9563c51fe4635ddbee6b37f151..a9ff38b63c4fbd570f91e3caa070874c8183e0c6 100644
+--- a/arnio/schema_export.py
++++ b/arnio/schema_export.py
+@@ -400,13 +400,7 @@ def schema_to_yaml(
+     yaml_str = body if body.endswith("\n") else body + "\n"
+ 
+     if path is not None:
+-        if not isinstance(path, (str, os.PathLike)):
+-            raise TypeError("path must be a string or os.PathLike")
+-        if isinstance(path, str) and not path.strip():
+-            raise ValueError("path must not be empty")
+         target = pathlib.Path(path)
+-        if target.is_dir():
+-            raise ValueError("path must point to a file, not a directory")
+         target.parent.mkdir(parents=True, exist_ok=True)
+         target.write_text(yaml_str, encoding="utf-8")
+ 

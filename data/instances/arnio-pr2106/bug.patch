@@ -1,0 +1,32 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..47938cecb254b6d746e75b3a184aa98cf6ecfa23 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -1072,13 +1072,6 @@ class Schema:
+                 "Schema JSON must decode to an object with 'fields', 'strict', and optional 'unique'."
+             )
+ 
+-        unknown = set(payload.keys()) - _ALLOWED_SCHEMA_KEYS
+-        if unknown:
+-            raise ValueError(
+-                f"Schema JSON contains unknown key(s): {sorted(unknown)}. "
+-                f"Allowed keys: {sorted(_ALLOWED_SCHEMA_KEYS)}"
+-            )
+-
+         fields_payload = payload.get("fields")
+         if not isinstance(fields_payload, dict):
+             raise TypeError(
+@@ -3343,13 +3336,6 @@ def _field_from_json_dict(name: str, payload: Any) -> Field:
+             f"Schema JSON field for column {name!r} must be an object, got {type(payload).__name__}."
+         )
+ 
+-    unknown = set(payload.keys()) - _ALLOWED_FIELD_KEYS
+-    if unknown:
+-        raise ValueError(
+-            f"Schema JSON field {name!r} contains unknown key(s): {sorted(unknown)}. "
+-            f"Allowed keys: {sorted(_ALLOWED_FIELD_KEYS)}"
+-        )
+-
+     allowed = payload.get("allowed")
+     if allowed is not None:
+         if not isinstance(allowed, list):

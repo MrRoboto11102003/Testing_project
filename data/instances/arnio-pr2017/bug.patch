@@ -1,0 +1,25 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..54bfb9d52fb366aa3ea05081bc198397d264e7df 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -3402,18 +3402,9 @@ def _normalize_unique(
+ 
+ 
+ def _normalize_sequence(value: Any) -> Any:
+-    """Convert sets and tuples to lists for JSON-serializable output.
+-
+-    Sets are sorted naturally when possible. If the set contains mixed
+-    incomparable types (e.g. int and str), falls back to a type-safe key
+-    so serialization never raises TypeError.
+-    """
++    """Convert sets and tuples to lists for JSON-serializable output."""
+     if isinstance(value, set):
+-        try:
+-            return sorted(value)
+-        except TypeError:
+-            return sorted(value, key=lambda x: (type(x).__name__, repr(x)))
+-
++        return sorted(value)
+     if isinstance(value, tuple):
+         return list(value)
+     return value

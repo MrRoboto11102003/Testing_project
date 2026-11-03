@@ -1,0 +1,58 @@
+{
+ "id": "arnio-pr2063",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1665,
+ "issue_title": "Bug: diff_schema ignores cross-field validation rules",
+ "issue_body": "## Summary\n\n`diff_schema()` compares fields, `strict`, and `unique`, but it ignores `Schema.rules`. Two schemas can have different cross-field validation behavior and still be reported as unchanged.\n\n## Why it matters\n\nCross-field rules are part of the schema contract. If `diff_schema()` is used in CI or release checks, missing or changed rules can silently pass as no schema drift.\n\n## Evidence\n\n- `arnio/schema.py::Schema` accepts a `rules` list of callables.\n- `arnio/schema.py::validate()` executes `schema.rules` after field and uniqueness checks.\n- `arnio/schema.py::diff_schema()` does not inspect or report `rules` at all.\n\n## Reproduction or trigger\n\n```python\nimport arnio as ar\n\ndef rule_a(df):\n    return []\n\nexpected = ar.Schema({\"x\": ar.Int64()}, rules=[rule_a])\nobserved = ar.Schema({\"x\": ar.Int64()}, rules=None)\n\nprint(ar.diff_schema(expected, observed).to_dict())\n```\n\nCurrent output:\n\n```python\n{'changed': False, 'difference_count': 0, 'differences': []}\n```\n\n## Expected behavior\n\n`diff_schema()` should report that schema-level validation rules differ when one schema has rules and the other does not, or when the visible rule identity/count differs.\n\n## Actual behavior\n\nRule differences are ignored entirely.\n\n## Suggested direction\n\nAdd a schema-level comparison for `rules`. A minimal contributor-friendly version could compare:\n\n- rule count\n- callable `__name__` values where available\n- presence/absence of rules\n\nThe diff entry can use `change=\"changed_schema\"` and `attribute=\"rules\"`. If exact callable equality is intentionally unsupported, document that the comparison is best-effort by name/count.\n\nAdd tests for:\n\n- rules present vs absent\n- same rule name/count reporting unchanged\n- different rule names reporting changed\n- `to_markdown()` rendering the schema-level rules difference clearly\n\n## References\n\n- `arnio/schema.py::Schema`\n- `arnio/schema.py::validate`\n- `arnio/schema.py::diff_schema`\r\n",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1665",
+ "pr": 2063,
+ "pr_title": "fix: include schema rules in diff_schema",
+ "pr_body": "Summary\n- Fixes #1665\n- Adds a stable best-effort summary for `Schema.rules` so `diff_schema()` reports cross-field rule drift.\n- Emits one schema-level `changed_schema` diff entry with `attribute=\"rules\"` when rule presence, count, or visible callable names differ.\n- Documents that rule comparison is by visible callable identity and does not try to infer exact semantic equivalence.\n- Adds focused tests for present/absent rules, same named rules, different rule names, rule count changes, callable-object fallback, and markdown rendering.\n\nThis is for GSSoC 2026 and stays scoped to the assigned schema diff bug.\n\nValidation\n- `.venv-codex/bin/python -m pytest tests/test_diff_schema.py -q` - 21 passed\n- `.venv-codex/bin/python -m pytest tests/test_diff_schema.py tests/test_schema.py -q` - 306 passed\n- `.venv-codex/bin/python -m pytest -q` - 2591 passed, 46 skipped\n- `.venv-codex/bin/python -m ruff check . --extend-exclude \"*.ipynb\"`\n- `.venv-codex/bin/python -m mypy --config-file mypy.ini`\n- `.venv-codex/bin/python scripts/check_docs_utf8.py`\n- `git diff --check`",
+ "fix_commit": "c7fa64590aa8eac15d09ee9c1e9db148156b7050",
+ "merged_at": "2026-05-29T17:23:28Z",
+ "port_method": "partial_hunks:3/4",
+ "src_files": [
+  "arnio/schema.py"
+ ],
+ "test_files": [
+  "tests/test_diff_schema.py"
+ ],
+ "target_symbols": [
+  "arnio/schema.py::SchemaDiff.to_markdown",
+  "arnio/schema.py::diff_schema",
+  "arnio/schema.py::validate"
+ ],
+ "fail_to_pass": [
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_different_rule_names",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_rule_count_changes",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_rules_present_vs_absent",
+  "tests/test_diff_schema.py::TestDiffSchema::test_rule_callable_object_fallback_uses_type_name",
+  "tests/test_diff_schema.py::TestDiffSchema::test_rules_difference_renders_in_markdown"
+ ],
+ "pass_to_pass": [
+  "tests/test_diff_schema.py::TestDiffSchema::test_accepts_dict_input_for_both",
+  "tests/test_diff_schema.py::TestDiffSchema::test_accepts_dict_input_for_expected",
+  "tests/test_diff_schema.py::TestDiffSchema::test_accepts_dict_input_for_observed",
+  "tests/test_diff_schema.py::TestDiffSchema::test_changed_field_with_only_expected",
+  "tests/test_diff_schema.py::TestDiffSchema::test_changed_field_with_only_observed",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_dtype_change_between_schemas",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_extra_column_in_second_schema",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_missing_column_in_second_schema",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_nullable_change",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_strict_flag_change",
+  "tests/test_diff_schema.py::TestDiffSchema::test_detects_unique_flag_change",
+  "tests/test_diff_schema.py::TestDiffSchema::test_multiple_changed_attributes",
+  "tests/test_diff_schema.py::TestDiffSchema::test_returns_empty_diff_for_identical_schemas",
+  "tests/test_diff_schema.py::TestDiffSchema::test_same_named_rules_are_unchanged",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiff_rejects_non_entry_objects",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiff_rejects_non_list_differences",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiffentry_rejects_invalid_attribute_type",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiffentry_rejects_invalid_change_type",
+  "tests/test_diff_schema.py::TestDiffSchema::test_schemadiffentry_rejects_invalid_column_type",
+  "tests/test_diff_schema.py::TestDiffSchema::test_severity_error_to_warning",
+  "tests/test_diff_schema.py::TestDiffSchema::test_severity_warning_to_error"
+ ],
+ "patch_lines": 41
+}

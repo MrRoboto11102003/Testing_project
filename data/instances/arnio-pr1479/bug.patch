@@ -1,0 +1,18 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..fb237fe4527a8a4797ef457c0ed4c774de3e9d3d 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -399,13 +399,6 @@ class DataQualityReport:
+                 f"{unknown_exclude_columns}. Available columns: {available_columns}"
+             )
+ 
+-        def _redact_reason(reason: str | None) -> str | None:
+-            if not reason or not exclude_columns:
+-                return reason
+-            for col in exclude_columns:
+-                reason = reason.replace(f"'{col}'", "'[REDACTED]'")
+-            return reason
+-
+         return {
+             "row_count": self.row_count,
+             "column_count": self.column_count,

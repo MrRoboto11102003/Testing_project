@@ -1,0 +1,28 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..94e8c35606450f2722f973fc10097db128c9efcb 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -223,15 +223,14 @@ def _validate_string_mapping(
+     argument_name: str,
+     allow_empty: bool = True,
+ ) -> dict[str, str]:
+-    if not isinstance(mapping, Mapping):
+-        raise TypeError(
+-            f"{argument_name} must be a mapping of string keys to strings, "
+-            f"got {type(mapping).__name__!r}"
+-        )
+-
+-    normalized = dict(mapping)
+-    if not normalized and not allow_empty:
+-        raise ValueError(f"{argument_name} must not be empty")
++    normalized = _validate_mapping(
++        mapping,
++        argument_name=argument_name,
++        allow_empty=allow_empty,
++        non_mapping_message=(
++            f"{argument_name} must be a mapping of string keys to strings"
++        ),
++    )
+ 
+     invalid_keys = [key for key in normalized if not isinstance(key, str)]
+     if invalid_keys:

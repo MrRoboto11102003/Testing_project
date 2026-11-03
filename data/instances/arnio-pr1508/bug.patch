@@ -1,0 +1,13 @@
+diff --git a/arnio/pipeline.py b/arnio/pipeline.py
+index 33f52d567ffb2370a3bb698940e45887374da735..1bf685d63b6199fabcd4fc150d5b2c84d4661d69 100644
+--- a/arnio/pipeline.py
++++ b/arnio/pipeline.py
+@@ -532,8 +532,6 @@ def pipeline(
+     >>> lineage.total_dropped
+     3
+     """
+-    if not isinstance(frame, ArFrame):
+-        raise TypeError("frame must be an ArFrame")
+     if not isinstance(return_metadata, bool):
+         raise TypeError(
+             f"return_metadata must be a bool, got {type(return_metadata).__name__!r}"

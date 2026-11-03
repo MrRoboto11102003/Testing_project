@@ -1,0 +1,29 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..0cec6d3e918cdc39bfacbafedbd2463bf091a2af 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -464,15 +464,6 @@ def _validate_null_values(null_values: list[str]) -> list[str]:
+     return list(null_values)
+ 
+ 
+-def _validate_bool_option(value: bool, name: str) -> bool:
+-    """Validate that a boolean option is strictly True or False."""
+-    if not isinstance(value, bool):
+-        raise TypeError(
+-            f"{name} must be True or False, got {type(value).__name__}: {value!r}"
+-        )
+-    return value
+-
+-
+ def _validate_parser_mode(mode: str) -> str:
+     """Validate CSV parser mode."""
+     if not isinstance(mode, str):
+@@ -1412,7 +1403,7 @@ def write_csv(
+ 
+     config = _CsvWriteConfig()
+     config.delimiter = delimiter
+-    config.write_header = _validate_bool_option(write_header, "write_header")
++    config.write_header = write_header
+     config.line_terminator = line_terminator
+     config.escape_formulas = _validate_bool_option(escape_formulas, "escape_formulas")
+ 

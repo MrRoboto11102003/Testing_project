@@ -1,0 +1,16 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..69bdbbc7632ef50cf195b451e972e6a888bf5b49 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -1755,10 +1755,7 @@ def compare_profiles(
+         raise ValueError(
+             "Profiles have incompatible schemas: "
+             f"missing from profile_a={missing_from_a}, "
+-            f"missing from profile_b={missing_from_b}. "
+-            "This is likely caused by calling profile() with different exclude_columns "
+-            "on each dataset. Profile both datasets with the same included/excluded "
+-            "columns before comparing."
++            f"missing from profile_b={missing_from_b}"
+         )
+ 
+     drift_report: dict[str, dict[str, Any]] = {}

@@ -1,0 +1,37 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..04891247856fac7081e8baec5bd3a82c306e1d2a 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -1680,11 +1680,6 @@ def validate(
+     ValidationResult
+         Validation result containing all issues and bad row indexes.
+ 
+-    Raises
+-    ------
+-    TypeError
+-        If schema.unique is provided but is not a list or tuple of strings.
+-
+     Examples
+     --------
+     >>> schema = ar.Schema({"email": ar.Email(nullable=False)})
+@@ -1797,19 +1792,7 @@ def validate(
+                     )
+ 
+     if schema.unique is not None:
+-        if not isinstance(schema.unique, (list, tuple)):
+-            raise TypeError(
+-                "Schema 'unique' must be a list or tuple of strings (e.g., ['column_name']), "
+-                f"got {type(schema.unique).__name__}."
+-            )
+-
+-        for item in schema.unique:
+-            if not isinstance(item, str):
+-                raise TypeError(
+-                    f"Schema 'unique' members must be strings, got {type(item).__name__} for element {item!r}."
+-                )
+-
+-        if len(schema.unique) == 0:
++        if isinstance(schema.unique, (list, tuple)) and len(schema.unique) == 0:
+             issues.append(
+                 ValidationIssue(
+                     column=None,

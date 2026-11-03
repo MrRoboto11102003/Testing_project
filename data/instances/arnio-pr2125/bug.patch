@@ -1,0 +1,16 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..679a32a0624a4e73a9afec559725986662dd2422 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -161,11 +161,6 @@ class ArFrame:
+                             f"nested values are not supported; "
+                             f"column {col!r} at row {i} contains a {type(val).__name__!r}"
+                         )
+-            if columns is not None and len(columns) == 0:
+-                raise ValueError(
+-                    "columns must not be empty when records are dicts; "
+-                    "pass columns=None to infer column names from the record keys"
+-                )
+             df = pd.DataFrame.from_records(records, columns=columns)
+ 
+         elif isinstance(first, (list, tuple)):

@@ -1,0 +1,68 @@
+diff --git a/arnio/convert.py b/arnio/convert.py
+index 0c74714701c0095a5d0280e4765ab9681afc1fbf..63bcac186b5b146583851840ef56440baa3b9ea6 100644
+--- a/arnio/convert.py
++++ b/arnio/convert.py
+@@ -59,38 +59,6 @@ def _to_binding_safe(value: Any) -> Any:
+     return value
+ 
+ 
+-def _check_unsupported_dtype(col_name: object, series: pd.Series) -> None:
+-    """Raise a clear TypeError for dtypes that arnio cannot convert."""
+-    dtype = series.dtype
+-    dtype_str = str(dtype)
+-    name = repr(str(col_name))
+-
+-    if hasattr(dtype, "tz") or dtype_str.startswith("datetime64"):
+-        raise TypeError(
+-            f"Column {name} has unsupported dtype '{dtype_str}'.\n"
+-            f"  Fix: df[{name}] = df[{name}].astype(str)  "
+-            f"# or use .dt.strftime('%Y-%m-%d') for formatted dates"
+-        )
+-
+-    if dtype_str.startswith("timedelta"):
+-        raise TypeError(
+-            f"Column {name} has unsupported dtype '{dtype_str}'.\n"
+-            f"  Fix: df[{name}] = df[{name}].dt.total_seconds()"
+-        )
+-
+-    if hasattr(dtype, "categories"):
+-        raise TypeError(
+-            f"Column {name} has unsupported dtype 'category'.\n"
+-            f"  Fix: df[{name}] = df[{name}].astype(str)"
+-        )
+-
+-    if dtype_str in ("complex128", "complex64"):
+-        raise TypeError(
+-            f"Column {name} has unsupported dtype '{dtype_str}'.\n"
+-            f"  Fix: df[{name}] = df[{name}].apply(str)"
+-        )
+-
+-
+ def _normalize_scalar(value: object) -> object:
+     if isinstance(value, decimal.Decimal):
+         return _to_binding_safe(value)
+@@ -231,6 +199,7 @@ def to_pandas(frame: ArFrame, *, copy: bool = False) -> pd.DataFrame:
+             arr = col.to_numpy_int()
+             if copy:
+                 arr = arr.copy()
++            # pandas Int64Dtype handles nulls via mask
+             series = pd.Series(arr, dtype=pd.Int64Dtype())
+             series[mask] = pd.NA
+             data[name] = series
+@@ -249,6 +218,7 @@ def to_pandas(frame: ArFrame, *, copy: bool = False) -> pd.DataFrame:
+             series[mask] = pd.NA
+             data[name] = series
+         else:
++            # STRING or unknown
+             values = col.to_python_list()
+             series = pd.Series(values, dtype=pd.StringDtype())
+             series[mask] = pd.NA
+@@ -426,8 +396,6 @@ def from_pandas(df: pd.DataFrame) -> ArFrame:
+         series = df[col_name]
+         name = str(col_name)
+ 
+-        _check_unsupported_dtype(col_name, series)  # NEW: check before converting
+-
+         columns[name] = _series_to_python_values(series, col_name)
+ 
+         dtype_hint = _pandas_dtype_to_arnio(series.dtype)

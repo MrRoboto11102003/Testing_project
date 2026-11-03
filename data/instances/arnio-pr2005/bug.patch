@@ -1,0 +1,47 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..1f8be267f355b9906f62a5e48f59eb090711bebb 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -1089,36 +1089,25 @@ class ProfileComparison:
+     def __post_init__(self) -> None:
+         if not isinstance(self.left_profile, DataQualityReport):
+             raise TypeError("left_profile must be an instance of DataQualityReport")
+-
+         if not isinstance(self.right_profile, DataQualityReport):
+             raise TypeError("right_profile must be an instance of DataQualityReport")
+ 
+         if not isinstance(self.drift_report, dict):
+-            raise TypeError("drift_report must be a nested dictionary of dict")
+-
+-        for key, value in self.drift_report.items():
++            raise TypeError("drift_report must be a dictionary")
++        for key, val in self.drift_report.items():
+             if not isinstance(key, str):
+                 raise TypeError("drift_report keys must be strings")
+-
+-            if not isinstance(value, dict):
++            if not isinstance(val, dict):
+                 raise TypeError("drift_report must be a nested dictionary of dict")
+ 
+         if not isinstance(self.status_counts, dict):
+-            raise TypeError("status_counts must be a dict")
+-
+-        for key, value in self.status_counts.items():
++            raise TypeError("status_counts must be a dictionary")
++        for key, val in self.status_counts.items():
+             if not isinstance(key, str):
+                 raise TypeError("status_counts keys must be strings")
+-
+-            if isinstance(value, bool):
+-                raise TypeError("status_counts values must not be booleans")
+-
+-            if not isinstance(value, int):
++            if not isinstance(val, int):
+                 raise TypeError("status_counts values must be integers")
+ 
+-            if value < 0:
+-                raise ValueError("status_counts values must be non-negative integers")
+-
+     def to_dict(
+         self,
+         *,

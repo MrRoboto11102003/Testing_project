@@ -1,0 +1,14 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..29ee0d05ac7a0d13bcf6657a61ea8233ddd1ab3a 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -1834,9 +1834,6 @@ def filter_rows(
+     if column not in df.columns:
+         raise ValueError(f"Unknown column: {column}")
+ 
+-    if not is_scalar(value):
+-        raise TypeError("filter_rows value must be a scalar")
+-
+     try:
+         mask = getattr(df[column], ops[op])(value)
+     except TypeError as exc:

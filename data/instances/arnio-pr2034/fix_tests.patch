@@ -1,0 +1,85 @@
+diff --git a/tests/test_schema.py b/tests/test_schema.py
+index b5e0f56..9538751 100644
+--- a/tests/test_schema.py
++++ b/tests/test_schema.py
+@@ -1408,6 +1408,26 @@ def test_country_code_validation_rejects_invalid_codes(tmp_path):
+     assert all(issue.rule == "country_code" for issue in result.issues)
+ 
+ 
++def test_country_code_validation_respects_case_insensitive_field(tmp_path):
++    path = tmp_path / "mixed_case_countries.csv"
++    path.write_text("country\nus\nGb\nfr\n")
++
++    result = ar.validate(
++        ar.read_csv(path),
++        {
++            "country": ar.Field(
++                dtype="string",
++                semantic="country_code",
++                case_sensitive=False,
++                nullable=False,
++            )
++        },
++    )
++
++    assert result.passed
++    assert result.issue_count == 0
++
++
+ def test_language_code_validation_accepts_iso_639_1_codes(tmp_path):
+     path = tmp_path / "languages.csv"
+     path.write_text("language\nen\nhi\nfr\nde\n")
+@@ -1450,6 +1470,26 @@ def test_timezone_validation_accepts_iana_timezones(tmp_path):
+     assert result.issue_count == 0
+ 
+ 
++def test_language_code_validation_respects_case_insensitive_field(tmp_path):
++    path = tmp_path / "mixed_case_languages.csv"
++    path.write_text("language\nEN\nFr\nHI\n")
++
++    result = ar.validate(
++        ar.read_csv(path),
++        {
++            "language": ar.Field(
++                dtype="string",
++                semantic="language_code",
++                case_sensitive=False,
++                nullable=False,
++            )
++        },
++    )
++
++    assert result.passed
++    assert result.issue_count == 0
++
++
+ def test_timezone_validation_rejects_invalid_values(tmp_path):
+     path = tmp_path / "bad_timezones.csv"
+     path.write_text("timezone\nIST\nGMT+5:30\nIndia\nAsia\\Kolkata\nrandom_text\n")
+@@ -2696,6 +2736,26 @@ def test_currency_code_override(tmp_path):
+     assert result_default.issues[0].value == "ZZZ"
+ 
+ 
++def test_currency_code_validation_respects_case_insensitive_field(tmp_path):
++    path = tmp_path / "mixed_case_currencies.csv"
++    path.write_text("currency\nusd\nEur\ninr\n")
++
++    result = ar.validate(
++        ar.read_csv(path),
++        {
++            "currency": ar.Field(
++                dtype="string",
++                semantic="currency_code",
++                case_sensitive=False,
++                nullable=False,
++            )
++        },
++    )
++
++    assert result.passed
++    assert result.issue_count == 0
++
++
+ def test_schema_rules_issue_shape_matches_validation_issue(tmp_path):
+     path = tmp_path / "dates.csv"
+     path.write_text("start_date,end_date\n2025-05-01,2025-01-01\n")

@@ -1,0 +1,22 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..89d68caebd694768922014c01754a550b830f369 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -3484,15 +3484,10 @@ _SEMANTIC_PATTERNS = {
+ }
+ 
+ # Registry for custom validators registered via register_validator()
+-_CUSTOM_VALIDATORS: dict[str, Callable[[Any], object]] = {}
++_CUSTOM_VALIDATORS: dict[str, callable] = {}
+ 
+ 
+-def register_validator(
+-    name: str,
+-    fn: Callable[[Any], object],
+-    *,
+-    overwrite: bool = False,
+-) -> None:
++def register_validator(name: str, fn: callable) -> None:
+     """Register a custom validator function for use with Custom().
+ 
+     Parameters

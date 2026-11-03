@@ -1,0 +1,54 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..c6badae03aae6693c5d6ea79fd426f2860f2a760 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -33,7 +33,6 @@ ISSUE_COLUMNS = [
+ ]
+ 
+ DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+-URL_SCHEME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*$")
+ 
+ _VALID_SEVERITIES = {"error", "warning"}
+ _VALID_FIELD_DTYPES = frozenset({"int64", "float64", "string", "bool", "datetime"})
+@@ -2360,37 +2359,12 @@ def URL(
+         Field: Configured URL schema field.
+     """
+     if allowed_schemes is not None:
+-        if isinstance(allowed_schemes, (str, bytes)):
+-            raise TypeError(
+-                "allowed_schemes must be a sequence of scheme names, not a bare string"
+-            )
+-
+-        if not isinstance(allowed_schemes, (list, tuple, set)):
+-            raise TypeError("allowed_schemes must be a sequence of scheme names")
+-
+-        normalized_schemes = set()
+-
++        if not isinstance(allowed_schemes, list) or len(allowed_schemes) == 0:
++            raise ValueError("allowed_schemes must be a non-empty list")
+         for scheme in allowed_schemes:
+-            if not isinstance(scheme, str):
+-                raise ValueError("allowed_schemes must contain non-empty strings")
+-
+-            scheme = scheme.strip()
+-
+-            if scheme == "":
++            if not isinstance(scheme, str) or scheme.strip() == "":
+                 raise ValueError("allowed_schemes must contain non-empty strings")
+-
+-            if URL_SCHEME_PATTERN.fullmatch(scheme) is None:
+-                raise ValueError(
+-                    "allowed_schemes must contain URL scheme names such as 'http' or 'https'"
+-                )
+-
+-            normalized_schemes.add(scheme)
+-
+-        if len(normalized_schemes) == 0:
+-            raise ValueError("allowed_schemes must be a non-empty sequence")
+-
+-        schemes = "|".join(re.escape(scheme) for scheme in sorted(normalized_schemes))
+-
++        schemes = "|".join(re.escape(s) for s in allowed_schemes)
+         semantic = f"url:{schemes}"
+ 
+     else:

@@ -1,0 +1,13 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..d70f7939a1cdf4a08628fcf5858044dc9977ad8f 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -2668,7 +2668,7 @@ def auto_clean(
+     """
+     _validate_arframe(frame)
+ 
+-    if not isinstance(mode, str) or mode not in {"safe", "strict"}:
++    if mode not in {"safe", "strict"}:
+         raise ValueError("mode must be 'safe' or 'strict'")
+ 
+     if not isinstance(return_report, bool):

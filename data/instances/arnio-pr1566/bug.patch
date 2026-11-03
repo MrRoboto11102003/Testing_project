@@ -1,0 +1,12 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..418639a88dcec79aac52fa004e5df2f27c385951 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -3309,7 +3309,6 @@ def _field_to_dict(field_def: Field) -> dict[str, Any]:
+             field_def._date_max.isoformat() if field_def._date_max is not None else None
+         ),
+         "required_if": _normalize_sequence(field_def.required_if),
+-        "severity": field_def.severity,
+     }
+ 
+ 

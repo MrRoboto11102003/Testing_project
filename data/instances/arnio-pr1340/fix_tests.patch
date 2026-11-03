@@ -1,0 +1,96 @@
+diff --git a/tests/test_csv.py b/tests/test_csv.py
+index bb18c65..7f32807 100644
+--- a/tests/test_csv.py
++++ b/tests/test_csv.py
+@@ -15,6 +15,16 @@ from arnio.io import _utf8_csv_path
+ MESSY_CSV = str(Path(__file__).parent / "fixtures" / "messy_sales_data.csv")
+ 
+ 
++class ChunkTrackingTextStream:
++    def __init__(self, chunks):
++        self._chunks = iter(chunks)
++        self.read_sizes = []
++
++    def read(self, size=-1):
++        self.read_sizes.append(size)
++        return next(self._chunks, "")
++
++
+ class TestReadCsv:
+     def test_read_csv_dtype_override_string(self, tmp_path):
+         path = tmp_path / "zip_codes.csv"
+@@ -760,6 +770,32 @@ class TestReadCsv:
+         frame = ar.read_csv(Path(sample_csv))
+         assert frame.shape == (3, 4)
+ 
++    def test_read_csv_file_like_input_is_copied_in_bounded_chunks(self):
++        stream = ChunkTrackingTextStream(["name,age\n", "Alice,30\n", "Bob,25\n"])
++
++        frame = ar.read_csv(stream)
++        df = ar.to_pandas(frame)
++
++        assert df["name"].tolist() == ["Alice", "Bob"]
++        assert stream.read_sizes
++        assert -1 not in stream.read_sizes
++
++    def test_read_csv_chunked_file_like_input_is_copied_in_bounded_chunks(self):
++        stream = ChunkTrackingTextStream(["name,age\nAlice,30\n", "Bob,25\n"])
++
++        chunks = list(ar.read_csv_chunked(stream, chunksize=1))
++
++        assert [ar.to_pandas(chunk)["name"].iloc[0] for chunk in chunks] == [
++            "Alice",
++            "Bob",
++        ]
++        assert stream.read_sizes
++        assert -1 not in stream.read_sizes
++
++    def test_file_like_input_rejects_bytes(self):
++        with pytest.raises(TypeError, match="file-like objects must return text"):
++            ar.read_csv(io.BytesIO(b"name,age\nAlice,30\n"))
++
+     def test_read_csv_encoding_errors_strict(self, tmp_path):
+         csv_file = tmp_path / "invalid_utf8.csv"
+ 
+diff --git a/tests/test_sklearn.py b/tests/test_sklearn.py
+index a3e9508..449f842 100644
+--- a/tests/test_sklearn.py
++++ b/tests/test_sklearn.py
+@@ -54,6 +54,37 @@ def test_arniocleaner_in_pipeline():
+     assert list(result.columns) == ["A", "B"]
+ 
+ 
++def test_arniocleaner_feature_names_out_tracks_dropped_columns():
++    df = pd.DataFrame({"A": ["x", "y"], "B": [1, 2]})
++
++    cleaner = ArnioCleaner(steps=[("drop_columns", {"columns": ["B"]})])
++    cleaner.fit(df)
++    result = cleaner.transform(df)
++
++    assert list(result.columns) == ["A"]
++    assert cleaner.get_feature_names_out().tolist() == ["A"]
++
++
++def test_arniocleaner_feature_names_out_tracks_renamed_columns():
++    df = pd.DataFrame({"A": ["x", "y"], "B": [1, 2]})
++
++    cleaner = ArnioCleaner(steps=[("rename_columns", {"mapping": {"A": "name"}})])
++    cleaner.fit(df)
++    result = cleaner.transform(df)
++
++    assert list(result.columns) == ["name", "B"]
++    assert cleaner.get_feature_names_out(["A", "B"]).tolist() == ["name", "B"]
++
++
++def test_arniocleaner_feature_names_out_rejects_wrong_input_features():
++    df = pd.DataFrame({"A": ["x", "y"], "B": [1, 2]})
++
++    cleaner = ArnioCleaner().fit(df)
++
++    with pytest.raises(ValueError, match="input_features must match"):
++        cleaner.get_feature_names_out(["B", "A"])
++
++
+ def test_arniocleaner_rejects_row_dropping_by_default():
+     df = pd.DataFrame({"name": ["Alice", None], "age": [30, 40]})
+ 

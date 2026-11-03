@@ -1,0 +1,22 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..607f7d35192628f6fb4318e5ba5a9400a34ad580 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -697,8 +697,6 @@ class DataQualityReport:
+                 raise TypeError(
+                     f"file_path must be a string, bytes, or os.PathLike object, got {type(file_path).__name__}"
+                 )
+-            if file_path == "":
+-                raise ValueError("file_path must not be empty")
+ 
+         redact_top_values = _validate_bool_option(
+             redact_top_values, "redact_top_values"
+@@ -728,7 +726,7 @@ class DataQualityReport:
+             redact_top_values=redact_top_values,
+             exclude_columns=validated_exclude,
+         )
+-        if file_path is not None:
++        if file_path:
+             with open(file_path, "w", encoding="utf-8") as f:
+                 f.write(html_out)
+ 

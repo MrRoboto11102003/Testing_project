@@ -1,0 +1,37 @@
+diff --git a/arnio/schema_export.py b/arnio/schema_export.py
+index c8c4a337b08d7d9563c51fe4635ddbee6b37f151..57c92d351c4255aebe30bc837e97aed6e749e327 100644
+--- a/arnio/schema_export.py
++++ b/arnio/schema_export.py
+@@ -150,15 +150,9 @@ def _normalize_serializable(value: Any) -> Any:
+ 
+     - dict keys are sorted deterministically
+     - sets are converted into sorted lists
+-    - tuples are converted into lists
+     - lists are normalized recursively
+     - unsupported values raise TypeError
+     """
+-    # Normalize tuples to lists before validation so that tuple fields
+-    # (e.g. required_if=("col", "val"), unique=("id",)) survive export.
+-    if isinstance(value, tuple):
+-        return [_normalize_serializable(v) for v in value]
+-
+     _validate_serializable(value)
+ 
+     if isinstance(value, dict):
+@@ -344,15 +338,7 @@ def schema_to_dict(schema: dict | Any) -> dict:
+                 normalised[field_name] = _normalize_serializable(value)
+ 
+         result = {"fields": normalised}
+-
+-        # Validate and normalize structured metadata before merging.
+-        # Keys must be strings; values must be serialization-safe.
+-        for meta_key, meta_val in metadata.items():
+-            if not isinstance(meta_key, str):
+-                raise TypeError(
+-                    f"schema metadata keys must be strings, got {type(meta_key)!r}"
+-                )
+-            result[meta_key] = _normalize_serializable(meta_val)
++        result.update(metadata)
+ 
+         return result
+ 

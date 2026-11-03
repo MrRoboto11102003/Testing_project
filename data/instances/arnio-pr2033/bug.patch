@@ -1,0 +1,19 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..c761c320d28061d86826ebdd06650c040d5b15b8 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -808,14 +808,6 @@ class ArFrame:
+         if rows == 0:
+             return f"{header}\nColumns: {truncated_names}\n(empty frame)"
+ 
+-        if cols == 0:
+-            dtypes_line = f"DTypes: {self.dtypes}"
+-            memory_line = f"Memory: {self.memory_usage()} bytes"
+-            return (
+-                f"{header}\nColumns: {truncated_names}\n{dtypes_line}\n"
+-                f"{memory_line}\n(no columns to display)"
+-            )
+-
+         actual_n = min(5, rows)
+         col_data = [
+             [self._frame.column_by_index(i).at(r) for r in range(actual_n)]

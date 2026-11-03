@@ -1,0 +1,92 @@
+diff --git a/tests/test_cleaning.py b/tests/test_cleaning.py
+index 4f9db3c..b05ed19 100644
+--- a/tests/test_cleaning.py
++++ b/tests/test_cleaning.py
+@@ -186,9 +186,8 @@ class TestFillNulls:
+         for good_value in [0, 0.0, False]:
+             result = ar.fill_nulls(frame_num, good_value)
+             df = ar.to_pandas(result)
+-            assert (
+-                df["a"].isnull().sum() == 0
+-            ), f"Nulls remain after filling with {good_value!r}"
++            message = f"Nulls remain after filling with {good_value!r}"
++            assert df["a"].isnull().sum() == 0, message
+ 
+         # string column → fill with string
+         frame_str = ar.from_pandas(pd.DataFrame({"b": ["x", None]}))
+@@ -1820,10 +1819,8 @@ class TestNormalizeUnicode:
+         result = ar.normalize_unicode(frame)
+         result_df = ar.to_pandas(result)
+         assert result_df["score"].iloc[0] == 42
+-        assert (
+-            result_df["flag"].iloc[0] is True
+-            or result_df["flag"].iloc[0] == True  # noqa: E712
+-        )
++        flag = result_df["flag"].iloc[0]
++        assert flag is True or flag == True  # noqa: E712
+ 
+     def test_normalize_unicode_subset_only_targets_specified_columns(self):
+         import pandas as pd
+@@ -4421,7 +4418,6 @@ class TestValidateStringMapping:
+         with pytest.raises(
+             TypeError, match="must be a mapping of string keys to strings"
+         ):
+-
+             _validate_string_mapping([("a", "b")], argument_name="mapping")
+ 
+     def test_invalid_non_string_keys_raise_type_error(self):
+@@ -4625,6 +4621,19 @@ class TestRenameColumnsMatching:
+             ar.rename_columns_matching(frame, "^temp_$", "   ")
+ 
+ 
++class TestPublicHelpersValidateArFrame:
++    @pytest.mark.parametrize("obj", [object(), None, 123, pd.DataFrame()])
++    def test_cleaning_helpers_reject_invalid_frame(self, obj):
++        with pytest.raises(TypeError, match=".*must be an ArFrame.*"):
++            ar.drop_nulls(obj)
++        with pytest.raises(TypeError, match=".*must be an ArFrame.*"):
++            ar.strip_whitespace(obj)
++        with pytest.raises(TypeError, match=".*must be an ArFrame.*"):
++            ar.drop_columns(obj, ["x"])
++        with pytest.raises(TypeError, match=".*must be an ArFrame.*"):
++            ar.validate_columns_exist(obj, ["x"])
++
++
+ # ---------------------------------------------------------------------------
+ # Regression tests: locale-independent FLOAT64 parsing — issue #1989
+ #
+diff --git a/tests/test_quality.py b/tests/test_quality.py
+index d13c518..78508fc 100644
+--- a/tests/test_quality.py
++++ b/tests/test_quality.py
+@@ -3998,6 +3998,15 @@ def test_data_quality_report_invariant_invalid_metrics():
+ 
+ 
+ def test_cleaning_suggestion_is_exported():
++    missing_message = "CleaningSuggestion is missing from arnio.__init__ file"
++    mismatch_message = "Top-level CleaningSuggestion does not match the internal type"
++
++    assert hasattr(ar, "CleaningSuggestion"), missing_message
++    assert ar.CleaningSuggestion is CleaningSuggestion, mismatch_message
++    assert ar.CleaningSuggestion is CleaningSuggestion, mismatch_message
++    assert hasattr(
++        ar, "CleaningSuggestion"
++    ), "CleaningSuggestion is missing from arnio.__init__ file"
+     assert hasattr(
+         ar, "CleaningSuggestion"
+     ), "CleaningSuggestion is missing from arnio.__init__ file"
+@@ -4306,6 +4315,14 @@ def test_auto_clean_rejects_invalid_string_mode():
+         ar.auto_clean(frame, mode="SAFE")
+ 
+ 
++@pytest.mark.parametrize("obj", [object(), None, 123, pd.DataFrame()])
++def test_quality_helpers_reject_invalid_frame(obj):
++    with pytest.raises(TypeError, match=".*must be an ArFrame.*"):
++        ar.profile(obj)
++    with pytest.raises(TypeError, match=".*must be an ArFrame.*"):
++        ar.auto_clean(obj)
++
++
+ def test_score_breakdown_with_real_values():
+     """Ensure score_breakdown correctly maps real penalty components and handles to_dict."""
+ 

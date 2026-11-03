@@ -1,0 +1,43 @@
+diff --git a/arnio/integrations/sklearn.py b/arnio/integrations/sklearn.py
+index 02d1b813916909c1efa3fd849486910551332574..560d31f573dde5023e4e20f7c1536c5f798071d0 100644
+--- a/arnio/integrations/sklearn.py
++++ b/arnio/integrations/sklearn.py
+@@ -180,7 +180,7 @@ class ArnioCleaner(BaseEstimator, TransformerMixin):
+         check_is_fitted(self, "feature_names_out_")
+ 
+         if input_features is None:
+-            return self.feature_names_out_
++            return self.feature_names_in_
+ 
+         if isinstance(input_features, (str, bytes)):
+             raise TypeError("input_features must be a sequence of strings, not str")
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..93936b4331c1c54bc37f229933b3ebfad79a58a5 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -285,7 +285,6 @@ def _validate_nrows(nrows: int) -> int:
+ 
+ 
+ _PREVIEW_BAD_ROWS = 10
+-_FILE_LIKE_COPY_CHUNK_SIZE = 8192
+ 
+ # ---------------------------------------------------------------------------
+ # Remote URL support
+@@ -862,7 +861,7 @@ def _warn_delimiter_mismatch(path: str, delimiter: str, col_count: int) -> None:
+ 
+ 
+ def read_csv(
+-    path: str | os.PathLike[str] | io.TextIOBase,
++    path: str | os.PathLike[str],
+     *,
+     delimiter: str | None = None,
+     has_header: bool = True,
+@@ -1086,7 +1085,7 @@ def read_csv(
+ 
+ 
+ def read_csv_chunked(
+-    path: str | os.PathLike[str] | io.TextIOBase,
++    path: str | os.PathLike[str],
+     *,
+     chunksize: int = 10_000,
+     dtype: dict[str, str] | None = None,

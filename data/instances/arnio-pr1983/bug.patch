@@ -1,0 +1,40 @@
+diff --git a/arnio/convert.py b/arnio/convert.py
+index 0c74714701c0095a5d0280e4765ab9681afc1fbf..ba3e65ab1141930b1266f24064e75430600a4433 100644
+--- a/arnio/convert.py
++++ b/arnio/convert.py
+@@ -106,6 +106,8 @@ def _normalize_scalar(value: object) -> object:
+             )
+     if isinstance(value, float):
+         return _to_binding_safe(value)
++    if not isinstance(value, (bool, int, str)):
++        return str(value)
+     return value
+ 
+ 
+@@ -123,8 +125,6 @@ def _series_to_python_values(series: pd.Series, col_name: object) -> list[object
+     values: list[object] = []
+     kinds: set[str] = set()
+ 
+-    _ALLOWED_SCALAR_TYPES = (str, int, float, bool, decimal.Decimal)
+-
+     for raw in series.tolist():
+         if _is_nested(raw):
+             raise TypeError(
+@@ -156,17 +156,6 @@ def _series_to_python_values(series: pd.Series, col_name: object) -> list[object
+                 "convert it to strings before from_pandas()"
+             )
+ 
+-        unpacked_raw = raw.item() if isinstance(raw, np.generic) else raw
+-
+-        if unpacked_raw is not None and not pd.isna(unpacked_raw):
+-            if not isinstance(unpacked_raw, _ALLOWED_SCALAR_TYPES):
+-                raise TypeError(
+-                    f"Column '{col_name}' contains unsupported scalar value "
+-                    f"of type '{type(raw).__name__}' at value {raw!r}. "
+-                    f'Fix: convert df["{col_name}"] to strings or supported primitives '
+-                    "before running from_pandas()"
+-                )
+-
+         value = _normalize_scalar(raw)
+         values.append(value)
+         if value is not None:

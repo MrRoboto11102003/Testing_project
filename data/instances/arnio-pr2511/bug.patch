@@ -1,0 +1,15 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..65d54a746608272c1dec3c2d1aafa7e9c703c097 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -468,10 +468,6 @@ class ArFrame:
+         >>> frame.to_dict()
+         {'name': ['Alice', 'Bob'], 'age': [25, 30]}
+         """
+-        # STEP 1: Validate orient is strictly a string to prevent unhashable raw leaks
+-        if not isinstance(orient, str):
+-            raise TypeError("orient must be a string")
+-
+         col_names = self.columns
+         num_cols = self.shape[1]
+         data = {

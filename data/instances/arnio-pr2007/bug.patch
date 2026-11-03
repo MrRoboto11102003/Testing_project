@@ -1,0 +1,17 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..3b45cdc08384a7719cdd76c4b14095ca8cf16ea9 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -2320,12 +2320,6 @@ def write_parquet(
+             "Install it with: pip install arnio[parquet]"
+         ) from exc
+ 
+-    rows, cols = frame.shape
+-    if cols == 0 and rows > 0:
+-        raise ValueError(
+-            f"Cannot write a zero-column ArFrame with {rows} rows to Parquet: the current export path cannot preserve row count without columns."
+-        )
+-
+     df = to_pandas(frame)
+ 
+     if df.attrs:

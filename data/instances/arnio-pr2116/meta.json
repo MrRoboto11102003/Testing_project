@@ -1,0 +1,40 @@
+{
+ "id": "arnio-pr2116",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1670,
+ "issue_title": "Bug: reject whitespace-only DuckDB relation names",
+ "issue_body": "## Summary\n`register_duckdb()` rejects an empty relation name but accepts whitespace-only names such as `\"   \"` or `\"\\t\"`. These names are effectively blank from a user/API perspective and can lead to confusing DuckDB registration behavior.\n\n## Why it matters\nArnio's integration helpers should validate user-facing identifiers before handing data to external libraries. A whitespace-only relation name is difficult to query, debug, or document, and the current docstring already says the name must not be empty.\n\n## Evidence\n- `arnio/integrations/duckdb.py`: `register_duckdb()` checks `if not name:` but does not check `name.strip()`.\n- Runtime probe with a fake DuckDB-like connection shows `\"\"` raises `ValueError`, while `\"   \"` and `\"\\t\"` are accepted and passed to `conn.register(...)`.\n\n## Reproduction or trigger\n1. Create any `ArFrame`.\n2. Call `register_duckdb(frame, conn, \"   \")` with a DuckDB connection or DuckDB-like object.\n3. The whitespace-only name is accepted.\n\n```python\nimport pandas as pd\nimport arnio as ar\nfrom arnio.integrations.duckdb import register_duckdb\n\nclass Conn:\n    def register(self, name, df):\n        print(repr(name))\n\nframe = ar.from_pandas(pd.DataFrame({\"x\": [1]}))\nregister_duckdb(frame, Conn(), \"   \")\n```\n\n## Expected behavior\nWhitespace-only names should be rejected with a clear error, for example:\n\n```text\nValueError: name must not be empty or whitespace-only\n```\n\n## Actual behavior\nWhitespace-only names are accepted and passed through to the DuckDB connection.\n\n## Suggested direction\nUpdate `register_duckdb()` to validate `name.strip()` before registration and add tests for:\n\n- empty string\n- whitespace-only string\n- valid relation names\n- non-string names\n\n## References\n- `arnio/integrations/duckdb.py`\r\n",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1670",
+ "pr": 2116,
+ "pr_title": "fix(integrations): reject whitespace-only DuckDB relation names",
+ "pr_body": "Fixes #1670\r\n\r\n## Summary\r\n\r\nUpdate `register_duckdb()` to reject whitespace-only relation names in addition to empty strings.\r\n\r\n## Changes\r\n\r\n- Reject relation names where `name.strip()` is empty\r\n- Update validation error message\r\n- Update docstring to mention whitespace-only names\r\n- Add tests for:\r\n  - Space-only names\r\n  - Tab-only names\r\n  - Newline-only names\r\n  - Valid relation names\r\n\r\n## Testing\r\n\r\npytest tests/test_integrations_duckdb.py -v\r\n\r\n<img width=\"948\" height=\"382\" alt=\"image\" src=\"https://github.com/user-attachments/assets/0d516fb9-c8b3-4726-820a-722618a4c048\" />\r\n\r\n\r\nAll tests pass.",
+ "fix_commit": "14733ae8701178919b6bc94883f0888bb6ed9499",
+ "merged_at": "2026-05-30T12:10:03Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "arnio/integrations/duckdb.py"
+ ],
+ "test_files": [
+  "tests/test_integrations_duckdb.py"
+ ],
+ "target_symbols": [
+  "arnio/integrations/duckdb.py::register_duckdb"
+ ],
+ "fail_to_pass": [
+  "tests/test_integrations_duckdb.py::test_register_duckdb_whitespace_only_name_newline",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_whitespace_only_name_space",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_whitespace_only_name_tab"
+ ],
+ "pass_to_pass": [
+  "tests/test_integrations_duckdb.py::test_register_duckdb_basic",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_empty_name",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_invalid_connection_object",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_invalid_frame",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_noncallable_register_attribute",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_none_connection",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_valid_name_passes"
+ ],
+ "patch_lines": 6
+}

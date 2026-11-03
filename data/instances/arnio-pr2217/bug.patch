@@ -1,0 +1,70 @@
+diff --git a/arnio/__init__.py b/arnio/__init__.py
+index 611260a53309ddb95a46783b07d16c044b9253f6..80f03bc680bfccc8fd9950444ed1fca520dd0cbb 100644
+--- a/arnio/__init__.py
++++ b/arnio/__init__.py
+@@ -4,7 +4,13 @@ arnio — Fast CSV processing and data cleaning companion for pandas.
+ import arnio as ar
+ """
+ 
+-from ._version import __version__ as __version__
++try:
++    from importlib.metadata import version
++
++    __version__ = version("arnio")
++except Exception:
++    __version__ = "unknown"
++
+ from .cleaning import (
+     CastFailure,
+     CastReport,
+diff --git a/arnio/_version.py b/arnio/_version.py
+deleted file mode 100644
+index e805475da2d1e9920c9c978887c76f494b72c147..0000000000000000000000000000000000000000
+--- a/arnio/_version.py
++++ /dev/null
+@@ -1,45 +0,0 @@
+-"""Version resolution for arnio."""
+-
+-import pathlib
+-import re
+-
+-
+-def _resolve_version() -> str:
+-    """Resolve __version__ robustly for both installed and source-checkout imports.
+-
+-    Strategy
+-    --------
+-    1. Try importlib.metadata first (fast path for installed distributions).
+-    2. If pyproject.toml exists next to the package directory, we are likely
+-       in a source checkout — read the version from pyproject.toml directly
+-       instead of trusting metadata that may belong to a different install.
+-    3. Fall back to importlib.metadata when no pyproject.toml is present
+-       (normal installed-package import).
+-    4. Final fallback: "unknown".
+-    """
+-    _here = pathlib.Path(__file__).resolve().parent
+-    _pyproject = _here.parent / "pyproject.toml"
+-
+-    # If pyproject.toml exists we are in a source checkout.
+-    # Read the version directly so we never report a stale installed version.
+-    if _pyproject.exists():
+-        try:
+-            _text = _pyproject.read_text(encoding="utf-8")
+-            _match = re.search(r'^\s*version\s*=\s*"([^"]+)"', _text, re.MULTILINE)
+-            if _match:
+-                return _match.group(1)
+-        except Exception:
+-            pass
+-
+-    # Normal installed-package import: trust importlib.metadata.
+-    try:
+-        from importlib.metadata import version
+-
+-        return version("arnio")
+-    except Exception:
+-        pass
+-
+-    return "unknown"
+-
+-
+-__version__ = _resolve_version()

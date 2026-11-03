@@ -1,0 +1,61 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..9bdeaa9c104f42e305d5307a46547e059aae89a7 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -1289,39 +1289,33 @@ def read_csv_chunked(
+         ) as native_csv_path:
+             reader.open(native_csv_path)
+             yielded_nonempty_chunk = False
+-            try:
+-                while True:
+-                    chunk = reader.next_chunk(chunksize, on_bad_lines)
+-                    if chunk is None:
+-                        break
+-                    cpp_frame, bad_rows = chunk
++            while True:
++                chunk = reader.next_chunk(chunksize, on_bad_lines)
++                if chunk is None:
++                    break
++                cpp_frame, bad_rows = chunk
+ 
+-                    if on_bad_lines == "warn" and bad_rows:
+-                        _warn_bad_rows(bad_rows)
+-                    frame = ArFrame(cpp_frame)
++                if on_bad_lines == "warn" and bad_rows:
++                    _warn_bad_rows(bad_rows)
++                frame = ArFrame(cpp_frame)
+ 
+-                    if frame.shape[0] == 0 and bad_rows:
+-                        if yielded_nonempty_chunk:
+-                            continue
++                if frame.shape[0] == 0 and bad_rows:
++                    if yielded_nonempty_chunk:
++                        continue
+ 
+-                    yielded_nonempty_chunk = (
+-                        yielded_nonempty_chunk or frame.shape[0] > 0
+-                    )
++                yielded_nonempty_chunk = yielded_nonempty_chunk or frame.shape[0] > 0
+ 
+-                    yield frame
+-            finally:
+-                reader.close()
+-                if should_cleanup and os.path.exists(native_path):
+-                    try:
+-                        os.unlink(native_path)
+-                    except OSError:
+-                        pass
++                yield frame
+     except ValueError:
+         raise
+     except CsvReadError:
+         raise
+     except RuntimeError as e:
+         raise CsvReadError(str(e)) from None
++    finally:
++        reader.close()
++        if should_cleanup and os.path.exists(native_path):
++            os.unlink(native_path)
+ 
+ 
+ def write_csv(

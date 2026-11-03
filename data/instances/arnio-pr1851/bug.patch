@@ -1,0 +1,30 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..267e26457be20327b022d23df7e1cd106fe8d3fc 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -1394,15 +1394,6 @@ def normalize_case(
+     ArFrame
+         New frame with string columns normalized to specified case.
+ 
+-    Raises
+-    ------
+-    TypeError
+-        If case_type is not a string.
+-    ValueError
+-        If case_type is not one of the supported options.
+-    KeyError
+-        If any column in subset does not exist in the frame.
+-
+     Examples
+     --------
+     >>> frame = ar.read_csv("data.csv")
+@@ -1411,9 +1402,6 @@ def normalize_case(
+     _validate_arframe(frame)
+     if not isinstance(case_type, str):
+         raise TypeError("case_type must be a string")
+-    valid_cases = {"lower", "upper", "title"}
+-    if case_type not in valid_cases:
+-        raise ValueError(f"case_type must be one of {valid_cases}, got {case_type!r}")
+     if subset is not None:
+         subset = _validate_existing_column_sequence(
+             subset,

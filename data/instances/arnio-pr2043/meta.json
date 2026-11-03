@@ -1,0 +1,69 @@
+{
+ "id": "arnio-pr2043",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1801,
+ "issue_title": "Bug: validate Custom validator names before registry lookup",
+ "issue_body": "## Summary\n`Custom()` does not validate the validator `name` before looking it up in the custom-validator registry. Unhashable values raise Python's raw `TypeError`, and non-string values produce a misleading \u201cnot registered\u201d message instead of a parameter validation error.\n\n## Why it matters\n`Custom()` is a public schema field constructor. It should give contributors and users a stable error contract when the validator name has the wrong type, just like `register_validator()` does.\n\n## Evidence\n- `arnio/schema.py::register_validator()` validates that `name` is a non-empty string.\n- `arnio/schema.py::Custom()` directly checks `if name not in _CUSTOM_VALIDATORS` without validating the type first.\n\n## Reproduction or trigger\n```python\nimport arnio as ar\n\nar.Custom([\"validator\"])\n# TypeError: unhashable type: 'list'\n\nar.Custom(123)\n# ValueError: No validator registered under 123. Call ar.register_validator() first.\n```\n\n## Expected behavior\n`Custom()` should reject invalid names with a clear type/value error, for example `name must be a non-empty string`.\n\n## Actual behavior\nUnhashable names leak raw Python errors, and scalar non-string names are treated like missing registered validators.\n\n## Suggested direction\nReuse or mirror the `register_validator()` name validation in `Custom()`. Add tests for list, integer, `None`, empty string, and valid registered names.\n\n## References\n- `arnio/schema.py::Custom`\n- `arnio/schema.py::register_validator`\n- `tests/test_register_validator.py`\r\n",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1801",
+ "pr": 2043,
+ "pr_title": "fix: validate Custom validator names before registry lookup",
+ "pr_body": "## Summary\r\nvalidate the `Custom()` validator name parameter before making dictionary registry lookups. This prevents lists, integers, and None values from throwing raw Python errors, and treats empty/whitespace strings as a validation error instead of a missing registered validator.\r\n\r\n<!-- Need quick setup or contribution help? Join Discord: https://discord.gg/xsEw7r78M -->\r\n\r\n## Linked issue\r\nFixes #1801 \r\n\r\n## Type of change\r\n- [x] Bug fix\r\n- [ ] Feature\r\n- [ ] Performance improvement\r\n- [ ] Documentation\r\n- [x] Tests\r\n- [ ] Refactor\r\n- [ ] CI / packaging\r\n\r\n## Area\r\n- [ ] CSV parser / I/O\r\n- [ ] C++ cleaning engine\r\n- [ ] Python API / ArFrame\r\n- [ ] Pipeline / custom steps\r\n- [ ] Data quality / profiling\r\n- [x] Schema validation\r\n- [ ] pandas interoperability\r\n- [ ] Docs / website\r\n- [ ] Developer tooling\r\n\r\n## Testing\r\n- [x] `make test` (or `python -m pytest tests -v --cov=arnio`)\r\n- [ ] `make lint` (or run separately:\r\n  ```powershell\r\n  python -m ruff check .\r\n  python -m black --check .\r\n  ```\r\n)\r\n- [ ] optionally `python -m pytest tests -v --tb=short -x`\r\n- [ ] Other:\r\n\r\n## Screenshots / Media\r\nNA\r\n\r\n## GSSoC labels\r\n<!-- Maintainers only: use exact scoring labels where applicable, for example `gssoc:approved`, `level:beginner`, `quality:clean`, and `type:bug`. Do not add labels only to increase points. -->\r\n\r\n## Contributor checklist\r\n- [x] I read the contributing guide.\r\n- [x] I kept the PR focused on one issue or one logical change.\r\n- [x] I added or updated tests for behavior changes.\r\n- [ ] I added or updated docs/examples for public API changes.\r\n- [x] I checked that generated files, logs, and local build artifacts are not committed.\r\n- [x] My PR title uses Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).\r\n\r\n## Maintainer notes\r\nNone",
+ "fix_commit": "305bccd2ed041992a38948af796a51420a3ed47c",
+ "merged_at": "2026-05-30T10:35:46Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "arnio/schema.py"
+ ],
+ "test_files": [
+  "tests/test_register_validator.py"
+ ],
+ "target_symbols": [
+  "arnio/schema.py::Custom"
+ ],
+ "fail_to_pass": [
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_raises_type_error_when_name_is_empty_string",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_raises_type_error_when_name_is_integer",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_raises_type_error_when_name_is_list",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_raises_type_error_when_name_is_none"
+ ],
+ "pass_to_pass": [
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_in_schema_integration",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_raises_when_validator_not_registered",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_repr_contains_name",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_default_nullable",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_default_severity",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_default_unique",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_explicit_nullable_false",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_explicit_severity",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_explicit_unique_true",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_stores_name",
+  "tests/test_register_validator.py::TestCustomValidator::test_multiple_custom_validators_in_schema",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_valid_name_still_raises_when_unregistered",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_mixed_true_false_none_pd_na",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_exception_includes_schema_context",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_false_fails",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_non_bool_raises_type_error",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_none_fails",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_pd_na_fails",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_string_raises_type_error",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_true_passes",
+  "tests/test_register_validator.py::TestRegisterValidator::test_duplicate_registration_does_not_mutate_existing_custom_schema",
+  "tests/test_register_validator.py::TestRegisterValidator::test_duplicate_validator_requires_explicit_overwrite",
+  "tests/test_register_validator.py::TestRegisterValidator::test_overwrite_true_replaces_existing_validator",
+  "tests/test_register_validator.py::TestRegisterValidator::test_raises_type_error_when_fn_is_none",
+  "tests/test_register_validator.py::TestRegisterValidator::test_raises_type_error_when_fn_not_callable",
+  "tests/test_register_validator.py::TestRegisterValidator::test_raises_value_error_when_name_is_empty_string",
+  "tests/test_register_validator.py::TestRegisterValidator::test_raises_value_error_when_name_is_not_string",
+  "tests/test_register_validator.py::TestRegisterValidator::test_register_custom_validator_by_name",
+  "tests/test_register_validator.py::TestRegisterValidator::test_register_validator_returns_none",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_accepts_valid_name",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_empty_string",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_mixed_whitespace",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_non_string",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_space_only",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_tab_only"
+ ],
+ "patch_lines": 8
+}

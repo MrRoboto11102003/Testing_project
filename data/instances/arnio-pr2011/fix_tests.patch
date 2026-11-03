@@ -1,0 +1,53 @@
+diff --git a/tests/test_cleaning.py b/tests/test_cleaning.py
+index 03bd4cb..917310c 100644
+--- a/tests/test_cleaning.py
++++ b/tests/test_cleaning.py
+@@ -680,6 +680,22 @@ class TestDropColumns:
+         assert list(df.columns) == ["id", "name"]
+         assert list(df["name"]) == ["Alice", "Bob"]
+ 
++    def test_drop_columns_accepts_tuple_input(self):
++        frame = ar.from_pandas(
++            pd.DataFrame(
++                {
++                    "a": [1],
++                    "b": [2],
++                    "c": [3],
++                }
++            )
++        )
++
++        result = ar.drop_columns(frame, ("a",))
++        df = ar.to_pandas(result)
++
++        assert list(df.columns) == ["b", "c"]
++
+     def test_drop_columns_allows_empty_input_as_no_op(self, sample_csv):
+         frame = ar.read_csv(sample_csv)
+ 
+diff --git a/tests/test_frame.py b/tests/test_frame.py
+index 8e27d0a..c5989e0 100644
+--- a/tests/test_frame.py
++++ b/tests/test_frame.py
+@@ -1024,6 +1024,21 @@ class TestDropColumns:
+         assert result.columns == ["a", "c"]
+         assert result.shape == (2, 2)
+ 
++    def test_accepts_tuple_of_column_names(self):
++        frame = ar.from_pandas(
++            pd.DataFrame(
++                {
++                    "a": [1],
++                    "b": [2],
++                    "c": [3],
++                }
++            )
++        )
++
++        result = frame.drop_columns(("a",))
++
++        assert result.columns == ["b", "c"]
++
+     def test_drop_multiple_columns(self):
+         df = pd.DataFrame({"a": [1], "b": [2], "c": [3], "d": [4]})
+         frame = ar.from_pandas(df)

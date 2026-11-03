@@ -1,0 +1,13 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..9404d77b7654f9b6c5a76828390b73d6b8323fde 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -1876,7 +1876,7 @@ def validate(
+                                     "Duplicate rows found for columns"
+                                     f" {list(schema.unique)}"
+                                 ),
+-                                row_index=int(index) + 1,
++                                row_index=int(index),
+                             )
+                         )
+ 

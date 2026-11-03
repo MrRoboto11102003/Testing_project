@@ -1,0 +1,16 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..a2464707fb6238b92fa7ae5bb58fcd5e054ec44b 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -995,11 +995,6 @@ class Schema:
+                     raise TypeError(
+                         f"Schema 'unique' members must be strings, got {type(item).__name__} for element {item!r}."
+                     )
+-
+-            if len(set(self.unique)) != len(self.unique):
+-                raise ValueError(
+-                    "Schema 'unique' must not contain duplicate column names"
+-                )
+         if not isinstance(self.strict, bool):
+             raise TypeError("Schema 'strict' must be a boolean")
+ 

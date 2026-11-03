@@ -1,0 +1,18 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..3acb25941d8fc90b839331ae3f2aa73da919abeb 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -2683,11 +2683,11 @@ def auto_clean(
+ 
+     if dry_run and explain:
+         raise ValueError("explain=True cannot be used with dry_run=True")
+-    if dry_run and return_report:
+-        raise ValueError("return_report=True cannot be used with dry_run=True")
+ 
+     report = profile(frame)
+     if dry_run:
++        if return_report:
++            return frame, report
+         return report
+ 
+     result = frame

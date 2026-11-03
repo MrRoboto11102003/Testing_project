@@ -1,0 +1,20 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..d34c8756886ccc570abe0af43833401a69c3cc01 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -230,14 +230,7 @@ class ArFrame:
+                     "of column names to dtypes"
+                 )
+ 
+-            if isinstance(value, np.ndarray) and value.size > 1:
+-                raise TypeError(
+-                    "dtype must be a string, Python type, "
+-                    "NumPy/pandas dtype, or mapping "
+-                    "of column names to dtypes"
+-                )
+-
+-            if value is object or (isinstance(value, str) and value == "object"):
++            if value in (object, "object"):
+                 raise TypeError(
+                     "dtype must be a string, Python type, "
+                     "NumPy/pandas dtype, or mapping "

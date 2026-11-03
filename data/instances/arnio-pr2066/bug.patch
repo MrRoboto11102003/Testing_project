@@ -1,0 +1,13 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..1b7c4bec069540e5d5846a46f675069aee196349 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -887,7 +887,7 @@ def winsorize_outliers(
+         target_columns = numeric_columns
+ 
+     if not target_columns:
+-        return from_pandas(to_pandas(frame))
++        return frame
+ 
+     df = to_pandas(frame).copy(deep=False)
+ 

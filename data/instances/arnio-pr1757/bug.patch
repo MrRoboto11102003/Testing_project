@@ -1,0 +1,13 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..948b10bc0473bacfc7031cacf7582d7635493222 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -344,7 +344,7 @@ def drop_columns(frame: ArFrame, columns: Sequence[str]) -> ArFrame:
+         ),
+     )
+     if len(requested_columns) == 0:
+-        return frame.drop_columns([])
++        return frame
+     if len(requested_columns) == len(frame.columns):
+         raise ValueError("drop_columns cannot remove all columns from the frame")
+ 

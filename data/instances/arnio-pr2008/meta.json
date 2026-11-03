@@ -1,0 +1,38 @@
+{
+ "id": "arnio-pr2008",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1921,
+ "issue_title": "Bug: custom aliases of Arnio cleaning steps cannot be unregistered",
+ "issue_body": "## Summary\n`unregister_step()` treats custom step names as built-ins when the registered function comes from `arnio.cleaning`, even if the custom name was user-defined.\n\n## Why it matters\nUsers may reasonably register aliases or wrapped Arnio helpers while experimenting with pipelines. After registration, the custom step appears in `list_steps()`, but attempting to unregister it raises `UnknownStepError`. This makes the registry state confusing and can leave test suites or notebooks polluted until `reset_steps()` is called.\n\n## Evidence\n- `arnio/pipeline.py`: `_is_builtin_python_step()` returns true for any function whose module starts with `arnio.cleaning`.\n- `arnio/pipeline.py`: `unregister_step()` blocks removal when `_is_builtin_python_step(name, fn)` returns true.\n- The custom name can still be added to `_PYTHON_STEP_REGISTRY` through `register_step()` and appears in `list_steps()`.\n\n## Reproduction or trigger\n1. Run:\n   ```python\n   import arnio as ar\n\n   ar.register_step(\"tmp_strip_alias\", ar.normalize_whitespace)\n   print(\"tmp_strip_alias\" in ar.list_steps())\n   ar.unregister_step(\"tmp_strip_alias\")\n   ```\n2. Observe that the custom step is visible but cannot be unregistered.\n\n## Expected behavior\nA user-defined step name should be unregisterable unless the name itself belongs to a protected built-in step.\n\n## Actual behavior\n`unregister_step(\"tmp_strip_alias\")` raises `UnknownStepError`, while the available-steps list still includes `tmp_strip_alias`.\n\n## Suggested direction\nTrack protected built-in step names explicitly instead of inferring built-in status only from the registered function module. Add a regression test that registers an `arnio.cleaning` function under a custom name and verifies that `unregister_step()` removes it.\n\n## References\n- `arnio/pipeline.py`\n- `tests/test_register_step_safety.py`",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1921",
+ "pr": 2008,
+ "pr_title": "fix: allow unregistering custom aliases of built-in cleaning steps",
+ "pr_body": "## Summary\r\n\r\nFixes #1921\r\n\r\nCustom aliases registered using built-in `arnio.cleaning` functions were incorrectly treated as protected built-in steps during `unregister_step()`. As a result, user-defined aliases could not be removed even though they appeared in the step registry.\r\n\r\n## Root Cause\r\n\r\nBuilt-in step detection relied on the underlying function's module origin (`arnio.cleaning`) rather than the registered step name. This caused custom aliases pointing to built-in cleaning functions to be mistakenly identified as built-in steps.\r\n\r\n## Changes\r\n\r\n- Updated built-in step detection logic to distinguish actual built-in step names from user-defined aliases.\r\n- Preserved protection for genuine built-in steps.\r\n- Added regression tests covering:\r\n  - Registration of a custom alias for a built-in cleaning function.\r\n  - Successful unregistration of the alias.\r\n  - Continued protection of actual built-in step names.\r\n\r\n## Result\r\n\r\nUser-defined aliases of built-in cleaning steps can now be unregistered correctly, while built-in steps remain protected from removal.",
+ "fix_commit": "3a303f14e0a59eaad7fb02b4f9ebd64c75abb4ea",
+ "merged_at": "2026-05-29T10:30:34Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "arnio/pipeline.py"
+ ],
+ "test_files": [
+  "tests/test_register_step_safety.py"
+ ],
+ "target_symbols": [
+  "arnio/pipeline.py::unregister_step"
+ ],
+ "fail_to_pass": [
+  "tests/test_register_step_safety.py::TestUnregisterStepBuiltinAlias::test_custom_alias_of_builtin_function_can_be_unregistered"
+ ],
+ "pass_to_pass": [
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_custom_step_registration_and_explicit_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_prevent_overwriting_builtin_cpp_steps_with_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_prevent_overwriting_builtin_cpp_steps_without_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_prevent_overwriting_builtin_python_steps_with_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_prevent_overwriting_builtin_python_steps_without_overwrite",
+  "tests/test_register_step_safety.py::TestRegisterStepSafety::test_reset_steps_behavior_remains_unchanged",
+  "tests/test_register_step_safety.py::TestUnregisterStepBuiltinAlias::test_builtin_python_step_names_remain_protected"
+ ],
+ "patch_lines": 8
+}

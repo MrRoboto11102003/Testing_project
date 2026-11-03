@@ -1,0 +1,34 @@
+diff --git a/tests/test_cleaning.py b/tests/test_cleaning.py
+index fda8289..4f08640 100644
+--- a/tests/test_cleaning.py
++++ b/tests/test_cleaning.py
+@@ -683,9 +683,12 @@ class TestDropColumns:
+     def test_drop_columns_allows_empty_input_as_no_op(self, sample_csv):
+         frame = ar.read_csv(sample_csv)
+ 
+-        result = ar.drop_columns(frame, [])
++        result_helper = ar.drop_columns(frame, [])
++        result_method = frame.drop_columns([])
+ 
+-        assert result is frame
++        assert result_helper is not frame
++        assert result_helper == frame
++        assert result_helper == result_method
+ 
+     def test_drop_columns_rejects_missing_columns(self, sample_csv):
+         frame = ar.read_csv(sample_csv)
+diff --git a/tests/test_pipeline.py b/tests/test_pipeline.py
+index fe17e28..e440ede 100644
+--- a/tests/test_pipeline.py
++++ b/tests/test_pipeline.py
+@@ -402,7 +402,9 @@ class TestPipeline:
+         frame = ar.read_csv(sample_csv)
+         result = ar.pipeline(frame, [("drop_columns", {"columns": []})])
+ 
+-        assert result is frame
++        assert result is not frame
++        assert result.columns == frame.columns
++        assert len(result) == len(frame)
+ 
+     def test_pipeline_drop_columns_rejects_missing_columns(self, sample_csv):
+         import pytest

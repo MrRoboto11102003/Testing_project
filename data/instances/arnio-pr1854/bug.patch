@@ -1,0 +1,40 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..9c61aed807c1b4e9fcb0a27dd4deeabde2a5c9a4 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -1114,17 +1114,11 @@ def read_csv_chunked(
+     path : str or file-like object
+         Path to the CSV file. Supports .csv, .txt, .tsv, and compressed .csv.gz extensions.
+         Text file-like objects are copied to a temporary file in bounded
+-        chunks before native parsing.  For ``.tsv`` paths the delimiter is
+-        automatically set to ``'\\t'`` when ``delimiter`` is omitted.
++        chunks before native parsing.
+     chunksize : int, default 10_000
+         Maximum number of data rows per yielded chunk.
+-    delimiter : str or None, default None
+-        Field delimiter character.  When ``None`` (the default) the
+-        delimiter is inferred from the file extension: ``'\\t'`` for
+-        ``.tsv`` files and ``','`` for everything else.  Passing an
+-        explicit value always takes precedence — for example,
+-        ``delimiter=','`` reads a comma-delimited ``.tsv`` file without
+-        any auto-detection.
++    delimiter : str, default ","
++        Field delimiter character.
+     has_header : bool, default True
+         Whether the file has a header row.
+     usecols : list[str], optional
+@@ -1221,14 +1215,6 @@ def read_csv_chunked(
+         # Explicitly validate the decompressed temp file (or local path) rather than the compressed bytes
+         _validate_csv_path(native_path, encoding, reject_utf8_nul_bytes=False)
+ 
+-        # Resolve the sentinel: auto-detect tab for .tsv only when the caller
+-        # truly omitted delimiter (None).  An explicit delimiter="," is always
+-        # honoured, even for .tsv paths.  File-like objects are materialised
+-        # to a temporary .csv path, so auto-detection safely falls back to ","
+-        # for those inputs — consistent with read_csv behaviour.
+-        if delimiter is None:
+-            delimiter = "\t" if path_lower.endswith(".tsv") else ","
+-
+         decimal_separator = _validate_decimal_separator(decimal_separator)
+         _validate_thousands_separator(thousands_separator, decimal_separator)
+         delimiter = _validate_delimiter(delimiter)

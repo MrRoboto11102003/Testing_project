@@ -1,0 +1,16 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..ec0d120a5955fcdf3054a634ac5cca8b6d4501fe 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -1050,10 +1050,8 @@ class ArFrame:
+         )
+ 
+         # ── empty-frame fast path ─────────────────────────────────────────
+-        if num_rows == 0:
++        if num_cols == 0 or num_rows == 0:
+             return summary + "<p><em>(empty)</em></p>"
+-        if num_cols == 0:
+-            return summary + "<p><em>(no columns to display)</em></p>"
+ 
+         # ── column header ─────────────────────────────────────────────────
+         th_style = (

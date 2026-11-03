@@ -1,0 +1,12 @@
+diff --git a/arnio/schema_export.py b/arnio/schema_export.py
+index c8c4a337b08d7d9563c51fe4635ddbee6b37f151..90c17cb2e69fb12452b1170773dac2434edc2be0 100644
+--- a/arnio/schema_export.py
++++ b/arnio/schema_export.py
+@@ -71,7 +71,6 @@ def _emit_scalar(value: Any) -> str:
+             not value
+             or looks_numeric
+             or value.lower() in {"true", "false", "null", "yes", "no", "on", "off"}
+-            or bool(_DATE_RE.match(value))
+             or any(c in value for c in ("\n", "\r"))
+             or value[0]
+             in (

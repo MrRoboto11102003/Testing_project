@@ -1,0 +1,69 @@
+{
+ "id": "arnio-pr2123",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1677,
+ "issue_title": "Bug: reject whitespace-only custom validator names",
+ "issue_body": "## Summary\n`register_validator()` accepts whitespace-only validator names such as `\" \"` and `\"\\t\"`. Those names can then be used through `Custom()`, producing schema semantics like `custom: ` that are difficult to read, document, or debug.\n\n## Why it matters\nCustom validator names are part of schema contracts and serialized metadata. Whitespace-only names are effectively blank identifiers and should be rejected the same way empty strings are rejected.\n\n## Evidence\n- `arnio/schema.py`: `register_validator()` checks `if not isinstance(name, str) or not name`, but does not check `name.strip()`.\n- Runtime probe shows both `ar.register_validator(\" \", fn)` and `ar.register_validator(\"\\t\", fn)` succeed.\n- `ar.Custom(\" \")` then creates a `Field` with `semantic='custom: '`.\n\n## Reproduction or trigger\n```python\nimport arnio as ar\n\nar.register_validator(\" \", lambda value: True)\nfield = ar.Custom(\" \")\nprint(field.semantic)\n```\n\n## Expected behavior\nWhitespace-only validator names should be rejected with a clear error, for example:\n\n```text\nValueError: name must be a non-empty, non-whitespace string\n```\n\n## Actual behavior\nWhitespace-only names are accepted and become part of the schema semantic string.\n\n## Suggested direction\nUpdate `register_validator()` to reject `not name.strip()` and add tests for:\n\n- empty names\n- whitespace-only names\n- valid names\n- non-string names\n\n## References\n- `arnio/schema.py`\r\n",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1677",
+ "pr": 2123,
+ "pr_title": "fix: reject whitespace-only names in register_validator",
+ "pr_body": "## Summary\r\n\r\n- `register_validator()` accepted whitespace-only strings (e.g. `\" \"`, `\"\\t\"`) as validator names. \r\n- Updated validation from `not name` \u2192 `not name.strip()` and updated the error message to mention non-whitespace requirement in `arnio/schema.py`.\r\n- Added 6 test cases covering empty string, space-only, tab-only, mixed whitespace, non-string, and valid name in `tests/test_register_validator.py`.\r\n\r\n## Linked issue\r\nFixes #1677 \r\n\r\n## Type of change\r\n- [x] Bug fix\r\n- [ ] Feature\r\n- [ ] Performance improvement\r\n- [ ] Documentation\r\n- [ ] Tests\r\n- [ ] Refactor\r\n- [ ] CI / packaging\r\n\r\n## Area\r\n- [ ] CSV parser / I/O\r\n- [ ] C++ cleaning engine\r\n- [ ] Python API / ArFrame\r\n- [ ] Pipeline / custom steps\r\n- [ ] Data quality / profiling\r\n- [x] Schema validation\r\n- [ ] pandas interoperability\r\n- [ ] Docs / website\r\n- [ ] Developer tooling\r\n\r\n## Testing\r\n<!-- Paste commands you ran and summarize the result. -->\r\n- [x] `make test` (or `python -m pytest tests -v --cov=arnio`)\r\n- [x] `make lint` \r\n- [x] Other: Explicitly by script.\r\n\r\n## Contributor checklist\r\n- [x] I read the contributing guide.\r\n- [x] I kept the PR focused on one issue or one logical change.\r\n- [x] I added or updated tests for behavior changes.\r\n- [ ] I added or updated docs/examples for public API changes.\r\n- [x] I checked that generated files, logs, and local build artifacts are not committed.\r\n- [x] My PR title uses Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).",
+ "fix_commit": "159b6a46166483695549ef86892a8fdfe3d295d6",
+ "merged_at": "2026-05-30T12:58:18Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "arnio/schema.py"
+ ],
+ "test_files": [
+  "tests/test_register_validator.py"
+ ],
+ "target_symbols": [
+  "arnio/schema.py::register_validator"
+ ],
+ "fail_to_pass": [
+  "tests/test_register_validator.py::TestRegisterValidator::test_raises_value_error_when_name_is_empty_string",
+  "tests/test_register_validator.py::TestRegisterValidator::test_raises_value_error_when_name_is_not_string",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_empty_string",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_mixed_whitespace",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_space_only",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_tab_only"
+ ],
+ "pass_to_pass": [
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_in_schema_integration",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_raises_when_validator_not_registered",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_repr_contains_name",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_default_nullable",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_default_severity",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_default_unique",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_explicit_nullable_false",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_explicit_severity",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_explicit_unique_true",
+  "tests/test_register_validator.py::TestCustomValidator::test_custom_validator_stores_name",
+  "tests/test_register_validator.py::TestCustomValidator::test_multiple_custom_validators_in_schema",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_raises_type_error_when_name_is_empty_string",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_raises_type_error_when_name_is_integer",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_raises_type_error_when_name_is_list",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_raises_type_error_when_name_is_none",
+  "tests/test_register_validator.py::TestCustomValidatorNameValidation::test_valid_name_still_raises_when_unregistered",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_mixed_true_false_none_pd_na",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_exception_includes_schema_context",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_false_fails",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_non_bool_raises_type_error",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_none_fails",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_pd_na_fails",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_string_raises_type_error",
+  "tests/test_register_validator.py::TestCustomValidatorReturnNormalization::test_validator_returning_true_passes",
+  "tests/test_register_validator.py::TestRegisterValidator::test_duplicate_registration_does_not_mutate_existing_custom_schema",
+  "tests/test_register_validator.py::TestRegisterValidator::test_duplicate_validator_requires_explicit_overwrite",
+  "tests/test_register_validator.py::TestRegisterValidator::test_overwrite_true_replaces_existing_validator",
+  "tests/test_register_validator.py::TestRegisterValidator::test_raises_type_error_when_fn_is_none",
+  "tests/test_register_validator.py::TestRegisterValidator::test_raises_type_error_when_fn_not_callable",
+  "tests/test_register_validator.py::TestRegisterValidator::test_register_custom_validator_by_name",
+  "tests/test_register_validator.py::TestRegisterValidator::test_register_validator_returns_none",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_accepts_valid_name",
+  "tests/test_register_validator.py::TestRegisterValidatorNameValidation::test_rejects_non_string"
+ ],
+ "patch_lines": 4
+}

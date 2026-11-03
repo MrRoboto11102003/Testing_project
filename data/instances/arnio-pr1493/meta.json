@@ -1,0 +1,40 @@
+{
+ "id": "arnio-pr1493",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1404,
+ "issue_title": "Bug: validate DuckDB connection objects before registration",
+ "issue_body": "## Summary\n\n`register_duckdb()` validates the `frame` and `name` arguments, but it does not validate the DuckDB connection object before calling `conn.register(...)`.\n\n## Why it matters\n\nUsers who pass `None`, a closed/incorrect object, or another non-DuckDB object currently receive a raw `AttributeError`. A public integration helper should fail with a clear error message so the problem is easy to diagnose.\n\n## Evidence\n\n- `arnio/integrations/duckdb.py` checks `frame` and `name` types, then directly calls `conn.register(name, df)`.\n- The docstring says `conn` should be an open DuckDB connection, but invalid values are not checked.\n\n## Reproduction or trigger\n\n```python\nimport pandas as pd\nimport arnio as ar\n\nframe = ar.from_pandas(pd.DataFrame({\"x\": [1]}))\nar.register_duckdb(frame, object(), \"tbl\")\n```\n\nCurrent result:\n\n```text\nAttributeError: 'object' object has no attribute 'register'\n```\n\nThe same happens for `None`:\n\n```text\nAttributeError: 'NoneType' object has no attribute 'register'\n```\n\n## Expected behavior\n\n`register_duckdb()` should raise a clear `TypeError` or `ValueError`, for example:\n\n```text\nTypeError: conn must be a DuckDB connection with a register() method\n```\n\n## Actual behavior\n\nThe helper lets invalid connection objects reach the method call and exposes a raw implementation error.\n\n## Suggested direction\n\n- Validate that `conn` has the expected DuckDB connection API before conversion/registration.\n- Add tests for `None`, `object()`, and a valid DuckDB connection when `duckdb` is installed.\n- Keep the helper behavior unchanged for valid connections.\n\n## References\n\n- `arnio/integrations/duckdb.py`\n- `tests/test_integrations_duckdb.py`\r\n",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1404",
+ "pr": 1493,
+ "pr_title": "fix : validate duckdb connection before registration",
+ "pr_body": "## Summary\r\n\r\nAdds explicit validation for the DuckDB connection object in `register_duckdb()` before calling `conn.register(...)`.\r\n\r\nThis PR:\r\n\r\n* validates that `conn` exposes the expected DuckDB registration API\r\n* raises a clear `TypeError` for invalid connection objects instead of exposing a raw `AttributeError`\r\n* preserves existing behavior for valid DuckDB connections\r\n* adds focused tests for:\r\n\r\n  * `None`\r\n  * `object()`\r\n  * valid DuckDB connections when the dependency is available\r\n\r\n## Linked issue\r\n\r\nFixes #1404\r\n\r\n## Type of change\r\n\r\n* [x] Bug fix\r\n* [ ] Feature\r\n* [ ] Performance improvement\r\n* [ ] Documentation\r\n* [x] Tests\r\n* [ ] Refactor\r\n* [ ] CI / packaging\r\n\r\n## Area\r\n\r\n* [ ] CSV parser / I/O\r\n* [ ] C++ cleaning engine\r\n* [x] Python API / ArFrame\r\n* [ ] Pipeline / custom steps\r\n* [ ] Data quality / profiling\r\n* [ ] Schema validation\r\n* [x] pandas interoperability\r\n* [ ] Docs / website\r\n* [ ] Developer tooling\r\n\r\n## Testing\r\n\r\n* [ ] `make test`\r\n* [ ] `make lint`\r\n* [x] Other:\r\n\r\n```bash id=\"3lf9vn\"\r\nruff check .\r\nblack .\r\npytest tests/test_integrations_duckdb.py -q\r\n```\r\n\r\nResult:\r\n\r\n* validation tests pass locally\r\n* valid DuckDB registration behavior preserved\r\n* invalid connection objects now raise clear `TypeError`s\r\n\r\n## Screenshots / Media\r\n\r\nN/A\r\n\r\n## Contributor checklist\r\n\r\n* [x] I read the contributing guide.\r\n* [x] I kept the PR focused on one issue or one logical change.\r\n* [x] I added or updated tests for behavior changes.\r\n* [ ] I added or updated docs/examples for public API changes.\r\n* [x] I checked that generated files, logs, and local build artifacts are not committed.\r\n* [x] My PR title uses Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).\r\n\r\n## Maintainer notes\r\n\r\nThis PR intentionally keeps the change narrowly scoped to connection validation in `register_duckdb()` and related integration tests only.\r\n",
+ "fix_commit": "14d423c35817f9bd363671666595be681bc92162",
+ "merged_at": "2026-05-26T20:29:44Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "arnio/integrations/duckdb.py"
+ ],
+ "test_files": [
+  "tests/test_integrations_duckdb.py"
+ ],
+ "target_symbols": [
+  "arnio/integrations/duckdb.py::register_duckdb"
+ ],
+ "fail_to_pass": [
+  "tests/test_integrations_duckdb.py::test_register_duckdb_invalid_connection_object",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_noncallable_register_attribute",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_none_connection"
+ ],
+ "pass_to_pass": [
+  "tests/test_integrations_duckdb.py::test_register_duckdb_basic",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_empty_name",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_invalid_frame",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_valid_name_passes",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_whitespace_only_name_newline",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_whitespace_only_name_space",
+  "tests/test_integrations_duckdb.py::test_register_duckdb_whitespace_only_name_tab"
+ ],
+ "patch_lines": 7
+}

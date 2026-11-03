@@ -1,0 +1,29 @@
+diff --git a/tests/test_quality.py b/tests/test_quality.py
+index 36c6915..5b0b38a 100644
+--- a/tests/test_quality.py
++++ b/tests/test_quality.py
+@@ -767,6 +767,24 @@ def test_profile_approx_top_values_validation(tmp_path):
+     ):
+         ar.profile(frame, approx_top_values_min_ratio=1.5)
+ 
++    with pytest.raises(
++        ValueError,
++        match="approx_top_values_min_ratio must be a finite number between 0 and 1",
++    ):
++        ar.profile(frame, approx_top_values_min_ratio=float("nan"))
++
++    with pytest.raises(
++        ValueError,
++        match="approx_top_values_min_ratio must be a finite number between 0 and 1",
++    ):
++        ar.profile(frame, approx_top_values_min_ratio=float("inf"))
++
++    with pytest.raises(
++        ValueError,
++        match="approx_top_values_min_ratio must be a finite number between 0 and 1",
++    ):
++        ar.profile(frame, approx_top_values_min_ratio=float("-inf"))
++
+     with pytest.raises(
+         TypeError, match="approx_top_values_sample_size must be an integer"
+     ):

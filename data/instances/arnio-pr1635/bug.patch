@@ -1,0 +1,20 @@
+diff --git a/arnio/pipeline.py b/arnio/pipeline.py
+index 33f52d567ffb2370a3bb698940e45887374da735..4a331d67c458037fba63dd1a4d8121c8645e3577 100644
+--- a/arnio/pipeline.py
++++ b/arnio/pipeline.py
+@@ -571,7 +571,6 @@ def pipeline(
+     )
+ 
+     result = frame
+-    working_frame = frame
+ 
+     # --- lineage tracking setup -------------------------------------------
+     # Inject a hidden int64 sentinel column (values 0..n-1) so we can track
+@@ -703,7 +702,6 @@ def pipeline(
+             columns_after = step_result.shape[1]
+             if not dry_run:
+                 result = step_result
+-            working_frame = step_result
+ 
+             elapsed_sec = perf_counter() - started_at
+             elapsed_ms = elapsed_sec * 1000

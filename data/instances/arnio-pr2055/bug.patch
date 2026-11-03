@@ -1,0 +1,26 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..2db4b148e01ac47433b865478df8109842d47fc4 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -418,9 +418,7 @@ class ArFrame:
+ 
+         actual_n = min(n, len(self))
+ 
+-        return ArFrame(
+-            self._frame.select_rows(0, actual_n), attrs=copy.deepcopy(self._attrs)
+-        )
++        return ArFrame(self._frame.select_rows(0, actual_n))
+ 
+     def tail(self, n: int = 5) -> ArFrame:
+         """Return the last n rows as an ArFrame.
+@@ -441,9 +439,7 @@ class ArFrame:
+         actual_n = min(n, len(self))
+         start = max(0, len(self) - actual_n)
+ 
+-        return ArFrame(
+-            self._frame.select_rows(start, actual_n), attrs=copy.deepcopy(self._attrs)
+-        )
++        return ArFrame(self._frame.select_rows(start, actual_n))
+ 
+     def to_dict(
+         self,

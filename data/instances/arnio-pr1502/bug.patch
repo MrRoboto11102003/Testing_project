@@ -1,0 +1,13 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..c38a72bfff62a832a18ec45faffb993114987ffc 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -2671,8 +2671,6 @@ def auto_clean(
+     if not isinstance(mode, str) or mode not in {"safe", "strict"}:
+         raise ValueError("mode must be 'safe' or 'strict'")
+ 
+-    if not isinstance(return_report, bool):
+-        raise TypeError("return_report must be a bool")
+     if not isinstance(dry_run, bool):
+         raise TypeError("dry_run must be a bool")
+     if not isinstance(allow_lossy_casts, bool):

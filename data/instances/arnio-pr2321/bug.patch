@@ -1,0 +1,22 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..bb84617a5ea22545c732c737f5e1a39c7e9e2ae2 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -1234,16 +1234,8 @@ def normalize_whitespace(frame, columns=None):
+     else:
+         cols = list(df.select_dtypes(include=["object", "string"]).columns)
+ 
+-    import re
+-
+-    def _fix_whitespace(val):
+-        # Only process actual str values; pass through int, bool, float, None, etc.
+-        if isinstance(val, str):
+-            return re.sub(r"\s+", " ", val).strip()
+-        return val
+-
+     for col in cols:
+-        df[col] = df[col].map(_fix_whitespace)
++        df[col] = df[col].str.replace(r"\s+", " ", regex=True).str.strip()
+     return from_pandas(df) if is_arframe else df
+ 
+ 

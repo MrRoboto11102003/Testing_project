@@ -1,0 +1,28 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..675ebd343fc2ee69019f451694e2db1cedb9c944 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -2115,11 +2115,9 @@ def Int64(
+     if min is not None:
+         if isinstance(min, bool) or not isinstance(min, (int, float)):
+             raise TypeError("min must be numeric or None")
+-        _validate_numeric_bound(min, "min")
+     if max is not None:
+         if isinstance(max, bool) or not isinstance(max, (int, float)):
+             raise TypeError("max must be numeric or None")
+-        _validate_numeric_bound(max, "max")
+     if min is not None and max is not None and min > max:
+         raise ValueError("min must be less than or equal to max")
+ 
+@@ -2160,11 +2158,9 @@ def Float64(
+     if min is not None:
+         if isinstance(min, bool) or not isinstance(min, (int, float)):
+             raise TypeError("min must be numeric or None")
+-        _validate_numeric_bound(min, "min")
+     if max is not None:
+         if isinstance(max, bool) or not isinstance(max, (int, float)):
+             raise TypeError("max must be numeric or None")
+-        _validate_numeric_bound(max, "max")
+     if min is not None and max is not None and min > max:
+         raise ValueError("min must be less than or equal to max")
+ 

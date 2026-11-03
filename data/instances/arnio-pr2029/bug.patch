@@ -1,0 +1,13 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..edc50d4617fc150630ee5f1272be613f449551f8 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -2627,7 +2627,7 @@ def clean_column_names(
+         if original != updated
+     }
+     if not mapping:
+-        return copy.deepcopy(frame)
++        return frame
+ 
+     result = _rename_columns(frame._frame, mapping)
+     return ArFrame(result)

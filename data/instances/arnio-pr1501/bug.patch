@@ -1,0 +1,13 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..62f69ace79ac51e77e2d537ebebe3f54478375a3 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -33,8 +33,6 @@ from .frame import ArFrame
+ 
+ def _is_utf8_encoding(encoding: str) -> bool:
+     """Return whether the encoding should be treated as raw UTF-8 input."""
+-    if not isinstance(encoding, str):
+-        raise TypeError(f"encoding must be a string, got {type(encoding).__name__!r}")
+     return encoding.lower().replace("_", "-") in {"utf-8", "utf8"}
+ 
+ 

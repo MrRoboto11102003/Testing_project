@@ -1,0 +1,187 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for the functions documented below. Test the documented behavior,
+including edge cases the documentation implies. Use only the public API shown and
+pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source signatures and docstrings
+
+# arnio.io.scan_csv
+def scan_csv(
+    path: str | os.PathLike[str] | io.TextIOBase,
+    *,
+    delimiter: str | None = None,
+    encoding: str = "utf-8",
+    trim_headers: bool = True,
+    decimal_separator: str = ".",
+    thousands_separator: str | None = None,
+    sample_size: int | None = None,
+    null_values: list[str] | None = None,
+    has_header: bool = True,
+    encoding_errors: str = "strict",
+    mode: str = "strict",
+    on_bad_lines: str = "error",
+) -> dict[str, str]:
+    """Return schema (column names + inferred types) without loading data.
+
+    Parameters
+    ----------
+    path : str or file-like object
+        Filesystem path or text file-like object containing CSV data.
+        Any file extension is accepted, including compressed ``.csv.gz`` files.
+        For ``.tsv`` files, the delimiter
+        is automatically set to ``'\t'`` when ``delimiter`` is omitted.
+    delimiter : str or None, default None
+        Field delimiter character.  When ``None`` (the default) the
+        delimiter is inferred from the file extension: ``'\t'`` for
+        ``.tsv`` files and ``','`` for everything else.  Passing an
+        explicit value always takes precedence.
+    encoding : str, default "utf-8"
+        File encoding. For non-UTF-8 inputs, a sample of the file is
+        transcoded to infer the schema.
+    trim_headers : bool, default True
+        Strip leading/trailing whitespace from column names.  Regardless
+        of this setting, headers that differ only by leading or trailing
+        whitespace are always rejected with a :exc:`CsvReadError` because
+        they would produce ambiguous column access.
+    decimal_separator : str, default "."
+        Single non-alphanumeric character used as the decimal separator
+        during numeric parsing.
+    thousands_separator : str, optional
+        Single non-alphanumeric character used as a thousands separator
+        during numeric parsing.
+
+        Values containing delimiter characters must still be quoted
+        properly in the CSV input. For example, when using a comma
+        delimiter, the value "1,234" must be quoted, while unquoted
+        1,234 is interpreted as two separate fields.
+    sample_size : int, optional
+        Number of rows to read for type inference. If None, defaults to 100 rows.
+    has_header : bool, default True
+        Whether the CSV file contains a header row.
+        When False, synthetic column names are generated
+        in the form ``col_0``, ``col_1``, etc., matching
+        the behavior of ``read_csv(..., has_header=False)``.
+
+    encoding_errors : str, default "strict"
+        How encoding errors are handled. One of ``"strict"``, ``"replace"``,
+        or ``"ignore"``.
+
+    mode : {"strict", "permissive"}, default "strict"
+        Controls malformed row handling during schema inference. In
+        ``"permissive"`` mode, narrow rows are padded with nulls before type
+        inference so scanning matches ``read_csv(..., mode="permissive")``.
+
+    on_bad_lines : str, default "error"
+        What to do when a malformed row is encountered during schema inference.
+        ``"error"`` raises :exc:`CsvReadError` immediately (default).
+        ``"warn"`` skips the bad row and emits a :class:`UserWarning`.
+        ``"skip"`` silently skips the bad row without any warning.
+    Returns
+    -------
+    dict[str, str]
+        Dictionary mapping column names to inferred type strings.
+
+    Raises
+    ------
+    ValueError
+        If thousands_separator is invalid.
+
+    TypeError
+        If delimiter is not a string or None, or thousands_separator is
+        not a string or None.
+
+    CsvReadError
+        If CSV input contains NUL bytes and appears binary or corrupted.
+
+    Examples
+    --------
+    >>> schema = ar.scan_csv("data.csv")
+    >>> print(schema)
+    {'name': 'string', 'age': 'int64'}
+    >>> schema = ar.scan_csv("data.tsv")              # tab auto-detected
+    >>> schema = ar.scan_csv("data.tsv", delimiter=",")  # explicit comma honoured
+    >>> schema = ar.scan_csv("data.dat")              # non-standard extension accepted
+    """
+    ...
+
+# arnio.io.write_csv
+def write_csv(
+    frame: ArFrame,
+    path: str | os.PathLike[str],
+    *,
+    delimiter: str = ",",
+    write_header: bool = True,
+    line_terminator: str = "\n",
+    escape_formulas: bool = False,
+    encoding: str = "utf-8",
+    encoding_errors: str = "strict",
+) -> None:
+    """Write an ArFrame to a CSV file via C++ backend.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        The data frame to write.
+    path : str
+        Destination file path. Supports .csv, .txt, and .tsv extensions.
+    delimiter : str, default ","
+        Field delimiter character.
+    write_header : bool, default True
+        Whether to write the column header row.
+    line_terminator : str, default "\\n"
+        Line terminator to use between rows.
+    escape_formulas : bool, default False
+        If True, prefix string cell values that begin with spreadsheet formula
+        trigger characters (``=``, ``+``, ``-``, ``@``, tab, or carriage return)
+        with a single quote before CSV quoting. Numeric columns are not changed.
+    encoding : str, default "utf-8"
+        Output file encoding. UTF-8 (default) uses the native writer path
+        directly with no transcoding overhead. Any other encoding supported
+        by Python's ``codecs`` module is accepted; the native writer emits
+        UTF-8 to a temporary file which is then transcoded in bounded chunks.
+    encoding_errors : str, default "strict"
+        How encoding errors are handled: ``"strict"`` raises ``ValueError``
+        for unencodable characters, ``"replace"`` substitutes a replacement
+        character, ``"ignore"`` drops unencodable characters.
+
+    Raises
+    ------
+    TypeError
+        If ``encoding`` or ``encoding_errors`` is not a string.
+    ValueError
+        If ``encoding`` is an unknown codec, ``encoding_errors`` is not one of
+        ``"strict"``, ``"replace"``, or ``"ignore"``, or if a character cannot
+        be encoded in the requested encoding with ``encoding_errors="strict"``.
+    RuntimeError
+        If the file cannot be opened or written.
+
+    Examples
+    --------
+    >>> ar.write_csv(frame, "output.csv")
+    >>> ar.write_csv(frame, "output.tsv", delimiter="\\t")
+    >>> ar.write_csv(frame, "output_latin1.csv", encoding="latin-1")
+    """
+    ...
+
+## API reference
+
+### scan_csv
+
+Return schema (column names + inferred types) without loading data.
+
+```python
+schema = ar.scan_csv("large_dataset.csv")
+```
+
+
+### write_csv
+
+Writes an `ArFrame` to a CSV file via the C++ backend.
+
+```python
+ar.write_csv(frame, "output.csv")
+```
+
+
+

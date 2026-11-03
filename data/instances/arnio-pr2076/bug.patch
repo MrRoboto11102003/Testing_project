@@ -1,0 +1,13 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..d3625c89f3d0a9a48e2a0c30dbb791ef3aac4278 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -902,8 +902,6 @@ class Field:
+                 )
+             if not isinstance(self.required_if[0], str):
+                 raise TypeError("required_if column name must be a string")
+-            if not pd.api.types.is_scalar(self.required_if[1]):
+-                raise TypeError("required_if expected value must be a scalar")
+         if self.dtype in {"int64", "float64"}:
+             if self.min is not None:
+                 if isinstance(self.min, bool) or not isinstance(self.min, (int, float)):

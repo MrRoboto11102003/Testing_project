@@ -1,0 +1,22 @@
+diff --git a/arnio/schema_export.py b/arnio/schema_export.py
+index c8c4a337b08d7d9563c51fe4635ddbee6b37f151..3fa1f0144a523603bc9c5808c716f2cac88a9a1f 100644
+--- a/arnio/schema_export.py
++++ b/arnio/schema_export.py
+@@ -59,17 +59,9 @@ def _emit_scalar(value: Any) -> str:
+             return "-.inf"
+         return repr(value)
+     if isinstance(value, str):
+-        looks_numeric = False
+-        try:
+-            float(value)
+-            looks_numeric = True
+-        except ValueError:
+-            pass
+-
+         # Quote strings that would be misread as YAML scalars or are empty.
+         needs_quoting = (
+             not value
+-            or looks_numeric
+             or value.lower() in {"true", "false", "null", "yes", "no", "on", "off"}
+             or bool(_DATE_RE.match(value))
+             or any(c in value for c in ("\n", "\r"))

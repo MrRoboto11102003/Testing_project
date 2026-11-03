@@ -1,0 +1,14 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..e26e43441ec3f4b226fd27e1cadd0e0f6271751f 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -2294,9 +2294,6 @@ def write_parquet(
+             "write_parquet only supports .parquet and .pq files."
+         )
+ 
+-    if not isinstance(compression, str):
+-        raise TypeError("compression must be a string")
+-
+     if compression not in _VALID_COMPRESSIONS:
+         raise ValueError(
+             f"Unknown compression codec: {compression!r}. "

@@ -1,0 +1,21 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..94e487ec8954b5083d89300955d415385e2a00f0 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -655,15 +655,7 @@ def drop_empty_columns(frame: ArFrame) -> ArFrame:
+     from .convert import to_pandas
+ 
+     if frame.shape[0] == 0:
+-        attrs = copy.deepcopy(frame._attrs) if frame._attrs is not None else None
+-        empty_columns_data: dict[str, list[object]] = {}
+-        empty_dtype_hints: dict[str, _DType] = {}
+-        for col_name in frame.columns:
+-            empty_columns_data[col_name] = []
+-            empty_dtype_hints[col_name] = frame._frame.column_by_name(col_name).dtype()
+-        return ArFrame(
+-            _Frame.from_dict(empty_columns_data, empty_dtype_hints, 0), attrs=attrs
+-        )
++        return frame
+ 
+     df = to_pandas(frame)
+     empty_columns: list[str] = []

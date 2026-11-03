@@ -1,0 +1,43 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..e61b1c2d8ddf25147f16e91247a0288fad820ab1 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -3019,12 +3019,7 @@ def _validate_column(
+             else:
+                 invalid = non_null[
+                     ~non_null.map(
+-                        lambda v: _run_custom_validator(
+-                            fn,
+-                            v,
+-                            column=name,
+-                            validator_name=validator_name,
+-                        )
++                        lambda v: _normalize_validator_result(fn(v), validator_name)
+                     )
+                 ]
+                 issues.extend(
+@@ -3564,24 +3559,6 @@ def _normalize_validator_result(result: object, validator_name: str) -> bool:
+     )
+ 
+ 
+-def _run_custom_validator(
+-    fn: Callable[[Any], object],
+-    value: Any,
+-    *,
+-    column: str,
+-    validator_name: str,
+-) -> bool:
+-    """Run a registered custom validator and add schema context on failure."""
+-    try:
+-        result = fn(value)
+-    except Exception as exc:
+-        raise ArnioError(
+-            f"Custom validator {validator_name!r} failed for column "
+-            f"{column!r} with value {value!r}: {exc}"
+-        ) from exc
+-    return _normalize_validator_result(result, validator_name)
+-
+-
+ def Custom(
+     name: str,
+     *,

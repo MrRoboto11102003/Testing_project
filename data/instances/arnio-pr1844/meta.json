@@ -1,0 +1,33 @@
+{
+ "id": "arnio-pr1844",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1659,
+ "issue_title": "Bug: required_if validation ignores empty string values",
+ "issue_body": "## Summary\n\n`required_if` currently checks only `series.isna()` when a condition is met. For string columns, Arnio already treats empty strings and whitespace-only strings as null-like values in nullable validation, but `required_if` does not reuse that null mask.\n\nAs a result, a conditionally required string field can pass validation even when the value is `\"\"` or only whitespace.\n\n## Why it matters\n\nConditional required fields are commonly used for production data contracts, for example requiring `tax_id` when `account_type == \"business\"`. Empty strings should not satisfy that requirement.\n\nThis can let invalid records pass schema validation silently.\n\n## Evidence\n\n- `arnio/schema.py`: `_validate_column()` builds `is_null_mask` that treats empty/whitespace strings as null-like.\n- `arnio/schema.py`: the `required_if` branch later uses `series.isna()` directly instead of `is_null_mask`.\n- Runtime reproduction shows empty and whitespace values pass when the condition is true.\n\n## Reproduction or trigger\n\n```python\nimport pandas as pd\nimport arnio as ar\n\nframe = ar.from_pandas(pd.DataFrame({\n    \"kind\": [\"business\", \"personal\", \"business\"],\n    \"tax_id\": [\"\", None, \"   \"],\n}))\n\nschema = ar.Schema({\n    \"kind\": ar.String(),\n    \"tax_id\": ar.String(required_if=(\"kind\", \"business\")),\n})\n\nresult = ar.validate(frame, schema)\nprint(result.to_dict())\n```\n\nCurrent output:\n\n```python\n{'passed': True, 'row_count': 3, 'issue_count': 0, 'bad_rows': [], 'issues': []}\n```\n\n## Expected behavior\n\nRows where `kind == \"business\"` and `tax_id` is empty or whitespace-only should produce `required_if` validation issues.\n\n## Actual behavior\n\nThe result passes because `required_if` only checks `series.isna()`.\n\n## Suggested direction\n\nUse the existing `is_null_mask` when evaluating `required_if` instead of `series.isna()`. Add tests for:\n\n- empty string under a triggered condition\n- whitespace-only string under a triggered condition\n- real `None` / `pd.NA`\n- non-triggered rows remaining valid\n\n## References\n\n- `arnio/schema.py::_validate_column`\r\n",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1659",
+ "pr": 1844,
+ "pr_title": "Fix: treat empty/whitespace strings as null in required_if validation",
+ "pr_body": "Fixes #1659\n\nThis PR updates the 'required_if' validation logic in 'arnio/schema.py' to use 'is_null_mask' instead of 'series.isna()'. This ensures that empty strings and whitespace-only strings are correctly treated as null-like values (and thus fail the requirement) when the 'required_if' condition is met, matching the behavior of 'nullable' validation.\n\n### Changes:\n- Modified '_validate_column' in 'arnio/schema.py' to use the existing 'is_null_mask' for 'required_if' checks.\n- Added regression tests in 'tests/test_issue_1659.py' covering:\n    - Empty strings under triggered condition (fails)\n    - Whitespace strings under triggered condition (fails)\n    - 'None' values under triggered condition (fails)\n    - Non-triggered rows (passes)",
+ "fix_commit": "b937c0fc820852bc9fadcdbf1d8e72198b7d4eb2",
+ "merged_at": "2026-05-28T15:37:08Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "arnio/schema.py"
+ ],
+ "test_files": [
+  "tests/test_issue_1659.py"
+ ],
+ "target_symbols": [
+  "arnio/schema.py::_validate_column"
+ ],
+ "fail_to_pass": [
+  "tests/test_issue_1659.py::test_required_if_empty_string"
+ ],
+ "pass_to_pass": [
+  "tests/test_issue_1659.py::test_required_if_non_triggered",
+  "tests/test_issue_1659.py::test_required_if_real_none"
+ ],
+ "patch_lines": 2
+}

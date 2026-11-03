@@ -1,0 +1,18 @@
+diff --git a/arnio/io.py b/arnio/io.py
+index 4aa39e4c97bccfb273f7e8b9fad1f4ea0da6b500..09ae560c32e4f150e6d682c83021717697b20fe1 100644
+--- a/arnio/io.py
++++ b/arnio/io.py
+@@ -2281,12 +2281,7 @@ def write_parquet(
+ 
+     from .convert import to_pandas
+ 
+-    if not isinstance(path, (str, bytes, os.PathLike)):
+-        raise TypeError(
+-            f"path must be a string, bytes, or os.PathLike object, got {type(path).__name__!r}"
+-        )
+-
+-    path = os.fsdecode(os.fspath(path))
++    path = os.fspath(path)
+     path_lower = path.lower()
+     if not (path_lower.endswith(".parquet") or path_lower.endswith(".pq")):
+         raise ValueError(

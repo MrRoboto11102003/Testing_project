@@ -1,0 +1,20 @@
+diff --git a/arnio/pipeline.py b/arnio/pipeline.py
+index 33f52d567ffb2370a3bb698940e45887374da735..5c282cd8d306999f177967c66acf33150fa614c3 100644
+--- a/arnio/pipeline.py
++++ b/arnio/pipeline.py
+@@ -282,13 +282,9 @@ def unregister_step(name: str) -> None:
+         if name not in _PYTHON_STEP_REGISTRY:
+             available_steps = sorted(set(_STEP_REGISTRY) | set(_PYTHON_STEP_REGISTRY))
+             raise UnknownStepError(name, available_steps)
++        fn = _PYTHON_STEP_REGISTRY[name]
+ 
+-        # Protect only names that were registered as built-ins at module load
+-        # time (i.e. present in _BUILTIN_PYTHON_STEP_REGISTRY).  Do NOT use
+-        # _is_builtin_python_step here: that helper checks the function's
+-        # __module__, which would wrongly block user-defined aliases whose
+-        # underlying callable happens to live in arnio.cleaning.
+-        if name in _BUILTIN_PYTHON_STEP_REGISTRY:
++        if _is_builtin_python_step(name, fn):
+             available_steps = sorted(set(_STEP_REGISTRY) | set(_PYTHON_STEP_REGISTRY))
+             raise ValueError(
+                 f"Cannot unregister built-in step '{name}'. Only custom user-registered steps can be unregistered."

@@ -1,0 +1,34 @@
+{
+ "id": "arnio-pr2217",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 1892,
+ "issue_title": "DX: avoid stale __version__ values when importing from source",
+ "issue_body": "## Summary\nImporting `arnio` directly from a source checkout can report the version of a different installed `arnio` distribution. `arnio.__file__` points at the checkout, but `arnio.__version__` is resolved with `importlib.metadata.version(\"arnio\")`, which reads installed distribution metadata rather than the source tree.\n\n## Why it matters\nThis makes release validation and contributor debugging confusing. A maintainer can be testing the current checkout while `ar.__version__` reports an older PyPI/editable install, which can lead to wrong bug reports, release notes, and support answers.\n\n## Evidence\n- `arnio/__init__.py` sets `__version__ = version(\"arnio\")` with no source-tree fallback.\n- `pyproject.toml` currently declares `version = \"1.19.0\"`.\n- In a clean source checkout import, the module path points at the checkout while `__version__` can still report an installed distribution version:\n  ```text\n  arnio.__file__ = C:\\Users\\anish\\AppData\\Local\\Temp\\arnio-prod-qa-main\\arnio\\__init__.py\n  arnio.__version__ = 1.18.0\n  ```\n\n## Reproduction or trigger\n1. Have an older `arnio` distribution installed in the Python environment.\n2. Import `arnio` from a source checkout by running Python with the checkout on `sys.path`.\n3. Print `arnio.__file__` and `arnio.__version__`.\n\n## Expected behavior\nWhen importing from the checkout, `arnio.__version__` should either match the checkout version or clearly fall back to `\"unknown\"` if no reliable source version is available.\n\n## Actual behavior\n`arnio.__version__` can report the version of an unrelated installed distribution even though the imported module code comes from the checkout.\n\n## Suggested direction\nAdd a robust source-tree fallback, such as reading the nearest `pyproject.toml` only when `importlib.metadata` does not describe the imported package location, or generate a small `_version.py` during packaging so source and installed imports stay aligned.\n\n## References\n- `arnio/__init__.py`\n- `pyproject.toml`\r\n",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/1892",
+ "pr": 2217,
+ "pr_title": "fix: resolve __version__ from pyproject.toml in source checkouts",
+ "pr_body": "## Summary\r\n\r\nFixes stale `arnio.__version__` values when importing directly from a source checkout.\r\n\r\nCloses #1892\r\n\r\n## Problem\r\n\r\n`arnio.__version__` was always resolved via `importlib.metadata.version(\"arnio\")`. When an older Arnio distribution was installed in the environment, importing Arnio from a source checkout could report the installed distribution's version instead of the version corresponding to the imported source tree.\r\n\r\n## Changes Made\r\n\r\n* Updated `arnio/__init__.py` to support source-checkout version resolution.\r\n* When a local `pyproject.toml` is available, read the version directly from it.\r\n* Retain existing `importlib.metadata` behavior for normal installed-package usage.\r\n* Fall back to `\"unknown\"` if no reliable version source is available.\r\n* Added focused regression tests covering:\r\n\r\n  * Version is exposed as a string.\r\n  * Installed-package version resolution.\r\n  * Source-checkout version resolution from `pyproject.toml`.\r\n  * Fallback behavior when neither metadata nor `pyproject.toml` is available.\r\n\r\n## Verification\r\n\r\n```bash\r\npython3 -c \"\r\nimport sys\r\nsys.path.insert(0, '.')\r\nimport arnio\r\nprint('__file__:', arnio.__file__)\r\nprint('__version__:', arnio.__version__)\r\n\"\r\n```\r\n\r\nOutput:\r\n\r\n```text\r\n__file__: /home/kali/Desktop/arnio/arnio/__init__.py\r\n__version__: 1.19.0\r\n```\r\n\r\nTargeted tests:\r\n\r\n```bash\r\npython3 -m pytest tests/test_core.py -v -k \"version\"\r\n```\r\n\r\nResult:\r\n\r\n```text\r\n4 passed\r\n```\r\n<img width=\"949\" height=\"463\" alt=\"image\" src=\"https://github.com/user-attachments/assets/edbedc4d-0b60-4c41-a76d-c2d79cb87a66\" />\r\n\r\n\r\n\r\n## Scope\r\n\r\n* `arnio/__init__.py`\r\n* `tests/test_core.py`\r\n\r\nNo changes to runtime APIs, packaging configuration, release automation, documentation, or unrelated tests.\r\n",
+ "fix_commit": "78547ca043f6e058e5dddd2b3d51b4e59b6ded8f",
+ "merged_at": "2026-05-31T08:06:57Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "arnio/__init__.py",
+  "arnio/_version.py"
+ ],
+ "test_files": [
+  "tests/test_core.py"
+ ],
+ "target_symbols": [],
+ "fail_to_pass": [
+  "tests/test_core.py::test_version_fallback_unknown_when_no_pyproject_and_no_metadata",
+  "tests/test_core.py::test_version_not_unknown_on_installed_package",
+  "tests/test_core.py::test_version_reads_pyproject_in_source_checkout"
+ ],
+ "pass_to_pass": [
+  "tests/test_core.py::test_missing_cpp_extension_error_message",
+  "tests/test_core.py::test_version_is_string"
+ ],
+ "patch_lines": 53
+}

@@ -1,0 +1,17 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..ad9618ea9fb1167af3667fc010b390e12d040ad7 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -47,12 +47,6 @@ class ColumnSummary:
+     __slots__ = ("name", "dtype", "nullable")
+ 
+     def __init__(self, name: str, dtype: str, nullable: bool) -> None:
+-        if not isinstance(name, str):
+-            raise TypeError("name must be a str")
+-        if not isinstance(dtype, str):
+-            raise TypeError("dtype must be a str")
+-        if not isinstance(nullable, bool):
+-            raise TypeError("nullable must be a bool")
+         self.name = name
+         self.dtype = dtype
+         self.nullable = nullable

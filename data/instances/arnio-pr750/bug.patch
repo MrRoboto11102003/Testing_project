@@ -1,0 +1,24 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..16df8175520954adc6eb5bda70410d7c043bd473 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -2263,7 +2263,7 @@ def _compare_column_profiles(
+             "delta": _clean_scalar(delta),
+         }
+ 
+-        metric_status = "ok"
++        metric_status = "warning"
+         if (
+             changed_threshold is not None
+             and delta is not None
+@@ -2327,8 +2327,8 @@ def _compare_column_profiles(
+                 metric,
+                 value_a,
+                 value_b,
+-                warning_threshold=scale * 0.1,
+-                changed_threshold=scale * 0.25,
++                warning_threshold=scale,
++                changed_threshold=scale * 2.0,
+                 reason=f"numeric {metric} changed",
+             )
+ 

@@ -1,0 +1,63 @@
+diff --git a/tests/test_cleaning.py b/tests/test_cleaning.py
+index 83292f5..830657e 100644
+--- a/tests/test_cleaning.py
++++ b/tests/test_cleaning.py
+@@ -2724,7 +2724,6 @@ class TestFilterRows:
+ 
+     def test_filter_rows_rejects_list_like_values(self):
+         df = pd.DataFrame({"a": [1, 2, 3]})
+-
+         list_like_values = [
+             [1, 2],
+             (1, 2),
+@@ -2738,6 +2737,24 @@ class TestFilterRows:
+             with pytest.raises(TypeError, match="filter_rows value must be a scalar"):
+                 ar.filter_rows(df, "a", "==", value)
+ 
++    def test_filter_rows_non_string_column_raises_type_error(self):
++        frame = ar.from_pandas(pd.DataFrame({"x": [1, 2, 3]}))
++
++        with pytest.raises(TypeError, match="column must be a non-empty string"):
++            ar.filter_rows(frame, column=123, op="==", value=1)
++
++    def test_filter_rows_empty_string_column_raises_type_error(self):
++        frame = ar.from_pandas(pd.DataFrame({"x": [1, 2, 3]}))
++
++        with pytest.raises(TypeError, match="column must be a non-empty string"):
++            ar.filter_rows(frame, column="", op="==", value=1)
++
++    def test_filter_rows_non_string_op_raises_type_error(self):
++        frame = ar.from_pandas(pd.DataFrame({"x": [1, 2, 3]}))
++
++        with pytest.raises(TypeError, match="op must be a string"):
++            ar.filter_rows(frame, column="x", op=["=="], value=1)
++
+ 
+ class TestMappingValidation:
+     def test_rename_columns_rejects_invalid_mapping_value_type(self, sample_csv):
+diff --git a/tests/test_pipeline.py b/tests/test_pipeline.py
+index e6c491d..706aa98 100644
+--- a/tests/test_pipeline.py
++++ b/tests/test_pipeline.py
+@@ -863,6 +863,21 @@ class TestPipeline:
+         assert row_counts[0]["after"] == 3
+         assert row_counts[0]["dry_run"] is True
+ 
++    def test_pipeline_filter_rows_non_string_column_raises_type_error(self):
++        frame = ar.from_pandas(pd.DataFrame({"x": [1, 2, 3]}))
++        with pytest.raises(TypeError, match="column must be a non-empty string"):
++            ar.pipeline(
++                frame, [("filter_rows", {"column": 123, "op": "==", "value": 1})]
++            )
++
++    def test_pipeline_filter_rows_non_string_op_raises_type_error(self):
++        frame = ar.from_pandas(pd.DataFrame({"x": [1, 2, 3]}))
++
++        with pytest.raises(TypeError, match="op must be a string"):
++            ar.pipeline(
++                frame, [("filter_rows", {"column": "x", "op": ["=="], "value": 1})]
++            )
++
+ 
+ class TestPipelineDryRunIntermediateFrame:
+     """Regression tests for dry_run validating against intermediate frame."""

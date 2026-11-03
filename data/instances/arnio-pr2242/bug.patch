@@ -1,0 +1,13 @@
+diff --git a/arnio/frame.py b/arnio/frame.py
+index dca2c65a6edd809cb640e7ff51dbb9a5826f461f..011cc61d046e5a2c2d6a1900e4810b1b53d8553a 100644
+--- a/arnio/frame.py
++++ b/arnio/frame.py
+@@ -935,7 +935,7 @@ class ArFrame:
+         return True
+ 
+     def __copy__(self) -> ArFrame:
+-        return ArFrame(self._frame.clone(), attrs=self._attrs.copy())
++        return ArFrame(self._frame, attrs=self._attrs.copy())
+ 
+     def __deepcopy__(self, memo: dict) -> ArFrame:
+         if id(self) in memo:

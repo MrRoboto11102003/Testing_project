@@ -1,0 +1,18 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..446b22b83e315656ccdcbc85115656f1099f94f1 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -2323,13 +2323,8 @@ def Email(
+     Returns:
+         Field: Configured email-address schema field.
+     """
+-
+-    if not isinstance(validation, str):
+-        raise TypeError("Email validation must be a string: 'light' or 'strict'")
+-
+     if validation not in {"light", "strict"}:
+         raise ValueError("Email validation must be 'light' or 'strict'")
+-
+     return Field(
+         dtype="string",
+         nullable=nullable,

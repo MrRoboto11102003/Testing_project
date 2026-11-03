@@ -1,0 +1,47 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..7379d4ebdd47e48237df64268d86fcb4c5b2eef3 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -184,7 +184,6 @@ def _validate_existing_column_sequence(
+     available_columns: Sequence[str],
+     argument_name: str,
+     allow_empty: bool = True,
+-    reject_duplicates: bool = False,
+     missing_error: type[Exception] = KeyError,
+     missing_message: Callable[[list[str], str], str] | None = None,
+ ) -> list[str]:
+@@ -193,18 +192,6 @@ def _validate_existing_column_sequence(
+     if not normalized and not allow_empty:
+         raise ValueError(f"{argument_name} cannot be empty")
+ 
+-    if reject_duplicates:
+-        seen = set()
+-        duplicates = []
+-        for col in normalized:
+-            if col in seen and col not in duplicates:
+-                duplicates.append(col)
+-            seen.add(col)
+-        if duplicates:
+-            raise ValueError(
+-                f"{argument_name} contains duplicate column names: {duplicates}"
+-            )
+-
+     missing = [column for column in normalized if column not in available_columns]
+     if missing:
+         available = ", ".join(map(str, available_columns)) or "<none>"
+@@ -1968,7 +1955,6 @@ def combine_columns(
+             subset,
+             available_columns=column_names,
+             argument_name="subset",
+-            reject_duplicates=True,
+             missing_message=lambda missing, available: (
+                 f"Missing columns for combine_columns: {missing}. "
+                 f"Available columns: {available}"
+@@ -2532,7 +2518,6 @@ def coalesce_columns(
+         subset,
+         available_columns=column_names,
+         argument_name="subset",
+-        reject_duplicates=True,
+         missing_message=lambda missing, available: (
+             f"Missing columns for coalesce_columns: {missing}. "
+             f"Available columns: {available}"

@@ -1,0 +1,41 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..fc2e36b7323083d6ae428786f477db064cea4cb0 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -3100,33 +3100,17 @@ def _validate_column(
+                                 )
+                             )
+                 elif field_def.semantic == "country_code":
+-                    values = (
+-                        non_null.str.upper()
+-                        if not field_def.case_sensitive
+-                        else non_null
+-                    )
+-                    invalid = non_null[~values.isin(ISO_3166_1_ALPHA_2)]
++                    invalid = non_null[~non_null.isin(ISO_3166_1_ALPHA_2)]
+ 
+                 elif field_def.semantic == "language_code":
+-                    values = (
+-                        non_null.str.lower()
+-                        if not field_def.case_sensitive
+-                        else non_null
+-                    )
+-                    invalid = non_null[~values.isin(ISO_639_1_CODES)]
+-
++                    invalid = non_null[~non_null.isin(ISO_639_1_CODES)]
+                 elif field_def.semantic == "timezone":
+                     invalid = non_null[~non_null.isin(IANA_TIMEZONES)]
+                 elif field_def.semantic == "currency_code":
+                     if field_def.allowed is not None:
+                         invalid = pd.Series(dtype=object)
+                     else:
+-                        values = (
+-                            non_null.str.upper()
+-                            if not field_def.case_sensitive
+-                            else non_null
+-                        )
+-                        invalid = non_null[~values.isin(ISO_4217_CURRENCY_CODES)]
++                        invalid = non_null[~non_null.isin(ISO_4217_CURRENCY_CODES)]
+ 
+                 else:
+                     invalid = non_null[~text.str.fullmatch(pattern, na=False)]

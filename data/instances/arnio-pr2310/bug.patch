@@ -1,0 +1,29 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..abded6e433d1d813c8dd43060168440c3f902fd2 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -2020,7 +2020,8 @@ def safe_divide_columns(
+         Column name to use as the denominator.
+     output_column : str
+         Name of the new column to store the division result. Must be a
+-        non-empty string. If the column already exists, a ``ValueError`` is raised.
++        non-empty string. If the column already exists, it will be
++        overwritten and a ``UserWarning`` is raised.
+     fill_value : float, optional
+         Value to use when denominator is zero or null. Defaults to 0.0.
+ 
+@@ -2065,7 +2066,13 @@ def safe_divide_columns(
+         raise ValueError(f"fill_value must be finite, got {fill_value}")
+ 
+     if output_column in columns:
+-        raise ValueError(f"Output column '{output_column}' already exists.")
++        import warnings
++
++        warnings.warn(
++            f"Output column '{output_column}' already exists and will be overwritten.",
++            UserWarning,
++            stacklevel=2,
++        )
+ 
+     if is_arframe:
+         numerator_dtype = frame.dtypes.get(numerator)

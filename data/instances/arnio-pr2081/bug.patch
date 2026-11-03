@@ -1,0 +1,19 @@
+diff --git a/arnio/quality.py b/arnio/quality.py
+index e7ba777ff1e1cbbf4b854fbea8c1781c3757ee29..b2e8c4cc5ff50bdc79bdc9c7216060f0a69c57b3 100644
+--- a/arnio/quality.py
++++ b/arnio/quality.py
+@@ -3005,13 +3005,10 @@ def _suggest_column_dtype(series: pd.Series, dtype: str) -> str | None:
+         return "bool"
+ 
+     numeric = pd.to_numeric(values, errors="coerce")
+-
+     if numeric.notna().all():
+         if values.str.fullmatch(r"[+-]?\d+").all():
+             return "int64"
+-
+-        if np.isfinite(numeric).all():
+-            return "float64"
++        return "float64"
+     return None
+ 
+ 

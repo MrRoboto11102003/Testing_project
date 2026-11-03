@@ -1,0 +1,63 @@
+{
+ "id": "arnio-pr2066",
+ "repo": "im-anishraj/arnio",
+ "base_ref": "v1.20.0",
+ "base_commit": "2e3fe965c963d45ae156c32ef230c7eb7a29a777",
+ "issue": 2071,
+ "issue_title": "Bug: winsorize_outliers returns the original frame object (not a copy) when no numeric columns exist, violating the documented return contract",
+ "issue_body": "**What happened?**\n\nIn `arnio/cleaning.py`, `winsorize_outliers` short-circuits and returns the **original frame object** when there are no numeric columns:\n\n```python\nif not target_columns:\n    return frame  # returns the same object, not a copy\n```\n\nThe documented return type says: 'Returns: ArFrame - New frame with winsorized numeric values.' Returning the same object violates this contract and surprises callers who check `result is not frame`.\n\n**Area**\nPython API / ArFrame\n\n**Minimal reproduction**\n\n```python\nimport arnio as ar\nimport pandas as pd\n\nframe = ar.from_pandas(pd.DataFrame({'name': ['alice', 'bob']}))\nresult = ar.winsorize_outliers(frame)\nassert result is frame  # This passes - unexpected\n```\n\nExpected: a distinct ArFrame object is always returned.\nActual: the same input object is returned when no numeric columns exist.\n\n**Environment**\nPython 3.x, arnio latest",
+ "issue_url": "https://github.com/im-anishraj/arnio/issues/2071",
+ "pr": 2066,
+ "pr_title": "fix(cleaning): return a new ArFrame from winsorize_outliers when no target columns exist",
+ "pr_body": "## Summary\n\nFixes #2071\n\nWhen `winsorize_outliers` found no numeric columns to process, the early-return path returned the **original `frame` object** rather than a new `ArFrame`. The documented return type states:\n\n> Returns: ArFrame \u2014 **New frame** with winsorized numeric values.\n\nReturning the same reference violates this contract. Pipeline steps that track frame identity, tests that check `result is not frame`, or code that mutates the returned frame expecting isolation all received unexpected behavior.\n\n## What changed\n\n**`arnio/cleaning.py`** (one line)\n\n```python\n# Before\nif not target_columns:\n    return frame\n\n# After\nif not target_columns:\n    return from_pandas(to_pandas(frame))\n```\n\nThe `from_pandas(to_pandas(frame))` round-trip is the established pattern used throughout `cleaning.py`. It:\n- Returns a distinct `ArFrame` object (satisfies the return contract)\n- Preserves all data and column structure unchanged (no winsorization applied, as expected)\n- Preserves attrs/metadata: `to_pandas` restores `frame._attrs` into `df.attrs`; `from_pandas` deep-copies `df.attrs` into the new `ArFrame`\n\nNo other cleaning helpers are modified.\n\n## Tests added\n\nTwo regression tests added to `TestWinsorizeOutliersBoundary` in `tests/test_winsorize_outliers.py`:\n\n| Test | What it verifies |\n|---|---|\n| `test_no_numeric_columns_returns_distinct_frame` | String-only frame: `result is not frame`, data and columns identical |\n| `test_no_numeric_columns_with_subset_empty_after_filter_returns_distinct_frame` | Two string columns: distinct object, column structure preserved |\n\nAll 15 tests pass. Black and ruff pass on all touched files.\n\n## Checklist\n\n- [x] Fix is scoped to `winsorize_outliers` no-target behavior only\n- [x] Distinct `ArFrame` returned\n- [x] Data, column structure, and attrs/metadata preserved\n- [x] Regression tests added\n- [x] No unrelated cleaning helpers modified\n- [x] All existing tests still pass\n- [x] Black formatting applied (`black --check` passes)\n- [x] Ruff passes",
+ "fix_commit": "d98c8fd2a0238029031066028c255c608cfd51e5",
+ "merged_at": "2026-05-30T02:12:29Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "arnio/cleaning.py"
+ ],
+ "test_files": [
+  "tests/test_winsorize_outliers.py"
+ ],
+ "target_symbols": [
+  "arnio/cleaning.py::winsorize_outliers"
+ ],
+ "fail_to_pass": [
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_no_numeric_columns_returns_distinct_frame",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_no_numeric_columns_with_subset_empty_after_filter_returns_distinct_frame"
+ ],
+ "pass_to_pass": [
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_all_nan_column_stays_all_nan",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_column_order_is_preserved",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_default_lower_and_upper_are_applied",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_full_range_lower_zero_upper_one_no_change",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_integer_column_values_are_clipped",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_multiple_nans_are_preserved_and_non_nans_are_clipped",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_multiple_numeric_columns_all_clipped",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_non_numeric_subset_raises_value_error",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_original_frame_is_not_modified",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_pipeline_integration",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_pipeline_integration_with_subset",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_result_is_a_new_frame_object",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_row_count_is_preserved",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_string_column_is_not_altered_by_winsorization",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_three_row_dataset",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_two_row_dataset_symmetric_clipping",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_unit_upper_bound_leaves_maximum_unchanged",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersAdditional::test_zero_lower_bound_leaves_minimum_unchanged",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_all_same_values",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_extreme_outliers_clipped",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_handles_nan_and_null_values",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_negative_outliers_clipped",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_raises_when_lower_equal_upper",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_raises_when_lower_greater_than_or_equal_upper",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_raises_when_lower_negative",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_raises_when_upper_greater_than_one",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_single_row_frame",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_subset_column_not_in_frame_raises",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_subset_with_valid_columns_only",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_two_column_frame",
+  "tests/test_winsorize_outliers.py::TestWinsorizeOutliersBoundary::test_values_inside_bounds_are_unchanged"
+ ],
+ "patch_lines": 2
+}

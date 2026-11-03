@@ -1,0 +1,20 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..d3f262ec7bd5b5b61030f3027959be603d8df8c7 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -1837,14 +1837,7 @@ def filter_rows(
+     if not is_scalar(value):
+         raise TypeError("filter_rows value must be a scalar")
+ 
+-    try:
+-        mask = getattr(df[column], ops[op])(value)
+-    except TypeError as exc:
+-        raise TypeError(
+-            f"filter_rows: cannot compare column {column!r} with value "
+-            f"{value!r} using operator {op!r}: {exc}"
+-        ) from exc
+-
++    mask = getattr(df[column], ops[op])(value)
+     mask = mask.fillna(False).astype(bool)
+     filtered = df[mask]
+     if is_arframe:

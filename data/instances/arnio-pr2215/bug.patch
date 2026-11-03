@@ -1,0 +1,14 @@
+diff --git a/arnio/cleaning.py b/arnio/cleaning.py
+index c14356565dfb11b57159ec488689e842dbf62885..e0eee73ea58ed0ed25c3f7e96dd6d793f2855efd 100644
+--- a/arnio/cleaning.py
++++ b/arnio/cleaning.py
+@@ -2164,9 +2164,6 @@ def drop_columns_matching(frame, pattern):
+ 
+     cols_to_drop = [col for col in df.columns if re.search(pattern, str(col))]
+ 
+-    if len(df.columns) == 0:
+-        return frame if is_arframe else df
+-
+     if len(cols_to_drop) == len(df.columns):
+         raise ValueError(
+             "Pattern matches all columns. At least one column must remain."

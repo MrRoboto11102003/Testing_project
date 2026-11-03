@@ -1,0 +1,18 @@
+diff --git a/arnio/schema.py b/arnio/schema.py
+index 4d8a72e205296efc40eb393d31bcf2442011c1fd..a84e2e6498fa6c2b67f4b2c6b29fa3b9d8cfde05 100644
+--- a/arnio/schema.py
++++ b/arnio/schema.py
+@@ -1003,13 +1003,6 @@ class Schema:
+         if not isinstance(self.strict, bool):
+             raise TypeError("Schema 'strict' must be a boolean")
+ 
+-        if self.rules is not None:
+-            if not isinstance(self.rules, (list, tuple)):
+-                raise TypeError("Schema 'rules' must be a list of callables")
+-            for rule in self.rules:
+-                if not callable(rule):
+-                    raise TypeError("Schema 'rules' must be a list of callables")
+-
+     def validate(
+         self,
+         frame: ArFrame,
