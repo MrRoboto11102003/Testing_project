@@ -1,0 +1,198 @@
+{
+ "id": "arnio-pr1495",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 87077
+ },
+ "level": "unit",
+ "mean_arnio_calls": 1.33,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 25590,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9353,
+  "output_tokens_details": {
+   "thinking_tokens": 7806
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 25590,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9353,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 25590,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 25590
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.09795400000000001,
+ "seconds": 53.8,
+ "tests": {
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_all_approximation_parameters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_approx_top_values_enabled": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_default_parameters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_empty_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_exclude_columns_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_mixed_data_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_returns_data_quality_report": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_sample_size_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_single_row_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_summary_method_returns_dict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_to_html_file_output": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_to_html_returns_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_to_markdown_returns_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_with_duplicate_rows": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfile::test_profile_with_null_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile"
+   ]
+  }
+ }
+}

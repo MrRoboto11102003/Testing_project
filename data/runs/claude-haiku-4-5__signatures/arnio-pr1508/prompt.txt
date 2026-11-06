@@ -1,0 +1,19 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.pipeline.pipeline.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Signatures
+
+# arnio.pipeline.pipeline
+def pipeline(
+    frame: ArFrame,
+    steps: list[tuple],
+    *,
+    return_metadata: bool = False,
+    dry_run: bool = False,
+    verbose: bool = False,
+    track_lineage: bool = False,
+) -> ArFrame | tuple[ArFrame, dict[str, Any]] | tuple[ArFrame, LineageReport]:
+    ...

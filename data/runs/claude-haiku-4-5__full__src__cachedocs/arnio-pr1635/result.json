@@ -1,0 +1,240 @@
+{
+ "id": "arnio-pr1635",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 80,
+  "chars": 174224
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 2.41,
+ "detected": true,
+ "n_tests": 17,
+ "n_catching": 8,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 7147,
+  "cache_read_input_tokens": 43603,
+  "output_tokens": 6012,
+  "output_tokens_details": {
+   "thinking_tokens": 3362
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 7147,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 6012,
+    "cache_read_input_tokens": 43603,
+    "cache_creation_input_tokens": 7147,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 7147
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0487233,
+ "model_seconds": 28.5,
+ "seconds": 35.8,
+ "tests": {
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineBasic::test_pipeline_multiple_steps_sequence": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineBasic::test_pipeline_single_step": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineBasic::test_pipeline_step_with_kwargs": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineDryRun::test_pipeline_dry_run_validates_without_changing_data": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineErrorHandling::test_pipeline_dry_run_not_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineErrorHandling::test_pipeline_invalid_frame_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineErrorHandling::test_pipeline_invalid_step_format": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineErrorHandling::test_pipeline_return_metadata_not_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineErrorHandling::test_pipeline_sentinel_column_collision": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineErrorHandling::test_pipeline_track_lineage_and_return_metadata_conflict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineErrorHandling::test_pipeline_unknown_step_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineLineageTracking::test_pipeline_lineage_merged_repeated_steps": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineLineageTracking::test_pipeline_lineage_tracks_dropped_rows": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineMetadata::test_pipeline_metadata_contains_all_fields": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineReturnTypes::test_pipeline_default_returns_arframe": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ArFrame",
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineReturnTypes::test_pipeline_return_metadata_returns_tuple": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ArFrame",
+    "from_pandas",
+    "pipeline"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1635.py::TestPipelineReturnTypes::test_pipeline_track_lineage_returns_tuple": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ArFrame",
+    "from_pandas",
+    "pipeline"
+   ]
+  }
+ }
+}

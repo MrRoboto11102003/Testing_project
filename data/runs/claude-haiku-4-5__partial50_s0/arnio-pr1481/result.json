@@ -1,0 +1,221 @@
+{
+ "id": "arnio-pr1481",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 87041
+ },
+ "level": "unit",
+ "mean_arnio_calls": 2.87,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 25548,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5594,
+  "output_tokens_details": {
+   "thinking_tokens": 3993
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 25548,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 5594,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 25548,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 25548
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.079075,
+ "seconds": 33.8,
+ "tests": {
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_all_rows_match": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_arframe_returns_arframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ArFrame",
+    "filter_rows",
+    "from_dict"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_dataframe_returns_dataframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_empty_result": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_equal_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_float_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_greater_equal_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_greater_than_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_in_pipeline": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "pipeline",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_less_equal_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_less_than_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_not_equal_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_preserves_other_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_string_comparison_lex": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1481.py::TestFilterRows::test_filter_string_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "filter_rows",
+    "from_dict",
+    "to_pandas"
+   ]
+  }
+ }
+}

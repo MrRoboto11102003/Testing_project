@@ -110,10 +110,10 @@ def run_external(path: Path, test_file: Path, label: str) -> dict:
     return run_pytest(path, [dest.relative_to(path).as_posix()], label=label)
 
 
-def check(instance_id: str, test_file: Path) -> dict:
+def check(instance_id: str, test_file: Path, slot: str = "check") -> dict:
     """Run one test file on clean and buggy; report which tests catch the bug."""
-    clean = run_external(materialize("clean", slot="check"), test_file, "clean")
-    buggy = run_external(materialize("buggy", instance_id, slot="check"), test_file, "buggy")
+    clean = run_external(materialize("clean", slot=slot), test_file, "clean")
+    buggy = run_external(materialize("buggy", instance_id, slot=slot), test_file, "buggy")
     rows = {}
     for node in sorted(set(clean["outcomes"]) | set(buggy["outcomes"])):
         c, b = clean["outcomes"].get(node, "missing"), buggy["outcomes"].get(node, "missing")

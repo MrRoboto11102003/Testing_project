@@ -1,0 +1,162 @@
+{
+ "id": "arnio-pr2030",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 81,
+  "units_kept": 40,
+  "chars": 93376
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 11,
+ "n_catching": 1,
+ "n_false_alarms": 4,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3677,
+  "cache_read_input_tokens": 26612,
+  "output_tokens": 13690,
+  "output_tokens_details": {
+   "thinking_tokens": 12129
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3677,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 13690,
+    "cache_read_input_tokens": 26612,
+    "cache_creation_input_tokens": 3677,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3677
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.07847420000000001,
+ "model_seconds": 71.1,
+ "seconds": 82.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDictConversion::test_flat_dict_input": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDictConversion::test_sorted_output_with_nullable": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDictConversion::test_structured_dict_with_metadata": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDictErrors::test_error_cases": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDictErrors::test_schema_with_custom_rules_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDictObjects::test_arframe_and_list_inputs": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDictObjects::test_schema_object_and_metadata": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYamlConversion::test_yaml_format_and_structure": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYamlErrors::test_error_cases": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYamlFileOutput::test_creates_parent_directories": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYamlFileOutput::test_file_writing_and_sync": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_export"
+   ]
+  }
+ }
+}

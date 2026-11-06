@@ -1,0 +1,227 @@
+{
+ "id": "arnio-pr1322",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": false,
+  "units_total": 81,
+  "units_kept": 40,
+  "chars": 86997
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 2.93,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 961,
+  "cache_read_input_tokens": 24604,
+  "output_tokens": 8178,
+  "output_tokens_details": {
+   "thinking_tokens": 5704
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 961,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8178,
+    "cache_read_input_tokens": 24604,
+    "cache_creation_input_tokens": 961,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 961
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0452814,
+ "model_seconds": 36.4,
+ "seconds": 45.6,
+ "tests": {
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_all_nulls_returns_null": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_basic_first_non_null": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_custom_output_column_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_nonexistent_column_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_preserves_original_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_single_column": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_stops_at_first_non_null": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_common_missing_tokens": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_empty_dataframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_mixed_data_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_multiple_token_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_no_changes_when_no_tokens_present": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_preserves_frame_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_subset_specific_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_with_custom_tokens": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  }
+ }
+}

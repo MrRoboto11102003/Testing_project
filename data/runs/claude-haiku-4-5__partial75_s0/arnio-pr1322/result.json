@@ -1,0 +1,210 @@
+{
+ "id": "arnio-pr1322",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial75_s0",
+ "context": {
+  "mode": "partial",
+  "keep": 0.75,
+  "seed": 0,
+  "units_total": 81,
+  "units_kept": 61,
+  "chars": 116375
+ },
+ "level": "unit",
+ "mean_arnio_calls": 2.86,
+ "detected": false,
+ "n_tests": 14,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 37400,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6361,
+  "output_tokens_details": {
+   "thinking_tokens": 4098
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 37400,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 6361,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 37400,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 37400
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.10661400000000001,
+ "seconds": 41.4,
+ "tests": {
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_basic_coalesce_first_non_null": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_all_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_custom_output_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_empty_subset_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_nonexistent_column_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_preserves_other_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_respects_column_order": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestCoalesceColumns::test_coalesce_single_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "coalesce_columns",
+    "from_pandas",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_basic_standardize_default_tokens": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_custom_tokens": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_empty_string_token": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_no_matches": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_preserves_other_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1322.py::TestStandardizeMissingTokens::test_standardize_subset_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "standardize_missing_tokens",
+    "to_pandas"
+   ]
+  }
+ }
+}

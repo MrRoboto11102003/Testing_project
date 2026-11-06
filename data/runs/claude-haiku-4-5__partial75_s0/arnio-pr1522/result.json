@@ -1,0 +1,211 @@
+{
+ "id": "arnio-pr1522",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial75_s0",
+ "context": {
+  "mode": "partial",
+  "keep": 0.75,
+  "seed": 0,
+  "units_total": 80,
+  "units_kept": 60,
+  "chars": 115262
+ },
+ "level": "unit",
+ "mean_arnio_calls": 2.93,
+ "detected": false,
+ "n_tests": 14,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 34036,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9116,
+  "output_tokens_details": {
+   "thinking_tokens": 7427
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 34036,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9116,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 34036,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 34036
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.113661,
+ "seconds": 51.5,
+ "tests": {
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_all_columns_normalized_by_default": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_collapse_multiple_spaces": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_empty_string_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_mixed_whitespace_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_normalize_tabs_and_newlines": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_null_values_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_numeric_columns_unaffected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_preserve_clean_strings": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_preserves_shape": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_returns_arframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ArFrame",
+    "from_pandas",
+    "normalize_whitespace"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_strip_leading_trailing_whitespace": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_subset_multiple_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_subset_single_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_whitespace_only_becomes_empty": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  }
+ }
+}

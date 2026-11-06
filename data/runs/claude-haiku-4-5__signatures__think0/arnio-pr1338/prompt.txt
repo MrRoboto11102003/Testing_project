@@ -1,0 +1,26 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.quality.auto_clean.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Signatures
+
+# arnio.quality.auto_clean
+def auto_clean(
+    frame: ArFrame,
+    *,
+    mode: str = "safe",
+    return_report: bool = False,
+    dry_run: bool = False,
+    allow_lossy_casts: bool = False,
+    confirmed_casts: dict[str, str] | None = None,
+    explain: bool = False,
+) -> (
+    ArFrame
+    | DataQualityReport
+    | tuple[ArFrame, DataQualityReport]
+    | tuple[ArFrame, CleanExplanation]
+    | tuple[ArFrame, DataQualityReport, CleanExplanation]
+):
+    ...

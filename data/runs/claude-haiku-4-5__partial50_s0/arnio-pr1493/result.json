@@ -1,0 +1,188 @@
+{
+ "id": "arnio-pr1493",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 86903
+ },
+ "level": "unit",
+ "mean_arnio_calls": 1.29,
+ "detected": false,
+ "n_tests": 14,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 25526,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7641,
+  "output_tokens_details": {
+   "thinking_tokens": 5959
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 25526,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7641,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 25526,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 25526
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.08926600000000001,
+ "seconds": 45.3,
+ "tests": {
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_column_names_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_column_order_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_data_preserved_after_registration": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_error_empty_name_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_error_frame_not_arframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_error_name_not_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_error_whitespace_only_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_error_whitespace_variations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_frame_with_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_multiple_table_registrations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_register_empty_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_register_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_registered_table_is_queryable": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_sql_aggregation_on_registered_table": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  }
+ }
+}

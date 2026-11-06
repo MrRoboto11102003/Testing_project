@@ -1,0 +1,29 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.schema.Schema.bootstrap_from_report, arnio.schema.Schema.from_json, arnio.schema.Schema.to_json, arnio.schema.Schema.validate.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Signatures
+
+# arnio.schema.Schema.bootstrap_from_report
+    @classmethod
+    def bootstrap_from_report(cls, report: Any) -> Schema:
+    ...
+
+# arnio.schema.Schema.from_json
+    @classmethod
+    def from_json(cls, value: str) -> Schema:
+    ...
+
+# arnio.schema.Schema.to_json
+    def to_json(self) -> str:
+    ...
+
+# arnio.schema.Schema.validate
+    def validate(
+        self,
+        frame: ArFrame,
+        max_errors: int | None = None,
+    ) -> ValidationResult:
+    ...

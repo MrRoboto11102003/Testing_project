@@ -1,0 +1,20 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.quality.profile.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Signatures
+
+# arnio.quality.profile
+def profile(
+    frame: ArFrame,
+    *,
+    exclude_columns: Sequence[str] | None = None,
+    sample_size: int = 5,
+    approx_top_values: bool = False,
+    approx_top_values_min_unique: int = 1000,
+    approx_top_values_min_ratio: float = 0.2,
+    approx_top_values_sample_size: int = 2000,
+) -> DataQualityReport:
+    ...

@@ -1,0 +1,238 @@
+{
+ "id": "arnio-pr2028",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": false,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 87122
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 3.67,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 990,
+  "cache_read_input_tokens": 24604,
+  "output_tokens": 6727,
+  "output_tokens_details": {
+   "thinking_tokens": 5171
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 990,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 6727,
+    "cache_read_input_tokens": 24604,
+    "cache_creation_input_tokens": 990,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 990
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.038084400000000004,
+ "model_seconds": 33.1,
+ "seconds": 43.4,
+ "tests": {
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_allowed_values_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_allowed_values_set": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_allowed_values_tuple": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_case_insensitive": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_case_sensitive_default": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_field_creation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "String"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_in_schema": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_max_length_constraint": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_min_length_constraint": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_multiple_constraints_combined": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_nullable_default_allows_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_nullable_false_rejects_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_required_if_conditional": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_severity_warning": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2028.py::TestStringField::test_string_unique_constraint": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_dict",
+    "validate"
+   ]
+  }
+ }
+}

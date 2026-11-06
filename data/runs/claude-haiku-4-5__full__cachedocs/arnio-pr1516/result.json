@@ -1,0 +1,275 @@
+{
+ "id": "arnio-pr1516",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": false,
+  "units_total": 81,
+  "units_kept": 81,
+  "chars": 150286
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 3.16,
+ "detected": false,
+ "n_tests": 19,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1105,
+  "cache_read_input_tokens": 43603,
+  "output_tokens": 8263,
+  "output_tokens_details": {
+   "thinking_tokens": 5712
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1105,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8263,
+    "cache_read_input_tokens": 43603,
+    "cache_creation_input_tokens": 1105,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1105
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0478943,
+ "model_seconds": 39.9,
+ "seconds": 47.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaToJson::test_json_serialization_is_stable": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Float64",
+    "Int64",
+    "Schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaToJson::test_round_trip_preserves_field_definitions": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaToJson::test_schema_with_rules_emits_user_warning": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaToJson::test_schema_with_rules_sets_rules_omitted_flag": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaToJson::test_schema_without_rules_no_warning": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaToJson::test_simple_schema_serializes_to_valid_json": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "String"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_all_fields_with_constraints": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Bool",
+    "Email",
+    "Float64",
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_email_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_empty_frame_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "String",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_invalid_dtype_produces_issue": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_max_errors_limits_issue_count": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_max_errors_none_returns_all_issues": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_nullable_false_with_nulls_fails": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_nullable_true_with_nulls_passes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_numeric_max_constraint": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_numeric_min_constraint": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_unique_constraint_violation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_valid_frame_passes_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "String",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1516.py::TestSchemaValidate::test_validation_issue_has_row_index": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas"
+   ]
+  }
+ }
+}

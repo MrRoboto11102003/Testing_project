@@ -1,0 +1,220 @@
+{
+ "id": "arnio-pr2008",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 87550
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 2.47,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 2,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1284,
+  "cache_read_input_tokens": 24399,
+  "output_tokens": 7740,
+  "output_tokens_details": {
+   "thinking_tokens": 6251
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1284,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7740,
+    "cache_read_input_tokens": 24399,
+    "cache_creation_input_tokens": 1284,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1284
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0437169,
+ "model_seconds": 33.5,
+ "seconds": 44.6,
+ "tests": {
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_and_reregister": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "list_steps",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_builtin_drop_nulls_fails": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_builtin_strip_whitespace": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_custom_step_basic": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "list_steps",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_multiple_custom_steps_isolated": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "list_steps",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_namespaced_step": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "list_steps",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_case_sensitive": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "list_steps",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_double_unregister": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_empty_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_name_not_string_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_name_not_string_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_not_found": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_removes_from_registry": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "list_steps",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_then_pipeline_fails": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "from_pandas",
+    "pipeline",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::test_unregister_step_with_special_characters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "list_steps",
+    "register_step",
+    "unregister_step"
+   ]
+  }
+ }
+}

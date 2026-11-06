@@ -1,0 +1,20 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.cleaning.coalesce_columns, arnio.cleaning.standardize_missing_tokens.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Signatures
+
+# arnio.cleaning.coalesce_columns
+def coalesce_columns(
+    frame,
+    *,
+    subset: Sequence[str],
+    output_column: str = "coalesced",
+):
+    ...
+
+# arnio.cleaning.standardize_missing_tokens
+def standardize_missing_tokens(frame, tokens=None, subset=None):
+    ...

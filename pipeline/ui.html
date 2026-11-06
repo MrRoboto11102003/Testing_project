@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TestGen Bench</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e3e3e0;
+          --accent:#2f5fd0; --good:#1f8a4c; --bad:#c2410c; --warn:#a16207; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:14px 24px; border-bottom:1px solid var(--line); background:var(--card); display:flex; gap:16px; align-items:baseline; }
+  header h1 { font-size:17px; margin:0; }
+  header span { color:var(--muted); }
+  nav.main-tabs { display:flex; gap:4px; padding:0 24px; background:var(--card); border-bottom:1px solid var(--line); }
+  nav.main-tabs button { border:none; border-bottom:2px solid transparent; border-radius:0; background:none; padding:10px 14px; color:var(--muted); font-weight:600; }
+  nav.main-tabs button.on { color:var(--ink); border-bottom-color:var(--accent); }
+  nav.main-tabs .jobdot { margin-left:auto; align-self:center; font-size:12px; color:var(--muted); }
+  main { padding:20px 24px; }
+  section.pane { display:none; }
+  section.pane.on { display:block; }
+  #pane-run.on { display:grid; grid-template-columns: 420px 1fr; gap:20px; align-items:start; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:20px; }
+  .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0 0 12px; }
+  label.field { display:block; margin-bottom:12px; }
+  label.field > span { display:block; font-weight:600; margin-bottom:4px; }
+  input[type=text], input[type=number], select { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font:inherit; background:#fff; }
+  .radios label { display:block; padding:4px 0; cursor:pointer; }
+  .radios small, .hint { color:var(--muted); font-size:12px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row > * { flex:1; }
+  button { font:inherit; padding:7px 12px; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button:disabled { opacity:.5; cursor:default; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; color:var(--muted); font-weight:600; }
+  td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
+  tr.clickable:hover { background:#f1f4fb; cursor:pointer; }
+  .pill { display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; white-space:nowrap; }
+  .pill.good { background:#e3f4ea; color:var(--good); }
+  .pill.bad { background:#fdece3; color:var(--bad); }
+  .pill.muted { background:#eee; color:var(--muted); }
+  .bugs { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:6px; }
+  .bugs td { padding:4px 6px; font-size:13px; }
+  .bugs .title { color:var(--muted); }
+  pre { background:#f4f4f2; border:1px solid var(--line); border-radius:6px; padding:10px; overflow:auto; max-height:420px; font:12px/1.4 ui-monospace, Consolas, monospace; white-space:pre-wrap; }
+  #log { max-height:220px; }
+  .progress { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin:8px 0; }
+  .progress > div { height:100%; background:var(--accent); width:0; transition:width .3s; }
+  dialog { width:min(1000px, 92vw); border:1px solid var(--line); border-radius:10px; padding:0; }
+  dialog .head { padding:14px 18px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; }
+  dialog .body { padding:14px 18px; max-height:75vh; overflow:auto; }
+  .tabs button { border-radius:6px 6px 0 0; border-bottom:none; }
+  .tabs button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .err { color:var(--bad); }
+  .rid { font-variant-numeric: tabular-nums; color:var(--accent); font-weight:600; white-space:nowrap; }
+  body.has-footer main { padding-bottom:80px; }
+  #footer { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line);
+            box-shadow:0 -2px 8px rgba(0,0,0,.05); padding:8px 24px 10px; display:none; z-index:10; }
+  #footer.on { display:block; }
+  #footer .line { display:flex; gap:14px; align-items:center; font-size:13px; }
+  #footer .line .grow { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #footer .progress { height:8px; margin:6px 0 0; }
+  #footer .progress > div { transition:width 1s linear; }
+  #footer.finished .progress > div { background:var(--good); }
+  #footer.failed .progress > div { background:var(--bad); }
+  #footer button { padding:3px 9px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TestGen Bench</h1>
+  <span id="headline">loading…</span>
+</header>
+<nav class="main-tabs">
+  <button data-tab="run" class="on">Run</button>
+  <button data-tab="results">Results</button>
+  <button data-tab="bugs">Bugs</button>
+  <button data-tab="quality">Test quality</button>
+  <span class="jobdot" id="jobDot"></span>
+</nav>
+<main>
+<div class="card err" id="staleWarn" style="display:none">The running server is older than this page, so run ids and
+  run times are missing. Stop it (Ctrl+C) and start it again: <code>.venv\Scripts\python -m pipeline.server</code></div>
+<section class="pane on" id="pane-run">
+  <div>
+    <div class="card">
+      <h2>Run</h2>
+      <label class="field"><span>Preset</span>
+        <select id="preset"><option value="">Custom: set the options below</option></select>
+        <div class="hint" id="presetHint"></div>
+      </label>
+      <label class="field"><span>Task</span>
+        <select id="kind">
+          <option value="generate">Generate tests with an LLM</option>
+          <option value="fix_tests">Run arnio's own fix tests (sanity check)</option>
+        </select>
+      </label>
+      <div id="genOpts">
+        <label class="field"><span>Model</span>
+          <input type="text" id="model" list="modelList">
+          <datalist id="modelList"></datalist>
+          <div class="hint">Must be trained before May 2026 (when arnio was created) to rule out memorization.</div>
+        </label>
+        <label class="field"><span>Test level</span>
+          <select id="level">
+            <option value="unit">Unit: call the target functions directly</option>
+            <option value="integration">Integration: targets combined with other arnio components</option>
+            <option value="system">System: end-to-end workflows (files, accessor, CLI)</option>
+          </select>
+        </label>
+        <div class="field radios"><span style="font-weight:600">Context</span>
+          <label><input type="radio" name="context" value="signatures"> Signatures only <small>no docs at all</small></label>
+          <label><input type="radio" name="context" value="targeted" checked> Targeted <small>quickstart + target docstrings + matching API ref (~6 KB)</small></label>
+          <label><input type="radio" name="context" value="source"> Source <small>targeted, plus the clean code of the target functions</small></label>
+          <label><input type="radio" name="context" value="full"> Full docs <small>all user docs + docstrings (~150 KB)</small></label>
+          <label><input type="radio" name="context" value="partial"> Partial docs <small>keep a fraction of full-doc sections</small></label>
+        </div>
+        <div id="partialOpts" class="row" style="display:none; margin-bottom:12px">
+          <label>Keep <b id="keepLabel">50%</b><br><input type="range" id="keep" min="0" max="100" step="5" value="50" style="width:100%"></label>
+          <label>Seed<br><input type="number" id="seed" value="0" min="0"></label>
+        </div>
+        <label class="hint" id="srcRow" style="display:block; margin-bottom:10px"><input type="checkbox" id="withSource">
+          <b>Also show the target code</b>: adds the clean implementation of the target functions
+          (full/partial docs only; label <code>__src</code>).</label>
+        <label class="hint" style="display:block; margin-bottom:10px"><input type="checkbox" id="cacheDocs">
+          <b>Cache shared docs</b>: shared doc files go in the system prompt so later bugs read them from cache
+          (~70% cheaper for full/partial). Its own condition: not comparable with uncached runs.</label>
+        <label class="field"><span>Thinking cap <small class="hint">(blank = model default; 0 = off; trial runs only)</small></span>
+          <input type="number" id="maxThinking" min="0" step="1000" placeholder="default"></label>
+      </div>
+      <div class="field">
+        <span style="font-weight:600">Bugs <span id="selCount" class="hint"></span></span>
+        <div class="row" style="margin:4px 0 6px">
+          <input type="text" id="filter" placeholder="filter by id or title">
+        </div>
+        <div class="row" style="margin-bottom:6px">
+          <button id="selFirst">First</button>
+          <input type="number" id="firstN" value="5" min="1" style="max-width:70px">
+          <button id="selAll">All</button>
+          <button id="selNone">None</button>
+        </div>
+        <label class="hint"><input type="checkbox" id="onlyPublic" checked> only bugs in public functions (others have no docs to show)</label>
+        <label class="hint"><input type="checkbox" id="skipDone"> skip bugs this condition already ran on</label>
+        <div class="bugs"><table><tbody id="bugList"></tbody></table></div>
+      </div>
+      <div class="row">
+        <button id="previewBtn">Preview prompt</button>
+        <button id="runBtn" class="primary">Run</button>
+      </div>
+      <div class="hint" id="runHint" style="margin-top:6px"></div>
+    </div>
+
+    <div class="card" id="jobCard" style="display:none">
+      <h2>Job <span id="jobStatus"></span></h2>
+      <div class="progress"><div id="jobBar"></div></div>
+      <pre id="log"></pre>
+      <button id="cancelBtn">Cancel after current bug</button>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <h2>Selected condition</h2>
+      <div id="condSummary" class="hint">Pick options on the left.</div>
+    </div>
+  </div>
+</section>
+
+<section class="pane" id="pane-results">
+    <div class="card">
+      <h2>Results by condition</h2>
+      <table>
+        <thead><tr><th>#</th><th>Run (model__context)</th><th title="last result written">Last run</th><th class="num">Bugs</th><th class="num">Detected</th>
+          <th class="num">With false alarms</th><th class="num">Tests</th><th class="num">False-alarm tests</th><th class="num" title="distinct arnio entry points used per test">API calls/test</th><th class="num">Cost</th></tr></thead>
+        <tbody id="runsTable"></tbody>
+      </table>
+      <div class="hint" style="margin-top:8px">Newest first. A run's # id never changes once given (stored in <code>data/runs/index.json</code>).
+        Detected: some generated test passes on the fixed code and fails on the buggy code. False alarm: a test fails on the fixed code.</div>
+    </div>
+</section>
+
+<section class="pane" id="pane-bugs">
+    <div class="card">
+      <h2>Bugs</h2>
+      <div style="overflow:auto">
+      <table>
+        <thead id="instHead"></thead>
+        <tbody id="instTable"></tbody>
+      </table>
+      </div>
+    </div>
+</section>
+
+<section class="pane" id="pane-quality">
+    <div class="card">
+      <h2>Test quality by condition</h2>
+      <table>
+        <thead><tr><th>#</th><th>Run</th><th class="num">Bugs</th><th class="num">Caught</th>
+          <th class="num" title="some test executes a line the bug patch changes">Reached bug</th>
+          <th class="num" title="reached the buggy lines but no test caught the bug">Reached, missed</th>
+          <th class="num" title="line coverage inside the target functions">Target lines</th>
+          <th class="num" title="branch coverage inside the target functions">Target branches</th>
+          <th class="num" title="line coverage of the whole arnio package">Package lines</th>
+          <th class="num" title="assert statements + pytest.raises/warns per test">Asserts/test</th>
+          <th class="num" title="share of tests passing on the fixed code">Pass on fixed</th></tr></thead>
+        <tbody id="qualityTable"></tbody>
+      </table>
+      <div class="hint" style="margin-top:8px">Measured on the fixed code by rerunning the saved tests under branch coverage; no model calls.
+        Compute or update with <code>.venv\Scripts\python -m pipeline.metrics</code> (only new or changed test files are rerun).</div>
+    </div>
+</section>
+</main>
+
+<div id="footer">
+  <div class="line">
+    <b id="ftStatus"></b>
+    <span class="grow" id="ftText"></span>
+    <span class="hint" id="ftTime"></span>
+    <button id="ftLog">Log</button>
+    <button id="ftCancel">Cancel after current bug</button>
+    <button id="ftClose" title="hide">&#x2715;</button>
+  </div>
+  <div class="progress"><div id="ftBar"></div></div>
+</div>
+
+<dialog id="dlg">
+  <div class="head"><div><b id="dlgTitle"></b><div class="hint" id="dlgSub"></div></div><button onclick="dlg.close()">Close</button></div>
+  <div class="body" id="dlgBody"></div>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let INSTANCES = [], SELECTED = new Set(), STATS = {}, QUALITY = {}, JOB = null;
+
+function showTab(name) {
+  if (!document.getElementById(`pane-${name}`)) name = "run";
+  document.querySelectorAll("nav.main-tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("section.pane").forEach(p => p.classList.toggle("on", p.id === `pane-${name}`));
+  history.replaceState(null, "", `#${name}`);
+}
+document.querySelectorAll("nav.main-tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+function opts() {
+  const context = document.querySelector("input[name=context]:checked").value;
+  return { kind: $("kind").value, model: $("model").value.trim(), context, level: $("level").value,
+           keep: Number($("keep").value) / 100, seed: Number($("seed").value),
+           cache_docs: $("cacheDocs").checked,
+           with_source: $("withSource").checked && ["full", "partial"].includes(context),
+           max_thinking: $("maxThinking").value === "" ? null : Number($("maxThinking").value) };
+}
+// Mirrors generate.run_label.
+function runLabel(o) {
+  let label = o.context === "partial" ? `${o.model}__partial${Math.round(o.keep*100)}_s${o.seed}` : `${o.model}__${o.context}`;
+  if (o.with_source) label += "__src";
+  if (o.level !== "unit") label += `__${o.level}`;
+  if (o.cache_docs) label += "__cachedocs";
+  if (o.max_thinking !== null) label += `__think${o.max_thinking}`;
+  return label;
+}
+const rid = name => { const r = (STATS.runs || {})[name]; return r && r.id != null ? `#${r.id}` : ""; };
+const ridOf = r => r && r.id != null ? `#${r.id}` : "";
+function ago(t) {
+  if (!t) return "";
+  const s = Date.now() / 1000 - t;
+  if (s < 90) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return new Date(t * 1000).toLocaleDateString(undefined, {month: "short", day: "numeric"});
+}
+const fullDate = t => t ? new Date(t * 1000).toLocaleString() : "";
+function dur(s) {
+  s = Math.max(0, Math.round(s));
+  return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m`;
+}
+const pct = x => x === null || x === undefined ? "–" : `${Math.round(100 * x)}%`;
+const num = (x, d = 1) => x === null || x === undefined ? "–" : x.toFixed(d);
+
+function visibleBugs() {
+  const f = $("filter").value.toLowerCase();
+  return INSTANCES.filter(i => (!$("onlyPublic").checked || i.public) &&
+    (!f || i.id.includes(f) || i.title.toLowerCase().includes(f)));
+}
+function renderBugList() {
+  const rows = visibleBugs();
+  $("bugList").innerHTML = rows.map(i => `<tr>
+    <td><input type="checkbox" data-id="${i.id}" ${SELECTED.has(i.id) ? "checked" : ""}></td>
+    <td>${i.id}</td><td class="title">${esc(i.title).slice(0, 70)}</td></tr>`).join("");
+  $("bugList").querySelectorAll("input").forEach(cb => cb.onchange = () => {
+    cb.checked ? SELECTED.add(cb.dataset.id) : SELECTED.delete(cb.dataset.id); updateHint(); });
+  updateHint();
+}
+function toRun() {
+  const o = opts(), label = runLabel(o);
+  let ids = INSTANCES.filter(i => SELECTED.has(i.id)).map(i => i.id);
+  if ($("skipDone").checked && o.kind === "generate")
+    ids = ids.filter(id => !(INSTANCES.find(i => i.id === id).runs[label]));
+  return ids;
+}
+function updateHint() {
+  const o = opts(), n = toRun().length;
+  $("selCount").textContent = `(${SELECTED.size} selected)`;
+  $("partialOpts").style.display = o.context === "partial" ? "flex" : "none";
+  $("srcRow").style.display = ["full", "partial"].includes(o.context) ? "block" : "none";
+  $("genOpts").style.display = o.kind === "generate" ? "" : "none";
+  $("keepLabel").textContent = `${Math.round(o.keep*100)}%`;
+  $("runHint").textContent = o.kind === "generate"
+    ? `${n} bug(s) → data/runs/${runLabel(o)}/  · roughly ${n} min`
+    : `${n} bug(s): runs the fix PR's tests on fixed and buggy code`;
+  renderCondSummary();
+  $("runBtn").disabled = !n || (JOB && ["queued","running"].includes(JOB.status));
+}
+
+function renderCondSummary() {
+  const o = opts(), label = runLabel(o), r = (STATS.runs || {})[label], q = QUALITY[label];
+  if (o.kind !== "generate") { $("condSummary").textContent = "Sanity check: no condition."; return; }
+  $("condSummary").innerHTML = `<p>${r ? `<span class="rid">${ridOf(r)}</span> ` : ""}<code>${esc(label)}</code></p>` + (r
+    ? `<p>${r.runs} bugs run · <b>${r.detected}</b> caught · ${r.with_false_alarms} with false alarms · ${r.tests} tests · $${r.cost_usd.toFixed(2)}</p>`
+      + (q ? `<p>Reached bug ${q.reached_bug}/${q.bugs} · target lines ${pct(q.target_line_cov)} · branches ${pct(q.target_branch_cov)} · ${num(q.assertions_per_test)} asserts/test</p>`
+           : `<p class="hint">No quality metrics yet (run pipeline.metrics).</p>`)
+    : `<p class="hint">Nothing run in this condition yet.</p>`);
+}
+
+function renderQuality() {
+  const order = Object.keys(STATS.runs || {});
+  const rank = n => { const k = order.indexOf(n); return k < 0 ? 1e9 : k; };
+  $("qualityTable").innerHTML = Object.entries(QUALITY).sort((a, b) => rank(a[0]) - rank(b[0])).map(([name, q]) => `<tr>
+    <td class="rid">${rid(name)}</td><td>${esc(name)}</td><td class="num">${q.bugs}</td><td class="num">${q.detected}</td>
+    <td class="num">${q.reached_bug}</td><td class="num">${q.reached_but_missed}</td>
+    <td class="num">${pct(q.target_line_cov)}</td><td class="num">${pct(q.target_branch_cov)}</td>
+    <td class="num">${pct(q.package_line_cov)}</td><td class="num">${num(q.assertions_per_test)}</td>
+    <td class="num">${pct(q.clean_pass_rate)}</td></tr>`).join("")
+    || `<tr><td colspan="11" class="hint">No metrics yet. Run <code>python -m pipeline.metrics</code>.</td></tr>`;
+}
+
+function renderStats() {
+  const runs = STATS.runs || {};
+  $("headline").textContent = `${STATS.instances} bugs ported into v1.20.0 · ${STATS.public} in public functions`;
+  $("runsTable").innerHTML = Object.entries(runs).map(([name, r]) => `<tr>
+    <td class="rid">${ridOf(r)}</td><td>${esc(name)}</td>
+    <td class="hint" title="first result ${esc(fullDate(r.first))} &middot; last ${esc(fullDate(r.last))}">${ago(r.last)}</td>
+    <td class="num">${r.runs}</td>
+    <td class="num"><b>${r.detected}</b> (${Math.round(100*r.detected/r.runs)}%)</td>
+    <td class="num">${r.with_false_alarms}</td><td class="num">${r.tests}</td>
+    <td class="num">${r.false_alarm_tests}</td><td class="num">${r.calls_per_test ?? ""}</td><td class="num">$${r.cost_usd.toFixed(2)}</td></tr>`).join("")
+    || `<tr><td colspan="10" class="hint">No runs yet.</td></tr>`;
+  const names = Object.keys(runs);
+  $("instHead").innerHTML = `<tr><th>Bug</th><th>Issue</th>${names.map(n => `<th title="${esc(n)}"><span class="rid">${ridOf(runs[n])}</span><br><span class="hint" style="font-weight:400">${esc(n.replace(/^[^_]+__/, "").replace(/__/g, " "))}</span></th>`).join("")}</tr>`;
+  const ran = INSTANCES.filter(i => Object.keys(i.runs).length);
+  $("instTable").innerHTML = ran.map(i => `<tr class="clickable" data-id="${i.id}">
+    <td>${i.id}</td><td>${esc(i.title).slice(0, 80)}</td>
+    ${names.map(n => { const r = i.runs[n]; if (!r) return "<td></td>";
+      return `<td>${r.detected ? '<span class="pill good">caught</span>' : '<span class="pill muted">missed</span>'}
+        ${r.n_false_alarms ? `<span class="pill bad">${r.n_false_alarms} FA</span>` : ""}</td>`; }).join("")}</tr>`).join("")
+    || `<tr><td colspan="2" class="hint">Run something to see per-bug results. Click a row for details.</td></tr>`;
+  $("instTable").querySelectorAll("tr[data-id]").forEach(tr => tr.onclick = () => showInstance(tr.dataset.id));
+}
+
+async function refresh() {
+  [INSTANCES, STATS, QUALITY] = await Promise.all([api("/api/instances"), api("/api/stats"), api("/api/metrics")]);
+  // newest first: the run with the most recently written result goes on top
+  STATS.runs = Object.fromEntries(Object.entries(STATS.runs || {}).sort((a, b) => (b[1].last ?? 0) - (a[1].last ?? 0)));
+  const stale = Object.values(STATS.runs).some(r => r.id == null);
+  $("staleWarn").style.display = stale ? "" : "none";
+  renderBugList(); renderStats(); renderQuality(); renderCondSummary();
+}
+
+function openDialog(title, sub, html) {
+  $("dlgTitle").textContent = title; $("dlgSub").innerHTML = sub; $("dlgBody").innerHTML = html; $("dlg").showModal();
+}
+
+async function showInstance(id) {
+  const d = await api(`/api/instance/${id}`);
+  const m = d.meta, order = Object.keys(STATS.runs || {});
+  const runNames = Object.keys(d.runs).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const tabs = ["Issue", "Bug patch", ...runNames];
+  const tabLabel = t => runNames.includes(t) ? `${rid(t)} ${t.replace(/^[^_]+__/, "")}` : t;
+  const panes = {
+    "Issue": `<p><b>Targets:</b> ${m.target_symbols.map(esc).join(", ")}</p><pre>${esc(m.issue_body || "")}</pre>
+              <p><b>Fix tests:</b></p><pre>${esc(d.fix_tests_patch)}</pre>`,
+    "Bug patch": `<pre>${esc(d.bug_patch)}</pre>`,
+  };
+  for (const n of runNames) {
+    const r = d.runs[n].result;
+    const rows = Object.entries(r.tests).map(([node, t]) => `<tr><td>${esc(node.split("::").pop())}</td>
+      <td class="hint">${esc((t.arnio_calls || []).join(", "))}</td>
+      <td>${t.clean}</td><td>${t.buggy}</td>
+      <td>${t.detects_bug ? '<span class="pill good">catch</span>' : t.false_alarm ? '<span class="pill bad">false alarm</span>' : ""}</td></tr>`).join("");
+    panes[n] = `<p>${r.detected ? '<span class="pill good">caught</span>' : '<span class="pill muted">missed</span>'}
+      ${r.n_tests} tests · ${r.n_catching} catch · ${r.n_false_alarms} false alarms · ${r.seconds}s · $${(r.cost_usd||0).toFixed(3)}
+      · prompt ${(r.context?.chars||0).toLocaleString()} chars</p>
+      ${(q => q ? `<p class="hint">Quality: ${q.reached_bug ? `reached the bug lines (${q.tests_reaching_bug} tests)` : "never ran the bug lines"}
+        · target lines ${pct(q.target_line_cov)} · branches ${pct(q.target_branch_cov)} · ${num(q.assertions_per_test)} asserts/test
+        · ${q.tests_no_assert} tests without asserts</p>` : "")(d.runs[n].metrics)}
+      <table><thead><tr><th>Test</th><th>arnio entry points</th><th>Fixed</th><th>Buggy</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <p><b>Generated tests</b></p><pre>${esc(d.runs[n].test_code)}</pre>
+      <details><summary>Prompt</summary><pre>${esc(d.runs[n].prompt)}</pre></details>`;
+  }
+  const html = `<div class="tabs">${tabs.map((t, k) => `<button data-t="${k}" class="${k ? "" : "on"}" title="${esc(t)}">${esc(tabLabel(t))}</button>`).join(" ")}</div>
+    ${tabs.map((t, k) => `<div data-p="${k}" style="${k ? "display:none" : ""}">${panes[t]}</div>`).join("")}`;
+  openDialog(`${m.id}: ${m.issue_title}`, `<a href="${m.issue_url}" target="_blank">issue #${m.issue}</a> · PR #${m.pr} · port: ${esc(m.port_method)}`, html);
+  $("dlgBody").querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+    $("dlgBody").querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+    $("dlgBody").querySelectorAll("[data-p]").forEach(p => p.style.display = p.dataset.p === b.dataset.t ? "" : "none");
+  });
+}
+
+// Demo presets. pick "new": the next n public bugs this condition has not run yet, so a demo adds
+// results instead of overwriting old ones. pick "first": the first n public bugs, the same set
+// pipeline.ablation uses, with "skip done" on so only gaps get run.
+const PRESETS = [
+  {key: "smoke", label: "Smoke test: 3 new bugs, targeted docs, thinking off",
+   note: "Fastest check that everything works end to end. Its own condition (__think0).",
+   o: {kind: "generate", context: "targeted", max_thinking: 0}, n: 3, pick: "new"},
+  {key: "sanity", label: "Sanity check: arnio's own fix tests on 5 bugs (no model)",
+   note: "Runs each fix PR's tests on fixed and buggy code. No tokens used; the fix tests should catch every bug.",
+   o: {kind: "fix_tests"}, n: 5, pick: "first"},
+  {key: "demo-code", label: "Demo: 5 new bugs, full docs + code (cached)",
+   note: "The strongest condition so far. Run 'Demo: no code' on the same 5 bugs to compare.",
+   o: {kind: "generate", context: "full", with_source: true, cache_docs: true}, n: 5, pick: "new"},
+  {key: "demo-docs", label: "Demo: 5 new bugs, full docs, no code (cached)",
+   note: "Same as above without the implementation. Picks the same next 5 bugs if neither has run them.",
+   o: {kind: "generate", context: "full", cache_docs: true}, n: 5, pick: "new"},
+  {key: "full50-code", label: "Full 50: full docs + code (cached)",
+   note: "The 50-bug ablation set. Only bugs missing from this condition are run.",
+   o: {kind: "generate", context: "full", with_source: true, cache_docs: true}, n: 50, pick: "first"},
+  {key: "full50-docs", label: "Full 50: full docs, no code (cached)",
+   note: "The 50-bug ablation set. Only bugs missing from this condition are run.",
+   o: {kind: "generate", context: "full", cache_docs: true}, n: 50, pick: "first"},
+  {key: "p50-code", label: "Full 50: 50% docs + code (cached)",
+   note: "The 50-bug ablation set. Only bugs missing from this condition are run.",
+   o: {kind: "generate", context: "partial", keep: 0.5, seed: 0, with_source: true, cache_docs: true}, n: 50, pick: "first"},
+];
+let APPLYING = false;
+function applyPreset(key) {
+  const p = PRESETS.find(x => x.key === key);
+  if (!p) { $("presetHint").textContent = ""; return; }
+  APPLYING = true;
+  const o = {model: $("model").value || "claude-haiku-4-5", level: "unit", context: "targeted", keep: 0.5, seed: 0,
+             with_source: false, cache_docs: false, max_thinking: null, ...p.o};
+  $("kind").value = o.kind; $("model").value = o.model; $("level").value = o.level;
+  document.querySelector(`input[name=context][value=${o.context}]`).checked = true;
+  $("keep").value = Math.round(o.keep * 100); $("seed").value = o.seed;
+  $("withSource").checked = o.with_source; $("cacheDocs").checked = o.cache_docs;
+  $("maxThinking").value = o.max_thinking === null ? "" : o.max_thinking;
+  $("onlyPublic").checked = true; $("filter").value = "";
+  const label = runLabel(opts()), pub = INSTANCES.filter(i => i.public);
+  const pool = p.pick === "new" && o.kind === "generate" ? pub.filter(i => !i.runs[label]) : pub;
+  SELECTED = new Set(pool.slice(0, p.n).map(i => i.id));
+  $("skipDone").checked = p.pick === "first";
+  renderBugList();
+  APPLYING = false;
+  presetNote(p);
+}
+// Note + a rough cost from past results of the same condition.
+function presetNote(p) {
+  const o = opts(), r = (STATS.runs || {})[runLabel(o)], n = toRun().length;
+  let cost = "";
+  if (o.kind === "generate") cost = r && r.runs ? ` About $${(n * r.cost_usd / r.runs).toFixed(2)} at the past rate of ${ridOf(r) || "this condition"}.`
+                                                : " No past runs in this condition to estimate cost from.";
+  $("presetHint").textContent = `${p.note}${n ? "" : " Every bug is already done in this condition, so nothing to run."}${cost}`;
+}
+$("preset").innerHTML += PRESETS.map(p => `<option value="${p.key}">${esc(p.label)}</option>`).join("");
+$("preset").onchange = () => applyPreset($("preset").value);
+// Editing any option by hand turns the preset back into "Custom".
+function toCustom() { if (!APPLYING && $("preset").value) { $("preset").value = ""; $("presetHint").textContent = ""; } }
+
+$("previewBtn").onclick = async () => {
+  const id = [...SELECTED][0] || visibleBugs()[0]?.id;
+  if (!id) return;
+  const o = opts();
+  try {
+    const p = await api(`/api/preview?instance=${id}&context=${o.context}&keep=${o.keep}&seed=${o.seed}&level=${o.level}&cache_docs=${o.cache_docs ? 1 : 0}&with_source=${o.with_source ? 1 : 0}`);
+    const s = p.stats;
+    openDialog(`Prompt preview: ${id}`, `${o.context}${s.units_total ? ` · ${s.units_kept}/${s.units_total} doc sections` : ""} · ${p.prompt.length.toLocaleString()} chars (~${Math.round(p.prompt.length/4).toLocaleString()} tokens)${s.shared_chars ? ` · ${s.shared_chars.toLocaleString()} shared / ${s.per_bug_chars.toLocaleString()} per bug` : ""}`,
+      `<pre style="max-height:65vh">${esc(p.prompt)}</pre>`);
+  } catch (e) { alert(e.message); }
+};
+
+$("runBtn").onclick = async () => {
+  const o = opts(), ids = toRun();
+  if (!ids.length) return;
+  try {
+    const r = await api("/api/run", {...o, instances: ids});
+    JOB = {id: r.job, status: "queued"};
+    $("jobCard").style.display = "";
+    pollJob();
+  } catch (e) { alert(e.message); }
+  updateHint();
+};
+$("cancelBtn").onclick = $("ftCancel").onclick = () => JOB && api(`/api/jobs/${JOB.id}/cancel`, {});
+$("ftLog").onclick = () => { showTab("run"); $("jobCard").scrollIntoView({behavior: "smooth"}); };
+$("ftClose").onclick = () => { $("footer").classList.remove("on"); document.body.classList.remove("has-footer"); renderFooter.hidden = JOB?.id; };
+
+// Bottom bar: finished bugs, plus an estimate of how far the current bug has got, from the average
+// time per finished bug (~60s before any finish). The estimate never fills the current bug's slot.
+function renderFooter() {
+  if (!JOB || !JOB.instances || renderFooter.hidden === JOB.id) return;
+  const n = JOB.instances.length, active = ["queued", "running"].includes(JOB.status);
+  const now = Date.now() / 1000, elapsed = (JOB.finished || now) - JOB.started;
+  const per = JOB.done ? (((JOB.current_started || JOB.finished || now) - JOB.started) / JOB.done) : 60;
+  const partial = JOB.current && JOB.current_started ? Math.min(0.95, (now - JOB.current_started) / per) : 0;
+  const frac = active ? (JOB.done + partial) / n : JOB.done / n;
+  const runName = JOB.opts?.run, idTxt = runName ? rid(runName) : "";
+  const det = JOB.results.filter(r => r.detected).length, errs = JOB.results.filter(r => r.error).length;
+  $("footer").classList.add("on"); document.body.classList.add("has-footer");
+  $("footer").classList.toggle("finished", JOB.status === "done" && !errs);
+  $("footer").classList.toggle("failed", JOB.status === "cancelled" || (!active && errs > 0));
+  $("ftBar").style.width = `${100 * frac}%`;
+  $("ftStatus").textContent = JOB.status === "queued" ? "Queued" : active ? `Bug ${Math.min(JOB.done + 1, n)} of ${n}`
+    : JOB.status === "done" ? "Done" : "Cancelled";
+  const what = JOB.kind === "fix_tests" ? "fix-test sanity check" : `${idTxt ? idTxt + " " : ""}${runName || ""}`;
+  $("ftText").innerHTML = `${esc(what)}${JOB.current ? ` &middot; <code>${esc(JOB.current)}</code>` : ""}`
+    + ` &middot; ${det}/${JOB.results.length} detected${errs ? ` &middot; <span class="err">${errs} error(s)</span>` : ""}`;
+  const left = active ? Math.max(0, per * (n - JOB.done) - (JOB.current_started ? now - JOB.current_started : 0)) : 0;
+  $("ftTime").textContent = `${dur(elapsed)} elapsed` + (active && (JOB.done || partial > 0.2) ? ` \u00b7 ~${dur(left)} left` : "");
+  $("ftCancel").style.display = active ? "" : "none";
+  $("ftCancel").disabled = !!JOB.cancel;
+}
+setInterval(() => JOB && ["queued", "running"].includes(JOB.status) && renderFooter(), 1000);
+
+async function pollJob() {
+  JOB = await api(`/api/jobs/${JOB.id}`);
+  const n = JOB.instances.length;
+  $("jobStatus").textContent = `· ${JOB.status} · ${JOB.done}/${n}`;
+  $("jobDot").textContent = ["queued", "running"].includes(JOB.status) ? `job ${JOB.status}: ${JOB.done}/${n} bugs` : "";
+  $("jobBar").style.width = `${100 * JOB.done / n}%`;
+  $("log").textContent = JOB.log.join("\n");
+  $("log").scrollTop = $("log").scrollHeight;
+  $("cancelBtn").disabled = !["queued", "running"].includes(JOB.status);
+  renderFooter();
+  if (JOB.kind === "generate" && JOB.done > (pollJob.lastDone ?? 0)) { pollJob.lastDone = JOB.done; refresh(); }
+  if (["queued", "running"].includes(JOB.status)) setTimeout(pollJob, 1500);
+  else {
+    pollJob.lastDone = 0; refresh(); updateHint();
+    if (JOB.kind === "fix_tests") {
+      const rows = JOB.results.map(r => `<tr><td>${r.id}</td><td>${r.error ? `<span class="err">${esc(r.error)}</span>` :
+        r.detected ? '<span class="pill good">fix tests catch the bug</span>' : '<span class="pill bad">not caught</span>'}</td></tr>`).join("");
+      openDialog("Fix-test sanity check", "", `<table>${rows}</table>`);
+    }
+  }
+}
+
+["kind", "keep", "seed", "model", "level", "maxThinking"].forEach(id => $(id).oninput = () => { toCustom(); updateHint(); });
+$("cacheDocs").onchange = $("withSource").onchange = () => { toCustom(); updateHint(); };
+document.querySelectorAll("input[name=context]").forEach(r => r.onchange = () => { toCustom(); updateHint(); });
+$("filter").oninput = renderBugList; $("onlyPublic").onchange = renderBugList; $("skipDone").onchange = updateHint;
+$("bugList").addEventListener("change", toCustom);
+$("selAll").onclick = () => { visibleBugs().forEach(i => SELECTED.add(i.id)); renderBugList(); };
+$("selNone").onclick = () => { SELECTED.clear(); renderBugList(); };
+$("selFirst").onclick = () => { SELECTED.clear(); visibleBugs().slice(0, Number($("firstN").value)).forEach(i => SELECTED.add(i.id)); renderBugList(); };
+
+(async () => {
+  const o = await api("/api/options");
+  $("modelList").innerHTML = o.models.map(m => `<option value="${m}">`).join("");
+  $("model").value = o.default_model;
+  await refresh();
+  $("selFirst").click();
+  const last = await api("/api/jobs/latest");
+  if (last.id && (["queued", "running"].includes(last.status) || Date.now() / 1000 - (last.finished || 0) < 600)) {
+    JOB = last; $("jobCard").style.display = ""; pollJob();
+  }
+  if (location.hash) showTab(location.hash.slice(1));
+})().catch(e => $("headline").innerHTML = `<span class="err">${esc(e.message)}</span>`);
+</script>
+</body>
+</html>

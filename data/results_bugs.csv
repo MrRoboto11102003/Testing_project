@@ -1,10 +1,10 @@
-﻿model,bug,issue_title,detected,tests,catching,false_alarms,cost_usd,seconds
-claude-haiku-4-5,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,False,12,0,4,0.054938,70.3
-claude-haiku-4-5,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",False,24,0,4,0.038125,45.7
-claude-haiku-4-5,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,26,1,1,0.044259,49.8
-claude-haiku-4-5,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,False,19,0,0,0.044885,51.7
-claude-haiku-4-5,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,16,0,5,0.056322000000000004,55.6
-claude-haiku-4-5,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,16,0,1,0.059432000000000006,64.8
-claude-haiku-4-5,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,False,27,0,3,0.05128,57.1
-claude-haiku-4-5,arnio-pr1481,Bug: validate filter_rows column and operator types,False,17,0,0,0.040698,46.0
-claude-haiku-4-5,arnio-pr2491,write_csv: preserve destination and RuntimeError contract on transcoding failures,False,17,0,5,0.050118,68.1
+﻿run,model,context,keep,prompt_chars,bug,issue_title,detected,tests,catching,false_alarms,cost_usd,seconds
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,5289,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,False,12,0,4,0.054938,70.3
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,6141,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",False,25,0,1,0.041951,51.5
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,6349,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,False,22,0,0,0.039752,47.9
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,6967,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,False,20,0,0,0.032753,40.0
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,14200,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,17,0,2,0.046185000000000004,47.4
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,5190,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,17,0,0,0.054391,63.0
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,4425,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,False,22,0,0,0.033915999999999995,39.9
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,5270,arnio-pr1481,Bug: validate filter_rows column and operator types,False,14,0,0,0.058451,63.3
+claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,6995,arnio-pr2491,write_csv: preserve destination and RuntimeError contract on transcoding failures,False,17,0,5,0.050118,68.1

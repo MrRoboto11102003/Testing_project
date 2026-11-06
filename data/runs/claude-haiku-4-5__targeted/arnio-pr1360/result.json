@@ -1,0 +1,219 @@
+{
+ "id": "arnio-pr1360",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__targeted",
+ "context": {
+  "mode": "targeted",
+  "chars": 4897
+ },
+ "level": "unit",
+ "mean_arnio_calls": 3.0,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2263,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10633,
+  "output_tokens_details": {
+   "thinking_tokens": 8030
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2263,
+    "output_tokens": 10633,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.055428000000000005,
+ "seconds": 59.7,
+ "tests": {
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_all_categorical_columns_comparison": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_all_numeric_columns_comparison": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_detects_min_max_changes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_detects_null_ratio_change": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_detects_numeric_mean_shift": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_detects_numeric_variance_change": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_detects_uniqueness_change": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_drift_report_contains_all_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_drift_report_entry_has_status_field": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_has_drift_report_attribute": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_identical_data_comparison": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_mismatched_columns_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_mixed_data_types_comparison": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_returns_profile_comparison_object": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfiles::test_single_column_profile_comparison": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_dict",
+    "profile"
+   ]
+  }
+ }
+}

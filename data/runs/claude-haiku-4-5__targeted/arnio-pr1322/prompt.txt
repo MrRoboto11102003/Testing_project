@@ -1,0 +1,226 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.cleaning.coalesce_columns, arnio.cleaning.standardize_missing_tokens.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Getting started (README)
+
+## ⚡ Quickstart
+
+If you're new to Arnio, the example below demonstrates a simple first-run workflow for loading, cleaning, and preparing CSV data before converting it back into a pandas DataFrame.
+The workflow starts by loading a CSV dataset into an Arnio frame for preprocessing and cleaning.
+
+```python
+import arnio as ar
+
+# Load CSV directly through C++ — no Python parsing overhead
+frame = ar.read_csv("messy_sales_data.csv")
+
+# Strict mode (default) fails on inconsistent row widths
+frame = ar.read_csv("messy_sales_data.csv", mode="strict")
+
+# Permissive mode fills missing trailing values with nulls
+frame = ar.read_csv("messy_sales_data.csv", mode="permissive")
+```
+
+Each pipeline step applies a specific transformation such as trimming whitespace, normalizing text formatting, handling missing values, and removing duplicate rows.
+
+
+```python
+# Declare what clean data looks like — arnio handles the rest
+clean = ar.pipeline(frame, [
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("fill_nulls", {"value": 0.0, "subset": ["revenue"]}),
+    ("drop_nulls",),
+    ("drop_duplicates",),
+])
+```
+
+After preprocessing is complete, the cleaned result can be converted back into a standard pandas DataFrame for further analysis or integration with existing workflows.
+
+```python
+# Out comes a standard pandas DataFrame — use it like you always have
+df = ar.to_pandas(clean)
+
+# Use copy=True when you need defensive pandas-owned buffers
+safe_df = ar.to_pandas(clean, copy=True)
+```
+### Dry Run Validation
+
+Use `dry_run=True` to validate pipeline configuration and
+step execution without returning transformed output.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("drop_nulls",),
+    ],
+    dry_run=True,
+)
+```
+
+Need step timings for debugging? Opt in without changing the default pipeline return type:
+
+```python
+clean, metadata = ar.pipeline(
+    frame,
+    [("strip_whitespace",), ("drop_duplicates",)],
+    return_metadata=True,
+)
+
+print(metadata["step_timings"])
+print(metadata["applied_steps"])
+print(metadata["row_counts"])
+print(metadata["execution_summary"])
+```
+
+## Quick Example
+
+```python
+import arnio
+
+frame = arnio.read_csv("sample.csv")
+
+# Preview first 5 rows
+frame.preview(5)
+
+# Generate and view scannable summary statistics
+print(frame.describe())
+```
+
+### Pipeline validation behavior
+
+Pipeline step specifications are validated before execution begins.
+
+Malformed step tuples, invalid kwargs structures, or unknown step names fail early before any pipeline steps execute.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("strip_whitespace",),
+        ("bad_step", "oops", "extra"),
+    ],
+)
+```
+
+This prevents partial pipeline execution when later pipeline steps are invalid.
+
+### from_dict support
+
+This adds support for creating an ArFrame from a Python dictionary.
+
+You can build an `ArFrame` directly from a dictionary of equal-length columns, which is useful for small inline datasets that you want to pass into a pipeline.
+
+```python
+import arnio as ar
+
+data = {"name": ["Alice", "Bob"], "age": [25, 30]}
+
+frame = ar.from_dict(data)
+# or
+frame = ar.ArFrame.from_dict(data)
+```
+
+Already working with a pandas `DataFrame`? Arnio can also be integrated directly into an existing pandas workflow without changing your current data-processing approach:
+
+```python
+import pandas as pd
+import arnio as ar
+
+df = pd.read_csv("messy_sales_data.csv")
+
+clean_df = df.arnio.clean([
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("drop_duplicates",),
+])
+
+report = clean_df.arnio.profile()
+
+trimmed_df = (
+    df.arnio.strip_whitespace(subset=["customer_name"])
+      .arnio.clip_numeric(upper=100, subset=["loyalty_score"])
+      .arnio.drop_nulls(subset=["customer_name"])
+)
+```
+
+
+## Source signatures and docstrings
+
+# arnio.cleaning.coalesce_columns
+def coalesce_columns(
+    frame,
+    *,
+    subset: Sequence[str],
+    output_column: str = "coalesced",
+):
+    """Select the first non-null value from a list of columns.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame.
+    subset : sequence of str
+        Sequence of columns to check in order.
+    output_column : str, default "coalesced"
+        Name of the new column to store coalesced values.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        New frame with coalesced column.
+
+    Raises
+    ------
+    TypeError
+        If subset is not a list, or frame is not an ArFrame or DataFrame.
+    ValueError
+        If subset is empty, output_column is empty, or output_column already
+        exists in the frame.
+    KeyError
+        If any column in subset does not exist in the frame.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> result = ar.coalesce_columns(frame, subset=["col_a", "col_b"],
+    ...                              output_column="first_non_null")
+    """
+    ...
+
+# arnio.cleaning.standardize_missing_tokens
+def standardize_missing_tokens(frame, tokens=None, subset=None):
+    """Convert null-like string tokens in the frame to the standard NaN form.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    tokens : list[str], optional
+        List of strings to treat as missing. If None, then a built-in default tokens list is used
+    subset : list[str], optional
+        Column names to replace missing tokens in. If None, applies to all columns.
+
+    Notes
+    -----
+    Matching is case-insensitive and trims surrounding whitespace before checking
+    token membership. Values that do not match a missing token preserve their
+    original whitespace.
+
+    Returns
+    -------
+    ArFrame
+        New frame with missing token values replaced by NaN.
+
+    Examples
+    --------
+    >>> frame = ar.from_pandas(pd.DataFrame({"value": [1, 2, "N/A"]}))
+    >>> result = ar.standardize_missing_tokens(frame)
+    >>> frame = ar.from_pandas(pd.DataFrame({"value": [" NULL ", "\\tNaN\\t", "kept"]}))
+    >>> result = ar.standardize_missing_tokens(frame)
+    """
+    ...

@@ -1,0 +1,206 @@
+{
+ "id": "arnio-pr1360",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial75_s0",
+ "context": {
+  "mode": "partial",
+  "keep": 0.75,
+  "seed": 0,
+  "units_total": 80,
+  "units_kept": 60,
+  "chars": 115324
+ },
+ "level": "unit",
+ "mean_arnio_calls": 2.57,
+ "detected": false,
+ "n_tests": 14,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 34058,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3273,
+  "output_tokens_details": {
+   "thinking_tokens": 611
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 34058,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3273,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 34058,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 34058
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.08449,
+ "seconds": 28.6,
+ "tests": {
+  "tests/_generated/test_arnio_pr1360.py::test_compare_identical_profiles": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_all_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_different_column_count": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_different_dtypes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_different_row_counts": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_empty_vs_nonempty": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_high_cardinality": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_mixed_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_result_has_comparison_data": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_returns_comparison_object": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_single_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_with_duplicates": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_with_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::test_compare_profiles_zero_rows": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "profile",
+    "quality"
+   ]
+  }
+ }
+}

@@ -1,0 +1,236 @@
+{
+ "id": "arnio-pr1522",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 88467
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 2.81,
+ "detected": false,
+ "n_tests": 16,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1326,
+  "cache_read_input_tokens": 24604,
+  "output_tokens": 4986,
+  "output_tokens_details": {
+   "thinking_tokens": 2705
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1326,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 4986,
+    "cache_read_input_tokens": 24604,
+    "cache_creation_input_tokens": 1326,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1326
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0300514,
+ "model_seconds": 26.5,
+ "seconds": 34.1,
+ "tests": {
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_already_normalized_strings": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_basic_whitespace_normalization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_column_subset_selection": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_combined_whitespace_handling": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_default_all_string_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_empty_dataframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_empty_string_handling": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_invalid_column_names_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_leading_trailing_whitespace_removal": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_mixed_string_dtypes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_non_string_values_passthrough": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_null_values_passthrough": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_preserves_legitimate_internal_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_returns_arframe_for_arframe_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ArFrame",
+    "from_pandas",
+    "normalize_whitespace"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_returns_dataframe_for_pandas_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_whitespace"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1522.py::TestNormalizeWhitespace::test_tab_and_newline_whitespace": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "normalize_whitespace",
+    "to_pandas"
+   ]
+  }
+ }
+}

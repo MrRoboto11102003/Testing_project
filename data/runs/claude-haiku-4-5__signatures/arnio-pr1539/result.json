@@ -1,0 +1,136 @@
+{
+ "id": "arnio-pr1539",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__signatures",
+ "context": {
+  "mode": "signatures",
+  "chars": 131
+ },
+ "detected": false,
+ "n_tests": 14,
+ "n_catching": 0,
+ "n_false_alarms": 14,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 972,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3723,
+  "output_tokens_details": {
+   "thinking_tokens": 2242
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 972,
+    "output_tokens": 3723,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.019587,
+ "seconds": 30.2,
+ "tests": {
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_column_order_preserved": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_data_integrity_after_drop": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_all_columns": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_columns_with_mixed_dtypes": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_empty_list": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_empty_tuple": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_mixed_existent_nonexistent_raises_error": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_multiple_columns": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_nonexistent_column_raises_error": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_single_column_with_list": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_drop_single_column_with_tuple": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_original_frame_unchanged": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_preserves_row_index": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1539.py::TestArFrameDropColumns::test_returns_arframe_instance": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  }
+ }
+}

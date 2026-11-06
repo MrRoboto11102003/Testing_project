@@ -1,0 +1,154 @@
+{
+ "id": "arnio-pr1508",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__signatures",
+ "context": {
+  "mode": "signatures",
+  "chars": 314
+ },
+ "detected": false,
+ "n_tests": 17,
+ "n_catching": 0,
+ "n_false_alarms": 16,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 1025,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7560,
+  "output_tokens_details": {
+   "thinking_tokens": 5795
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 1025,
+    "output_tokens": 7560,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.038825,
+ "seconds": 48.6,
+ "tests": {
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineBasicExecution::test_pipeline_empty_steps": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineBasicExecution::test_pipeline_returns_frame_by_default": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineEdgeCases::test_dataframe_with_nan_values": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineEdgeCases::test_empty_dataframe": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineEdgeCases::test_mixed_dtypes": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineEdgeCases::test_single_row_dataframe": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineFlags::test_combined_flags": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineFlags::test_dry_run_true": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineFlags::test_verbose_true": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineInputValidation::test_invalid_steps_type_dict_raises": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineInputValidation::test_invalid_steps_type_raises": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineInputValidation::test_none_frame_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineInputValidation::test_none_steps_raises": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineLineageTracking::test_track_lineage_false": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineLineageTracking::test_track_lineage_true": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineReturnMetadata::test_return_metadata_false": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  },
+  "tests/_generated/test_arnio_pr1508.py::TestPipelineReturnMetadata::test_return_metadata_true": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false
+  }
+ }
+}

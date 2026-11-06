@@ -1,0 +1,301 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.schema.Schema.bootstrap_from_report, arnio.schema.Schema.from_json, arnio.schema.Schema.to_json, arnio.schema.Schema.validate.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Getting started (README)
+
+## ⚡ Quickstart
+
+If you're new to Arnio, the example below demonstrates a simple first-run workflow for loading, cleaning, and preparing CSV data before converting it back into a pandas DataFrame.
+The workflow starts by loading a CSV dataset into an Arnio frame for preprocessing and cleaning.
+
+```python
+import arnio as ar
+
+# Load CSV directly through C++ — no Python parsing overhead
+frame = ar.read_csv("messy_sales_data.csv")
+
+# Strict mode (default) fails on inconsistent row widths
+frame = ar.read_csv("messy_sales_data.csv", mode="strict")
+
+# Permissive mode fills missing trailing values with nulls
+frame = ar.read_csv("messy_sales_data.csv", mode="permissive")
+```
+
+Each pipeline step applies a specific transformation such as trimming whitespace, normalizing text formatting, handling missing values, and removing duplicate rows.
+
+
+```python
+# Declare what clean data looks like — arnio handles the rest
+clean = ar.pipeline(frame, [
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("fill_nulls", {"value": 0.0, "subset": ["revenue"]}),
+    ("drop_nulls",),
+    ("drop_duplicates",),
+])
+```
+
+After preprocessing is complete, the cleaned result can be converted back into a standard pandas DataFrame for further analysis or integration with existing workflows.
+
+```python
+# Out comes a standard pandas DataFrame — use it like you always have
+df = ar.to_pandas(clean)
+
+# Use copy=True when you need defensive pandas-owned buffers
+safe_df = ar.to_pandas(clean, copy=True)
+```
+### Dry Run Validation
+
+Use `dry_run=True` to validate pipeline configuration and
+step execution without returning transformed output.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("drop_nulls",),
+    ],
+    dry_run=True,
+)
+```
+
+Need step timings for debugging? Opt in without changing the default pipeline return type:
+
+```python
+clean, metadata = ar.pipeline(
+    frame,
+    [("strip_whitespace",), ("drop_duplicates",)],
+    return_metadata=True,
+)
+
+print(metadata["step_timings"])
+print(metadata["applied_steps"])
+print(metadata["row_counts"])
+print(metadata["execution_summary"])
+```
+
+## Quick Example
+
+```python
+import arnio
+
+frame = arnio.read_csv("sample.csv")
+
+# Preview first 5 rows
+frame.preview(5)
+
+# Generate and view scannable summary statistics
+print(frame.describe())
+```
+
+### Pipeline validation behavior
+
+Pipeline step specifications are validated before execution begins.
+
+Malformed step tuples, invalid kwargs structures, or unknown step names fail early before any pipeline steps execute.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("strip_whitespace",),
+        ("bad_step", "oops", "extra"),
+    ],
+)
+```
+
+This prevents partial pipeline execution when later pipeline steps are invalid.
+
+### from_dict support
+
+This adds support for creating an ArFrame from a Python dictionary.
+
+You can build an `ArFrame` directly from a dictionary of equal-length columns, which is useful for small inline datasets that you want to pass into a pipeline.
+
+```python
+import arnio as ar
+
+data = {"name": ["Alice", "Bob"], "age": [25, 30]}
+
+frame = ar.from_dict(data)
+# or
+frame = ar.ArFrame.from_dict(data)
+```
+
+Already working with a pandas `DataFrame`? Arnio can also be integrated directly into an existing pandas workflow without changing your current data-processing approach:
+
+```python
+import pandas as pd
+import arnio as ar
+
+df = pd.read_csv("messy_sales_data.csv")
+
+clean_df = df.arnio.clean([
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("drop_duplicates",),
+])
+
+report = clean_df.arnio.profile()
+
+trimmed_df = (
+    df.arnio.strip_whitespace(subset=["customer_name"])
+      .arnio.clip_numeric(upper=100, subset=["loyalty_score"])
+      .arnio.drop_nulls(subset=["customer_name"])
+)
+```
+
+
+## Source code of the target functions
+
+# arnio.schema.Schema.bootstrap_from_report
+    @classmethod
+    def bootstrap_from_report(cls, report: Any) -> Schema:
+        """Create a Schema from a DataQualityReport.
+
+        Args:
+            report: A DataQualityReport produced by arnio.profile().
+
+        Returns:
+            Schema: A new Schema inferred from the report's column profiles.
+
+        Raises:
+            TypeError: If the input is not a DataQualityReport.
+            ValueError: If the report has no columns, or any column profile
+                is missing a dtype.
+
+        Example:
+            >>> report = ar.profile(frame)
+            >>> schema = ar.Schema.bootstrap_from_report(report)
+            >>> result = schema.validate(frame)
+        """
+        from .quality import DataQualityReport
+
+        if not isinstance(report, DataQualityReport):
+            raise TypeError(f"Expected DataQualityReport, got {type(report).__name__}")
+        if not report.columns:
+            raise ValueError(
+                "Cannot bootstrap schema from an empty report (no columns)."
+            )
+
+        fields = {}
+        for col_name, profile in report.columns.items():
+            dtype_val = getattr(profile, "dtype", None)
+            null_count = getattr(profile, "null_count", 0)
+
+            if not dtype_val:
+                raise ValueError(
+                    f"Column profile for {col_name!r} is missing 'dtype' key."
+                )
+
+            arnio_dtype = _DTYPE_MAP.get(str(dtype_val).lower(), "string")
+            fields[col_name] = Field(dtype=arnio_dtype, nullable=null_count > 0)
+
+        return cls(fields=fields)
+
+# arnio.schema.Schema.from_json
+    @classmethod
+    def from_json(cls, value: str) -> Schema:
+        """Deserialize a schema from a JSON string produced by ``to_json()``."""
+        try:
+            payload = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid schema JSON: {exc.msg}") from exc
+
+        if not isinstance(payload, dict):
+            raise TypeError(
+                "Schema JSON must decode to an object with 'fields', 'strict', and optional 'unique'."
+            )
+
+        unknown = set(payload.keys()) - _ALLOWED_SCHEMA_KEYS
+        if unknown:
+            raise ValueError(
+                f"Schema JSON contains unknown key(s): {sorted(unknown)}. "
+                f"Allowed keys: {sorted(_ALLOWED_SCHEMA_KEYS)}"
+            )
+
+        fields_payload = payload.get("fields")
+        if not isinstance(fields_payload, dict):
+            raise TypeError(
+                "Schema JSON 'fields' must be an object mapping names to field definitions."
+            )
+
+        fields = {
+            name: _field_from_json_dict(name, field_payload)
+            for name, field_payload in fields_payload.items()
+        }
+
+        strict = payload.get("strict", False)
+        if not isinstance(strict, bool):
+            raise TypeError("Schema JSON 'strict' must be a boolean.")
+
+        unique = payload.get("unique")
+        if unique is not None and not isinstance(unique, list):
+            raise TypeError("Schema JSON 'unique' must be a list of strings or null.")
+
+        # rules_omitted marker is accepted and silently ignored — rules
+        # cannot be round-tripped through JSON and must be re-attached
+        # manually by the caller if needed.
+        return cls(fields=fields, strict=strict, unique=unique)
+
+# arnio.schema.Schema.to_json
+    def to_json(self) -> str:
+        """Serialize the schema to a stable JSON string.
+
+        Cross-field ``rules`` cannot be serialized. When rules are present
+        they are silently omitted and a ``UserWarning`` is emitted. The
+        returned payload includes ``"rules_omitted": true`` so downstream
+        consumers can detect the gap. Call ``from_json()`` to restore the
+        field-only schema; rules must be re-attached manually afterward.
+        """
+        rules_omitted = bool(self.rules)
+        if rules_omitted:
+            warnings.warn(
+                "Schema.to_json(): cross-field rules cannot be serialized "
+                "and have been omitted. The JSON payload includes "
+                '"rules_omitted": true. Restore rules manually after '
+                "from_json().",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        payload = {
+            "fields": {
+                name: _field_to_json_dict(field_def)
+                for name, field_def in sorted(self.fields.items())
+            },
+            "strict": self.strict,
+            "unique": list(self.unique) if self.unique is not None else None,
+        }
+        if rules_omitted:
+            payload["rules_omitted"] = True
+        return json.dumps(payload, sort_keys=True)
+
+# arnio.schema.Schema.validate
+    def validate(
+        self,
+        frame: ArFrame,
+        max_errors: int | None = None,
+    ) -> ValidationResult:
+        """
+        Validate an ArFrame against this schema.
+
+        Args:
+            frame:
+                frame to validate.
+            max_errors:
+                Maximum number of validation issues to return.
+                Validation stops once this limit is reached.
+        """
+        return validate(frame, self, max_errors=max_errors)
+
+## API reference
+
+#### validate
+
+The primary function used to check an `ArFrame` against a `Schema`. It returns a `ValidationResult`.
+
+

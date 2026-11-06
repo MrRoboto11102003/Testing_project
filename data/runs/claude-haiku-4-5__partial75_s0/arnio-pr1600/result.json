@@ -1,0 +1,288 @@
+{
+ "id": "arnio-pr1600",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial75_s0",
+ "context": {
+  "mode": "partial",
+  "keep": 0.75,
+  "seed": 0,
+  "units_total": 80,
+  "units_kept": 60,
+  "chars": 115212
+ },
+ "level": "unit",
+ "mean_arnio_calls": 3.5,
+ "detected": false,
+ "n_tests": 20,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 34016,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6539,
+  "output_tokens_details": {
+   "thinking_tokens": 3587
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 34016,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 6539,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 34016,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 34016
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.10073599999999999,
+ "seconds": 43.4,
+ "tests": {
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_both_parameters_together": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_cross_field_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "ValidationIssue",
+    "from_pandas",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_failed_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Int64",
+    "Schema",
+    "String",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_github_markdown_format": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_idempotent": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_large_issue_count": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_max_issues_limits_output": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_max_issues_none_shows_all": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_max_issues_parameter_is_keyword_only": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_max_issues_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_no_issues": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "String",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_nullable_violations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "from_pandas",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_passed_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "String",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_redact_values_false_shows_actual_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_redact_values_parameter_is_keyword_only": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_redact_values_true_hides_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_returns_non_empty_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_returns_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_with_multiple_issues_per_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_to_markdown_with_unicode_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "from_pandas",
+    "validate"
+   ]
+  }
+ }
+}

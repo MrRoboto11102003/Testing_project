@@ -1,0 +1,65 @@
+{
+ "id": "arnio-pr1340",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial75_s0",
+ "context": {
+  "mode": "partial",
+  "keep": 0.75,
+  "seed": 0,
+  "units_total": 82,
+  "units_kept": 62,
+  "chars": 124438
+ },
+ "level": "unit",
+ "mean_arnio_calls": 0.86,
+ "detected": false,
+ "n_tests": 1,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 19,
+  "cache_creation_input_tokens": 73105,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6305,
+  "output_tokens_details": {
+   "thinking_tokens": 3491
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 73105,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 10,
+    "output_tokens": 6301,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 36571,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 36571
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.177754,
+ "seconds": 79.1,
+ "tests": {
+  "tests/_generated/test_arnio_pr1340.py::tests._generated.test_arnio_pr1340": {
+   "clean": "skipped",
+   "buggy": "skipped",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

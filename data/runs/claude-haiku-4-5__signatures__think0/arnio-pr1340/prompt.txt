@@ -1,0 +1,54 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.integrations.sklearn.ArnioCleaner.get_feature_names_out, arnio.io.read_csv, arnio.io.read_csv_chunked.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Signatures
+
+# arnio.integrations.sklearn.ArnioCleaner.get_feature_names_out
+    def get_feature_names_out(self, input_features=None):
+    ...
+
+# arnio.io.read_csv
+def read_csv(
+    path: str | os.PathLike[str] | io.TextIOBase,
+    *,
+    delimiter: str | None = None,
+    has_header: bool = True,
+    usecols: list[str] | None = None,
+    nrows: int | None = None,
+    skiprows: int | None = None,
+    encoding: str = "utf-8",
+    trim_headers: bool = True,
+    decimal_separator: str = ".",
+    thousands_separator: str | None = None,
+    null_values: list[str] | None = None,
+    dtype: dict[str, str] | None = None,
+    mode: str = "strict",
+    encoding_errors: str = "strict",
+    on_bad_lines: str = "error",
+) -> ArFrame:
+    ...
+
+# arnio.io.read_csv_chunked
+def read_csv_chunked(
+    path: str | os.PathLike[str] | io.TextIOBase,
+    *,
+    chunksize: int = 10_000,
+    dtype: dict[str, str] | None = None,
+    delimiter: str | None = None,
+    has_header: bool = True,
+    usecols: list[str] | None = None,
+    nrows: int | None = None,
+    skip_rows: int = 0,
+    skiprows: int | None = None,
+    encoding: str = "utf-8",
+    trim_headers: bool = True,
+    decimal_separator: str = ".",
+    thousands_separator: str | None = None,
+    null_values: list[str] | None = None,
+    mode: str = "strict",
+    on_bad_lines: str = "error",
+) -> Iterator[ArFrame]:
+    ...

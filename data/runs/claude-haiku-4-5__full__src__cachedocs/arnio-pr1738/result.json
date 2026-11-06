@@ -1,0 +1,252 @@
+{
+ "id": "arnio-pr1738",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 81,
+  "units_kept": 81,
+  "chars": 153505
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 21,
+ "n_catching": 4,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1948,
+  "cache_read_input_tokens": 43603,
+  "output_tokens": 3973,
+  "output_tokens_details": {
+   "thinking_tokens": 2400
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1948,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3973,
+    "cache_read_input_tokens": 43603,
+    "cache_creation_input_tokens": 1948,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1948
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0281303,
+ "model_seconds": 23.5,
+ "seconds": 31.5,
+ "tests": {
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_all_parameters_combined": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_creates_field_with_defaults": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_nullable_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_required_if_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_severity_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_unique_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_all_parameters_with_schemes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_bare_string_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_empty_list_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_empty_string_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_invalid_scheme_name_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_invalid_type_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_multiple_schemes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_non_string_element_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_single_scheme": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_whitespace_stripping": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_creates_field_with_defaults": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_nullable_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_required_if_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_severity_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_unique_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  }
+ }
+}

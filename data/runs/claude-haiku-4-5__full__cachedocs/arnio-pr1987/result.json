@@ -1,0 +1,207 @@
+{
+ "id": "arnio-pr1987",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": false,
+  "units_total": 80,
+  "units_kept": 80,
+  "chars": 149479
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 1.0,
+ "detected": false,
+ "n_tests": 16,
+ "n_catching": 0,
+ "n_false_alarms": 12,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 908,
+  "cache_read_input_tokens": 43603,
+  "output_tokens": 3699,
+  "output_tokens_details": {
+   "thinking_tokens": 1117
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 908,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3699,
+    "cache_read_input_tokens": 43603,
+    "cache_creation_input_tokens": 908,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 908
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.024680300000000002,
+ "model_seconds": 22.8,
+ "seconds": 29.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordAuditSemantics::test_hashable_for_collections": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordAuditSemantics::test_records_step_information": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordAuditSemantics::test_repr_is_informative": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordAuditSemantics::test_supports_row_count_tracking": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordBasics::test_has_expected_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordBasics::test_is_dataclass": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordBasics::test_is_frozen": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordEdgeCases::test_large_row_counts": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordEdgeCases::test_step_with_no_row_changes": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordEdgeCases::test_very_small_execution_time": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordEdgeCases::test_zero_rows": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordImmutability::test_cannot_add_new_attribute": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordImmutability::test_cannot_modify_existing_field": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordInstantiation::test_instantiation_with_valid_kwargs": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordInstantiation::test_record_equality": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordInstantiation::test_record_inequality": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  }
+ }
+}
