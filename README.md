@@ -81,10 +81,16 @@ when it fails on clean.
 
 ### Models
 
-Models are called through the Claude Code CLI, not the API:
+Claude models are called through the Claude Code CLI (not the API):
 `claude -p --model claude-haiku-4-5 --tools "" --system-prompt ... --output-format json`, with
 the prompt on stdin. Disabling tools and running from a temp directory keeps the model's context
 to the prompt alone.
+
+Qwen 3.5-4b is called through Ollama: 
+
+1. Use these instructions (https://ollama.com/download) to download Ollama
+2. After creating an Ollama account, use `ollama pull qwen3.5:4b` to download a local version of Qwen3.5-4b
+3. After downloading the model, use `ollama serve` to run the model on a local Ollama server
 
 ### Token use and the subscription limit
 
