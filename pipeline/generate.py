@@ -343,14 +343,6 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
 OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "6144"))
 
-# LOCAL_MODEL_RULES = (
-#     "Rules: import the real library with `import arnio as ar` and call its functions directly. "
-#     "Never define mock, stub or stand-in classes for arnio, and never re-implement the functions "
-#     "you are testing. Only use functions, classes and parameters that appear in the documentation "
-#     "or signatures you were given; do not invent APIs. Build test frames with ar.from_pandas or "
-#     "ar.read_csv."
-# )
-
 def uses_ollama(model: str) -> bool:
     """Claude model ids go through the Claude Code CLI; anything else is a local Ollama tag."""
     return not model.startswith("claude")
@@ -362,7 +354,6 @@ def call_ollama(prompt: str, model: str, level: str = "unit", max_thinking: int 
     import urllib.error
     import urllib.request
     system = SYSTEM_PROMPT.format(kind=SYSTEM_KIND[level])
-#    system += "\n\n" + LOCAL_MODEL_RULES
     if system_extra:
         system += "\n\n" + system_extra
     payload = {
