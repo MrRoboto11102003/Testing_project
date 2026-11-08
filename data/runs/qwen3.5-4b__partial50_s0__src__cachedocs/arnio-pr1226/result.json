@@ -1,0 +1,180 @@
+{
+ "id": "arnio-pr1226",
+ "model": "qwen3.5:4b",
+ "run": "qwen3.5-4b__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 89351
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 1.8,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 5,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 22164,
+  "output_tokens": 1461
+ },
+ "cost_usd": 0.0,
+ "model_seconds": 187.0,
+ "seconds": 190.2,
+ "tests": {
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_attrs_deepcopy": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_attrs_empty_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_attrs_preservation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_basic_conversion": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_bool_dtype": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_copy_false": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_copy_true": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_copy_type_error": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_empty_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_float64_dtype": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_int64_dtype": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_invalid_input": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_no_attrs": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_string_dtype": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1226.py::test_to_pandas_with_nulls": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "to_pandas"
+   ]
+  }
+ }
+}

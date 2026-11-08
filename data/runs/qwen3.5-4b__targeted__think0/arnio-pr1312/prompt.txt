@@ -1,0 +1,219 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.schema.Schema.bootstrap_from_report, arnio.schema.Schema.from_json, arnio.schema.Schema.to_json, arnio.schema.Schema.validate.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Getting started (README)
+
+## ⚡ Quickstart
+
+If you're new to Arnio, the example below demonstrates a simple first-run workflow for loading, cleaning, and preparing CSV data before converting it back into a pandas DataFrame.
+The workflow starts by loading a CSV dataset into an Arnio frame for preprocessing and cleaning.
+
+```python
+import arnio as ar
+
+# Load CSV directly through C++ — no Python parsing overhead
+frame = ar.read_csv("messy_sales_data.csv")
+
+# Strict mode (default) fails on inconsistent row widths
+frame = ar.read_csv("messy_sales_data.csv", mode="strict")
+
+# Permissive mode fills missing trailing values with nulls
+frame = ar.read_csv("messy_sales_data.csv", mode="permissive")
+```
+
+Each pipeline step applies a specific transformation such as trimming whitespace, normalizing text formatting, handling missing values, and removing duplicate rows.
+
+
+```python
+# Declare what clean data looks like — arnio handles the rest
+clean = ar.pipeline(frame, [
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("fill_nulls", {"value": 0.0, "subset": ["revenue"]}),
+    ("drop_nulls",),
+    ("drop_duplicates",),
+])
+```
+
+After preprocessing is complete, the cleaned result can be converted back into a standard pandas DataFrame for further analysis or integration with existing workflows.
+
+```python
+# Out comes a standard pandas DataFrame — use it like you always have
+df = ar.to_pandas(clean)
+
+# Use copy=True when you need defensive pandas-owned buffers
+safe_df = ar.to_pandas(clean, copy=True)
+```
+### Dry Run Validation
+
+Use `dry_run=True` to validate pipeline configuration and
+step execution without returning transformed output.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("drop_nulls",),
+    ],
+    dry_run=True,
+)
+```
+
+Need step timings for debugging? Opt in without changing the default pipeline return type:
+
+```python
+clean, metadata = ar.pipeline(
+    frame,
+    [("strip_whitespace",), ("drop_duplicates",)],
+    return_metadata=True,
+)
+
+print(metadata["step_timings"])
+print(metadata["applied_steps"])
+print(metadata["row_counts"])
+print(metadata["execution_summary"])
+```
+
+## Quick Example
+
+```python
+import arnio
+
+frame = arnio.read_csv("sample.csv")
+
+# Preview first 5 rows
+frame.preview(5)
+
+# Generate and view scannable summary statistics
+print(frame.describe())
+```
+
+### Pipeline validation behavior
+
+Pipeline step specifications are validated before execution begins.
+
+Malformed step tuples, invalid kwargs structures, or unknown step names fail early before any pipeline steps execute.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("strip_whitespace",),
+        ("bad_step", "oops", "extra"),
+    ],
+)
+```
+
+This prevents partial pipeline execution when later pipeline steps are invalid.
+
+### from_dict support
+
+This adds support for creating an ArFrame from a Python dictionary.
+
+You can build an `ArFrame` directly from a dictionary of equal-length columns, which is useful for small inline datasets that you want to pass into a pipeline.
+
+```python
+import arnio as ar
+
+data = {"name": ["Alice", "Bob"], "age": [25, 30]}
+
+frame = ar.from_dict(data)
+# or
+frame = ar.ArFrame.from_dict(data)
+```
+
+Already working with a pandas `DataFrame`? Arnio can also be integrated directly into an existing pandas workflow without changing your current data-processing approach:
+
+```python
+import pandas as pd
+import arnio as ar
+
+df = pd.read_csv("messy_sales_data.csv")
+
+clean_df = df.arnio.clean([
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("drop_duplicates",),
+])
+
+report = clean_df.arnio.profile()
+
+trimmed_df = (
+    df.arnio.strip_whitespace(subset=["customer_name"])
+      .arnio.clip_numeric(upper=100, subset=["loyalty_score"])
+      .arnio.drop_nulls(subset=["customer_name"])
+)
+```
+
+
+## Source signatures and docstrings
+
+# arnio.schema.Schema.bootstrap_from_report
+    @classmethod
+    def bootstrap_from_report(cls, report: Any) -> Schema:
+        """Create a Schema from a DataQualityReport.
+
+        Args:
+            report: A DataQualityReport produced by arnio.profile().
+
+        Returns:
+            Schema: A new Schema inferred from the report's column profiles.
+
+        Raises:
+            TypeError: If the input is not a DataQualityReport.
+            ValueError: If the report has no columns, or any column profile
+                is missing a dtype.
+
+        Example:
+            >>> report = ar.profile(frame)
+            >>> schema = ar.Schema.bootstrap_from_report(report)
+            >>> result = schema.validate(frame)
+        """
+    ...
+
+# arnio.schema.Schema.from_json
+    @classmethod
+    def from_json(cls, value: str) -> Schema:
+        """Deserialize a schema from a JSON string produced by ``to_json()``."""
+    ...
+
+# arnio.schema.Schema.to_json
+    def to_json(self) -> str:
+        """Serialize the schema to a stable JSON string.
+
+        Cross-field ``rules`` cannot be serialized. When rules are present
+        they are silently omitted and a ``UserWarning`` is emitted. The
+        returned payload includes ``"rules_omitted": true`` so downstream
+        consumers can detect the gap. Call ``from_json()`` to restore the
+        field-only schema; rules must be re-attached manually afterward.
+        """
+    ...
+
+# arnio.schema.Schema.validate
+    def validate(
+        self,
+        frame: ArFrame,
+        max_errors: int | None = None,
+    ) -> ValidationResult:
+        """
+        Validate an ArFrame against this schema.
+
+        Args:
+            frame:
+                frame to validate.
+            max_errors:
+                Maximum number of validation issues to return.
+                Validation stops once this limit is reached.
+        """
+    ...
+
+## API reference
+
+#### validate
+
+The primary function used to check an `ArFrame` against a `Schema`. It returns a `ValidationResult`.
+
+
