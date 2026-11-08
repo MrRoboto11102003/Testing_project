@@ -21,10 +21,11 @@ from . import config, generate, metrics
 from .harness import load_instance, materialize, run_pytest
 
 UI_FILE = Path(__file__).with_name("ui.html")
-DEFAULT_MODEL = "claude-haiku-4-5"
-# Offered in the UI; any model id `claude -p --model` accepts can be typed in instead.
+DEFAULT_MODEL = "qwen-3-5-4b"
+# Offered in the UI. Names starting with "claude" run through `claude -p`; anything else is
+# treated as a local Ollama tag (see generate.call_ollama). Any such id can be typed in instead.
 # Only models trained before arnio existed (May 2026) give contamination-free results.
-MODELS = ["claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-1"]
+MODELS = ["qwen-3-5-4b", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-1"]
 
 JOBS: dict[str, dict] = {}
 RUN_LOCK = threading.Lock()  # checkouts are shared, so one job at a time

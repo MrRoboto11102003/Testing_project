@@ -307,6 +307,7 @@ def build_context(meta: dict, mode: str = "targeted", keep: float = 1.0, seed: i
 def run_label(model: str, mode: str, keep: float = 1.0, seed: int = 0, level: str = "unit",
               cache_docs: bool = False, max_thinking: int | None = None, with_source: bool = False) -> str:
     """Folder name under data/runs/ for one experimental condition (defaults add no suffix)."""
+    model = re.sub(r"[^\w.\-]", "-", model)
     label = f"{model}__partial{round(keep * 100)}_s{seed}" if mode == "partial" else f"{model}__{mode}"
     if with_source:
         label += "__src"
@@ -337,6 +338,56 @@ def _reset_time(message: str) -> float:
     if at <= now:
         at += datetime.timedelta(days=1)
     return at.timestamp() + 120  # small buffer past the reset
+
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
+OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "6144"))
+
+# LOCAL_MODEL_RULES = (
+#     "Rules: import the real library with `import arnio as ar` and call its functions directly. "
+#     "Never define mock, stub or stand-in classes for arnio, and never re-implement the functions "
+#     "you are testing. Only use functions, classes and parameters that appear in the documentation "
+#     "or signatures you were given; do not invent APIs. Build test frames with ar.from_pandas or "
+#     "ar.read_csv."
+# )
+
+def uses_ollama(model: str) -> bool:
+    """Claude model ids go through the Claude Code CLI; anything else is a local Ollama tag."""
+    return not model.startswith("claude")
+
+
+def call_ollama(prompt: str, model: str, level: str = "unit", max_thinking: int | None = None,
+                system_extra: str | None = None) -> dict:
+    """Same return shape as call_claude, served by a local Ollama model."""
+    import urllib.error
+    import urllib.request
+    system = SYSTEM_PROMPT.format(kind=SYSTEM_KIND[level])
+#    system += "\n\n" + LOCAL_MODEL_RULES
+    if system_extra:
+        system += "\n\n" + system_extra
+    payload = {
+        "model": model, "stream": False,
+        "think": False,  # thinking mode can run for ages on a small local model
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+        "options": {"num_ctx": OLLAMA_NUM_CTX, "num_predict": OLLAMA_NUM_PREDICT,
+                    "temperature": 0.7, "top_p": 0.8, "top_k": 20, "presence_penalty": 1.5, "seed": 0},
+    }
+    req = urllib.request.Request(f"{OLLAMA_URL}/api/chat", json.dumps(payload).encode("utf-8"),
+                                 {"Content-Type": "application/json"})
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=900) as r:
+            data = json.loads(r.read())
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"Ollama error {exc.code}: {exc.read().decode('utf-8', 'replace')[:300]}")
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"can't reach Ollama at {OLLAMA_URL} (is it running?): {exc}")
+    text = data.get("message", {}).get("content", "")
+    if not text.strip():
+        raise RuntimeError("Ollama returned an empty reply")
+    return {"result": text,
+            "usage": {"input_tokens": data.get("prompt_eval_count"), "output_tokens": data.get("eval_count")},
+            "total_cost_usd": 0.0, "duration_ms": int((time.time() - t0) * 1000)}
 
 
 def call_claude(prompt: str, model: str, level: str = "unit", max_thinking: int | None = None,
@@ -380,7 +431,8 @@ def call_claude_waiting(prompt: str, model: str, level: str = "unit", max_thinki
     waited = 0.0
     while True:
         try:
-            reply = call_claude(prompt, model, level, max_thinking, system_extra)
+            call = call_ollama if uses_ollama(model) else call_claude
+            reply = call(prompt, model, level, max_thinking, system_extra)
             reply["_waited_s"] = waited
             return reply
         except UsageLimit as exc:
@@ -422,6 +474,7 @@ def run_one(meta: dict, model: str, mode: str = "targeted", keep: float = 1.0, s
 
     t0 = time.time()
     log(f"{meta['id']}: prompt {len(prompt):,} chars; asking {model} ...")
+    call = call_ollama if uses_ollama(model) else call_claude
     reply = call_claude_waiting(prompt, model, level, max_thinking, shared, log=log, wait=wait_on_limit)
     t0 += reply.pop("_waited_s", 0.0)  # time asleep at a usage limit is not run time
     code = extract_code(reply.get("result", ""))
