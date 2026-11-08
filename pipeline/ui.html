@@ -412,6 +412,16 @@ async function showInstance(id) {
   });
 }
 
+// Model selection: Pick a model from the dropdown upon clicking the field box or type model in the field
+// If no model is chosen upon clicking outside the box, previous value fills the field
+document.addEventListener('DOMContentLoaded', () => {
+  const model = document.getElementById('model');
+  let previous = '';
+  model.addEventListener('focus', () => { previous = model.value; model.value = ''; });
+  model.addEventListener('blur', () => { if (!model.value.trim()) model.value = previous; });
+  model.placeholder = 'Pick or type a model';
+});
+
 // Demo presets. pick "new": the next n public bugs this condition has not run yet, so a demo adds
 // results instead of overwriting old ones. pick "first": the first n public bugs, the same set
 // pipeline.ablation uses, with "skip done" on so only gaps get run.
