@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr2015",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Detecting subtle bugs in dtype coercion or metadata loss when mixed-content columns (booleans + unsupported strings) round-trip through the pandas\u2194ArFrame conversion, since ArFrame's typing semantics may silently change column types in ways that are hard to assert against.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Detecting subtle bugs in dtype coercion or metadata loss when mixed-content columns (booleans + unsupported strings) round-trip through the pandas\u2194ArFrame conversion, since ArFrame's typing semantics may silently change column types in ways that are hard to assert against.\"\n}\n```\n\n**Reasoning:**\n\n**Testable behaviors I would catch:**\n- Core conversions (default true/false strings, custom values)\n- Case-insensitivity and whitespace stripping\n- Subset column filtering (only specified columns processed)\n- Boolean column skipping (preserved, not converted)\n- NaN/None preservation (unchanged)\n- Unsupported string preservation (not replaced with None)\n- Parameter validation (type checking, overlap detection, missing columns)\n- Return type is ArFrame\n\n**Hard-to-catch behaviors:**\n1. **Dtype coercion edge cases**: The docstring explicitly warns that mixed-content columns \"may round-trip as strings\" due to ArFrame typing semantics. A bug could change dtype incorrectly, but testing whether output is `bool` vs `object` requires understanding ArFrame's internal type resolution\u2014subtle dtype bugs could slip through assertions.\n\n2. **Index/metadata preservation**: The function does shallow copy and round-trips through pandas. A bug affecting index or column order would be invisible to basic value checks.\n\n3. **Boolean column filtering logic**: The asymmetry between `subset=None` (implicit filtering via `select_dtypes`) and `subset` provided (explicit filtering) is a subtle place where logic errors could hide. A bug removing the boolean filter when subset is provided might only break in specific column-type combinations.\n\n4. **Normalization consistency**: The sets are pre-normalized but the lambda normalizes at check time\u2014a bug could normalize inconsistently (or not at all), but only manifesting when mixed case/whitespace input is used.\n\n**What I'd miss:**\n- Very subtle off-by-one errors in validation logic (unless they manifest in test cases)\n- Changes to error message specificity (I won't typically assert exact message text)\n- Performance or reference-semantics bugs that don't affect observable output",
+ "cost_usd": 0.0275145,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2503,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 4012,
+  "output_tokens_details": {
+   "thinking_tokens": 3497
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2503,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 4012,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 2503,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2503
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

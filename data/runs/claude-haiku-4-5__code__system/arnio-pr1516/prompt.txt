@@ -1,0 +1,64 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.schema.Schema.to_json, arnio.schema.Schema.validate.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.schema.Schema.to_json
+    def to_json(self) -> str:
+        """Serialize the schema to a stable JSON string.
+
+        Cross-field ``rules`` cannot be serialized. When rules are present
+        they are silently omitted and a ``UserWarning`` is emitted. The
+        returned payload includes ``"rules_omitted": true`` so downstream
+        consumers can detect the gap. Call ``from_json()`` to restore the
+        field-only schema; rules must be re-attached manually afterward.
+        """
+        rules_omitted = bool(self.rules)
+        if rules_omitted:
+            warnings.warn(
+                "Schema.to_json(): cross-field rules cannot be serialized "
+                "and have been omitted. The JSON payload includes "
+                '"rules_omitted": true. Restore rules manually after '
+                "from_json().",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        payload = {
+            "fields": {
+                name: _field_to_json_dict(field_def)
+                for name, field_def in sorted(self.fields.items())
+            },
+            "strict": self.strict,
+            "unique": list(self.unique) if self.unique is not None else None,
+        }
+        if rules_omitted:
+            payload["rules_omitted"] = True
+        return json.dumps(payload, sort_keys=True)
+
+# arnio.schema.Schema.validate
+    def validate(
+        self,
+        frame: ArFrame,
+        max_errors: int | None = None,
+    ) -> ValidationResult:
+        """
+        Validate an ArFrame against this schema.
+
+        Args:
+            frame:
+                frame to validate.
+            max_errors:
+                Maximum number of validation issues to return.
+                Validation stops once this limit is reached.
+        """
+        return validate(frame, self, max_errors=max_errors)

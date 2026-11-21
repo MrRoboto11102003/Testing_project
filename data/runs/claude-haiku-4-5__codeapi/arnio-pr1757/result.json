@@ -1,0 +1,195 @@
+{
+ "id": "arnio-pr1757",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__codeapi",
+ "context": {
+  "mode": "codeapi",
+  "chars": 32590
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 1.13,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 11082,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7203,
+  "output_tokens_details": {
+   "thinking_tokens": 5703
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 11082,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7203,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 11082,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 11082
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.058188000000000004,
+ "model_seconds": 28.9,
+ "seconds": 36.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_column_order_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_columns_as_bytes_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_columns_as_string_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_columns_with_non_string_items_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_data_integrity_after_drop": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_all_but_one_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_all_columns_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_from_single_row_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_mixed_existent_nonexistent_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_multiple_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_no_columns_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_nonexistent_column_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_returns_new_frame_not_modified": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_drop_single_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1757.py::TestDropColumns::test_duplicate_columns_in_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns"
+   ]
+  }
+ }
+}

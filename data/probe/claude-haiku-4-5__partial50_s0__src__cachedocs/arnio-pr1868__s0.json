@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1868",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 68,
+ "hardest_part": "Bugs in internal helper functions like _clean_scalar(), _filtered_suggestion_kwargs(), or _is_numeric_dtype() that determine conditional field inclusion and value transformation would be difficult to catch through the public API without knowing their exact semantics.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 68,\n  \"hardest_part\": \"Bugs in internal helper functions like _clean_scalar(), _filtered_suggestion_kwargs(), or _is_numeric_dtype() that determine conditional field inclusion and value transformation would be difficult to catch through the public API without knowing their exact semantics.\"\n}\n```\n\n**Reasoning:**\n\n**High-confidence catches (75-90%):**\n- Missing or extra dict keys in return values\n- Redaction logic not applying (values still visible or completely stripped)\n- `exclude_columns` filtering not working or raising wrong error types\n- Parameter type validation (TypeError for wrong exclude_columns types)\n- Return type bugs (string vs None in `to_json`)\n- JSON validity and deserializable structure\n\n**Medium-confidence catches (60-75%):**\n- Sorting of columns/suggestions (requires careful assertion of order)\n- Confidence scores/reasons appearing in suggestion dicts\n- Numeric dtype conditional fields (q25, q50, etc.) appearing/not appearing correctly\n- Redaction of column names in suggestion reasons\n\n**Low-confidence catches (30-60%):**\n- Subtle bugs in `_clean_scalar()` behavior with special values (NaN, Inf, None, Decimal)\n- Complex filtering logic in `_filtered_suggestion_kwargs()` \n- Histogram tuple\u2192dict conversion correctness\n- Off-by-one errors in counts or conditional logic\n- Edge cases with top_values being None vs empty\n\nThe main obstruction: **I can construct test data via `ar.from_pandas()` \u2192 `ar.profile()`, but I cannot directly inspect or validate the internal semantics of `_clean_scalar()`, `_is_numeric_dtype()`, or kwargs filtering without understanding their exact implementation details.**",
+ "cost_usd": 0.024168,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3377,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2989,
+  "output_tokens_details": {
+   "thinking_tokens": 2573
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3377,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2989,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 3377,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3377
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

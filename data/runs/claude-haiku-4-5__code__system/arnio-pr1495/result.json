@@ -1,0 +1,247 @@
+{
+ "id": "arnio-pr1495",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__system",
+ "context": {
+  "mode": "code",
+  "chars": 5195
+ },
+ "level": "system",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 1.95,
+ "detected": false,
+ "n_tests": 19,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2613,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 12542,
+  "output_tokens_details": {
+   "thinking_tokens": 8763
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2613,
+    "output_tokens": 12542,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.065323,
+ "model_seconds": 50.6,
+ "seconds": 62.5,
+ "tests": {
+  "tests/_generated/test_arnio_pr1495.py::TestProfileApproxTopValues::test_approx_top_values_enabled": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileBasic::test_profile_simple_csv": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileCLI::test_profile_cli_basic": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CLI"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileDataTypes::test_profile_mixed_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileEdgeCases::test_all_nulls_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileEdgeCases::test_duplicate_rows_detection": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileEdgeCases::test_empty_dataframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileExcludeColumns::test_exclude_multiple_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileExcludeColumns::test_exclude_single_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileReportMetrics::test_memory_usage_reported": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileReportMetrics::test_quality_score_valid_range": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileReportMetrics::test_report_has_column_details": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileSampleSize::test_sample_size_custom": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileSampleSize::test_sample_size_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileValidation::test_invalid_approx_ratio_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileValidation::test_negative_sample_size_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileValidation::test_non_integer_sample_size_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileValidation::test_non_positive_approx_sample_size_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1495.py::TestProfileValidation::test_nonexistent_column_in_exclude_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile",
+    "read_csv"
+   ]
+  }
+ }
+}

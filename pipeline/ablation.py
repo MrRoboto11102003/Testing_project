@@ -25,7 +25,7 @@ from . import config, generate
 from .harness import load_instance, materialize
 
 # (mode, keep, with_source) in order of increasing documentation.
-CONDITIONS = [("signatures", 1.0, False), ("targeted", 1.0, False), ("partial", 0.25, False),
+CONDITIONS = [("signatures", 1.0, False), ("code", 1.0, False), ("codeapi", 1.0, False), ("targeted", 1.0, False), ("partial", 0.25, False),
               ("partial", 0.5, False), ("partial", 0.75, False), ("full", 1.0, False),
               ("source", 1.0, False),  # control: targeted + the clean implementation
               ("partial", 0.25, True), ("partial", 0.5, True), ("partial", 0.75, True),
@@ -38,10 +38,10 @@ def condition_name(mode: str, keep: float, with_source: bool = False) -> str:
 
 
 def table(model: str, seed: int, ids: list[str], level: str = "unit", cache_docs: bool = False,
-          max_thinking: int | None = None) -> str:
+          max_thinking: int | None = None, notes: str | None = None) -> str:
     lines = [f"{'condition':52} {'bugs':>4} {'caught':>6} {'w/ FA':>5} {'tests':>5} {'FA tests':>8} {'calls/test':>10} {'cost':>6}"]
     for mode, keep, src in CONDITIONS:
-        label = generate.run_label(model, mode, keep, seed, level, cache_docs, max_thinking, src)
+        label = generate.run_label(model, mode, keep, seed, level, cache_docs, max_thinking, src, notes)
         rs = []
         for iid in ids:
             p = config.DATA / "runs" / label / iid / "result.json"
@@ -70,6 +70,8 @@ def main() -> None:
     ap.add_argument("--max-thinking", type=int, help="cap thinking tokens (0 = off); for cheap trial runs")
     ap.add_argument("--stop-on-limit", action="store_true",
                     help="stop at a usage limit instead of sleeping until the reset (re-run to resume)")
+    ap.add_argument("--notes", help="add this annotator model's per-function notes (pipeline.notes); label __notes-...")
+    ap.add_argument("--only", nargs="*", help="run exactly these bug ids instead of the first --limit")
     args = ap.parse_args()
 
     conditions = CONDITIONS
@@ -80,12 +82,12 @@ def main() -> None:
             raise SystemExit(f"unknown conditions {sorted(names - valid)}; pick from {sorted(valid)}")
         conditions = [c for c in CONDITIONS if condition_name(*c) in names]
 
-    ids = generate.eligible_ids()[: args.limit]
+    ids = args.only or generate.eligible_ids()[: args.limit]
     todo = []
     for iid in ids:  # bug-major: each bug's conditions run back to back
         for mode, keep, src in conditions:
             label = generate.run_label(args.model, mode, keep, args.seed, args.level,
-                                       args.cache_docs, args.max_thinking, src)
+                                       args.cache_docs, args.max_thinking, src, args.notes)
             if not (config.DATA / "runs" / label / iid / "result.json").exists():
                 todo.append((label, mode, keep, src, iid))
     print(f"{len(todo)} runs to do with {args.workers} worker(s)", flush=True)
@@ -111,7 +113,7 @@ def main() -> None:
                                  if "usage limit" in m else None,
                                  level=args.level, slot=slot, cache_docs=args.cache_docs,
                                  max_thinking=args.max_thinking, with_source=src,
-                                 wait_on_limit=not args.stop_on_limit)
+                                 wait_on_limit=not args.stop_on_limit, notes=args.notes)
             return (f"{label:52} {iid:14} {'CAUGHT' if r['detected'] else 'missed':6} "
                     f"tests={r['n_tests']:2} catch={r['n_catching']:2} fa={r['n_false_alarms']:2} "
                     f"{r['context']['chars']:>7,} chars {r['seconds']}s ${r.get('cost_usd') or 0:.3f}")
@@ -143,7 +145,7 @@ def main() -> None:
                 print(f"[{k}/{len(todo)}] {line}", flush=True)
     if stop.is_set():
         print(f"\nStopped at the usage limit; {len(todo) - done} runs left. Re-run the same command to resume.")
-    print("\n" + table(args.model, args.seed, ids, args.level, args.cache_docs, args.max_thinking))
+    print("\n" + table(args.model, args.seed, ids, args.level, args.cache_docs, args.max_thinking, args.notes))
 
 
 if __name__ == "__main__":

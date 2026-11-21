@@ -1,0 +1,108 @@
+# Notes: `arnio.quality.CleanStepRecord`
+
+## 1. Purpose
+- A frozen dataclass holding the audit record for one step that `auto_clean` applied.
+- Records are collected in `CleanExplanation.steps`, which `auto_clean(..., explain=True)` returns.
+- Its only logic is type and range validation in `__post_init__`.
+
+## 2. Inputs (field order = positional order)
+`CleanStepRecord(step, kwargs, rows_before, rows_after, rows_removed, reason)`
+
+- All six fields are required. None has a default.
+- `step: str`
+  - Any `str`, including `""` and str subclasses.
+  - No check against known step names.
+- `kwargs: dict`
+  - Must pass `isinstance(x, dict)`, so `OrderedDict` and `defaultdict` are accepted.
+  - Contents are not checked.
+- `rows_before`, `rows_after`, `rows_removed: int`
+  - Must be `int` and not `bool`. Must be `>= 0`.
+  - `0` is allowed.
+  - These are rejected: `numpy.int64`, `float` (even `1.0`), `str`, `None`.
+- `reason: str`
+  - Any `str`, including `""`.
+- **No consistency check** between the three row fields.
+  - `rows_removed` is never verified to equal `rows_before - rows_after`.
+  - `rows_after > rows_before` is allowed. Example: `CleanStepRecord("x", {}, 1, 5, 0, "r")` succeeds.
+- No normalisation: values are stored exactly as passed. The same `kwargs` dict object is kept, not copied.
+
+## 3. Raises (checks run in exactly this order; the first failure wins)
+1. **step**: `TypeError(f"CleanStepRecord.step must be a str, got {type(step).__name__}")`
+   - `CleanStepRecord(1, {}, 0, 0, 0, "r")` → `"CleanStepRecord.step must be a str, got int"`
+2. **reason**: `TypeError(f"CleanStepRecord.reason must be a str, got {type(reason).__name__}")`
+   - `reason` is checked **before** `kwargs`.
+   - `CleanStepRecord("s", [], 0, 0, 0, None)` → `"CleanStepRecord.reason must be a str, got NoneType"`.
+3. **kwargs**: `TypeError(f"CleanStepRecord.kwargs must be a dict, got {type(kwargs).__name__}")`
+   - `CleanStepRecord("s", [], 0, 0, 0, "r")` → `"... got list"`
+4. **Row fields**, processed in the order `rows_before`, `rows_after`, `rows_removed`.
+   - For each field, the type check runs, then the negative check, before moving to the next field:
+   - Type: `TypeError(f"CleanStepRecord.{name} must be an int, got {type(value).__name__}")`
+     - `CleanStepRecord("s", {}, True, 0, 0, "r")` → `"CleanStepRecord.rows_before must be an int, got bool"`
+     - `CleanStepRecord("s", {}, 0, 1.0, 0, "r")` → `"CleanStepRecord.rows_after must be an int, got float"`
+     - `np.int64(1)` → `"... got int64"`
+   - Negative: `ValueError(f"CleanStepRecord.{name} cannot be negative: {value}")`
+     - `CleanStepRecord("s", {}, 0, 0, -1, "r")` → `"CleanStepRecord.rows_removed cannot be negative: -1"`
+   - Ordering example: `CleanStepRecord("s", {}, -1, "x", 0, "r")` raises the **ValueError** for `rows_before`, not the TypeError for `rows_after`.
+
+Use `pytest.raises(..., match=re.escape(msg))` because the messages contain dots.
+
+## 4. Returns and guarantees
+- Each field attribute returns the exact object that was passed (`rec.kwargs is d` → True).
+- The record is frozen.
+  - `rec.step = "y"` raises `dataclasses.FrozenInstanceError`, which is a subclass of `AttributeError`.
+  - The kwargs dict itself can still be mutated in place.
+- Equality is the generated dataclass `__eq__`, comparing all six fields in order.
+  - `CleanStepRecord("a", {"k": 1}, 2, 2, 0, "r") == CleanStepRecord("a", {"k": 1}, 2, 2, 0, "r")` → True.
+  - Changing any one field makes the records unequal.
+- `hash(rec)` raises `TypeError` (unhashable dict) because `kwargs` is a dict.
+  - A frozen dataclass with `eq=True` hashes all of its fields.
+- The default dataclass repr has this shape:
+  - `CleanStepRecord(step='a', kwargs={'k': 1}, rows_before=2, rows_after=2, rows_removed=0, reason='r')`
+- `dataclasses.fields(CleanStepRecord)` names, in order: `step, kwargs, rows_before, rows_after, rows_removed, reason`.
+
+## 5. Side effects
+- None. No global state is touched and inputs are not mutated.
+
+## 6. Branches and edge cases
+- All-valid minimal record: `CleanStepRecord("", {}, 0, 0, 0, "")` succeeds.
+- Big ints are fine, for example `10**12`.
+- A str subclass for `step` and a dict subclass for `kwargs` are accepted.
+
+## 7. Rules from docstrings
+- `step`: the name of the cleaning step (e.g. `strip_whitespace`).
+- `kwargs`: the kwargs passed to the step.
+- `rows_removed` is "0 for non-row-dropping steps".
+- `reason`: a human-readable explanation.
+- Validation is only type and sign. The docstring meaning is not enforced.
+
+## 8. How `auto_clean` builds records (observable via `explain=True`)
+- Each record is built with `rows_removed = rows_before - rows_after`.
+- Its `reason` is the suggestion's `confidence_reason`.
+
+Safe mode: only `strip_whitespace` runs. Its reason is exactly:
+`"Trimming leading/trailing whitespace is a safe and highly recommended operation for columns with formatting anomalies."`
+- The record's kwargs is `{"subset": [<cols with whitespace>]}`.
+- Rows are unchanged, so `rows_removed == 0`.
+
+Strict-mode `drop_duplicates` record:
+- kwargs `{"keep": "first"}`.
+- When `duplicate_ratio <= 0.5`, the reason is `f"Low duplicate ratio ({ratio:.1%}) suggests standard redundant records."`.
+- When `duplicate_ratio > 0.5`, the reason is `f"High duplicate ratio ({ratio:.1%}) suggests potential schema or merge anomalies; review before dropping."`.
+
+Strict mode with duplicates created by cleaning:
+- This applies when no `drop_duplicates` record exists and the result has duplicate rows.
+- An extra record is appended with `step="drop_duplicates"` and `kwargs={"keep": "first"}`.
+- Its reason is `"Remove duplicate rows introduced by earlier strict-mode normalization steps."`.
+
+## 9. Testing hints
+- Import with `from arnio.quality import CleanStepRecord`. Do not rely on `ar.CleanStepRecord` being re-exported.
+- Prefer direct construction tests. They are fully determined by this source.
+- Pin the exact messages and the check order (step → reason → kwargs → rows_before → rows_after → rows_removed).
+- Include bool rejection and the "no consistency check" behaviour.
+- End-to-end checks through `auto_clean` depend on things not shown in this module:
+  - `strip_whitespace` and `drop_duplicates` live in arnio.cleaning and the C++ core.
+  - `from_pandas` dtype mapping happens in the convert module.
+  - Keep such tests simple, for example `ar.from_pandas(pd.DataFrame({"a": [" x", "y"]}))` with `explain=True`.
+  - Assert `steps[0].step == "strip_whitespace"`, `rows_before == rows_after == 2`, `rows_removed == 0`.
+- Pitfall: `1 == True` in Python, but `True` is **rejected** here. Do not use bools as "valid ints".
+- Pitfall: `np.int64` values are rejected. Use plain `int`.

@@ -1,0 +1,119 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.cleaning.standardize_missing_tokens.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.standardize_missing_tokens
+def standardize_missing_tokens(frame, tokens=None, subset=None):
+    """Convert null-like string tokens in the frame to the standard NaN form.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    tokens : list[str], optional
+        List of strings to treat as missing. If None, then a built-in default tokens list is used
+    subset : list[str], optional
+        Column names to replace missing tokens in. If None, applies to all columns.
+
+    Notes
+    -----
+    Matching is case-insensitive and trims surrounding whitespace before checking
+    token membership. Values that do not match a missing token preserve their
+    original whitespace.
+
+    Returns
+    -------
+    ArFrame
+        New frame with missing token values replaced by NaN.
+
+    Examples
+    --------
+    >>> frame = ar.from_pandas(pd.DataFrame({"value": [1, 2, "N/A"]}))
+    >>> result = ar.standardize_missing_tokens(frame)
+    >>> frame = ar.from_pandas(pd.DataFrame({"value": [" NULL ", "\\tNaN\\t", "kept"]}))
+    >>> result = ar.standardize_missing_tokens(frame)
+    """
+
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    df = to_pandas(frame) if is_arframe else frame
+
+    df = df.copy(deep=False)
+    if isinstance(subset, str):
+        raise TypeError(
+            f"subset must be a list of column names, not a string. "
+            f"Did you mean subset=['{subset}']?"
+        )
+    if tokens is not None:
+        if isinstance(tokens, str):
+            raise TypeError(
+                f"tokens must be a list of strings, not a bare string. "
+                f"Did you mean tokens=['{tokens}']?"
+            )
+        if not isinstance(tokens, list):
+            raise TypeError(
+                f"tokens must be a list of strings, got {type(tokens).__name__!r}"
+            )
+        for item in tokens:
+            if not isinstance(item, str):
+                raise TypeError(
+                    f"tokens must be a list of strings, got {type(item).__name__!r} item"
+                )
+
+    default_tokens = [
+        "N/A",
+        "NA",
+        "n/a",
+        "na",
+        "nan",
+        "-",
+        "none",
+        "nil",
+        "null",
+        "",
+        "?",
+    ]
+
+    token_values = default_tokens if tokens is None else list(tokens)
+    normalized_tokens = {
+        token.strip().lower() for token in token_values if isinstance(token, str)
+    }
+
+    def _normalize_missing_value(value):
+        if not isinstance(value, str):
+            return value
+        if value.strip().lower() in normalized_tokens:
+            return float("nan")
+        return value
+
+    def _normalize_columns(columns):
+        for column in columns:
+            df[column] = df[column].map(_normalize_missing_value)
+
+    if subset is None:
+        _normalize_columns(df.columns)
+
+    else:
+        subset_columns = _validate_existing_column_sequence(
+            subset,
+            available_columns=df.columns,
+            argument_name="subset",
+            missing_error=ValueError,
+            missing_message=lambda missing, _available: (
+                f"Unknown columns in subset: {missing}"
+            ),
+        )
+        _normalize_columns(subset_columns)
+
+    return from_pandas(df) if is_arframe else df

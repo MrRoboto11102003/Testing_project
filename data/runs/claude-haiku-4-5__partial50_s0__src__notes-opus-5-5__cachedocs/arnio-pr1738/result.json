@@ -1,0 +1,285 @@
+{
+ "id": "arnio-pr1738",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 81,
+  "units_kept": 40,
+  "chars": 103796,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 14015
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.52,
+ "detected": true,
+ "n_tests": 23,
+ "n_catching": 6,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 6250,
+  "cache_read_input_tokens": 24604,
+  "output_tokens": 7110,
+  "output_tokens_details": {
+   "thinking_tokens": 5102
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 6250,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7110,
+    "cache_read_input_tokens": 24604,
+    "cache_creation_input_tokens": 6250,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 6250
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.050519400000000006,
+ "model_seconds": 31.3,
+ "seconds": 40.1,
+ "tests": {
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberField::test_phone_number_default_creation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberField::test_phone_number_field_is_frozen": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberField::test_phone_number_invalid_nullable_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberField::test_phone_number_invalid_severity_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberField::test_phone_number_invalid_severity_value": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberField::test_phone_number_invalid_unique_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberField::test_phone_number_with_all_options": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberValidation::test_phone_number_invalid_formats": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber",
+    "Schema",
+    "from_pandas",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberValidation::test_phone_number_valid_formats": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber",
+    "Schema",
+    "from_pandas",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_bare_string_raises": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_empty_sequence_raises": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_empty_string_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_invalid_format_raises": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_multiple_sorted": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_non_sequence_raises": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_non_string_item_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_single": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_allowed_schemes_whitespace_stripped": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_default_creation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_field_is_frozen": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLField::test_url_invalid_severity_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLValidation::test_url_scheme_restriction": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "URL",
+    "from_pandas",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLValidation::test_url_valid_formats": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "URL",
+    "from_pandas",
+    "validate"
+   ]
+  }
+ }
+}

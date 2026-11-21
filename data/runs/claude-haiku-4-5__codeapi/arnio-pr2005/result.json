@@ -1,0 +1,208 @@
+{
+ "id": "arnio-pr2005",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__codeapi",
+ "context": {
+  "mode": "codeapi",
+  "chars": 32353
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 2.0,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 11020,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 13420,
+  "output_tokens_details": {
+   "thinking_tokens": 10420
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 11020,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 13420,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 11020,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 11020
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.08914899999999999,
+ "model_seconds": 50.9,
+ "seconds": 59.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_both_parameters_combined": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_drift_report_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_empty_exclude_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_exclude_columns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_exclude_columns_with_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_exclude_columns_with_set": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_exclude_columns_with_tuple": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_has_required_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_nested_profiles_are_dicts": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_returns_dict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_status_counts_is_dict_copy": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_with_multiple_data_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_with_null_values_in_frames": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_with_redact_sample_values_false": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2005.py::TestProfileComparisonToDict::test_to_dict_with_redact_sample_values_true": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "profile"
+   ]
+  }
+ }
+}

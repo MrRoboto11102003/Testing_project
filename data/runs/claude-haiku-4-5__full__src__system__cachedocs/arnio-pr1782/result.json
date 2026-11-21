@@ -1,0 +1,347 @@
+{
+ "id": "arnio-pr1782",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__system__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 80,
+  "chars": 151156
+ },
+ "level": "system",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 3.83,
+ "detected": true,
+ "n_tests": 24,
+ "n_catching": 1,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1508,
+  "cache_read_input_tokens": 43610,
+  "output_tokens": 8560,
+  "output_tokens_details": {
+   "thinking_tokens": 4657
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1508,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8560,
+    "cache_read_input_tokens": 43610,
+    "cache_creation_input_tokens": 1508,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1508
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.050186,
+ "model_seconds": 42.8,
+ "seconds": 51.3,
+ "tests": {
+  "tests/_generated/test_arnio_pr1782.py::TestEmailConditionalRequired::test_email_required_when_condition_met": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "String",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailConditionalRequired::test_missing_email_fails_conditional_requirement": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "String",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailMultiColumnSchema::test_email_validation_with_other_field_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Bool",
+    "Email",
+    "Int64",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailMultiColumnSchema::test_validation_report_identifies_correct_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Int64",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailNullableConstraint::test_null_emails_allowed_by_default": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailNullableConstraint::test_null_emails_rejected_when_not_nullable": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailParameterValidation::test_invalid_validation_mode_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailParameterValidation::test_non_string_validation_raises_type_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailParameterValidation::test_valid_parameters_create_field": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailRoundTrip::test_valid_data_roundtrip_preserves_emails": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "from_pandas",
+    "read_csv",
+    "to_pandas",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailRoundTrip::test_validation_error_messages_are_informative": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailSeverityLevels::test_error_severity_fails_on_invalid_email": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailSeverityLevels::test_warning_severity_does_not_fail_overall": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailSpecialCases::test_emails_with_plus_addressing": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailSpecialCases::test_empty_csv_header_only": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailSpecialCases::test_validation_result_summary_includes_email_issues": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailUniquenessConstraint::test_all_unique_emails_pass_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailUniquenessConstraint::test_duplicate_emails_fail_unique_constraint": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailValidationBasics::test_invalid_emails_fail_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailValidationBasics::test_strict_mode_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailValidationBasics::test_valid_emails_pass_light_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailValidationBasics::test_whitespace_in_email_fails_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailWithPandasAccessor::test_pandas_accessor_validate_invalid_emails": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    ".arnio accessor",
+    "Email",
+    "Schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailWithPandasAccessor::test_pandas_accessor_validate_with_email_schema": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    ".arnio accessor",
+    "Email",
+    "Schema"
+   ]
+  }
+ }
+}

@@ -1,0 +1,92 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.convert.to_pandas.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.convert.to_pandas
+def to_pandas(frame: ArFrame, *, copy: bool = False) -> pd.DataFrame:
+    """Convert ArFrame to pandas.DataFrame.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input ArFrame to convert.
+    copy : bool, default False
+        When False, preserve the fast zero-copy path where supported. Some
+        columns still require copies because of null-mask handling, Python
+        object creation, or binding limitations. When True, return defensive
+        pandas-owned copies of supported column buffers.
+
+    Returns
+    -------
+    pd.DataFrame
+        Equivalent pandas DataFrame with proper dtypes and null handling.
+        If the ArFrame was created via ``from_pandas()``, any ``attrs``
+        metadata from the original DataFrame is restored on the result.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> df = ar.to_pandas(frame)
+    >>> defensive_df = ar.to_pandas(frame, copy=True)
+    """
+    if not isinstance(copy, bool):
+        raise TypeError("copy must be a bool")
+
+    if not isinstance(frame, ArFrame):
+        raise TypeError(
+            f"to_pandas() expects an ArFrame, got {type(frame).__name__}. Use arnio.from_pandas() first."
+        )
+
+    cpp_frame = frame._frame
+    data = {}
+
+    for i in range(cpp_frame.num_cols()):
+        col = cpp_frame.column_by_index(i)
+        name = col.name()
+        dtype = col.dtype()
+        mask = col.get_null_mask()
+
+        if dtype == _DType.INT64:
+            arr = col.to_numpy_int()
+            if copy:
+                arr = arr.copy()
+            series = pd.Series(arr, dtype=pd.Int64Dtype())
+            series[mask] = pd.NA
+            data[name] = series
+        elif dtype == _DType.FLOAT64:
+            arr = col.to_numpy_float()
+            if copy or mask.any():
+                arr = arr.copy()
+            if mask.any():
+                arr[mask] = np.nan
+            data[name] = arr
+        elif dtype == _DType.BOOL:
+            arr = col.to_numpy_bool()
+            if copy:
+                arr = arr.copy()
+            series = pd.Series(arr, dtype=pd.BooleanDtype())
+            series[mask] = pd.NA
+            data[name] = series
+        else:
+            values = col.to_python_list()
+            series = pd.Series(values, dtype=pd.StringDtype())
+            series[mask] = pd.NA
+            data[name] = series
+
+    if not data:
+        result = pd.DataFrame(index=pd.RangeIndex(cpp_frame.num_rows()))
+    else:
+        result = pd.DataFrame(data)
+    if frame._attrs:
+        result.attrs = copylib.deepcopy(frame._attrs)
+    return result

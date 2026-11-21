@@ -1,0 +1,65 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.cleaning.normalize_whitespace.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.normalize_whitespace
+def normalize_whitespace(frame, columns=None):
+    """Collapse internal whitespace runs to a single space in string columns.
+    Also strips leading and trailing whitespace.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    columns : list of str, optional
+        Column names to process. Defaults to all string (object) columns.
+
+    Returns
+    -------
+    ArFrame
+        New frame with normalized whitespace in the specified columns.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> clean = ar.pipeline(frame, [("normalize_whitespace",)])
+    """
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    df = to_pandas(frame) if is_arframe else frame.copy(deep=False)
+
+    if columns is not None:
+        cols = _validate_existing_column_sequence(
+            columns,
+            available_columns=df.columns,
+            argument_name="columns",
+            missing_error=ValueError,
+            missing_message=lambda missing, available: (
+                f"Missing columns for normalize_whitespace: {missing}. "
+                f"Available columns: {available}"
+            ),
+        )
+        cols = [c for c in cols if df[c].dtype in ("object", "string")]
+    else:
+        cols = list(df.select_dtypes(include=["object", "string"]).columns)
+
+    import re
+
+    def _fix_whitespace(val):
+        # Only process actual str values; pass through int, bool, float, None, etc.
+        if isinstance(val, str):
+            return re.sub(r"\s+", " ", val).strip()
+        return val
+
+    for col in cols:
+        df[col] = df[col].map(_fix_whitespace)
+    return from_pandas(df) if is_arframe else df

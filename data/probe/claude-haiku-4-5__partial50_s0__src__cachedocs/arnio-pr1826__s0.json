@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1826",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 68,
+ "hardest_part": "Quality score calculation or approximation algorithm bugs would be difficult to detect since they depend on hidden helper functions (_calculate_quality_score, _profile_column) whose correctness cannot be verified from the public API alone.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 68,\n  \"hardest_part\": \"Quality score calculation or approximation algorithm bugs would be difficult to detect since they depend on hidden helper functions (_calculate_quality_score, _profile_column) whose correctness cannot be verified from the public API alone.\"\n}\n```\n\n**Reasoning:**\n\n**What I can easily test (high confidence catch):**\n- Parameter validation logic (all 6 parameters validated with specific type/range checks\u2014bugs here are caught with ~95% confidence)\n- Basic structure: return type, row_count, column_count, memory_usage, duplicate_rows exist and have correct types\n- Exclusion logic: excluded columns actually disappear from report\n- Duplicate ratio calculation for simple known cases\n- Edge cases: empty frames, all-null columns, no duplicates\n\n**What's harder to test (medium-low confidence):**\n- Exact quality score value\u2014I can verify it exists and is numeric, but not correctness without knowing the formula\n- Approximation algorithm behavior\u2014only observable through side effects; bugs in threshold comparisons (e.g., `>=` vs `>`) hard to catch\n- Exact memory calculation\u2014depends on pandas internals and conditional `deep=True` usage\n- Structure of nested `ColumnProfile` objects\u2014can verify they exist, not their exact schema\n- Order-dependent bugs in profiling pipeline\n\n**Realistic bugs my tests would miss:**\n- Quality score formula silently changed but produces plausible numbers\n- `sample_size` parameter accepted but never passed to `_profile_column`\n- Memory calculation always using `frame.memory_usage()` even when exclusions applied\n- Approximation threshold logic inverted or off-by-one\n\n**Gaps:** Most difficulty comes from opaque helper functions and the impossibility of reverse-engineering algorithms through the public API alone. Parameter validation, return types, and basic calculations are ~80% catchable; internal algorithms are ~40% catchable.",
+ "cost_usd": 0.020294000000000003,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2645,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2507,
+  "output_tokens_details": {
+   "thinking_tokens": 2053
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2645,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2507,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2645,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2645
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

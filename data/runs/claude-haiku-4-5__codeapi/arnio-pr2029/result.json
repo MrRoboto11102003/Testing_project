@@ -1,0 +1,208 @@
+{
+ "id": "arnio-pr2029",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__codeapi",
+ "context": {
+  "mode": "codeapi",
+  "chars": 33526
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 2.0,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 11391,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6363,
+  "output_tokens_details": {
+   "thinking_tokens": 4760
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 11391,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 6363,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 11391,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 11391
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.054606,
+ "model_seconds": 30.6,
+ "seconds": 39.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_basic_lowercase_normalization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_case_type_camel": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_case_type_none_preserves_case": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_case_type_title": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_case_type_upper": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_consecutive_underscores_collapsed": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_data_preservation_during_cleaning": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_duplicate_column_names_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_empty_column_becomes_column_keyword": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_invalid_case_type_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_leading_and_trailing_underscores_trimmed": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_non_string_case_type_raises_type_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_numeric_characters_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_spaces_converted_to_underscores": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2029.py::TestCleanColumnNames::test_special_characters_replaced_with_underscores": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "clean_column_names",
+    "from_pandas"
+   ]
+  }
+ }
+}

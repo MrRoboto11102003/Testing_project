@@ -1,0 +1,254 @@
+{
+ "id": "arnio-pr1553",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__system__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 87257
+ },
+ "level": "system",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 3.94,
+ "detected": false,
+ "n_tests": 16,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1147,
+  "cache_read_input_tokens": 24611,
+  "output_tokens": 10884,
+  "output_tokens_details": {
+   "thinking_tokens": 7500
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1147,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10884,
+    "cache_read_input_tokens": 24611,
+    "cache_creation_input_tokens": 1147,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1147
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.059184099999999996,
+ "model_seconds": 51.2,
+ "seconds": 59.5,
+ "tests": {
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_composite_unique_constraint": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_dtype_mismatch_detection": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_email_field_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_max_errors_parameter_limits_issues": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_nullable_constraint_violation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Int64",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_numeric_min_max_bounds": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Float64",
+    "Int64",
+    "Schema",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_regex_pattern_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Regex",
+    "Schema",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_row_index_one_based_convention": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_string_length_constraints": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "String",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_summary_structure_and_content": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "String",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_unique_constraint_single_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "String",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_valid_data_passes_all_checks": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Bool",
+    "Int64",
+    "Schema",
+    "String",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_validation_result_to_markdown": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_validation_result_to_pandas_dataframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_validation_with_mixed_violations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Int64",
+    "Schema",
+    "String",
+    "read_csv",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1553.py::TestSchemaValidation::test_warning_severity_does_not_fail": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "read_csv"
+   ]
+  }
+ }
+}

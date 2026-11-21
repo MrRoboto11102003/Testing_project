@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1491",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Data aliasing during the ArFrame\u2194pandas conversion cycle\u2014a bug where the returned frame improperly shares mutable references with the input, only detectable by modifying one and observing side effects on the other.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Data aliasing during the ArFrame\u2194pandas conversion cycle\u2014a bug where the returned frame improperly shares mutable references with the input, only detectable by modifying one and observing side effects on the other.\"\n}\n```\n\n**Reasoning:**\n\n**Testable with high confidence:**\n- Error validation: TypeError for non-string pattern, re.error for invalid regex, ValueError when all columns match (3 tests)\n- Core functionality: basic column dropping, no matches, partial matches, special regex patterns (4-5 tests)\n- Type preservation: ArFrame\u2192ArFrame, DataFrame\u2192DataFrame (2 tests)\n- Data integrity: row counts, non-matching column values, column order (3 tests)\n- Edge cases: empty frame, single column, complex patterns (2-3 tests)\n\n**Hard to catch:**\n- Copy vs. shallow-reference semantics in the `to_pandas()`\u2192`drop()`\u2192`from_pandas()` pipeline; a bug that returns aliased data instead of independent copies is invisible to assertions like `assert frame.shape == (n, m)`\n- The unusual early return at `if len(df.columns) == 0: return frame` logic is difficult to verify without inspecting intermediate state\n- Metadata loss (index names, dtype preservation, etc.) during conversions would require deep equality checks\n\nMost real regressions (removed validation, broken type conversion, incorrect dropping logic) are easily caught. The subtle reference-semantics bugs and conversion-layer issues are the main exposure.",
+ "cost_usd": 0.026779,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1580,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 4230,
+  "output_tokens_details": {
+   "thinking_tokens": 3858
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1580,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 4230,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 1580,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1580
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

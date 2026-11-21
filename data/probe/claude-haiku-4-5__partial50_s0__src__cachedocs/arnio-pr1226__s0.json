@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1226",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "The conditional FLOAT64 copy logic (`if copy or mask.any(): arr = arr.copy()`) where bugs might only trigger with specific null mask patterns that standard test data may not exercise.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"The conditional FLOAT64 copy logic (`if copy or mask.any(): arr = arr.copy()`) where bugs might only trigger with specific null mask patterns that standard test data may not exercise.\"\n}\n```\n\n**Reasoning:**\n\n**High-confidence catchable bugs (85%+):**\n- Input type validation (wrong `frame` or non-bool `copy`)\n- Missing null mask handling entirely (would corrupt output)\n- Wrong dtype assignments (Int64Dtype, BooleanDtype, StringDtype)\n- Missing column names or order\n- Empty frame crashes\n- Missing metadata restoration\n\n**Medium-confidence catchable bugs (60-80%):**\n- Specific null positions wrong (depends on test data design)\n- Partial null mask handling (only some paths affected)\n- Column name/dtype mismatches that visible in output\n\n**Hard-to-catch bugs (20-40%):**\n- Copy parameter behavior changes (can't verify zero-copy externally)\n- Mask.any() condition modifications (only break specific null+copy combinations)\n- Object aliasing issues (require checking numpy buffer ownership)\n- Subtle dtype coercion differences (Int64Dtype vs pandas defaults)\n\n**Why 72% and not higher:** The function has several internal optimization paths (especially FLOAT64's `if copy or mask.any()`) where a bug might only fail when specific combinations of nulls + copy parameter are used. Without dynamically exploring the full state space during one test run, some edge-case bugs could slip through. The public API also doesn't expose enough detail to verify zero-copy guarantees.",
+ "cost_usd": 0.075301,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 26471,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4470,
+  "output_tokens_details": {
+   "thinking_tokens": 4081
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 26471,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 4470,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 26471,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 26471
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

@@ -10,6 +10,7 @@
 import argparse
 import json
 import shutil
+import os
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -74,8 +75,11 @@ def run_pytest(path: Path, targets: list[str], label: str = "run") -> dict:
         "-q", "-p", "no:cacheprovider", "-o", "addopts=", "-o", "junit_family=xunit1",
         f"--junitxml={junit.name}",
     ]
+    # Subprocesses the tests start (e.g. `python -m arnio.cli` with cwd=tmp_path) must import
+    # this checkout's arnio too, not whatever their own cwd would give them.
+    env = dict(os.environ, PYTHONPATH=str(path) + os.pathsep + os.environ.get("PYTHONPATH", ""))
     try:
-        proc = subprocess.run(cmd, cwd=path, capture_output=True, text=True,
+        proc = subprocess.run(cmd, cwd=path, capture_output=True, text=True, env=env,
                               encoding="utf-8", errors="replace", timeout=config.TEST_TIMEOUT_S)
         rc, tail = proc.returncode, proc.stdout[-3000:]
     except subprocess.TimeoutExpired:

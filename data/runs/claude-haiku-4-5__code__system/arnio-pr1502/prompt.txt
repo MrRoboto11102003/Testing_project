@@ -1,0 +1,186 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.quality.auto_clean.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.quality.auto_clean
+def auto_clean(
+    frame: ArFrame,
+    *,
+    mode: str = "safe",
+    return_report: bool = False,
+    dry_run: bool = False,
+    allow_lossy_casts: bool = False,
+    confirmed_casts: dict[str, str] | None = None,
+    explain: bool = False,
+) -> (
+    ArFrame
+    | DataQualityReport
+    | tuple[ArFrame, DataQualityReport]
+    | tuple[ArFrame, CleanExplanation]
+    | tuple[ArFrame, DataQualityReport, CleanExplanation]
+):
+    """Apply built-in automatic cleaning.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input frame.
+    mode : {"safe", "strict"}, default "safe"
+        ``safe`` applies only low-risk cleanup such as whitespace trimming.
+        ``strict`` also applies deterministic casts and exact duplicate removal.
+    return_report : bool, default False
+        Whether to return the pre-cleaning quality report.
+    dry_run : bool, default False
+        Return the proposed pre-cleaning report without mutating the frame.
+    allow_lossy_casts : bool, default False
+        Required before strict mode applies suggested type casts. Type casts
+        also require *confirmed_casts* so callers explicitly confirm the exact
+        mapping they previewed.
+    confirmed_casts : dict[str, str] or None, default None
+        Exact cast mapping to apply in strict mode. Use ``dry_run=True`` or
+        ``suggest_cleaning()`` to inspect the proposed ``cast_types`` mapping,
+        then pass the same mapping here with ``allow_lossy_casts=True``.
+    explain : bool, default False
+        When ``True``, return a :class:`CleanExplanation` object that records
+        which steps ran, before/after row counts for each step, and why each
+        step was selected. The cleaned frame is always the first element in the
+        returned tuple.
+
+    Returns
+    -------
+    ArFrame
+        Cleaned frame (when *return_report*, *dry_run*, and *explain* are all ``False``).
+    DataQualityReport
+        When *dry_run* is ``True`` and *return_report* is ``False``.
+    tuple[ArFrame, DataQualityReport]
+        When only *return_report* is ``True``.
+    tuple[ArFrame, CleanExplanation]
+        When only *explain* is ``True``.
+    tuple[ArFrame, DataQualityReport, CleanExplanation]
+        When both *return_report* and *explain* are ``True``.
+
+    Examples
+    --------
+    >>> clean = ar.auto_clean(frame)
+    >>> report = ar.auto_clean(frame, mode="strict", dry_run=True)
+    >>> casts = dict(report.suggestions)["cast_types"]
+    >>> clean = ar.auto_clean(frame, mode="strict", allow_lossy_casts=True, confirmed_casts=casts)
+    >>> clean, report = ar.auto_clean(frame, mode="strict", return_report=True)
+    >>> clean, explanation = ar.auto_clean(frame, explain=True)
+    >>> print(explanation)
+    """
+    _validate_arframe(frame)
+
+    if not isinstance(mode, str) or mode not in {"safe", "strict"}:
+        raise ValueError("mode must be 'safe' or 'strict'")
+
+    if not isinstance(return_report, bool):
+        raise TypeError("return_report must be a bool")
+    if not isinstance(dry_run, bool):
+        raise TypeError("dry_run must be a bool")
+    if not isinstance(allow_lossy_casts, bool):
+        raise TypeError("allow_lossy_casts must be a bool")
+    confirmed_casts_map = _validate_confirmed_casts(confirmed_casts)
+    if not isinstance(explain, bool):
+        raise TypeError("explain must be a bool")
+
+    if dry_run and explain:
+        raise ValueError("explain=True cannot be used with dry_run=True")
+    if dry_run and return_report:
+        raise ValueError("return_report=True cannot be used with dry_run=True")
+
+    report = profile(frame)
+    if dry_run:
+        return report
+
+    result = frame
+    step_records: list[CleanStepRecord] = []
+    rows_before_all = result.shape[0]
+
+    for suggestion in report.suggestions:
+        if isinstance(suggestion, CleaningSuggestion):
+            step = suggestion.step
+            kwargs = suggestion.kwargs
+            reason = suggestion.confidence_reason
+        else:
+            step, kwargs = suggestion
+            reason = step
+
+        if mode == "safe" and step != "strip_whitespace":
+            continue
+
+        rows_before_step = result.shape[0]
+
+        if step == "strip_whitespace":
+            result = strip_whitespace(result, **kwargs)
+        elif step == "cast_types":
+            if not allow_lossy_casts:
+                raise ValueError(
+                    "auto_clean(mode='strict') would apply type casts. "
+                    f"Proposed mapping: {kwargs}. Run with dry_run=True to inspect "
+                    "the report, then pass allow_lossy_casts=True and "
+                    "confirmed_casts=<proposed mapping> to apply them."
+                )
+            if confirmed_casts_map is None:
+                raise ValueError(
+                    "auto_clean(mode='strict') requires confirmed_casts before "
+                    "applying type casts. Run with dry_run=True to inspect the "
+                    f"proposed mapping, then pass confirmed_casts={kwargs!r}."
+                )
+            if confirmed_casts_map != kwargs:
+                raise ValueError(
+                    "confirmed_casts must match the proposed cast mapping exactly. "
+                    f"Proposed mapping: {kwargs}. Confirmed mapping: "
+                    f"{confirmed_casts_map}."
+                )
+            result = cast_types(result, kwargs)
+        elif step == "drop_duplicates":
+            result = drop_duplicates(result, **kwargs)
+        else:
+            continue
+
+        rows_after_step = result.shape[0]
+        step_records.append(
+            CleanStepRecord(
+                step=step,
+                kwargs=kwargs,
+                rows_before=rows_before_step,
+                rows_after=rows_after_step,
+                rows_removed=rows_before_step - rows_after_step,
+                reason=reason,
+            )
+        )
+
+    if mode == "strict":
+        result = _drop_strict_duplicates_introduced_by_cleaning(
+            result,
+            step_records,
+        )
+
+    rows_after_all = result.shape[0]
+
+    if explain:
+        explanation = CleanExplanation(
+            mode=mode,
+            rows_before=rows_before_all,
+            rows_after=rows_after_all,
+            rows_removed=rows_before_all - rows_after_all,
+            steps=step_records,
+        )
+        if return_report:
+            return result, report, explanation
+        return result, explanation
+
+    if return_report:
+        return result, report
+    return result

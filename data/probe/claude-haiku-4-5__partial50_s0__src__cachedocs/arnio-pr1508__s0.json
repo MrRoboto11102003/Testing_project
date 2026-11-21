@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1508",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 65,
+ "hardest_part": "Detecting bugs in lineage tracking with repeated step names (merging behavior must preserve sorted order) and verifying the sentinel column is properly removed before return while still correctly tracking row drops through each step.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 65,\n  \"hardest_part\": \"Detecting bugs in lineage tracking with repeated step names (merging behavior must preserve sorted order) and verifying the sentinel column is properly removed before return while still correctly tracking row drops through each step.\"\n}\n```\n\n**Reasoning:**\n\n**Easy to catch (~80-90% confidence):**\n- Completely broken pipeline execution (steps not applied in order)\n- Wrong return type when `return_metadata=True` or `track_lineage=True`\n- Exception type errors (should raise `UnknownStepError`, `ValueError`, `TypeError`)\n- Invalid step format rejection\n- Incompatible flag combinations (`track_lineage + return_metadata`)\n- Basic metadata structure (applied_steps list, row_counts list existence)\n- Sentinel column collision detection\n- Custom step None/non-DataFrame return type checking\n\n**Moderate difficulty (~60-70%):**\n- Exact metadata dict key presence and nesting structure\n- Lineage report basic structure\n- Row count tracking accuracy\n- Python vs C++ step path execution\n- Dry-run not modifying result while still updating working_frame\n\n**Hard to catch (~30-50%):**\n- Subtle lineage aggregation when same step name appears multiple times (merging and re-sorting logic)\n- Edge case: `drop_duplicates` subset auto-restriction correctly excluding sentinel but preserving user columns\n- Exact timing values in `step_timings` (naturally noisy)\n- Verbose logging output (cannot easily assert without log capture setup)\n- Off-by-one errors in row index tracking\n- Whether `working_frame` truly advances independently from `result` during dry-run\n- Edge case: custom step that removes sentinel column triggering `PipelineStepError`\n\n**What tests would miss:**\nThe lineage logic is complex\u2014particularly the merging of drops when a step name repeats, and ensuring the sentinel column's presence/absence constraints are enforced. A regression could silently swap wrong rows into the dropped indices or fail to merge duplicate step names, and without very specific lineage tests that verify exact row indices, those bugs would slip through.",
+ "cost_usd": 0.02937,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 6313,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2855,
+  "output_tokens_details": {
+   "thinking_tokens": 2352
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 6313,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2855,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 6313,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 6313
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

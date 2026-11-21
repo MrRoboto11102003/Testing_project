@@ -1,0 +1,124 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.frame.ArFrame.drop_columns, arnio.frame.ArFrame.select_columns.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.frame.ArFrame.drop_columns
+    def drop_columns(self, cols: list[str] | tuple[str, ...]) -> ArFrame:
+        """Return a new ArFrame with the specified columns removed.
+
+        Parameters
+        ----------
+        cols : list[str] | tuple[str, ...]
+            Column names to drop. Duplicates are silently ignored.
+            An empty list returns a copy of the frame unchanged.
+
+        Returns
+        -------
+        ArFrame
+            New ArFrame without the dropped columns. Original column
+            order is preserved.
+
+        Raises
+        ------
+        TypeError
+            If cols is not a list, or contains non-string elements.
+        ValueError
+            If any name in cols does not exist in the frame.
+
+        Examples
+        --------
+        >>> frame = ar.read_csv("data.csv")
+        >>> smaller = frame.drop_columns(["col1", "col2"])
+        >>> smaller = frame.drop_columns(("col1", "col2"))
+        """
+        if not isinstance(cols, (list, tuple)):
+            raise TypeError(
+                f"cols must be a list or tuple of column names, got {type(cols).__name__!r}"
+            )
+
+        if any(not isinstance(col, str) for col in cols):
+            raise TypeError("All column names in cols must be strings.")
+
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        unique_cols: list[str] = []
+        for col in cols:
+            if col not in seen:
+                seen.add(col)
+                unique_cols.append(col)
+
+        # Validate all names exist
+        missing = [col for col in unique_cols if col not in self.columns]
+        if missing:
+            raise ValueError(
+                f"Unknown column(s): {missing}. Available columns: {self.columns}"
+            )
+
+        # Empty input — return unchanged copy
+        if not unique_cols:
+            return ArFrame(
+                self._frame.select_columns(self.columns),
+                attrs=copy.deepcopy(self._attrs),
+            )
+
+        # Preserve original order of remaining columns
+        drop_set = set(unique_cols)
+        remaining = [col for col in self.columns if col not in drop_set]
+
+        # Dropping all columns is not supported
+        if not remaining:
+            raise ValueError("drop_columns cannot remove all columns from the frame")
+
+        return ArFrame(
+            self._frame.select_columns(remaining), attrs=copy.deepcopy(self._attrs)
+        )
+
+# arnio.frame.ArFrame.select_columns
+    def select_columns(self, columns: list[str]) -> ArFrame:
+        """Return a new ArFrame with only the selected columns.
+
+        Parameters
+        ----------
+        columns : list[str]
+            List of column names to select.
+
+        Returns
+        -------
+        ArFrame
+            New ArFrame containing only the selected columns.
+
+        Raises
+        ------
+        TypeError
+            If columns is not a valid sequence of strings.
+        ValueError
+            If the selection is empty, contains duplicates,
+            or includes unknown columns.
+        """
+        if isinstance(columns, str):
+            raise TypeError("columns must be a sequence of column names, not a string.")
+
+        if not isinstance(columns, (list, tuple)):
+            raise TypeError("columns must be a list or tuple of column names.")
+
+        if not columns:
+            raise ValueError("Column selection cannot be empty.")
+
+        if any(not isinstance(col, str) for col in columns):
+            raise TypeError("All column names must be strings.")
+
+        if len(columns) != len(set(columns)):
+            raise ValueError("Duplicate column names are not allowed.")
+
+        missing = [col for col in columns if col not in self.columns]
+
+        if missing:
+            raise ValueError(f"Unknown columns: {missing}")
+
+        return ArFrame(
+            self._frame.select_columns(columns), attrs=copy.deepcopy(self._attrs)
+        )

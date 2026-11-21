@@ -1,0 +1,204 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.quality.ColumnProfile.to_dict, arnio.quality.DataQualityReport.score_breakdown, arnio.quality.DataQualityReport.to_dict, arnio.quality.DataQualityReport.to_json.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.quality.ColumnProfile.to_dict
+    def to_dict(self, *, redact_sample_values: bool = False) -> dict[str, Any]:
+        """Return a JSON-friendly dictionary."""
+        redact_sample_values = _validate_bool_option(
+            redact_sample_values, "redact_sample_values"
+        )
+        sample_values = (
+            ["[REDACTED]" for _ in self.sample_values]
+            if redact_sample_values
+            else [_clean_scalar(value) for value in self.sample_values]
+        )
+        top_values = (
+            [
+                {"value": "[REDACTED]", "count": c, "ratio": r}
+                for _value, c, r in self.top_values
+            ]
+            if redact_sample_values and self.top_values is not None
+            else (
+                [
+                    {"value": _clean_scalar(v), "count": c, "ratio": r}
+                    for v, c, r in self.top_values
+                ]
+                if self.top_values is not None
+                else None
+            )
+        )
+        return {
+            "name": self.name,
+            "dtype": self.dtype,
+            "semantic_type": self.semantic_type,
+            "row_count": self.row_count,
+            "null_count": self.null_count,
+            "null_ratio": self.null_ratio,
+            "unique_count": self.unique_count,
+            "unique_ratio": self.unique_ratio,
+            "empty_string_count": self.empty_string_count,
+            "whitespace_count": self.whitespace_count,
+            "suggested_dtype": self.suggested_dtype,
+            "email_validity_ratio": self.email_validity_ratio,
+            "url_validity_ratio": self.url_validity_ratio,
+            "min": _clean_scalar(self.min),
+            "max": _clean_scalar(self.max),
+            "mean": self.mean,
+            "std": self.std,
+            **(
+                {
+                    "q25": _clean_scalar(self.q25),
+                    "q50": _clean_scalar(self.q50),
+                    "q75": _clean_scalar(self.q75),
+                    "q95": _clean_scalar(self.q95),
+                    "iqr": _clean_scalar(self.iqr),
+                    "outlier_lower_bound": _clean_scalar(self.outlier_lower_bound),
+                    "outlier_upper_bound": _clean_scalar(self.outlier_upper_bound),
+                    "outlier_count": self.outlier_count,
+                    "outlier_ratio": self.outlier_ratio,
+                }
+                if _is_numeric_dtype(self.dtype)
+                else {}
+            ),
+            "sample_values": sample_values,
+            "warnings": list(self.warnings),
+            "top_values": top_values,
+            "top_values_is_approximate": self.top_values_is_approximate,
+            "top_values_sample_count": self.top_values_sample_count,
+            "top_values_sample_ratio": self.top_values_sample_ratio,
+            "histogram": (
+                [
+                    {
+                        "bucket_start": _clean_scalar(start),
+                        "bucket_end": _clean_scalar(end),
+                        "count": count,
+                        "ratio": ratio,
+                    }
+                    for start, end, count, ratio in self.histogram
+                ]
+                if self.histogram is not None
+                else None
+            ),
+        }
+
+# arnio.quality.DataQualityReport.score_breakdown
+    def score_breakdown(self) -> dict[str, float]:
+        """Return a breakdown of the individual penalty scores."""
+        return {
+            "null_penalty": self.score_components.get("null_penalty", 0.0),
+            "duplicate_penalty": self.score_components.get("duplicate_penalty", 0.0),
+            "type_mismatch_penalty": self.score_components.get(
+                "type_mismatch_penalty", 0.0
+            ),
+            "final_score": self.quality_score,
+        }
+
+# arnio.quality.DataQualityReport.to_dict
+    def to_dict(
+        self,
+        *,
+        redact_sample_values: bool = False,
+        exclude_columns: list[str] | set[str] | tuple[str, ...] | None = None,
+    ) -> dict[str, Any]:
+        """Return a JSON-friendly dictionary representation."""
+        redact_sample_values = _validate_bool_option(
+            redact_sample_values, "redact_sample_values"
+        )
+
+        if exclude_columns is None:
+            exclude_columns = set()
+
+        elif not isinstance(exclude_columns, (list, tuple, set)):
+            raise TypeError("exclude_columns must be a list, tuple, set, or None")
+
+        else:
+            if not all(isinstance(column, str) for column in exclude_columns):
+                raise TypeError("exclude_columns must contain only string column names")
+
+            exclude_columns = set(exclude_columns)
+
+        unknown_exclude_columns = sorted(exclude_columns - set(self.columns))
+        if unknown_exclude_columns:
+            available_columns = ", ".join(self.columns) or "<none>"
+            raise KeyError(
+                "Unknown exclude_columns: "
+                f"{unknown_exclude_columns}. Available columns: {available_columns}"
+            )
+
+        def _redact_reason(reason: str | None) -> str | None:
+            if not reason or not exclude_columns:
+                return reason
+            for col in exclude_columns:
+                reason = reason.replace(f"'{col}'", "'[REDACTED]'")
+            return reason
+
+        return {
+            "row_count": self.row_count,
+            "column_count": self.column_count,
+            "memory_usage": self.memory_usage,
+            "duplicate_rows": self.duplicate_rows,
+            "duplicate_ratio": self.duplicate_ratio,
+            "quality_score": self.quality_score,
+            "score_components": self.score_components,
+            "columns": {
+                name: self.columns[name].to_dict(
+                    redact_sample_values=redact_sample_values
+                )
+                for name in sorted(self.columns)
+                if name not in exclude_columns
+            },
+            "suggestions": [
+                {
+                    "step": s[0],
+                    "kwargs": _filtered_suggestion_kwargs(s[1], exclude_columns),
+                    "confidence_score": getattr(s, "confidence_score", None),
+                    "confidence_reason": _redact_reason(
+                        getattr(s, "confidence_reason", None)
+                    ),
+                }
+                for s in sorted(
+                    self.suggestions,
+                    key=lambda item: (
+                        item[0],
+                        json.dumps(item[1], sort_keys=True, default=str),
+                    ),
+                )
+            ],
+        }
+
+# arnio.quality.DataQualityReport.to_json
+    def to_json(
+        self,
+        *,
+        indent: int | None = None,
+        redact_sample_values: bool = False,
+        exclude_columns: list[str] | set[str] | tuple[str, ...] | None = None,
+        output: Any | None = None,
+    ) -> str | None:
+        """Return the report as a JSON string.
+
+        Example:
+        report.to_json(indent=2)
+        """
+
+        json_out = json.dumps(
+            self.to_dict(
+                redact_sample_values=redact_sample_values,
+                exclude_columns=exclude_columns,
+            ),
+            indent=indent,
+        )
+
+        if output is None:
+            return json_out
+
+        if not hasattr(output, "write"):
+            raise TypeError("output must be a writable text stream")
+
+        output.write(json_out)
+        return None

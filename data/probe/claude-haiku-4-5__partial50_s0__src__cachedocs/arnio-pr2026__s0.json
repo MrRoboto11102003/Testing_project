@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr2026",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 68,
+ "hardest_part": "Dtype and metadata preservation through ArFrame C++ layer conversions (column_by_name, to_python_list, dtype(), _Frame.from_dict) won't affect observable shape/names but could break silently",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 68,\n  \"hardest_part\": \"Dtype and metadata preservation through ArFrame C++ layer conversions (column_by_name, to_python_list, dtype(), _Frame.from_dict) won't affect observable shape/names but could break silently\"\n}\n```\n\n**Reasoning:**\n\n**Easy to catch (~80% confident):**\n- Column filtering logic (which columns get dropped/kept)\n- Return type preservation (ArFrame\u2192ArFrame, DataFrame\u2192DataFrame)\n- Edge cases (zero-row frames, all columns dropped, column order)\n- Null handling semantics (nulls counted as one value in `drop_constant_columns`)\n- Empty string detection in `drop_empty_columns`\n- Input mutation bugs (via copy semantics tests)\n\n**Harder to catch (~40% confident):**\n1. **dtype hint preservation** \u2014 The code extracts `cpp_column.dtype()` and passes it to `_Frame.from_dict()`. A regression here would silently produce wrong column types without affecting shape/names.\n2. **ArFrame reconstruction internals** \u2014 Bugs in `_Frame.from_dict()` or column extraction from C++ layer won't surface if final row count and column names are correct.\n3. **Metadata/attrs propagation** \u2014 Code preserves `_attrs` through deep copy, but metadata isn't observable from public API so bugs here wouldn't trigger test failures.\n4. **Deep copy semantics** \u2014 The `copy.deepcopy()` logic for attrs could fail without breaking observable behavior.\n\nThe core logic (nunique checking, empty detection) is straightforward, so typical regressions would likely be caught. The main vulnerability is subtle type/metadata bugs during the ArFrame\u2194pandas\u2194ArFrame conversion pipeline that don't affect shape or column names.",
+ "cost_usd": 0.026541,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2236,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 3920,
+  "output_tokens_details": {
+   "thinking_tokens": 3491
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2236,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3920,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2236,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2236
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

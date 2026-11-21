@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1338",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 65,
+ "hardest_part": "Bugs in the step selection and execution logic based on mode and suggestions (especially the confirmed_casts validation matching and the private _drop_strict_duplicates_introduced_by_cleaning call) would be hard to reliably catch since they depend on what profile() suggests and require precise control over confirmed_casts matching.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 65,\n  \"hardest_part\": \"Bugs in the step selection and execution logic based on mode and suggestions (especially the confirmed_casts validation matching and the private _drop_strict_duplicates_introduced_by_cleaning call) would be hard to reliably catch since they depend on what profile() suggests and require precise control over confirmed_casts matching.\"\n}\n```\n\n**Reasoning:**\n\n**Easy to test (90-95% catch rate):**\n- Parameter type validation (mode string, booleans for flags)\n- Return type structures for all flag combinations (dry_run, return_report, explain)\n- Conflicting parameter checks (dry_run+explain, dry_run+return_report)\n- Basic error raising for invalid confirmed_casts scenarios\n\n**Medium difficulty (60-75% catch rate):**\n- Mode logic (safe vs strict behavior) \u2014 requires knowing what profile() will suggest for test data\n- Row count tracking in CleanStepRecord objects\n- confirmed_casts mismatch detection \u2014 depends on exact matching logic\n- Dry-run behavior (doesn't modify frame, returns report)\n\n**Hard to test (20-40% catch rate):**\n- The exact logic of which steps from suggestions actually run based on mode\n- CleaningSuggestion object vs tuple handling in the loop\n- The private helper `_drop_strict_duplicates_introduced_by_cleaning()` \u2014 black box function that could have bugs\n- Edge cases where suggestions are empty or in unexpected format\n- Step execution order and whether all steps are actually called\n\n**Key limitation:** The function's behavior depends heavily on `report.suggestions` from `profile()`, which I cannot control or predict without running code. Many bugs in the step-selection logic or the private helper would only surface if my test data triggered those specific code paths. Tests would catch structural/API bugs readily but struggle with internal orchestration bugs.",
+ "cost_usd": 0.037471,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2896,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 5842,
+  "output_tokens_details": {
+   "thinking_tokens": 5399
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2896,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 5842,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2896,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2896
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

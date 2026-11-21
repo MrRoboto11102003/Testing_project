@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1726",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Subtle type-coercion or dtype-preservation bugs where numeric columns get incorrectly coerced to object dtype (or vice versa) after the map operation introduces NaN values, which would require careful dtype assertions to detect reliably.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Subtle type-coercion or dtype-preservation bugs where numeric columns get incorrectly coerced to object dtype (or vice versa) after the map operation introduces NaN values, which would require careful dtype assertions to detect reliably.\"\n}\n```\n\n**Reasoning:**\n\n**Easily testable (high confidence of catching bugs):**\n- Basic default token conversion (N/A, NA, null, nan, etc. \u2192 NaN)\n- Custom token list functionality\n- Case-insensitive matching (\"NA\" vs \"na\" vs \"N/A\")\n- Whitespace trimming before matching (\" NULL \" \u2192 matches)\n- Subset parameter respects column filtering\n- Non-matching strings preserved as-is\n- Non-string values pass through unchanged\n- Return type preservation (ArFrame \u2192 ArFrame, DataFrame \u2192 DataFrame)\n- Input validation errors (tokens as string, non-existent subset columns, etc.)\n\n**Harder to test (likely miss certain bugs):**\n- **Exact copy semantics**: The `df.copy(deep=False)` creates a shallow copy. A bug changing this to `deep=True` might not manifest in value correctness tests.\n- **Type coercion edge cases**: After `.map()` applies NaN to numeric columns, pandas coerces them to object dtype. Bugs affecting this subtle behavior (like incorrect dtype handling) could slip through unless explicitly asserted.\n- **Exact error message text**: String format changes in error messages aren't observable through behavior alone.\n- **Column ordering preservation**: Mostly preserved automatically but could break with certain refactorings.\n\nThe function has clear logic paths and decent input validation, making most real bugs observable. The ~28% miss rate accounts for subtle type-system behaviors and performance/memory issues that wouldn't surface in basic API tests.",
+ "cost_usd": 0.018119,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2035,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2316,
+  "output_tokens_details": {
+   "thinking_tokens": 1881
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2035,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2316,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2035,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2035
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

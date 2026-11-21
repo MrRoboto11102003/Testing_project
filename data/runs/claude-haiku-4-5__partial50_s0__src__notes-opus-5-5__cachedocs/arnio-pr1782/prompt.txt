@@ -1,0 +1,2669 @@
+=== SYSTEM (appended) ===
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+## ===== README.md =====
+
+<div align="center">
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="final-icon-dark.svg">
+  <img alt="Arnio" src="final-icon-light.svg" width="280">
+</picture>
+
+<br><br>
+
+### Fast data preparation for the Python data stack.
+
+<br>
+
+**Arnio** is a compiled C++ data preparation engine for messy CSV and pandas workflows.<br>
+It parses, infers types, strips whitespace, deduplicates, validates, and profiles data —<br>
+then hands clean results back to the tools you already use.<br>
+Use Arnio _before_ and _alongside_ pandas, NumPy, scikit-learn, DuckDB, and Arrow.
+
+<br>
+
+<a href="https://pypi.org/project/arnio/"><img src="https://img.shields.io/pypi/v/arnio?style=flat-square&logo=pypi&logoColor=white&labelColor=0d1117&color=3572A5" alt="PyPI"></a>&nbsp;
+<a href="https://pypi.org/project/arnio/"><img src="https://img.shields.io/pypi/pyversions/arnio?style=flat-square&logo=python&logoColor=white&labelColor=0d1117&color=3572A5" alt="Python"></a>&nbsp;
+<a href="https://github.com/im-anishraj/arnio/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/im-anishraj/arnio/ci.yml?branch=main&label=CI&style=flat-square&logo=github&labelColor=0d1117&color=2ea44f" alt="CI"></a>&nbsp;
+<a href="https://codecov.io/gh/im-anishraj/arnio"><img src="https://img.shields.io/codecov/c/github/im-anishraj/arnio?style=flat-square&logo=codecov&labelColor=0d1117&color=2ea44f" alt="Coverage"></a>&nbsp;
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square&labelColor=0d1117" alt="MIT"></a>&nbsp;
+<a href="https://gssoc.girlscript.tech/"><img src="https://img.shields.io/badge/GSSoC-2026-ff6b35?style=flat-square&labelColor=0d1117" alt="GSSoC 2026"></a>&nbsp;
+<a href="https://discord.gg/xsEw7r78M"><img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white&labelColor=0d1117" alt="Join Discord"></a>
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/arnio?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/arnio)
+
+<br><br>
+
+```bash
+pip install arnio
+```
+
+Colab install smoke test: **[COLAB_SMOKE_TEST.md](COLAB_SMOKE_TEST.md)**
+**Interactive Notebooks:**
+[![Basic Usage](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/im-anishraj/arnio/blob/main/examples/basic_usage.ipynb)
+[![Pandas Interop](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/im-anishraj/arnio/blob/main/examples/arnio_with_pandas.ipynb)
+[![Schema Validation](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/im-anishraj/arnio/blob/main/examples/schema_validation.ipynb)
+
+<br>
+
+<a href="#-quickstart">Quickstart</a>&ensp;·&ensp;<a href="#-integrations">Integrations</a>&ensp;·&ensp;<a href="#-why-arnio-exists">Why Arnio</a>&ensp;·&ensp;<a href="#%EF%B8%8F-architecture">Architecture</a>&ensp;·&ensp;<a href="#-benchmarks">Benchmarks</a>&ensp;·&ensp;<a href="#-community">Community</a>&ensp;·&ensp;<a href="#-contribute">Contribute</a>
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## ⚡ Quickstart
+
+If you're new to Arnio, the example below demonstrates a simple first-run workflow for loading, cleaning, and preparing CSV data before converting it back into a pandas DataFrame.
+The workflow starts by loading a CSV dataset into an Arnio frame for preprocessing and cleaning.
+
+```python
+import arnio as ar
+
+# Load CSV directly through C++ — no Python parsing overhead
+frame = ar.read_csv("messy_sales_data.csv")
+
+# Strict mode (default) fails on inconsistent row widths
+frame = ar.read_csv("messy_sales_data.csv", mode="strict")
+
+# Permissive mode fills missing trailing values with nulls
+frame = ar.read_csv("messy_sales_data.csv", mode="permissive")
+```
+
+Each pipeline step applies a specific transformation such as trimming whitespace, normalizing text formatting, handling missing values, and removing duplicate rows.
+
+
+```python
+# Declare what clean data looks like — arnio handles the rest
+clean = ar.pipeline(frame, [
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("fill_nulls", {"value": 0.0, "subset": ["revenue"]}),
+    ("drop_nulls",),
+    ("drop_duplicates",),
+])
+```
+
+After preprocessing is complete, the cleaned result can be converted back into a standard pandas DataFrame for further analysis or integration with existing workflows.
+
+```python
+# Out comes a standard pandas DataFrame — use it like you always have
+df = ar.to_pandas(clean)
+
+# Use copy=True when you need defensive pandas-owned buffers
+safe_df = ar.to_pandas(clean, copy=True)
+```
+### Dry Run Validation
+
+Use `dry_run=True` to validate pipeline configuration and
+step execution without returning transformed output.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("drop_nulls",),
+    ],
+    dry_run=True,
+)
+```
+
+Need step timings for debugging? Opt in without changing the default pipeline return type:
+
+```python
+clean, metadata = ar.pipeline(
+    frame,
+    [("strip_whitespace",), ("drop_duplicates",)],
+    return_metadata=True,
+)
+
+print(metadata["step_timings"])
+print(metadata["applied_steps"])
+print(metadata["row_counts"])
+print(metadata["execution_summary"])
+```
+
+## Quick Example
+
+```python
+import arnio
+
+frame = arnio.read_csv("sample.csv")
+
+# Preview first 5 rows
+frame.preview(5)
+
+# Generate and view scannable summary statistics
+print(frame.describe())
+```
+
+### Pipeline validation behavior
+
+Pipeline step specifications are validated before execution begins.
+
+Malformed step tuples, invalid kwargs structures, or unknown step names fail early before any pipeline steps execute.
+
+```python
+ar.pipeline(
+    frame,
+    [
+        ("strip_whitespace",),
+        ("bad_step", "oops", "extra"),
+    ],
+)
+```
+
+This prevents partial pipeline execution when later pipeline steps are invalid.
+
+### from_dict support
+
+This adds support for creating an ArFrame from a Python dictionary.
+
+You can build an `ArFrame` directly from a dictionary of equal-length columns, which is useful for small inline datasets that you want to pass into a pipeline.
+
+```python
+import arnio as ar
+
+data = {"name": ["Alice", "Bob"], "age": [25, 30]}
+
+frame = ar.from_dict(data)
+# or
+frame = ar.ArFrame.from_dict(data)
+```
+
+Already working with a pandas `DataFrame`? Arnio can also be integrated directly into an existing pandas workflow without changing your current data-processing approach:
+
+```python
+import pandas as pd
+import arnio as ar
+
+df = pd.read_csv("messy_sales_data.csv")
+
+clean_df = df.arnio.clean([
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("drop_duplicates",),
+])
+
+report = clean_df.arnio.profile()
+
+trimmed_df = (
+    df.arnio.strip_whitespace(subset=["customer_name"])
+      .arnio.clip_numeric(upper=100, subset=["loyalty_score"])
+      .arnio.drop_nulls(subset=["customer_name"])
+)
+```
+
+## Schema diff reports
+
+Use `diff_schema()` to compare expected and observed data contracts across
+datasets, releases, or generated schemas.
+
+```python
+import arnio as ar
+
+expected = ar.Schema({
+    "id": ar.Int64(nullable=False, unique=True),
+    "email": ar.Email(nullable=False),
+})
+
+observed = ar.Schema({
+    "id": ar.Int64(nullable=False),
+    "created_at": ar.DateTime(format="%Y-%m-%d"),
+})
+
+diff = ar.diff_schema(expected, observed)
+print(diff.summary())
+print(diff.to_markdown())
+```
+
+## CI data contracts (GitHub Actions)
+
+If you want to **block schema drift** or **invalid rows** in pull requests, see
+`DATA_CONTRACT_CI.md` for an **inert copy-paste** GitHub Actions workflow example.
+
+Example contract files are included under `examples/contracts/`.
+
+### Select specific columns
+
+Use `select_columns()` to create a new `ArFrame` with only the required columns before converting to pandas.
+
+```python
+selected = ar.select_columns(frame, ["name", "revenue"])
+
+print(selected.columns)
+# ['name', 'revenue']
+```
+
+- Preserves the requested column order.
+- Returns a new `ArFrame`.
+- Raises `ValueError` if any requested column does not exist.
+- Raises `TypeError` if `columns` is not a sequence of strings.
+
+### Handling missing values
+
+Arnio supports configuring which strings are treated as null during CSV parsing using the `null_values` parameter in `read_csv` and `scan_csv`. By default, Arnio preserves its existing behavior and treats only empty cells as null. Custom matching is case-insensitive and applies to cell values only (not headers).
+
+```python
+# Default behavior: empty cells are null
+frame = ar.read_csv("data.csv")
+
+# Provide a custom list of sentinels (overrides the empty-cell default)
+frame = ar.read_csv("data.csv", null_values=["", "MISSING", "UNKNOWN"])
+
+# Disable null sentinel handling completely
+frame = ar.read_csv("data.csv", null_values=[])
+```
+
+### Handling decimal separators
+
+Use `decimal_separator` when numeric CSV data uses a separator other than
+the default dot. This is explicit by design: Arnio does not auto-detect decimal
+formats because a comma can also be the CSV delimiter.
+
+```python
+# Semicolon-delimited CSV with unquoted European decimals
+frame = ar.read_csv("prices.csv", delimiter=";", decimal_separator=",")
+
+# Comma-delimited CSV still needs quoted comma-decimal values
+frame = ar.read_csv("prices.csv", decimal_separator=",")
+```
+
+The default remains `decimal_separator="."`, so existing dot-decimal files keep
+their current behavior. If you also use `thousands_separator`, it must differ
+from `decimal_separator`.
+
+### Handling invalid UTF-8 bytes
+
+Use `encoding_errors` to control how invalid UTF-8 bytes are handled during CSV parsing.
+
+```python
+# Raise an error on invalid UTF-8 bytes (default)
+frame = ar.read_csv(
+    "data.csv",
+    encoding_errors="strict",
+)
+
+# Replace invalid bytes with the Unicode replacement character (�)
+frame = ar.read_csv(
+    "data.csv",
+    encoding_errors="replace",
+)
+
+# Ignore invalid bytes completely
+frame = ar.read_csv(
+    "data.csv",
+    encoding_errors="ignore",
+)
+```
+Supported values:
+
+- `"strict"` (default)
+- `"replace"`
+- `"ignore"`
+> Every step above executes in C++. Your Python code is a _configuration_ — not the execution engine.
+
+> Explore more in the **[examples/](./examples/)** folder — ready-to-run recipes for sales, customers, survey, logs, and finance datasets.
+
+<br>
+
+### Security note: CSV formula injection
+
+Arnio preserves cell values by default when writing CSV files. It does not rewrite
+strings that begin with spreadsheet formula prefixes such as `=`, `+`, `-`, or `@`
+unless you opt in to formula escaping.
+
+If you export Arnio-cleaned data back to CSV and expect users to open that file in
+Excel, Google Sheets, LibreOffice, or another spreadsheet application, treat
+untrusted text fields as potentially executable spreadsheet formulas. Use
+`escape_formulas=True` when exporting user-controlled text to prefix formula-like
+string cells with a single quote while leaving numeric columns unchanged:
+
+```python
+ar.write_csv(clean_frame, "safe_export.csv", escape_formulas=True)
+```
+
+This is especially important for customer names, notes, comments, imported form
+fields, and any other free-text values that may come from outside your trust
+boundary. Arnio keeps the export policy explicit, so existing CSV output remains
+unchanged unless this option is enabled.
+
+<br>
+
+## Error Handling
+
+### `read_csv` and `scan_csv`
+
+| Input | Raises | Message |
+|:---|:---|:---|
+| File not found | `CsvReadError` | `Cannot open file: <path>` |
+| Zero-byte file | `CsvReadError` | `CSV file is empty: '<path>'` |
+| Blank header line | `CsvReadError` | `CSV header contains an empty column name` |
+| Binary / NUL bytes | `CsvReadError` | `CSV input contains NUL bytes and appears to be binary or corrupted` |
+
+### Schema Validation
+
+`ar.validate()` returns a `ValidationResult`; it does not raise for validation failures. Check `result.passed` and `result.issues` for `dtype` or `required_column` rule violations.
+
+`validate()` currently operates on a single in-memory `ArFrame`. Chunked validation via `read_csv_chunked()` iterators is not yet supported directly. Validate each chunk individually or materialize the data before validation when working with streamed/chunked inputs.
+
+### Pipeline Step Errors
+
+Unknown step names raise `UnknownStepError` before execution begins.
+
+<details>
+<summary><b>📸 Peek at a 100 GB file without loading it</b></summary>
+<br>
+
+`scan_csv` reads only the header + a sample to infer the schema. Zero data loaded.
+
+```python
+# Pass sample_size to control how many rows are evaluated for type inference
+schema = ar.scan_csv("100GB_file.csv", sample_size=500)
+# {'id': 'int64', 'name': 'string', 'is_active': 'bool', 'revenue': 'float64'}
+```
+
+Useful for exploring datasets before committing memory.
+</details>
+
+<details>
+<summary><b>📄 Read JSON Lines (JSONL / NDJSON) files</b></summary>
+<br>
+
+`read_jsonl` parses one JSON object per line into an ArFrame. Blank lines are skipped, missing keys become nulls, and mixed-type columns are coerced to string — the same rules as `from_pandas`.
+
+```python
+# events.jsonl
+# {"user": "alice", "score": 9.5, "active": true}
+# {"user": "bob",   "score": 8.1, "active": false}
+
+frame = ar.read_jsonl("events.jsonl")
+
+# Limit rows
+frame = ar.read_jsonl("large.jsonl", nrows=1000)
+
+# Stream large JSONL/NDJSON files in bounded chunks
+for chunk in ar.read_jsonl_chunked("large.jsonl", chunksize=50_000):
+    process(chunk)
+
+# Non-UTF-8 encoding
+frame = ar.read_jsonl("data.ndjson", encoding="latin-1")
+
+# Plug straight into the cleaning pipeline
+clean = ar.pipeline(frame, [("strip_whitespace",), ("drop_nulls",)])
+```
+
+Raises `ar.JsonlReadError` with the 1-based line number if a line contains invalid JSON. The chunked reader uses the same validation and decoding rules as `read_jsonl`, but only materializes one chunk at a time.
+</details>
+
+<details>
+<summary><b>📦 Parquet import and export for columnar analytics pipelines</b></summary>
+<br>
+
+`read_parquet` and `write_parquet` use pyarrow for Parquet I/O.  Install the optional extra first:
+
+```bash
+pip install arnio[parquet]
+```
+
+```python
+# Import a Parquet file into an ArFrame (no pandas intermediate)
+frame = ar.read_parquet("data.parquet")
+
+# Read only selected columns
+frame = ar.read_parquet("data.parquet", usecols=["name", "age"])
+
+# Export an ArFrame to Parquet
+ar.write_parquet(frame, "output.parquet")
+
+# Choose compression codec: "snappy" (default), "gzip", "zstd", "brotli", "none"
+ar.write_parquet(frame, "output.parquet", compression="zstd")
+
+# Control row group size for large files
+ar.write_parquet(frame, "output.parquet", row_group_size=50_000)
+
+# .pq extension also accepted for both read and write
+frame = ar.read_parquet("data.pq")
+ar.write_parquet(frame, "output.pq")
+```
+
+Both functions raise `ImportError` with an install hint if pyarrow is not available.
+</details>
+
+<details>
+<summary><b>👀 Preview rows without pandas conversion or full-column Python list materialization</b></summary>
+<br>
+
+`preview()` reads only the first `n` rows directly from the C++ frame — no pandas conversion triggered.
+
+```python
+frame = ar.read_csv("huge_file.csv")
+
+print(frame.preview())      # first 5 rows (default)
+print(frame.preview(n=10))  # first 10 rows
+```
+
+Raises `ValueError` for invalid `n` (zero, negative, or non-integer).
+</details>
+
+<details>
+<summary><b>💰 Financial Decimal Support</b></summary>
+<br>
+
+`arnio` provides support for converting Python `decimal.Decimal` objects.
+
+* **Behavior**: Python `Decimal` objects are automatically preserved as high-precision strings during serialization/binding to prevent floating-point precision loss.
+* **Caveat**: When reading back into Pandas, `to_pandas()` returns these as string (`object` dtype) columns. You will need to explicitly cast them back to `Decimal` objects on the resulting DataFrame if you want to resume exact math.
+
+Example:
+
+```python
+from decimal import Decimal
+
+import pandas as pd
+
+import arnio as ar
+
+df = pd.DataFrame({
+    "price": [Decimal("19.99"), Decimal("29.95")]
+})
+
+frame = ar.from_pandas(df)  # Decimal values safely preserved as exact strings
+result = ar.to_pandas(frame)
+# result["price"] will be string objects ["19.99", "29.95"]
+```
+
+</details>
+
+<details>
+<summary><b>🧩 Add custom steps without touching C++</b></summary>
+<br>
+
+Register any Python function as a pipeline step. It receives a `DataFrame`, returns a `DataFrame`.
+
+```python
+def remove_outliers(df, column="revenue", threshold=100_000):
+    return df[df[column] <= threshold]
+
+ar.register_step("remove_outliers", remove_outliers)
+ar.register_step("team:drop_nulls", remove_outliers)  # namespaced custom step
+
+# Use builtin: for an explicit built-in step, and your own prefixes
+# like team: or plugin_name: to avoid name collisions.
+
+# Introspect built-in and custom step names without reaching into internals.
+print(ar.list_steps())
+
+# Opt in to a context object only when you need execution metadata.
+def capture_context(df, context=None):
+    print(context.step_name, context.step_index, context.total_steps)
+    return df
+
+# Now use it in any pipeline alongside native C++ steps
+clean = ar.pipeline(frame, [
+    ("builtin:strip_whitespace",),
+    ("remove_outliers", {"column": "revenue", "threshold": 50000}),
+    ("drop_duplicates",),
+])
+```
+
+Need to inspect the built-in kwargs a step accepts before assembling a pipeline?
+
+```python
+signatures = ar.get_builtin_step_signatures()
+print(list(signatures["drop_nulls"].parameters))  # ["subset"]
+print(list(signatures["filter_rows"].parameters))  # ["column", "op", "value"]
+```
+
+Need to restore the registry back to built-in steps only during tests?
+
+```python
+ar.reset_steps()
+
+print(ar.list_steps())
+# Only built-in steps remain
+```
+
+Custom steps run through a pandas↔ArFrame conversion bridge. Prototype in Python, then optionally migrate hot paths to C++ for full speed.
+</details>
+
+<details>
+<summary><b>🔄 Custom Step Overwrite Policy</b></summary>
+<br>
+
+By default, trying to register a custom step with a name that is already taken by another custom Python step will raise a `ValueError` to prevent silent overwriting.
+
+To intentionally replace an existing custom **Python** step, pass `overwrite=True`:
+
+```python
+def custom_logging(df):
+    print("Running step v1")
+    return df
+
+ar.register_step("log_data", custom_logging)
+
+# This will succeed and safely overwrite the original logic
+def custom_logging_v2(df):
+    print("Running step v2")
+    return df
+
+ar.register_step("log_data", custom_logging_v2, overwrite=True)
+```
+> Note: Built-in C++ pipeline steps (like "drop_nulls") can never be overwritten, even if overwrite=True is explicitly supplied.
+</details>
+
+<details>
+<summary><b>✂️ Slice rows with head() and tail()</b></summary>
+<br>
+
+`head()` and `tail()` return the first or last `n` rows as a new `ArFrame`.
+```python
+frame = ar.read_csv("data.csv")
+
+frame.head()     # first 5 rows (default)
+frame.head(10)   # first 10 rows
+frame.tail(3)    # last 3 rows
+
+# n larger than row count returns all rows safely
+frame.head(1000)
+
+# n=0 returns an empty ArFrame
+frame.head(0)
+```
+
+Raises `ValueError` for negative or boolean `n`.
+</details>
+
+### Pipeline verbose diagnostics
+
+Enable lightweight pipeline diagnostics with `verbose=True`:
+
+```python
+result = ar.pipeline(
+    frame,
+    [
+        ("strip_whitespace",),
+        ("drop_nulls",),
+    ],
+    verbose=True,
+)
+```
+
+This logs step execution order, execution path, elapsed time,
+and row-count changes through the `arnio` logger.
+
+<br>
+
+---
+
+<br>
+
+## 🔗 Integrations
+
+Arnio is designed to make the rest of the Python data stack more productive,
+not to replace it.
+
+| Workflow | How Arnio helps |
+|:---|:---|
+| **pandas** | Clean, validate, and profile messy `DataFrame`s through `df.arnio`. |
+| **NumPy** | Prepare typed numeric data before array/modeling workflows. |
+| **scikit-learn** | Use Arnio cleaning as a preprocessing layer before model training. |
+| **DuckDB / Arrow** | Validate and prepare data before analytics and columnar exchange. Export ArFrame to pyarrow.Table via ``ar.to_arrow(frame)``. |
+| **notebooks** | Inspect quality issues and cleaning suggestions before analysis. |
+
+### DuckDB registration
+
+Use `ar.register_duckdb(frame, conn, "table_name")` to register an ArFrame directly as a DuckDB relation without writing pandas conversion glue yourself. DuckDB is an optional dependency — install it with `pip install "arnio[duckdb]"` when needed. You can also install DuckDB directly with `pip install duckdb`.
+
+For development and CI, `pip install -e ".[dev]"` now includes DuckDB so the integration test module in `tests/test_integrations_duckdb.py` runs in the default test job.
+
+```python
+import duckdb
+import arnio as ar
+
+frame = ar.read_csv("data.csv")
+conn = duckdb.connect()
+ar.register_duckdb(frame, conn, "my_table")
+result = conn.execute("SELECT * FROM my_table").fetchdf()
+```
+
+### Row-dropping and schema-change behavior
+
+`ArnioCleaner` enforces a strict transformer contract by default:
+
+- **Row-count-changing steps** (`drop_nulls`, `drop_duplicates`,
+  `filter_rows`, `keep_rows_with_nulls`) are **rejected by default** with a
+  clear `ValueError`. To allow row-count changes, pass `allow_row_count_change=True`.
+
+- **Column schema-changing steps** (`rename_columns`, `drop_columns`,
+  `drop_constant_columns`, `combine_columns`) are **rejected by default**
+  and allowed only when `allow_schema_changes=True` is passed.
+
+```python
+# Schema-preserving (default strict mode)
+cleaner = ArnioCleaner(
+    steps=[
+        ("strip_whitespace",),
+        ("fill_nulls", {"value": 0}),
+    ],
+)
+
+# Opt-in column schema changes
+cleaner = ArnioCleaner(
+    steps=[
+        ("rename_columns", {"old_name": "new_name"}),
+        ("drop_constant_columns",),
+    ],
+    allow_schema_changes=True,
+)
+```
+
+### Pandas accessor
+
+Arnio integrates directly with pandas through a registered DataFrame accessor. After importing Arnio, every pandas `DataFrame` gains an `.arnio` accessor that provides cleaning, profiling, validation, and pipeline utilities without requiring you to leave your existing pandas workflow.
+
+The accessor is registered through pandas' DataFrame extension API, allowing Arnio methods to be accessed directly as `df.arnio`.
+
+#### Cleaning data with `.clean()`
+
+Use `.clean()` to apply common data-cleaning operations and return a cleaned pandas DataFrame.
+
+```python
+import pandas as pd
+import arnio as ar
+
+df = pd.read_csv("raw_customers.csv")
+
+clean_df = df.arnio.clean(
+    strip_whitespace=True,
+    drop_duplicates=True,
+)
+```
+
+Supported options include:
+
+- `strip_whitespace` – remove leading and trailing whitespace from string values
+- `drop_nulls` – remove rows containing null values
+- `drop_duplicates` – remove duplicate rows
+- `steps` – optional Arnio pipeline steps. When provided, `.clean()` executes the supplied pipeline and returns the resulting pandas DataFrame.
+
+`.clean()` returns a pandas `DataFrame`, allowing you to continue using your existing pandas analysis workflow.
+
+#### Profiling data with `.profile()`
+
+Use `.profile()` to generate a data quality summary.
+
+```python
+quality = clean_df.arnio.profile()
+
+print(quality)
+```
+
+`.profile()` returns a `DataQualityReport` containing dataset quality information and profiling insights that can help identify issues before downstream analysis.
+
+#### Accessor vs `ar.pipeline()`
+
+| Approach | Best for |
+|-----------|-----------|
+| `df.arnio.clean()` | Existing pandas workflows |
+| `df.arnio.profile()` | Quick quality assessment |
+| `df.arnio.pipeline(...)` | Custom pipeline execution from a DataFrame |
+| `ar.pipeline(...)` | Direct Arnio/ArFrame workflows |
+
+#### End-to-end example
+
+```python
+import pandas as pd
+import arnio as ar
+
+df = pd.read_csv("customers.csv")
+
+clean_df = df.arnio.clean(
+    strip_whitespace=True,
+    drop_duplicates=True,
+)
+
+quality = clean_df.arnio.profile()
+
+validation = clean_df.arnio.validate({
+    "email": ar.Email(nullable=False),
+    "user_code": ar.Regex(r"^USR-\d{4}$", nullable=False),
+    "age": ar.Int64(nullable=True, min=0),
+})
+
+print(quality)
+```
+
+This approach keeps pandas as the analysis tool while Arnio handles data preparation, quality checks, and validation.
+
+> Product direction: **[PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)**
+
+## 🧰 Cleaning primitives
+
+Most operations below run natively in C++. Currently, `filter_rows`, `replace_values` and `standardize_missing_tokens` run via the Python (pandas) backend and may be optimized in C++ later.
+
+| Primitive | What it does | Example |
+|:---|:---|:---|
+| `drop_nulls` | Remove rows with null/empty values | `ar.drop_nulls(frame, subset=["age"])` |
+| `drop_columns` | Remove selected columns while preserving the remaining order | `frame = ar.drop_columns(frame, ["debug_col"])` |
+| `drop_empty_columns` | Remove columns whose values are all null/empty | `frame = ar.drop_empty_columns(frame)` |
+| `keep_rows_with_nulls` | Keep only rows that contain at least one null | `ar.keep_rows_with_nulls(frame, subset=["age"])` |
+| `validate_columns_exist` | Fail early when required columns are missing | `ar.validate_columns_exist(frame, ["age"])` |
+| `filter_rows` | Filter rows using comparison operators | `ar.filter_rows(frame, column="age", op=">", value=18)` |
+| `fill_nulls` | Replace nulls with a scalar | `ar.fill_nulls(frame, 0, subset=["revenue"])` |
+| `drop_duplicates` | Deduplicate rows (first/last/none) | `ar.drop_duplicates(frame, keep="first")` |
+| `drop_constant_columns` | Remove columns with only one unique value | `ar.drop_constant_columns(frame)` |
+| `clip_numeric` | Clip numeric values to lower and/or upper bounds | `ar.clip_numeric(frame, lower=0, upper=100)` |
+| `coalesce_columns` | Select the first non-null value from a list of columns | `ar.coalesce_columns(frame, subset=["phone", "mobile"], output_column="contact")` |
+| `combine_columns` | Combine multiple columns into a single output column | `ar.combine_columns(frame, subset=["first", "last"], separator=" ", output_column="name")` |
+| `strip_whitespace` | Trim leading/trailing spaces from strings | `ar.strip_whitespace(frame)` |
+| `standardize_missing_tokens` | Replace common missing-value strings with NaN | `ar.standardize_missing_tokens(frame)` |
+| `normalize_case` | Force lower/upper/title case | `ar.normalize_case(frame, case_type="title")` |
+| `rename_columns` | Rename columns via mapping | `ar.rename_columns(frame, {"old": "new"})` |
+| `cast_types` | Cast column types with `errors="raise"`, `"coerce"`, or `"ignore"` | `ar.cast_types(frame, {"age": "int64"}, errors="raise")` |
+| `round_numeric_columns` | Round numeric columns (non-numeric columns in subset ignored safely) | `ar.round_numeric_columns(frame, decimals=2)` |
+| `replace_values` | Replace values using a mapping (column or whole-frame). Handles `None`/`NaN`. | `ar.replace_values(frame, {"active": "A", "inactive": "I"}, column="status")` |
+| `clean` | Convenience shorthand supporting config dicts | `ar.clean(frame, strip_whitespace={"subset": ["name"]}, drop_nulls=True)` |
+| `safe_divide_columns` | Divide one column by another, handling zero/null denominators | `ar.safe_divide_columns(frame, numerator="revenue", denominator="cost", output_column="ratio")` |
+| `drop_columns_matching` | Drop columns whose names match a regex pattern | `ar.drop_columns_matching(frame, pattern="^temp_")` |
+| `trim_column_names` | Strip leading/trailing whitespace from column names | `ar.trim_column_names(frame)` |
+| `select_columns` | Return a new frame containing only selected columns | `ar.select_columns(frame, ["id", "name"])` |
+| `slugify_column_names` | Normalise column names to snake_case | `ar.slugify_column_names(frame)` |
+
+#### `ArFrame.select_dtypes` — type-based column selection
+
+Returns a **new `ArFrame`** containing only the columns whose dtype matches the filter. Raises `ValueError` if no columns match.
+
+```python
+frame = ar.read_csv("data.csv")
+
+# Keep only numeric columns
+numeric = frame.select_dtypes(include=["int64", "float64"])
+
+# Drop string columns
+without_strings = frame.select_dtypes(exclude="string")
+```
+
+**Valid dtype strings:** `"int64"`, `"float64"`, `"string"`, `"bool"`, `"null"`
+
+- At least one of `include` or `exclude` must be given — raises `ValueError` otherwise.
+- `include` and `exclude` must not overlap — raises `ValueError` if they share a dtype.
+- Unknown dtype strings raise `ValueError` with a list of valid options.
+- Raises `ValueError` when no columns match (never returns an empty frame silently).
+- Column order in the result always matches the original frame.
+
+Or compose them all into a **pipeline**:
+
+```python
+clean = ar.pipeline(frame, [
+    ("validate_columns_exist", {"columns": ["name", "city", "revenue"]}),
+    ("drop_columns", {"columns": ["debug_notes"]}),
+    ("strip_whitespace",),
+    ("standardize_missing_tokens",),
+    ("normalize_case", {"case_type": "lower"}),
+    ("fill_nulls", {"value": "unknown", "subset": ["city"]}),
+    ("drop_duplicates", {"keep": "first"}),
+])
+```
+
+### Winsorize outliers
+
+`winsorize_outliers()` clips extreme numeric values using lower and upper quantiles. Non-numeric columns are ignored unless explicitly selected in `subset`.
+
+```python
+frame = ar.read_csv("data.csv")
+
+result = ar.winsorize_outliers(
+    frame,
+    lower=0.05,
+    upper=0.95,
+)
+```
+
+It can also be used inside `ar.pipeline()` as `("winsorize_outliers", {"lower": 0.05, "upper": 0.95})`.
+
+### 🔁 Replace values
+
+Use `replace_values` to substitute values using a mapping. It works as a pipeline step (Python backend) and can operate on a single column or the whole frame when `column` is omitted. It also understands null semantics: using `None` (or `np.nan`) as a mapping key targets existing nulls, and mapping a value to `None` creates real nulls.
+
+Column-specific example:
+
+```python
+clean = ar.pipeline(frame, [
+    ("replace_values", {"mapping": {"active": "A", "inactive": "I"}, "column": "status"}),
+])
+```
+
+Whole-frame example (no `column`):
+
+```python
+clean = ar.pipeline(frame, [
+    ("replace_values", {"mapping": {None: "MISSING", "active": "A", "inactive": "I"}}),
+])
+```
+
+Direct API:
+
+```python
+frame2 = ar.replace_values(frame, {"active": "A", "inactive": "I"})
+```
+
+### 🔎 Filter rows inside pipelines
+
+Use `filter_rows` to keep only rows matching a condition.
+
+```python
+clean = ar.pipeline(frame, [
+    ("filter_rows", {
+        "column": "revenue",
+        "op": ">=",
+        "value": 1000
+    }),
+])
+```
+
+Supported operators:
+
+- `>`
+- `<`
+- `>=`
+- `<=`
+- `==`
+- `!=`
+
+Works with:
+
+- integers
+- floats
+- strings
+- booleans
+
+### 🔎 Isolate rows with null values
+
+Use `keep_rows_with_nulls` to audit incomplete data — keep only rows that have at least one null.
+
+```python
+frame = ar.read_csv("data.csv")
+
+# Keep all rows that have at least one null anywhere
+nulls = ar.keep_rows_with_nulls(frame)
+
+# Keep rows where specifically 'age' or 'score' is null
+nulls = ar.keep_rows_with_nulls(frame, subset=["age", "score"])
+
+# Works inside a pipeline too
+result = ar.pipeline(frame, [
+    ("keep_rows_with_nulls", {"subset": ["age"]}),
+])
+```
+
+Useful for data auditing — inspect what's missing before deciding how to fill or drop.
+
+### Boolean string normalization
+
+```python
+clean = ar.parse_bool_strings(frame)
+```
+
+This normalizes values such as `"yes"`, `"no"`, `"true"`, `"false"`, `"y"`, `"n"`, `"1"`, and `"0"` into boolean values while preserving unsupported values unchanged.
+
+Columns containing both parsed boolean values and unsupported string values may round-trip as strings because of ArFrame column typing semantics.
+
+<br>
+### 🔢 Safe column division
+
+Divide one column by another while handling division by zero and null denominators explicitly:
+
+```python
+result = ar.safe_divide_columns(
+    frame,
+    numerator="revenue",
+    denominator="cost",
+    output_column="ratio",
+    fill_value=0.0,  # used when denominator is zero or null
+)
+```
+
+> When the denominator is **zero or null**, the result is replaced with `fill_value` (default `0.0`) instead of raising an error or producing `NaN`/`Inf`.
+
+---
+
+<br>
+
+## 📊 Pandas Dtype Support Matrix
+
+This table helps users understand which pandas dtypes and workflows are fully supported, partially supported, unsupported, or planned.
+
+If a dtype is partially supported, users may need conversion before processing. Unsupported dtypes should raise clear errors where applicable.
+
+| Pandas Dtype | Support Status | Notes / Fix Hints |
+|---|---|---|
+| `int64` / `Int64` | ✅ Supported | Fully supported with native C++ columnar storage. Nulls mapped to `pd.NA`. |
+| `float64` / `Float64` | ✅ Supported | Fully supported with zero-copy conversion. Nulls mapped to `np.nan` or `pd.NA`. |
+| `bool` / `boolean` | ✅ Supported | Native booleans supported with C++ backing. Nulls mapped to `pd.NA`. |
+| `string` / `string[python]` | ✅ Supported | Native string extension type. Recommended for text. Nulls mapped to `pd.NA`. |
+| `object` (strings / scalars) | ✅ Supported | Handled as text or coerced to common type if mixed. |
+| `object` (nested / lists / dicts) | ❌ Unsupported | Nested structures not allowed in flat columnar storage. Raises `TypeError`. |
+| `category` | ❌ Unsupported | Raises `TypeError` with fix hint. Convert to string: `df["col"].astype(str)` |
+| `datetime64[ns]` / timezone-aware | ❌ Unsupported | Raises `TypeError` with fix hint. Use `df["col"].astype(str)` or string timestamps. |
+| `timedelta64[ns]` | ❌ Unsupported | Raises `TypeError` with fix hint. Use `df["col"].dt.total_seconds()`. |
+| `complex64` / `complex128` | ❌ Unsupported | Raises `TypeError` with fix hint. Split into real/imag columns or convert to strings. |
+
+### Notes
+
+- **Zero-copy Optimization**: Numeric columns (`int64`, `float64`) are optimized for fast zero-copy conversion between C++ and pandas where supported.
+- **Defensive Buffers**: Pass `copy=True` to `to_pandas()` when downstream pandas code needs defensive pandas-owned column buffers.
+- **Boolean Buffers**: Boolean conversion is copied because `std::vector<bool>` cannot be exposed as a zero-copy NumPy buffer.
+- **Null Handling**: Columns with null masks are automatically converted to pandas nullable Extension dtypes (`Int64`, `BooleanDtype`, `StringDtype`).
+- **Index Drop**: pandas DataFrame indexes are currently not preserved during `from_pandas()` conversion; converted frames receive a default `RangeIndex` when converted back via `to_pandas()`.
+- **Validation**: Attempting to convert any unsupported type will raise a clear, user-friendly `TypeError` detailing the column name and how to fix/preprocess it.
+
+<br>
+
+---
+
+<br>
+
+## 🧠 Data quality engine
+
+Arnio now includes built-in dataset understanding before you analyze in pandas.
+
+```python
+report = ar.profile(frame)
+print(report.summary())
+
+suggestions = ar.suggest_cleaning(frame)
+clean = ar.pipeline(frame, suggestions)
+```
+
+For production data contracts:
+
+```python
+# Register a custom validator once, then reference it by name in any schema
+ar.register_validator("positive", lambda v: v > 0)
+
+schema = ar.Schema({
+    "id": ar.Int64(nullable=False, unique=True),
+    "email": ar.Email(nullable=False),
+    "phone": ar.PhoneNumber(nullable=False),
+
+    "user_type": ar.String(nullable=False),
+
+    # country becomes required when user_type == "international"
+    "country": ar.String(
+        nullable=True,
+        required_if=("user_type", "international"),
+    ),
+
+    # CurrencyCode validates 3-letter uppercase formats (e.g., USD, EUR, INR).
+    "currency": ar.CurrencyCode(),
+
+    # LanguageCode validates lowercase ISO 639-1 language codes (e.g., en, hi, fr).
+    "language": ar.LanguageCode(),
+
+    # TimeZone validates IANA timezone identifiers (e.g., Asia/Kolkata).
+    "timezone": ar.TimeZone(),
+
+    "username": ar.String(min_length=3, max_length=20),
+    "user_code": ar.Regex(r"^USR-\d{4}$", nullable=False),
+    "revenue": ar.Custom("positive", nullable=True, required_if=("user_type", "merchant")),
+    "signup_date": ar.Date(nullable=False),
+    "created_at": ar.DateTime(nullable=False, format="%Y-%m-%d"),
+
+})
+
+result = ar.validate(frame, schema)
+
+if not result.passed:
+    summary = result.summary()
+    print(summary["issues_by_rule"])
+    print(summary["issues_by_column"])
+    print(summary["issues_by_column_and_rule"])
+    print(result.to_pandas())
+    print(result.to_markdown(max_issues=10))
+```
+### Numeric string compatibility hints
+
+Validation messages indicate when string values appear safely convertible
+to numeric dtypes.
+
+```python
+frame = ar.from_pandas(
+    pd.DataFrame(
+        {
+            "age": ["1", "2", "3"],
+        }
+    )
+)
+
+schema = ar.Schema(
+    {
+        "age": ar.Int64(),
+    }
+)
+
+result = ar.validate(frame, schema)
+
+print(result.issues[0].message)
+# Column 'age' has dtype 'string'; expected 'int64'.
+# Values appear safely convertible to 'int64'
+```
+
+In this example, `country` becomes required only when
+`user_type == "international"`.
+
+Date validates strict YYYY-MM-DD calendar dates.
+
+### Phone number validation
+
+`PhoneNumber()` validates common international and formatted phone number strings.
+
+```python
+schema = ar.Schema({
+    "phone": ar.PhoneNumber(nullable=False),
+})
+
+result = ar.validate(frame, schema)
+print(result.passed)
+```
+
+Accepted examples include:
+- `+1-555-123-4567`
+- `+91 9876543210`
+- `5551234567`
+
+### Warning-only validation
+
+```python
+schema = ar.Schema(
+    {
+        "age": ar.Int64(
+            min=18,
+            severity="warning",
+        )
+    }
+)
+
+result = ar.validate(frame, schema)
+
+print(result.passed)  # True
+print(result.issue_count)  # Warning issues are still reported
+```
+
+Warning-level issues remain visible in validation results without failing the overall validation status.
+
+### URL validation
+
+`URL()` validates that values are well-formed URLs. By default, both `http` and `https` schemes are accepted.
+
+```python
+schema = ar.Schema({
+    "website": ar.URL(nullable=False),
+})
+result = ar.validate(frame, schema)
+print(result.passed)
+```
+
+Use `allowed_schemes` to restrict which URL schemes are valid:
+
+```python
+# https only
+schema = ar.Schema({
+    "website": ar.URL(allowed_schemes=["https"]),
+})
+
+# multiple schemes
+schema = ar.Schema({
+    "endpoint": ar.URL(allowed_schemes=["https", "ftp"]),
+})
+```
+
+Any URL with a scheme not in `allowed_schemes` will fail validation.
+
+### Schema JSON round-trips
+
+```python
+schema = ar.Schema(
+    {
+        "id": ar.String(nullable=False),
+        "created_at": ar.DateTime(format="%Y-%m-%dT%H:%M:%S"),
+    },
+    strict=True,
+    unique=["id"],
+)
+
+payload = schema.to_json()
+restored = ar.Schema.from_json(payload)
+```
+
+See [examples/schema_validation.py](examples/schema_validation.py) for a complete runnable tutorial covering `Schema`, field types, invalid-row reporting, and `ValidationResult` output.
+
+`ValidationResult.to_markdown()` is useful in CI logs, GitHub comments, or data quality reports because it renders a compact validation summary plus a GitHub-friendly issue table.
+
+For multi-column uniqueness (composite keys):
+
+```python
+schema = ar.Schema({
+    "user_id": ar.Int64(nullable=False),
+    "course_id": ar.Int64(nullable=False),
+}, unique=["user_id", "course_id"])
+
+result = ar.validate(frame, schema)
+```
+
+
+For automatic cleaning suggestions based on the profile:
+
+```python
+suggestions = ar.suggest_cleaning(frame)
+# e.g. [("strip_whitespace", {"subset": ["name", "city"]}),
+#       ("drop_duplicates", {"keep": "first"})]
+clean = ar.pipeline(frame, suggestions)
+```
+
+For low-risk automatic cleanup in one call:
+
+```python
+clean, report = ar.auto_clean(frame, return_report=True)
+```
+
+For strict automatic cleanup, inspect type casts before applying them:
+
+```python
+report = ar.auto_clean(frame, mode="strict", dry_run=True)
+cast_mapping = dict(report.suggestions).get("cast_types")
+
+clean = ar.auto_clean(
+    frame,
+    mode="strict",
+    allow_lossy_casts=True,
+    confirmed_casts=cast_mapping,
+)
+```
+
+This is the layer pandas does not try to own: profiling, data contracts, row-level validation issues, and preview-gated cleaning suggestions for messy incoming datasets.
+
+<br>
+
+### Beginner-friendly auto-clean tutorial
+
+Use this workflow when you receive a small messy dataset and want to inspect what Arnio will change before applying it.
+
+```python
+import arnio as ar
+import pandas as pd
+
+raw = pd.DataFrame(
+    {
+        "order_id": [1001, 1002, 1002, 1003, 1004],
+        "customer": [" Ishan ", " Prasoon ", " Prasoon ", " Pranay ", " Dhruv "],
+        "city": [" Paris ", "London", "London", " New York ", " Tokyo "],
+    }
+)
+
+frame = ar.from_pandas(raw)
+
+report = ar.profile(frame)
+summary = report.summary()
+print(summary)
+
+suggestions = ar.suggest_cleaning(frame)
+print(suggestions)
+# [('strip_whitespace', {'subset': ['customer', 'city']}), ('drop_duplicates', {'keep': 'first'})]
+
+safe = ar.auto_clean(frame)
+strict = ar.auto_clean(frame, mode="strict")
+```
+
+Messy input:
+
+| order_id | customer | city |
+|:--|:--|:--|
+| 1001 | ` Ishan ` | ` Paris ` |
+| 1002 | ` Prasoon ` | `London` |
+| 1002 | ` Prasoon ` | `London` |
+| 1003 | ` Pranay ` | ` New York ` |
+| 1004 | ` Dhruv ` | ` Tokyo ` |
+
+Expected cleaned output with `mode="strict"`:
+
+| order_id | customer | city |
+|:--|:--|:--|
+| 1001 | Ishan | Paris |
+| 1002 | Prasoon | London |
+| 1003 | Pranay | New York |
+| 1004 | Dhruv | Tokyo |
+
+`mode="safe"` only trims whitespace. Use `mode="strict"` when you also want deterministic built-in cleanup such as exact duplicate removal. If strict mode proposes type casts, run `dry_run=True` first and pass the exact proposed mapping as `confirmed_casts` with `allow_lossy_casts=True`.
+
+See [examples/auto_clean_tutorial.py](examples/auto_clean_tutorial.py) for a runnable version of this walkthrough, and [examples/schema_validation.py](examples/schema_validation.py) for a focused validation tutorial.
+
+> For strict mode data-loss risks and safe workflow, see [AUTO_CLEAN_GUIDE.md](AUTO_CLEAN_GUIDE.md).
+
+<br>
+
+## 💬 Community
+
+Join the **[Arnio Discord Community](https://discord.gg/xsEw7r78M)** for quick setup help, contributor onboarding, GSSoC 2026 coordination, feature discussion, and community updates.
+
+Discord is for fast conversation and support. GitHub remains the source of truth for issue assignment, PR reviews, bugs, roadmap decisions, and releases.
+
+<p align="center">
+<a href="https://discord.gg/xsEw7r78M"><img src="https://img.shields.io/badge/Join%20Arnio%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Arnio Discord"></a>
+</p>
+
+<br>
+
+---
+
+<br>
+
+## 🤝 Contribute
+
+Arnio is a **[GSSoC 2026](https://gssoc.girlscript.tech/)** project with a structured contributor backlog across beginner, intermediate, and advanced tracks.
+
+### You don't need C++ to contribute
+
+Most new features are pure Python pipeline steps:
+
+```python
+# 1. Write a function that takes a DataFrame and returns a DataFrame
+def remove_special_chars(df, subset=None):
+    cols = subset or df.select_dtypes("object").columns
+    for col in cols:
+        df[col] = df[col].str.replace(r"[^a-zA-Z0-9\s]", "", regex=True)
+    return df
+
+# 2. Register it
+ar.register_step("remove_special_chars", remove_special_chars)
+
+# 3. Write tests, open a PR. That's it.
+```
+
+If Arnio renames a built-in or registered pipeline step in a future release,
+the old step name can stay temporarily available and will emit a
+`DeprecationWarning` while routing execution to the new canonical step.
+
+### If you do know C++
+
+The biggest performance wins are in:
+- **`drop_duplicates`** — replacing `std::ostringstream` row serialization with proper hash-based comparisons
+- **`strip_whitespace`** — converting from copy-on-write to in-place mutation
+- **Parallel column processing** — `std::thread` across independent columns
+
+### Getting started
+
+```bash
+# macOS / Linux
+git clone https://github.com/im-anishraj/arnio.git && cd arnio
+make install   # pip install -e ".[dev]" + pre-commit
+make test      # pytest with coverage
+make lint      # ruff + black
+
+# Windows
+python examples/check_env.py
+pip install -e ".[dev]"
+pre-commit install
+pytest tests/ -v
+```
+### Building frames without a CSV
+
+Use `ArFrame.from_records` (also available as `ar.from_records`) to build
+small frames inline — useful for tests, quick experiments, or feeding
+hand-crafted data into the pipeline without writing a CSV file.
+
+```python
+import arnio as ar
+
+# list-of-dicts — column names inferred from keys
+frame = ar.from_records([
+    {"id": 1, "name": "alice", "score": 95},
+    {"id": 2, "name": "bob",   "score": 88},
+])
+
+# list-of-lists or tuples — columns must be supplied
+frame2 = ar.from_records(
+    [(1, "alice", 95), (2, "bob", 88)],
+    columns=["id", "name", "score"],
+)
+```
+
+Missing keys in dict records are filled with `None`. Nested values raise `TypeError`. An empty list raises `ValueError`.
+
+## ===== API_REFERENCE.md =====
+
+## Arnio API Reference Index
+
+| Category              | Components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| :-------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Core Class**        | [**`ArFrame`**](#arframe), Properties: [`shape`](#shape), [`columns`](#columns), [`dtypes`](#dtypes), [`is_empty`](#is_empty), Methods: [`memory_usage`](#memory_usage), [`preview`](#preview), [`select_columns`](#select_columns), [`select_dtypes`](#select_dtypes)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **I/O** | [`read_csv`](#read_csv), [`scan_csv`](#scan_csv), [`write_csv`](#write_csv), [`write_json`](#write_json), [`write_jsonl`](#write_jsonl), [`sniff_delimiter`](#sniff_delimiter)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **Cleaning**          | [`cast_types`](#cast_types), [`clean`](#clean), [`clip_numeric`](#clip_numeric), [`combine_columns`](#combine_columns), [`drop_columns`](#drop_columns), [`drop_constant_columns`](#drop_constant_columns), [`drop_duplicates`](#drop_duplicates), [`drop_nulls`](#drop_nulls), [`fill_nulls`](#fill_nulls), [`filter_rows`](#filter_rows), [`keep_rows_with_nulls`](#keep_rows_with_nulls), [`normalize_case`](#normalize_case), [`normalize_unicode`](#normalize_unicode), [`rename_columns`](#rename_columns), [`replace_values`](#replace_values), [`round_numeric_columns`](#round_numeric_columns), [`safe_divide_columns`](#safe_divide_columns), [`strip_whitespace`](#strip_whitespace), [`trim_column_names`](#trim_column_names), [`validate_columns_exist`](#validate_columns_exist) |
+| **Conversion**        | [`from_pandas`](#from_pandas), [`to_pandas`](#to_pandas), [`from_arrow`](#from_arrow)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Integration**       | [`ArnioPandasAccessor`](#arniopandasaccessor)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Pipeline**          | [`pipeline`](#pipeline), [`register_step`](#register_step)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **Data Quality**      | [`profile`](#profile) • [`suggest_cleaning`](#suggest_cleaning) • [`auto_clean`](#auto_clean) • [`check_quality_gates`](#check_quality_gates) • [`DataQualityReport`](#dataqualityreport) • [`ColumnProfile`](#columnprofile)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **Schema Validation** | [`Schema`](#schema) • [`Field`](#field) • [`validate`](#validate) • [`ValidationResult`](#validationresult) • [`ValidationIssue`](#validationissue) • [`Int64`](#int64) • [`Float64`](#float64) • [`String`](#string) • [`Bool`](#bool) • [`Email`](#email) • [`URL`](#url) • [`CountryCode`](#countrycode) • [`DateTime`](#datetime)                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **Custom Exceptions** | [`ArnioError`](#arnioerror) • [`CsvReadError`](#csvreaderror) • [`TypeCastError`](#typecasterror) • [`UnknownStepError`](#unknownsteperror)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+
+---
+
+## Prerequisites
+
+```python
+import arnio as ar
+
+df = ar.read_csv("data.csv")
+```
+
+### ArFrame
+
+| Property                            | Return Type       |
+| :---------------------------------- | :---------------- |
+| <a name="columns"></a>**columns**   | `list[str]`       |
+| <a name="dtypes"></a>**dtypes**     | `dict[str, str]`  |
+| <a name="shape"></a>**shape**       | `tuple[int, int]` |
+| <a name="is_empty"></a>**is_empty** | `bool`            |
+
+| Method                                            | Return Type |
+| :------------------------------------------------ | :---------- |
+| <a name="memory_usage"></a>**memory_usage()**     | `int`       |
+| <a name="preview"></a>**preview()**               | `str`       |
+| <a name="select_columns"></a>**select_columns()** | `ArFrame`   |
+| <a name="select_dtypes"></a>**select_dtypes()**   | `ArFrame`   |
+
+```python
+print(f"Column Names: {df.columns}")
+print(f"Data Types: {df.dtypes}")
+print(f"Dataset Shape: {df.shape}")
+print(f"Memory: {df.memory_usage()} bytes")
+print(df.preview())
+df = df.select_columns(columns=["id", "name"])
+df = df.select_dtypes(include=["int64", "float64"])
+```
+
+---
+
+### read_csv
+
+Loads a CSV, TSV, or TXT file into an `ArFrame`.
+
+```python
+df = ar.read_csv("data.csv")
+```
+
+### scan_csv
+
+Return schema (column names + inferred types) without loading data.
+
+```python
+schema = ar.scan_csv("large_dataset.csv")
+```
+
+### write_csv
+
+Writes an `ArFrame` to a CSV file via the C++ backend.
+
+```python
+ar.write_csv(frame, "output.csv")
+```
+
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `frame` | `ArFrame` | required | The data frame to write |
+| `path` | `str \| os.PathLike[str]` | required | Destination file path. Supports `.csv`, `.txt`, `.tsv` |
+| `delimiter` | `str` | `","` | Single character field separator |
+| `write_header` | `bool` | `True` | Whether to write the column header row |
+| `line_terminator` | `str` | `"\n"` | Line terminator between rows |
+
+#### Raises
+
+| Error | When |
+|-------|------|
+| `ValueError` | File extension is not `.csv`, `.txt`, or `.tsv` |
+| `ValueError` | `delimiter` is not exactly one character |
+| `RuntimeError` | File cannot be opened or written |
+
+#### Examples
+
+```python
+# Default comma-separated
+ar.write_csv(frame, "output.csv")
+
+# Tab-separated
+ar.write_csv(frame, "output.tsv", delimiter="\t")
+
+# Without header row
+ar.write_csv(frame, "output.csv", write_header=False)
+
+# Windows line endings
+ar.write_csv(frame, "output.csv", line_terminator="\r\n")
+```
+
+---
+
+### write_json
+
+Write an `ArFrame` to a JSON file.
+
+```python
+ar.write_json(frame, "output.json")
+```
+
+| Parameter  | Type                  | Default   | Description                                                        |
+| :--------- | :-------------------- | :-------- | :----------------------------------------------------------------- |
+| `frame`    | `ArFrame`             |           | The data frame to write.                                           |
+| `path`     | `str` or `PathLike`   |           | Destination file path (must end with `.json`).                     |
+| `orient`   | `str`                 | `"records"` | JSON orientation to use (`"records"`, `"list"`, or `"split"`).   |
+| `indent`   | `int` or `None`       | `None`    | Indentation level for pretty-printing (writes compactly if `None`). |
+
+**Returns:** `None`
+
+**Raises:**
+- `TypeError`: If input frame is not an `ArFrame` or path is invalid.
+- `ValueError`: If file extension is unsupported or orient is invalid.
+
+**Examples:**
+```python
+ar.write_json(frame, "output.json")
+
+# Pretty print with indentation
+ar.write_json(frame, "output.json", indent=4)
+
+# List orientation
+ar.write_json(frame, "output.json", orient="list")
+```
+
+### write_jsonl
+
+Write an `ArFrame` to a newline-delimited JSON file.
+
+```python
+ar.write_jsonl(frame, "output.jsonl")
+```
+
+| Parameter | Type | Default | Description |
+| :-------- | :--- | :------ | :---------- |
+| `frame` | `ArFrame` | required | The data frame to write. |
+| `path` | `str` or `PathLike` | required | Destination file path. Must end with `.jsonl` or `.ndjson`. |
+| `encoding` | `str` | `"utf-8"` | Output file encoding. |
+| `encoding_errors` | `str` | `"strict"` | How encoding errors are handled: `"strict"`, `"replace"`, or `"ignore"`. |
+
+**Returns:** `None`
+
+**Raises:**
+- `TypeError`: If input frame is not an `ArFrame`, path is invalid, or encoding options are invalid.
+- `ValueError`: If file extension is unsupported, encoding is unknown, encoding error handling is invalid, or a value cannot be serialized as JSON.
+- `RuntimeError`: If the file cannot be opened or written.
+
+**Examples:**
+
+```python
+ar.write_jsonl(frame, "output.jsonl")
+
+ar.write_jsonl(frame, "output.ndjson", encoding="utf-8")
+```
+
+
+### sniff_delimiter
+
+Sniffs and returns the field delimiter character from a CSV file.
+
+```python
+delimiter = ar.sniff_delimiter("data.csv")
+```
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | `str \| os.PathLike[str]` | required | Path to the CSV file |
+| `encoding` | `str` | `"utf-8"` | File encoding |
+| `sample_size` | `int` | `2048` | Number of bytes to sample from the start of the file for sniffing |
+
+#### Returns
+
+`str`
+The detected delimiter (one of `","`, `";"`, `"\t"`, `"|"`).
+
+#### Raises
+
+| Error | When |
+|-------|------|
+| `TypeError` | `encoding` is not a string, or `sample_size` is not an integer |
+| `ValueError` | `sample_size` is <= 0, the encoding is unknown, or the delimiter is ambiguous / tied |
+| `CsvReadError` | The file is empty, or contains binary data (NUL bytes) |
+| `FileNotFoundError` | The file does not exist |
+
+#### Examples
+
+```python
+# Sniff comma-separated file
+delim = ar.sniff_delimiter("comma.csv")  # returns ","
+
+# Sniff semicolon-separated file with custom sample size
+delim = ar.sniff_delimiter("semicolon.csv", sample_size=1024)  # returns ";"
+```
+
+---
+
+### cast_types
+
+Converts specific columns to a new data type using a mapping dictionary.
+
+```python
+df = ar.cast_types(df, {"id": "float64"})
+```
+
+### clean
+
+A high-level convenience shorthand that applies `strip_whitespace`, `drop_nulls`, and `drop_duplicates` in a single call. It accepts either a boolean to toggle the step, or a configuration dictionary to pass custom arguments to that step.
+
+```python
+# Default usage (applies strip_whitespace with default settings)
+df = ar.clean(df)
+
+# Advanced usage (passing configuration dictionaries to specific steps)
+df = ar.clean(
+    df,
+    strip_whitespace={"subset": ["customer_name"]},
+    drop_nulls=True,
+    drop_duplicates={"keep": "last"}
+)
+```
+
+### clip_numeric
+
+Clip numeric values to lower and/or upper bounds.
+
+```python
+df = ar.clip_numeric(df, lower=0, upper=100)
+```
+
+### combine_columns
+
+Combine multiple columns into a single output column.
+
+```python
+df = ar.combine_columns(df, separator=",", output_column="combined_col")
+```
+
+### drop_constant_columns
+
+Removes columns with only one unique value.
+
+```python
+df = ar.drop_constant_columns(df)
+```
+
+### drop_columns
+
+Removes the requested columns while preserving the order of the remaining ones.
+
+```python
+frame = ar.drop_columns(frame, ["debug_col"])
+```
+
+### drop_duplicates
+
+Removes identical rows from the dataset.
+
+```python
+df = ar.drop_duplicates(df, keep="first")
+```
+
+### drop_nulls
+
+Excludes rows containing empty or null fields
+
+```python
+df = ar.drop_nulls(df, subset=["email"])
+```
+
+### fill_nulls
+
+Replaces null entry values with a designated static value.
+
+```python
+df = ar.fill_nulls(df, 0, subset=["score"])
+```
+
+### filter_rows
+
+Subsets rows matching an evaluation operator constraint.
+
+```python
+df = ar.filter_rows(df, column="age", op=">", value=18)
+```
+
+### keep_rows_with_nulls
+
+Keep only rows that contain at least one null/empty value.
+
+```python
+df = ar.keep_rows_with_nulls(df)
+```
+
+### normalize_case
+
+Adjusts text casing for consistency.
+
+```python
+df = ar.normalize_case(df, case_type="title")
+```
+
+### normalize_unicode
+
+Normalize Unicode text columns.
+
+```python
+df = ar.normalize_unicode(df, subset=["uni_col"], form="NFC")
+```
+
+### rename_columns
+
+Modifies headers using a translation dictionary mapping old names to new names.
+
+```python
+df = ar.rename_columns(df, {"old": "new"})
+```
+
+### replace_values
+
+Replace values based on a mapping dict.
+
+```python
+df = ar.replace_values(df, {"old_value": "new_value"}, column="name")
+```
+
+### round_numeric_columns
+
+Round numeric columns.
+
+```python
+df = ar.round_numeric_columns(df, decimals=2)
+```
+
+### safe_divide_columns
+
+Divide one column by another.
+
+```python
+df = ar.safe_divide_columns(
+    df,
+    numerator="revenue",
+    denominator="cost",
+    output_column="ratio"
+)
+```
+
+### strip_whitespace
+
+Trims extra spaces from the beginning and end of text entries.
+
+```python
+df = ar.strip_whitespace(df)
+```
+
+### trim_column_names
+
+Trims leading and trailing whitespace from column names.
+
+```python
+df = ar.trim_column_names(df)
+```
+
+### validate_columns_exist
+
+Fail early when required columns are missing.
+
+```python
+df = ar.validate_columns_exist(df, ["age"])
+```
+
+---
+
+### from_pandas
+
+Converts a `pandas.DataFrame` into an Arnio `ArFrame`.
+
+### to_pandas
+
+Converts an `ArFrame` into a `pandas.DataFrame`
+
+```python
+import pandas as pd
+
+pdf = pd.DataFrame(data)
+
+af = ar.from_pandas(pdf)
+df = ar.to_pandas(af)
+```
+
+---
+
+### ArnioPandasAccessor
+
+Run Arnio preparation helpers from an existing pandas DataFrame.
+
+---
+
+### pipeline
+
+Apply a sequence of cleaning steps to an `ArFrame`.
+
+```python
+ops = [
+    ("strip_whitespace",),
+    ("normalize_case", {"case_type": "title"}),
+    ("fill_nulls", {"value": 0, "subset": ["revenue"]}),
+    ("fill_nulls", {"value": "Unknown", "subset": ["name"]}),
+    ("drop_duplicates",),
+]
+df = ar.pipeline(df, ops)
+```
+
+```python
+clean, metadata = ar.pipeline(df, ops, return_metadata=True)
+print(metadata["step_timings"])
+```
+
+### register_step
+
+Extend the pipeline by adding your own custom Python functions.
+
+```python
+def custom_func(df, column):
+    pass
+
+ar.register_step("custom_func", custom_func)
+```
+
+---
+
+### profile
+
+Analyze an `ArFrame` and get a structural `DataQualityReport`.
+
+Key options:
+- `sample_size`: number of non-null sample values stored per column.
+- `approx_top_values`: enable approximate top values for high-cardinality string columns.
+- `approx_top_values_min_unique`: minimum unique count to trigger approximation.
+- `approx_top_values_min_ratio`: minimum unique ratio to trigger approximation.
+- `approx_top_values_sample_size`: sample size for top-value estimation.
+
+When `approx_top_values` is enabled, `top_values` counts/ratios are computed on
+the sample, and `top_values_is_approximate`, `top_values_sample_count`, and
+`top_values_sample_ratio` are included in each `ColumnProfile`.
+
+### suggest_cleaning
+
+Examine a report or frame and get a list of recommended cleaning steps.
+
+### auto_clean
+
+Profile the data and immediately apply repairs.
+
+### check_quality_gates
+
+Compare two `DataQualityReport` objects and return a pass/fail
+`QualityGateResult` for CI or monitoring workflows.
+
+```python
+baseline = ar.profile(ar.read_csv("baseline.csv"))
+current = ar.profile(ar.read_csv("current.csv"))
+
+result = ar.check_quality_gates(
+    baseline,
+    current,
+    max_row_count_delta_ratio=0.10,
+    max_null_ratio_delta=0.05,
+)
+
+print(result.passed)
+print(result.to_markdown())
+```
+
+### DataQualityReport
+
+Summary of structural data quality metrics.
+
+#### Methods:
+* **`to_html(file_path: str | None = None) -> str`**: Generates a self-contained, offline-friendly, beautiful HTML dashboard report of your dataset's metrics, columns, and cleaning suggestions. Dynamically escapes all data values to prevent XSS. If `file_path` is provided, writes the HTML output to a file.
+* **`to_markdown() -> str`**: Returns a GitHub-friendly markdown representation of the report.
+* **`summary() -> dict`**: Returns a high-signal dictionary representation of the report metrics.
+
+### ColumnProfile
+
+Detailed health check for a single column.
+
+```python
+report = ar.profile(df)
+summary = report.summary()
+suggestions = ar.suggest_cleaning(df)
+
+# Export the report as a beautiful, self-contained HTML file
+html_report = report.to_html(file_path="quality_report.html")
+
+safe = ar.auto_clean(df)
+print(ar.to_pandas(safe))
+```
+
+---
+
+#### Schema
+
+The top-level container for validation rules.
+
+#### Field
+
+Defines the specific constraints for a single column.
+
+#### validate
+
+The primary function used to check an `ArFrame` against a `Schema`. It returns a `ValidationResult`.
+
+#### <a name="validationresult"></a>ValidationResult / <a name="validationissue"></a>ValidationIssue
+
+The objects returned after calling `validate()`.
+
+**Row index convention:** `ValidationIssue.row_index` is **1-based** and refers to
+data rows only — the CSV header is not counted. So `row_index=1` means the first
+data row, `row_index=2` means the second, and so on.
+
+```python
+# CSV content:
+# name,age        ← header (not counted)
+# Alice,30        ← row 1
+# Bob,-1          ← row 2  ← row_index=2 will appear here for a min violation
+
+result = ar.validate(frame, {"age": ar.Int64(min=0)})
+print(result.issues[0].row_index)  # 2
+```
+
+#### Field Type Helpers
+
+Each helper maps to a specific data type rule.
+
+| Function                                  | Description                                     |
+| :---------------------------------------- | :---------------------------------------------- |
+| <a name="int64"></a>**Int64**             | Validates whole numbers.                        |
+| <a name="float64"></a>**Float64**         | Validates decimal numbers.                      |
+| <a name="string"></a>**String**           | Validates text.                                 |
+| <a name="bool"></a>**Bool**               | Validates True/False boolean values.            |
+| <a name="email"></a>**Email**             | Specialized String validator for email formats. |
+| <a name="url"></a>**URL**                 | Specialized String validator for web links.     |
+| <a name="countrycode"></a>**CountryCode** | Validates uppercase ISO alpha-2 country-code.   |
+| <a name="datetime"></a>**DateTime**       | Validates string timestamps.                    |
+
+---
+
+```python
+user_schema = ar.Schema({
+    "id": ar.Int64(unique=True, nullable=False),
+    "name": ar.String(nullable=False),
+    "revenue": ar.Float64(min=180, max=1000)
+})
+result = ar.validate(df, user_schema)
+```
+
+---
+
+### Custom Exceptions
+
+| Error Name                                                               | Meaning                                                 |
+| :----------------------------------------------------------------------- | :------------------------------------------------------ |
+| <a name="arnioerror"></a>[**ArnioError**](#arnioerror)                   | Base exception for all Arnio errors.                    |
+| <a name="csvreaderror"></a>[**CsvReadError**](#csvreaderror)             | Triggered when a CSV file cannot be read.               |
+| <a name="typecasterror"></a>[**TypeCastError**](#typecasterror)          | Raised when cast_types encounters an incompatible type. |
+| <a name="unknownsteperror"></a>[**UnknownStepError**](#unknownsteperror) | Triggered when a pipeline step name is not registered   |
+
+---
+
+### from_arrow
+
+Converts a PyArrow Table to an Arnio `ArFrame`. This is useful for interoperability with other tools in the Arrow ecosystem.
+
+Requires `pyarrow` to be installed (`pip install arnio[arrow]`).
+
+```python
+import pyarrow as pa
+import arnio as ar
+
+data = pa.table({"a": [1, 2, 3], "b": [4, 5, 6]})
+frame = ar.from_arrow(data)
+
+print(frame.shape)
+# (3, 2)
+```
+
+## ===== AUTO_CLEAN_GUIDE.md =====
+
+## Mode comparison
+
+| Mode | What it applies |
+|------|----------------|
+| `safe` | `strip_whitespace` only — no data removed |
+| `strict` | `strip_whitespace` + `cast_types` + `drop_duplicates` |
+
+## Safe workflow recommendation
+
+```python
+import arnio as ar
+
+frame = ar.read_csv("data.csv")
+
+# Always profile first
+report = ar.profile(frame)
+print(report.summary())
+
+suggestions = ar.suggest_cleaning(frame)
+print(suggestions)
+
+# Apply strict only after reviewing suggestions
+clean = ar.auto_clean(frame, mode="strict")
+```
+
+## Related docs
+
+- `README.md` — quickstart and auto-clean tutorial
+- `ARCHITECTURE.md` — pipeline and cleaning engine design
+
+## ===== CLI_REFERENCE.md =====
+
+# CLI Reference and Roadmap
+
+This document covers the current command-line workflows and
+planned CLI goals for Arnio contributors and users.
+
+## Development Commands
+
+```bash
+# Install in development mode with all dev dependencies
+make install
+
+# Run the full test suite with coverage
+make test
+
+# Run linter and formatter checks
+make lint
+
+# Run benchmarks against pandas
+make benchmark
+```
+
+## CLI Roadmap
+
+| Focus Area | Status |
+|-----------|--------|
+| CSV parsing and cleaning | 🔨 Current |
+| Data quality and schema validation | 🔨 Current |
+| Chunked CSV reading via `read_csv_chunked()` | ✅ Available |
+| Native CSV export via `write_csv()` | ✅ Available |
+| JSON Lines import via `read_jsonl()` | ✅ Available |
+| Parquet export via `write_parquet()` | ✅ Available |
+| Broader streaming workflows and file-format polish | 📋 Near Term |
+| Parallel column processing | 💭 Long Term |
+| SIMD string operations | 💭 Long Term |
+
+> Full roadmap: [ROADMAP.md](ROADMAP.md)
+
+## Related Docs
+
+- `ROADMAP.md` — full version roadmap
+- `ARCHITECTURE.md` — system architecture
+- `GSSOC_GUIDE.md` — contributor onboarding guide
+- `README.md` — quickstart and examples
+
+## ===== DATA_CONTRACT_CI.md =====
+
+## Example outputs
+
+### Passing output (PR summary)
+
+```text
+## Data contract results
+
+### `data/example.csv`
+✅ Schema drift check passed
+✅ Row-level validation passed
+```
+
+### Failing output (PR summary)
+
+```text
+## Data contract results
+
+### `data/example.csv`
+❌ Schema drift detected
+| Column | Expected | Observed |
+| user_id | int64 | string |
+
+❌ Row-level validation failed
+| Column | Rule | Row | Value | Message |
+| email | email | 12 | not-an-email | Invalid email format |
+```
+
+---
+
+## ===== docs/TROUBLESHOOTING.md =====
+
+## Numeric columns inferred as strings
+
+### Problem
+
+Sometimes a numeric column gets detected as a string, even when you expect it to contain only numbers.
+
+### Why it happens
+
+This usually happens when the column contains mixed values, missing entries, or unexpected characters. The loader may then treat the entire column as text instead of numeric data.
+
+### What to do about it
+
+* Use `cast_types()` to apply explicit Arnio datatypes when needed
+* Check columns for invalid values or unexpected symbols before validation
+
+### Quick example
+
+```python
+import arnio as ar
+
+frame = ar.read_csv("data.csv")
+
+frame = ar.cast_types(
+    frame,
+    {"age": "int64"}
+)
+```
+
+## Slow CSV parsing and performance issues
+
+### Problem
+
+Large CSV files may take a long time to load or process.
+
+### Why it happens
+
+Performance issues usually occur when unnecessary columns are loaded, datatype inference becomes expensive, or the entire dataset is processed at once.
+
+### What to do about it
+
+* Use `usecols` in `ar.read_csv(...)` to load only required columns
+* Avoid unnecessary `cast_types()` operations unless they are needed
+* Use `select_columns()` to reduce unnecessary data before processing
+* Remove unused columns with `drop_columns()` when possible
+
+### Quick example
+
+```python
+import arnio as ar
+
+frame = ar.read_csv(
+    "large.csv",
+    usecols=["id", "name"]
+)
+```
+
+## ===== docs/chunked_workflows.md =====
+
+## Table of contents
+
+- [Why chunked mode?](#why-chunked-mode)
+- [read\_csv\_chunked — API reference](#read_csv_chunked--api-reference)
+- [row\_index convention across chunks](#row_index-convention-across-chunks)
+- [Supported pipeline steps for chunked mode](#supported-pipeline-steps-for-chunked-mode)
+- [Example A — Chunked schema validation with aggregated summary](#example-a--chunked-schema-validation-with-aggregated-summary)
+- [Example B — Chunked cleanup using only streaming-safe steps](#example-b--chunked-cleanup-using-only-streaming-safe-steps)
+- [What does NOT work in chunked mode — and why](#what-does-not-work-in-chunked-mode--and-why)
+- [Reconciling row\_index values in CI and data-quality logs](#reconciling-row_index-values-in-ci-and-data-quality-logs)
+
+---
+
+## Supported pipeline steps for chunked mode
+
+A **row-safe** step is one that operates on each row independently.  It never needs to see
+adjacent rows or the full column to produce a correct result.  Row-safe steps can be applied
+safely inside a chunked loop.
+
+A **requires-global-view** step is one whose correctness depends on the full dataset being
+present.  Applying it per chunk produces silently wrong results.
+
+A **schema-changing** step alters column names or types.  It is safe per chunk but the same
+mapping must be applied to every chunk consistently.
+
+| Step | Category | Safe in chunked loop? | Notes |
+|---|---|---|---|
+| `strip_whitespace` | Row-safe | ✅ Yes | Operates on individual cell strings. |
+| `normalize_case` | Row-safe | ✅ Yes | Operates on individual cell strings. |
+| `fill_nulls` | Row-safe | ✅ Yes | Fills per-cell with a scalar value. |
+| `cast_types` | Schema-changing | ✅ Yes | Apply the same mapping to every chunk. |
+| `rename_columns` | Schema-changing | ✅ Yes | Apply the same mapping to every chunk. |
+| `drop_nulls` | Row-safe | ✅ Yes | Drops rows whose specified columns are null. Cross-chunk row counts differ; this is expected and fine. |
+| `drop_duplicates` | Requires global view | ❌ No | Can only detect duplicates within a single chunk. Rows that are duplicates of each other across chunk boundaries will not be removed. |
+| `auto_clean(mode="safe")` | Row-safe | ✅ Yes | Only applies `strip_whitespace` internally. |
+| `auto_clean(mode="strict")` | Requires global view | ❌ No | Includes `drop_duplicates` internally. |
+| `suggest_cleaning` / `profile` | Requires global view | ⚠️ Partial | Profiling a single chunk gives locally-accurate statistics only. Aggregate manually if you need file-level metrics. See the note below. |
+
+### `profile` and `suggest_cleaning` in chunked mode
+
+`ar.profile()` returns accurate statistics for the frame it receives.  When you call it inside
+a chunked loop each report reflects only that chunk.  File-level metrics such as
+`duplicate_ratio` or `null_count` will be underestimates unless you aggregate them yourself.
+
+For large-file quality monitoring the recommended pattern is to profile each chunk, collect the
+per-chunk `DataQualityReport` objects, and combine the counts you care about:
+
+```python
+total_rows = 0
+total_nulls = 0
+
+for chunk in ar.read_csv_chunked("big.csv", chunksize=50_000):
+    report = ar.profile(chunk)
+    total_rows += report.row_count
+    for col_profile in report.columns.values():
+        total_nulls += col_profile.null_count
+```
+
+---
+
+## Reconciling `row_index` values in CI and data-quality logs
+
+When you log or store validation issues from a chunked run, always record both the `chunk_number`
+and the `global_row` (computed as shown in Example A).  This makes issues traceable back to the
+original file regardless of `chunksize`.
+
+**Recommended log schema for CI:**
+
+| Field | Type | Description |
+|---|---|---|
+| `run_id` | string | Unique identifier for this validation run (timestamp, git SHA, etc.). |
+| `source_file` | string | Path or URI of the input CSV. |
+| `chunksize` | int | `chunksize` used in this run. |
+| `chunk_number` | int | 0-based chunk index. |
+| `local_row` | int | `issue.row_index` — 1-based, local to the chunk. |
+| `global_row` | int | `chunk_number * chunksize + local_row`. |
+| `column` | string | Column name where the issue was detected. |
+| `rule` | string | Rule name (e.g. `"email_format"`, `"max"`). |
+| `message` | string | Human-readable description. |
+| `value` | any | The offending cell value. |
+
+Storing `chunksize` alongside `global_row` lets you re-derive `local_row` later
+(`local_row = global_row - chunk_number * chunksize`) and also means the log remains
+interpretable if `chunksize` changes between runs.
+
+**Quick CI gate pattern:**
+
+```python
+import sys
+import arnio as ar
+
+schema = ar.Schema({ ... })
+issue_count = 0
+
+for chunk_number, chunk in enumerate(ar.read_csv_chunked("pipeline_input.csv")):
+    result = ar.validate(chunk, schema)
+    issue_count += result.issue_count
+
+    if issue_count > 0:
+        print(f"[FAIL] chunk {chunk_number}: {result.issue_count} issue(s)")
+        for issue in result.issues[:5]:
+            global_row = chunk_number * 10_000 + issue.row_index
+            print(f"  row {global_row}: {issue.column} — {issue.message}")
+
+if issue_count > 0:
+    print(f"\nValidation failed: {issue_count} total issue(s).")
+    sys.exit(1)
+
+print("Validation passed.")
+```
+
+---
+
+## ===== docs/custom_pipeline_steps.md =====
+
+# Custom Pipeline Step Cookbook
+
+This guide shows you how to write your own custom cleaning steps for arnio pipelines. No C++ required — custom steps are pure Python.
+
+Read this top-to-bottom the first time; afterwards use it as a copy-paste template.
+
+## Table of Contents
+
+1. [The Contract](#1-the-contract)
+2. [Safe Patterns](#2-safe-patterns)
+3. [Unsafe Patterns](#3-unsafe-patterns)
+4. [Full Example](#4-full-example--remove_outliers)
+5. [Testing Your Custom Step](#5-testing-your-custom-step)
+6. [Quick Reference](#6-quick-reference)
+
+## 3. Unsafe Patterns
+
+Do not do any of the following.
+
+**Mutates input in place:**
+
+```python
+def unsafe_mutate(df, column):
+    df[column] = df[column].str.lower()  # modifies the caller's DataFrame
+    return df
+```
+
+**Forgets to return the DataFrame:**
+
+```python
+def unsafe_no_return(df, column):
+    df = df.copy()
+    df[column] = df[column].str.lower()
+    # missing: return df — pipeline receives None and crashes
+```
+
+**Silently swallows errors:**
+
+```python
+def unsafe_silent(df, column):
+    try:
+        df = df.copy()
+        df[column] = df[column].str.lower()
+    except Exception:
+        pass  # hides bugs, returns wrong data
+    return df
+```
+
+**No column existence check:**
+
+```python
+def unsafe_no_check(df, column):
+    df = df.copy()
+    df[column] = df[column].str.lower()  # KeyError if column is missing
+    return df
+```
+
+## 4. Full Example — `remove_outliers`
+
+This is a complete, PR-ready custom step. Copy this pattern for any new step you contribute.
+
+```python
+import pandas as pd
+import arnio as ar
+
+
+def remove_outliers(
+    df: pd.DataFrame,
+    column: str,
+    threshold: float,
+    keep: str = "below",
+) -> pd.DataFrame:
+    """Remove rows where a numeric column exceeds (or falls below) a threshold.
+
+    Parameters
+    ----------
+    df        : Input DataFrame. Not modified in place.
+    column    : Name of the numeric column to filter on.
+    threshold : The cutoff value.
+    keep      : "below" keeps rows where column <= threshold (default).
+                "above" keeps rows where column >= threshold.
+
+    Returns
+    -------
+    pd.DataFrame
+        A new DataFrame with outlier rows removed.
+
+    Raises
+    ------
+    ValueError
+        If column is not in the DataFrame, or keep is not a valid option.
+    TypeError
+        If column is not numeric.
+
+    Examples
+    --------
+    >>> ar.register_step("remove_outliers", remove_outliers)
+    >>> frame = ar.from_pandas(pd.DataFrame({"revenue": [100, 999, 50, 10_000]}))
+    >>> clean = ar.pipeline(frame, [
+    ...     ("remove_outliers", {"column": "revenue", "threshold": 500}),
+    ... ])
+    >>> ar.to_pandas(clean)["revenue"].tolist()
+    [100, 50]
+    """
+    if column not in df.columns:
+        raise ValueError(
+            f"remove_outliers: column '{column}' not found. "
+            f"Available columns: {list(df.columns)}"
+        )
+    if not pd.api.types.is_numeric_dtype(df[column]):
+        raise TypeError(
+            f"remove_outliers: column '{column}' must be numeric, "
+            f"got dtype '{df[column].dtype}'."
+        )
+    if keep not in ("below", "above"):
+        raise ValueError(
+            f"remove_outliers: 'keep' must be 'below' or 'above', got '{keep}'."
+        )
+    df = df.copy()
+    if keep == "below":
+        return df[df[column] <= threshold]
+    return df[df[column] >= threshold]
+
+
+ar.register_step("remove_outliers", remove_outliers)
+```
+
+Use it in a pipeline:
+
+```python
+frame = ar.from_pandas(pd.DataFrame({"revenue": [100, 999, 50, 10_000]}))
+clean = ar.pipeline(frame, [
+    ("remove_outliers", {"column": "revenue", "threshold": 500}),
+])
+df = ar.to_pandas(clean)
+# df["revenue"].tolist() -> [100, 50]
+```
+
+Input and output:
+
+| revenue (before) | revenue (after) |
+|---|---|
+| 100 | 100 |
+| 999 | removed |
+| 50 | 50 |
+| 10000 | removed |
+
+## ===== docs/nullable_dtype_compat.md =====
+
+## NA Handling
+
+- `pd.NA` is preserved as `pd.NA` for `Int64`, `boolean`, and `string` columns.
+- `pd.NA` in a `Float64` column becomes `float('nan')` / `pd.isna()` after
+  round-trip because the output dtype is native `float64`.
+
+## Unsupported Dtypes
+
+The following dtypes raise `TypeError` with a fix hint:
+
+| pandas dtype     | Error |
+|-----------------|-------|
+| `datetime64`    | Convert to string first: `.astype(str)` |
+| `timedelta64`   | Convert to seconds: `.dt.total_seconds()` |
+| `category`      | Convert to string first: `.astype(str)` |
+| `complex128`    | Convert to string: `.apply(str)` |
+
+## UInt64 Boundary
+
+`UInt64` values must fit within the signed 64-bit integer range
+(`0` to `9223372036854775807`). Values exceeding this raise `ValueError`.
+
+## ===== docs/remote.md =====
+
+# Remote CSV Input
+
+`read_csv`, `scan_csv`, and `read_csv_chunked` accept HTTP and HTTPS URLs
+in addition to local filesystem paths and file-like objects.  No extra
+packages are required for HTTP/HTTPS — Arnio uses Python's built-in
+`urllib` module.
+
+## Supported input modes
+
+| Input type | Example | Requires |
+|---|---|---|
+| Local path | `ar.read_csv("data.csv")` | nothing |
+| `os.PathLike` | `ar.read_csv(Path("data.csv"))` | nothing |
+| File-like object | `ar.read_csv(io.StringIO(...))` | nothing |
+| HTTP / HTTPS URL | `ar.read_csv("https://example.com/data.csv")` | nothing (stdlib) |
+| S3 URL | `ar.read_csv("s3://bucket/data.csv")` | `arnio[s3]` *(planned)* |
+| GCS URL | `ar.read_csv("gs://bucket/data.csv")` | `arnio[gcs]` *(planned)* |
+| Azure Blob URL | `ar.read_csv("az://container/data.csv")` | `arnio[azure]` *(planned)* |
+
+## Error handling
+
+```python
+from arnio.exceptions import RemoteReadError
+
+try:
+    frame = ar.read_csv("https://example.com/data.csv")
+except RemoteReadError as e:
+    print(f"Fetch failed: {e}")
+    print(f"URL: {e.url}")
+    print(f"HTTP status: {e.status_code}")  # None for network-level failures
+```
+
+`RemoteReadError` is raised for:
+
+- Non-2xx HTTP responses (e.g. 404 Not Found, 403 Forbidden)
+- Network-level failures (DNS resolution failure, connection refused, timeout)
+- Response body that cannot be decoded as UTF-8
+
+The exception exposes two attributes:
+
+| Attribute | Type | Description |
+|---|---|---|
+| `url` | `str` | The URL that failed |
+| `status_code` | `int \| None` | HTTP status code, or `None` for network errors |
+
+## Cloud provider schemes (planned)
+
+Passing an `s3://`, `gs://`, `az://`, `abfs://`, or `abfss://` URL raises
+a `ValueError` with an actionable install hint:
+
+```
+ValueError: Cloud scheme 's3' is not yet supported by arnio.
+Install the optional extra when available: pip install "arnio[s3]"
+```
+
+This ensures that users get a clear message rather than a cryptic error
+from the C++ backend when support arrives in a follow-up release.
+
+## Security and credential notes
+
+- **HTTP/HTTPS**: Arnio passes a `User-Agent: arnio/read_csv` header. No
+  authentication is performed. If the server requires credentials, use a
+  pre-signed URL or download the file manually.
+- **Timeout**: Requests time out after 30 seconds. There is no retry logic;
+  implement retries in your calling code if needed.
+- **Content validation**: The response body is expected to be UTF-8 encoded
+  CSV text. Non-UTF-8 responses raise `RemoteReadError` with a descriptive
+  message.
+- **Redirects**: `urllib` follows redirects by default (up to 10 hops).
+- **TLS/SSL**: Standard Python SSL certificate verification applies. If you
+  need to disable it (e.g. for internal CAs), pre-fetch the file manually
+  and pass an `io.StringIO` instead.
+
+=== USER ===
+## ===== Source docstrings =====
+
+# arnio.schema.Email
+def Email(
+    *,
+    nullable: bool = True,
+    unique: bool = False,
+    severity: str = "error",
+    validation: str = "light",
+    required_if: tuple[str, Any] | None = None,
+) -> Field:
+    """Create an email-address schema field.
+
+    Args:
+        nullable: Whether null values are allowed.
+        unique: Whether non-null values must be unique.
+        severity: Severity level for validation issues.
+        validation: Email validation mode, either "light" or "strict".
+        required_if: Conditional requirement as a column/value pair.
+
+    Returns:
+        Field: Configured email-address schema field.
+    """
+    ...
+
+## ===== Source code of the target functions =====
+
+# arnio.schema.Email
+def Email(
+    *,
+    nullable: bool = True,
+    unique: bool = False,
+    severity: str = "error",
+    validation: str = "light",
+    required_if: tuple[str, Any] | None = None,
+) -> Field:
+    """Create an email-address schema field.
+
+    Args:
+        nullable: Whether null values are allowed.
+        unique: Whether non-null values must be unique.
+        severity: Severity level for validation issues.
+        validation: Email validation mode, either "light" or "strict".
+        required_if: Conditional requirement as a column/value pair.
+
+    Returns:
+        Field: Configured email-address schema field.
+    """
+
+    if not isinstance(validation, str):
+        raise TypeError("Email validation must be a string: 'light' or 'strict'")
+
+    if validation not in {"light", "strict"}:
+        raise ValueError("Email validation must be 'light' or 'strict'")
+
+    return Field(
+        dtype="string",
+        nullable=nullable,
+        semantic="email" if validation == "light" else "email:strict",
+        unique=unique,
+        required_if=required_if,
+        severity=severity,
+    )
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.schema.Email
+
+# Notes: `arnio.schema.Email`
+
+## 1. Purpose
+- Factory that returns a frozen `Field` for an email-address string column.
+- It does not validate any data itself. The email check runs later, in `ar.validate(frame, schema)` or `Schema.validate`.
+
+## 2. Inputs (all keyword-only)
+- `nullable: bool = True`: must be a real `bool`. `Field.__post_init__` rejects `1`/`0`.
+- `unique: bool = False`: must be a real `bool`.
+- `severity: str = "error"`: must be `"error"` or `"warning"`.
+- `validation: str = "light"`: must be exactly `"light"` or `"strict"`. The check is case-sensitive, so `"LIGHT"` is rejected.
+- `required_if: tuple[str, Any] | None = None`: must be a 2-tuple `(column_name: str, scalar)`.
+- Positional arguments are not accepted: `ar.Email(False)` raises `TypeError` from Python itself.
+
+## 3. Raises (checks run in this order)
+1. `validation` is not a `str` → `TypeError("Email validation must be a string: 'light' or 'strict'")`, e.g. `ar.Email(validation=None)`.
+2. `validation` is not in `{"light","strict"}` → `ValueError("Email validation must be 'light' or 'strict'")`, e.g. `ar.Email(validation="LIGHT")`.
+
+Then the checks in `Field.__post_init__`, in this order:
+
+3. `nullable` is not a bool → `TypeError("nullable must be a bool")`, e.g. `ar.Email(nullable=1)`.
+4. `unique` is not a bool → `TypeError("unique must be a bool")`, e.g. `ar.Email(unique="yes")`.
+5. `required_if` problems:
+   - Not a tuple → `TypeError("required_if must be a tuple or None")`, e.g. `required_if=["a", 1]`.
+   - Length is not 2 → `TypeError("required_if must be a (column_name, expected_value) tuple")`, e.g. `("a",)`.
+   - First item is not a str → `TypeError("required_if column name must be a string")`, e.g. `(1, "x")`.
+   - Second item is not a scalar → `TypeError("required_if expected value must be a scalar")`, e.g. `("a", [1])`.
+6. `severity` problems:
+   - Not a str → `TypeError("severity must be a string")`, e.g. `severity=1`.
+   - Not one of the two allowed values → `ValueError("severity must be 'error' or 'warning'")`, e.g. `severity="info"`.
+
+- Order matters: `ar.Email(validation="x", nullable=1)` raises the `ValueError` about validation, not the nullable `TypeError`.
+
+## 4. Returns and guarantees
+- Returns a new `ar.Field` (a frozen dataclass) with:
+  - `dtype="string"`
+  - `semantic="email"` for light, or `"email:strict"` for strict
+  - `nullable`, `unique`, `required_if` and `severity` as passed in
+- All other attributes keep their defaults:
+  - `min`, `max`, `pattern`, `allowed`, `min_length`, `max_length`, `format`: `None`
+  - `case_sensitive`: `True`
+- Because `Field` is a dataclass, equality works by value:
+  - `ar.Email() == ar.Field(dtype="string", semantic="email")` is `True`.
+  - `ar.Email(validation="strict") == ar.Field(dtype="string", semantic="email:strict")` is `True`.
+- Setting an attribute raises `dataclasses.FrozenInstanceError`.
+
+## 5. Side effects
+- None. No registry is touched and the inputs are not mutated.
+
+## 6. Behaviour during `ar.validate`
+All `row_index` values are **1-based** (`pandas index + 1`).
+
+**Missing column.** If the column is absent from the frame, you get one issue:
+- `rule="required_column"`
+- `message="Missing required column: email"`
+- `row_index=None`
+- `severity` = the field's severity
+
+**Dtype check.** If the actual dtype (from `frame.dtypes`, computed in C++/`frame` code I cannot see) is not `"string"`, you get one issue:
+- `rule="dtype"`
+- message = `f"Column {name!r} has dtype {actual!r}; expected 'string'"`
+- Prefer asserting on `rule` over the exact actual-dtype text.
+
+**Null mask.** A value counts as null if it is NaN/None, or (for object/string dtype) if `str(v).strip() == ""`. So `""` and `"   "` count as null.
+
+**`nullable=False`.** Each null row gives:
+- `rule="nullable"`
+- `message=f"Column {name!r} contains null or empty values"`
+
+**Nulls are skipped by the email check**, even when `nullable=True`, so they produce no issues.
+
+**`required_if=(c, v)`:**
+- If column `c` is missing: one issue with `column=c`, `rule="missing_column"`, `message=f"Column {c!r} not found"`. Its severity is always `"error"`; the field's severity is ignored here.
+- Otherwise, each row where `df[c] == v` and the value is null gives `rule="required_if"`, `message=f"Column {name!r} is required when {c!r} == {v!r}"`.
+
+**`unique=True`.** Every occurrence of a duplicated non-null value is reported (`keep=False`):
+- `rule="unique"`
+- `message=f"Column {name!r} contains duplicate values"`
+- The comparison is case-sensitive: `"A@b.co"` and `"a@b.co"` are not duplicates.
+
+**Email check.** Applied to each non-null value with `str.fullmatch` (the whole string must match):
+- light: `[^@\s]+@[^@\s]+\.[^@\s]+`
+- strict: `[a-zA-Z0-9.!#$%&'*+/=?^_\`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+`
+- `rule` = the semantic string, i.e. `"email"` or `"email:strict"`.
+- message = `f"Column {name!r} contains invalid {semantic} values"`, e.g. `"Column 'email' contains invalid email:strict values"`.
+- `value` = the original value.
+
+| value | light | strict |
+|---|---|---|
+| `"a@b.co"`, `"user@sub.example.com"` | valid | valid |
+| `"a@b"` (no dot) | invalid | invalid |
+| `"a b@c.de"`, `" a@b.co"` (space) | invalid | invalid |
+| `"a@@b.co"` | invalid | invalid |
+| `"user@exa_mple.com"` | valid | invalid |
+| `"user@example.com."` | valid | invalid |
+| `"üser@example.com"` | valid | invalid |
+
+**Order of issues within the column:** dtype, then nullable, then required_if, then unique, then email. Within each rule, rows appear in row order.
+
+**`severity="warning"`.** Issues carry `severity="warning"` and `result.passed` is `True`. With `"error"`, any issue makes `passed` `False`.
+
+## 7. Rules from docstrings
+- `validation` selects the mode: `"light"` or `"strict"`.
+- `unique` means non-null values must be unique.
+
+## 8. Testing hints
+- Build a frame like this:
+  ```python
+  frame = ar.from_pandas(pd.DataFrame({"email": ["a@b.co", "bad"]}))
+  r = ar.validate(frame, ar.Schema({"email": ar.Email()}))
+  ```
+  Expected: `[(i.rule, i.row_index, i.value) for i in r.issues] == [("email", 2, "bad")]` and `r.bad_rows == [2]`.
+- Use the light/strict table above to tell the two modes apart. `"user@exa_mple.com"` gives zero issues in light mode and one `"email:strict"` issue in strict mode.
+- Keep test columns all-string. Mixing in non-strings may change the dtype that the C++ code reports.
+- Do not assert on the `value` of null rows; how nulls are represented after `to_pandas` is not visible.
+- Check `rule` and `row_index` rather than full message text whenever the message contains an actual dtype.
+- Schema round-trips are observable: `diff_schema({"e": ar.Email()}, {"e": ar.Email(validation="strict")})` gives exactly one difference, with `change="changed_field"`, `attribute="semantic"`, `expected="email"` and `observed="email:strict"`.
+
+Write pytest tests for these functions: arnio.schema.Email.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.

@@ -1,0 +1,216 @@
+{
+ "id": "arnio-pr1493",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__system__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 80,
+  "chars": 151595
+ },
+ "level": "system",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 2.2,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 1,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1706,
+  "cache_read_input_tokens": 43610,
+  "output_tokens": 11438,
+  "output_tokens_details": {
+   "thinking_tokens": 7690
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1706,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11438,
+    "cache_read_input_tokens": 43610,
+    "cache_creation_input_tokens": 1706,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1706
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.064972,
+ "model_seconds": 51.3,
+ "seconds": 61.3,
+ "tests": {
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_aggregation_query": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_basic_registration_and_query": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_complex_pipeline_and_register": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_data_integrity_round_trip": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_error_on_empty_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_error_on_invalid_connection": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_error_on_non_arframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_error_on_non_string_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_error_on_whitespace_only_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_multiple_registrations_and_join": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_null_values_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_registration_preserves_data_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_registration_with_cleaned_data": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_registration_with_filtered_data": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv",
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDBIntegration::test_special_characters_in_data": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv",
+    "register_duckdb"
+   ]
+  }
+ }
+}

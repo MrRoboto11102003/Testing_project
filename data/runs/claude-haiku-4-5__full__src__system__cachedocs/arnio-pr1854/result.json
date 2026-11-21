@@ -1,0 +1,215 @@
+{
+ "id": "arnio-pr1854",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__system__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 80,
+  "chars": 163641
+ },
+ "level": "system",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 2.13,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 13,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4901,
+  "cache_read_input_tokens": 43610,
+  "output_tokens": 12471,
+  "output_tokens_details": {
+   "thinking_tokens": 8386
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4901,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 12471,
+    "cache_read_input_tokens": 43610,
+    "cache_creation_input_tokens": 4901,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4901
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.076527,
+ "model_seconds": 59.6,
+ "seconds": 68.2,
+ "tests": {
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_basic_chunked_reading": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "read_csv_chunked"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_chunked_pipeline_and_export": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv_chunked",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_chunked_profiling_aggregation": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "profile",
+    "read_csv_chunked"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_chunked_schema_validation_with_global_row_numbers": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Email",
+    "Int64",
+    "Schema",
+    "read_csv_chunked",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_custom_null_values_in_chunks": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "read_csv_chunked",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_empty_csv_file_with_headers": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "read_csv_chunked"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_encoding_non_utf8_latin1": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "read_csv_chunked",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_global_row_indexing_validation_issues": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Int64",
+    "Schema",
+    "read_csv_chunked",
+    "validate"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_large_file_streaming_bounded_memory": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "read_csv_chunked"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_nrows_total_limit": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "read_csv_chunked"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_permissive_mode_with_bad_lines": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "read_csv_chunked",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_skip_rows_with_decimal_separator": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv_chunked",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_tsv_auto_detection_and_profiling": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "profile",
+    "read_csv_chunked"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_unsupported_file_format_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "read_csv_chunked"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1854.py::TestReadCsvChunked::test_usecols_filtering_with_pandas_accessor": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    ".arnio accessor",
+    "read_csv_chunked",
+    "to_pandas"
+   ]
+  }
+ }
+}

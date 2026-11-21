@@ -1,0 +1,201 @@
+{
+ "id": "arnio-pr1987",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 95347,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6736
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 5,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3575,
+  "cache_read_input_tokens": 24604,
+  "output_tokens": 11396,
+  "output_tokens_details": {
+   "thinking_tokens": 9547
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3575,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11396,
+    "cache_read_input_tokens": 24604,
+    "cache_creation_input_tokens": 3575,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3575
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0665994,
+ "model_seconds": 54.0,
+ "seconds": 62.4,
+ "tests": {
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordConstruction::test_large_counts_and_dict_subclass": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordConstruction::test_minimal_valid_record": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordConstruction::test_typical_record_with_kwargs_preservation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordEquality::test_different_field_makes_unequal": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordEquality::test_equal_records": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordEquality::test_unhashable_due_to_dict_field": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordFrozen::test_field_cannot_be_modified": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordFrozen::test_kwargs_dict_mutable_but_field_frozen": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordNoConsistencyCheck::test_rows_after_can_exceed_rows_before": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordNoConsistencyCheck::test_rows_removed_independent_of_before_after": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordTypeValidation::test_kwargs_must_be_dict": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordTypeValidation::test_reason_checked_before_kwargs": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordTypeValidation::test_row_fields_must_be_int_not_bool": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordTypeValidation::test_row_fields_must_be_nonnegative": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1987.py::TestCleanStepRecordTypeValidation::test_step_must_be_str": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CleanStepRecord"
+   ]
+  }
+ }
+}

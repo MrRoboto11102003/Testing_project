@@ -1,0 +1,85 @@
+# Notes: `arnio.cleaning.clean_column_names(frame, *, case_type="lower")`
+
+## 1. Purpose
+Returns a new ArFrame whose column names are sanitised. Each name goes through these steps in order:
+1. Every non-`[a-zA-Z0-9_]` character becomes `_`.
+2. Runs of `_` collapse to one.
+3. Leading and trailing `_` are stripped.
+4. The case is changed according to `case_type`.
+
+A name that ends up empty becomes `"column"`. Row data is not touched.
+
+## 2. Inputs
+- `frame`: must be an ArFrame. It is checked by `_validate_arframe`, which lives in `arnio.frame` and is not visible here.
+- `case_type`: keyword-only `str`, default `"lower"`.
+  - It must be exactly one of `"lower"`, `"upper"`, `"title"`, `"camel"`, `"none"`.
+  - The match is case-sensitive, so `"LOWER"` is invalid.
+  - The value is not stripped.
+
+## 3. Raises
+Checks run in this order:
+1. **`_validate_arframe(frame)`**: fires on non-ArFrame input, e.g. `clean_column_names(pd.DataFrame())`. The exception type and message are not visible (probably `TypeError`). Do not assert the message.
+2. **`TypeError("case_type must be a string")`**: e.g. `case_type=1`, `case_type=None` or `case_type=True`.
+3. **`ValueError("case_type must be one of 'lower', 'upper', 'title', 'camel' or 'none'")`**: e.g. `case_type="snake"` or `case_type="Lower"`.
+4. **`ValueError(f"Cleaning column names would create duplicates: {cleaned}")`**: `cleaned` is the full list of cleaned names, in column order.
+   - `["a b", "a_b"]` gives `"... duplicates: ['a_b', 'a_b']"`.
+   - `["First", "first"]` with `"lower"` gives `['first', 'first']`.
+   - `["!!", "??"]` gives `['column', 'column']`.
+   - `["a b", "a_b", "c"]` gives `['a_b', 'a_b', 'c']`.
+
+   Use `pytest.raises(ValueError, match=re.escape(...))`, because the message contains brackets.
+
+## 4. Returns and guarantees
+- The result is always a new ArFrame and never the input object (`result is not frame`).
+- Column order is preserved. Values, row count and dtypes are unchanged, because only names change.
+- **Cleaning rules per name**, applied in this order:
+  - `re.sub(r"[^a-zA-Z0-9_]", "_", col)`: each non-ASCII letter, space, `-`, `.`, etc. becomes `_`. For example `"café"` becomes `"caf_"`, then `"caf"`.
+  - `re.sub(r"_+", "_", name)`, then `.strip("_")`.
+- **Case per `case_type`:**
+
+  | `case_type` | Rule | Examples |
+  |---|---|---|
+  | `"lower"` | `.lower()` | `"First Name"` → `"first_name"`; `"  Name  "` → `"name"` |
+  | `"upper"` | `.upper()` | `"first-name"` → `"FIRST_NAME"` |
+  | `"title"` | lower, split on `_`, `str.title()` each part, join with `_` | `"first name"` → `"First_Name"`; `"ID"` → `"Id"`; `"abc1def"` → `"Abc1Def"` |
+  | `"camel"` | lower, split on `_`, keep first part, `str.title()` the rest, join with no separator | `"First Name"` → `"firstName"`; `"user_ID_2"` → `"userId2"`; `"a_b_c"` → `"aBC"` |
+  | `"none"` | no case change | `"First Name!"` → `"First_Name"`; `"__X__"` → `"X"` |
+
+- **Empty result:** if the name is `""` after processing, it becomes `"column"`. Examples: `"___"`, `"!!"`, `"é"` and `""`.
+- **Metadata (attrs) depends on the path:**
+  - No name changes: returns `copy.deepcopy(frame)`. Attrs presumably survive, depending on ArFrame's deepcopy, which is not visible.
+  - Some name changes: returns `ArFrame(_rename_columns(...))` with **no `attrs` argument**. Source attrs are *not* carried over, unlike most functions in this module, which use `_wrap`. What the default attrs look like is not visible, so the only safe assertion is "different from the source attrs if the source had non-empty attrs".
+- The rename itself is done in C++ (`_rename_columns`, not visible). It receives a mapping that contains only the columns whose names changed.
+
+## 5. Side effects
+- The input frame is not mutated, so `frame.columns` is unchanged afterwards.
+- No global state is changed and no files are written.
+
+## 6. Branches and edge cases
+- **Already-clean names**, e.g. `["a", "b_c"]` with `"lower"`: the mapping is empty and the deepcopy path runs. Columns and values are equal, and the result is a different object.
+- **Some names change**: the C++ rename path runs. For `["Name", "age"]`, the result is `["name", "age"]`.
+- **Zero-column frame** (`ar.from_pandas(pd.DataFrame())`): cleaned is `[]`, so the deepcopy path runs and columns are `[]`.
+- **Zero rows with columns**, e.g. `pd.DataFrame({"A B": []})`: the result is `["a_b"]` and the shape is `(0, 1)`.
+- **Digits are kept**: `"2nd col"` gives `"2nd_col"` with `"lower"` and `"2Nd_Col"` with `"title"` (from `str.title`).
+- **Pre-existing underscores** are collapsed and stripped: `"__a__b__"` gives `"a_b"`.
+- **Case is applied after the regex**, so `"none"` can still produce duplicates only through symbols. `["a b", "A_B"]` with `"none"` gives `["a_b", "A_B"]` with no error, while `"lower"` raises.
+
+## 7. Rules from comments and docstring
+- The pipeline order is: replace non-alphanumerics with `_`, collapse consecutive `_`, trim boundary `_`, normalise case.
+- A `ValueError` is raised on an invalid `case_type` or on duplicates after cleaning.
+
+## 8. Testing hints
+- Build inputs with `fr = ar.from_pandas(pd.DataFrame({"First Name": [1, 2], "e-mail": ["x", "y"]}))`.
+  - `ar.clean_column_names(fr).columns == ["first_name", "e_mail"]`
+- Check data with `ar.to_pandas(res)["first_name"].tolist() == [1, 2]`. Also check that `res.shape == fr.shape` and that `res.dtypes` values match in order.
+- Pin exact strings for each `case_type`, including:
+  - camel: `"a_b_c"` → `"aBC"`
+  - title: `"abc1def"` → `"Abc1Def"`
+  - the `"column"` fallback
+  - non-ASCII → `_`: `"naïve"` → `"na_ve"`
+- Duplicate error: assert the full message including the list repr, e.g. `"Cleaning column names would create duplicates: ['a_b', 'a_b']"`.
+- **Pitfalls:**
+  - pandas cannot hold two columns with identical names in a dict literal, so build duplicate cases from *different* raw names that clean to the same name.
+  - Do not assert the message from `_validate_arframe`.
+  - Do not assume attrs are preserved on the rename path.
+  - `"none"` is a string option, not `None`. Passing `None` raises `TypeError`.

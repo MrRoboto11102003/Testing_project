@@ -1,0 +1,259 @@
+{
+ "id": "arnio-pr1851",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__system__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 81,
+  "units_kept": 40,
+  "chars": 92122
+ },
+ "level": "system",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 2.89,
+ "detected": true,
+ "n_tests": 18,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2725,
+  "cache_read_input_tokens": 24406,
+  "output_tokens": 10420,
+  "output_tokens_details": {
+   "thinking_tokens": 7300
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2725,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10420,
+    "cache_read_input_tokens": 24406,
+    "cache_creation_input_tokens": 2725,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2725
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0599996,
+ "model_seconds": 74.3,
+ "seconds": 82.2,
+ "tests": {
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_error_invalid_case_type": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "normalize_case",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_error_missing_column_in_subset": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_case",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_in_pipeline": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_preserves_non_ascii_utf8": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_case",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_roundtrip_csv": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_case",
+    "read_csv",
+    "to_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_to_lowercase": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_case",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_to_titlecase": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_case",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_to_uppercase": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_case",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCaseBasics::test_normalize_case_with_subset_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_case",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCombined::test_case_and_unicode_together_in_pipeline": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCombined::test_from_pandas_then_normalize": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicodeBasics::test_normalize_unicode_all_forms": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_unicode",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicodeBasics::test_normalize_unicode_error_invalid_form": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_unicode",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicodeBasics::test_normalize_unicode_error_missing_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_unicode",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicodeBasics::test_normalize_unicode_in_pipeline": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicodeBasics::test_normalize_unicode_nfc_form": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_unicode",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicodeBasics::test_normalize_unicode_roundtrip_csv": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_unicode",
+    "read_csv",
+    "to_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicodeBasics::test_normalize_unicode_with_subset": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "normalize_unicode",
+    "read_csv",
+    "to_pandas"
+   ]
+  }
+ }
+}

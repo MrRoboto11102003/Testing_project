@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1516",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "no",
+ "p_catch": 52,
+ "hardest_part": "Schema.validate() is a thin wrapper delegating to an unseen module-level validate() function, so bugs in that dependency won't be caught; similarly, _field_to_json_dict() internals are hidden, so subtle field serialization bugs in to_json() are invisible to external tests.",
+ "raw": "```json\n{\n  \"verdict\": \"no\",\n  \"p_catch\": 52,\n  \"hardest_part\": \"Schema.validate() is a thin wrapper delegating to an unseen module-level validate() function, so bugs in that dependency won't be caught; similarly, _field_to_json_dict() internals are hidden, so subtle field serialization bugs in to_json() are invisible to external tests.\"\n}\n```\n\n**Reasoning:**\n\n**Testable aspects of `to_json()`** (~70% catchable):\n- JSON output structure (fields, strict, unique keys)\n- Field ordering (sorted alphabetically)\n- `rules_omitted` flag presence/absence\n- `UserWarning` emission when rules exist\n- Valid JSON parsing\n- Round-trip serialization\n\n**Testable aspects of `validate()`** (~35% catchable):\n- Returns `ValidationResult` type\n- Accepts `max_errors` parameter\n- Doesn't crash on valid inputs\n- But it's just `return validate(frame, self, max_errors=max_errors)` \u2014 real logic is in the unseen module-level function\n\n**Hard-to-catch bugs:**\n1. The module-level `validate()` function's implementation is hidden; bugs there won't be caught by testing the wrapper\n2. `_field_to_json_dict()` helper is not shown; subtle field serialization bugs won't surface from JSON structure tests alone\n3. Edge cases in constraint representation (numeric bounds, string patterns, nullable logic) can be malformed in JSON without breaking parsing\n4. Parameter mutation or frame preprocessing before delegation (in `validate()`) wouldn't be detected",
+ "cost_usd": 0.017974,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1610,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2457,
+  "output_tokens_details": {
+   "thinking_tokens": 2075
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1610,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2457,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 1610,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1610
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

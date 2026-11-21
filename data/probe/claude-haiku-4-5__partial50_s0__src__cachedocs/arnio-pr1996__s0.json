@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1996",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Exact dtype and nullable-type preservation through the pandas round-trip conversion and dict-based frame reconstruction\u2014a subtle dtype regression could pass basic column-removal tests.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Exact dtype and nullable-type preservation through the pandas round-trip conversion and dict-based frame reconstruction\u2014a subtle dtype regression could pass basic column-removal tests.\"\n}\n```\n\n**Reasoning:**\n\n**High-confidence catches (most bugs):**\n- Logic inversions (keeping empty instead of removing): Observable via column counts and content checks\n- Whitespace handling (not stripping): Easy to test with whitespace-only columns\n- Null/NA detection failures: Easy to verify with all-null columns\n- Column order changes: Observable via `.columns` property\n- Edge case crashes (0-row frames, all-empty cols): Observable via error or shape\n- Attribute preservation: Observable if attributes are lost\n\n**Lower-confidence catches (harder to detect):**\n- Subtle dtype changes through pandas conversion roundtrip\u2014changes like `int64 \u2192 float64` or `string \u2192 object` might occur in edge cases but could be missed if tests don't inspect `.dtypes` precisely for every column\n- Internal `_Frame.from_dict()` behavior with specific type combinations\n- Nullable type (`Int64`, `Float64`) conversion idiosyncrasies in pandas interop\n- Exact deep-copy semantics of `_attrs`\n\n**What 10-15 focused public-API tests would cover:**\n1. Basic removal + preservation patterns \u2192 catches logic inversions (95%)\n2. Whitespace, null, mixed-empty patterns \u2192 catches detection failures (90%)\n3. Edge cases (0-row, all-empty, all-non-empty) \u2192 catches crashes (80%)\n4. Column order and counts \u2192 catches selection bugs (95%)\n5. Attribute presence \u2192 catches attribute loss (85%)\n6. dtype preservation (via `.dtypes` checks) \u2192 catches obvious dtype bugs (60\u201370%)\n\nThe gap at 72% accounts for subtle dtype/conversion issues that don't manifest as wrong row/column counts but break exact dtype matching under specific input conditions.",
+ "cost_usd": 0.024345,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1773,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 3666,
+  "output_tokens_details": {
+   "thinking_tokens": 3197
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1773,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3666,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 1773,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1773
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

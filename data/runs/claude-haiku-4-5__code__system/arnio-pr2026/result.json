@@ -1,0 +1,209 @@
+{
+ "id": "arnio-pr2026",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__system",
+ "context": {
+  "mode": "code",
+  "chars": 3808
+ },
+ "level": "system",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 2.07,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 14,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2206,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11099,
+  "output_tokens_details": {
+   "thinking_tokens": 8397
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2206,
+    "output_tokens": 11099,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.057700999999999995,
+ "model_seconds": 48.5,
+ "seconds": 63.8,
+ "tests": {
+  "tests/_generated/test_arnio_pr2026.py::TestDropConstantColumns::test_all_columns_constant_preserves_rows": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_constant_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropConstantColumns::test_drop_all_null_column": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropConstantColumns::test_drop_multiple_constant_columns": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_constant_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropConstantColumns::test_drop_single_constant_column": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_constant_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropConstantColumns::test_keep_null_with_value": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_constant_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropConstantColumns::test_pandas_dataframe_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_constant_columns"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropConstantColumns::test_zero_row_frame_preserves_columns": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_constant_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropEmptyColumns::test_all_columns_empty": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropEmptyColumns::test_drop_all_null_column": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropEmptyColumns::test_drop_mixed_null_whitespace": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropEmptyColumns::test_drop_whitespace_strings": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropEmptyColumns::test_keep_non_empty_values": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestDropEmptyColumns::test_zero_row_frame": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestIntegration::test_chained_cleaning_operations": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_constant_columns",
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2026.py::TestIntegration::test_full_pipeline_csv_roundtrip": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_constant_columns",
+    "drop_empty_columns",
+    "read_csv"
+   ]
+  }
+ }
+}

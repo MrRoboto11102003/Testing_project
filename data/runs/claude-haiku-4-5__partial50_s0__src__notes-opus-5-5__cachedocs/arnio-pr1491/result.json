@@ -1,0 +1,214 @@
+{
+ "id": "arnio-pr1491",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 94527,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6044
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.87,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3249,
+  "cache_read_input_tokens": 24604,
+  "output_tokens": 7250,
+  "output_tokens_details": {
+   "thinking_tokens": 5540
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3249,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7250,
+    "cache_read_input_tokens": 24604,
+    "cache_creation_input_tokens": 3249,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3249
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.045217400000000005,
+ "model_seconds": 33.9,
+ "seconds": 41.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_all_columns_match_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_case_sensitivity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_column_order_preservation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_dataframe_index_preservation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_frame_type_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_invalid_regex_pattern": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_no_columns_match": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ArFrame",
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_non_string_column_labels": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "drop_columns_matching"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_partial_match_with_arframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ArFrame",
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_partial_match_with_dataframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_pattern_type_error_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_pattern_type_error_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_substring_matching_not_anchored": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_zero_column_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "drop_columns_matching"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1491.py::TestDropColumnsMatching::test_zero_rows_some_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ArFrame",
+    "drop_columns_matching",
+    "from_pandas"
+   ]
+  }
+ }
+}

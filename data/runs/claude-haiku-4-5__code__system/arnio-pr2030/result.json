@@ -1,0 +1,195 @@
+{
+ "id": "arnio-pr2030",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__system",
+ "context": {
+  "mode": "code",
+  "chars": 6661
+ },
+ "level": "system",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 1.13,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2892,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 15494,
+  "output_tokens_details": {
+   "thinking_tokens": 12926
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2892,
+    "output_tokens": 15494,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.08036200000000002,
+ "model_seconds": 69.0,
+ "seconds": 77.7,
+ "tests": {
+  "tests/_generated/test_arnio_pr2030.py::TestIntegration::test_dict_to_yaml_to_dict_roundtrip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_dict",
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestIntegration::test_flat_dict_export_produces_sorted_yaml": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestIntegration::test_scan_csv_schema_export_to_yaml_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "scan_csv",
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDict::test_field_names_sorted_alphabetically": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_dict"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDict::test_flat_dict_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_dict"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDict::test_invalid_type_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_dict"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDict::test_non_string_metadata_key_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "schema_to_dict"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToDict::test_structured_dict_with_metadata": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_dict"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYaml::test_accepts_string_and_pathlib_paths": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYaml::test_creates_parent_directories": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYaml::test_invalid_path_types_and_values_raise_errors": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYaml::test_overwrites_existing_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYaml::test_returns_valid_yaml_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYaml::test_writes_to_file_when_path_provided": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_yaml"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2030.py::TestSchemaToYaml::test_yaml_output_has_sorted_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema_to_yaml"
+   ]
+  }
+ }
+}

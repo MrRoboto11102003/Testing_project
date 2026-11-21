@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr2011",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 75,
+ "hardest_part": "Deep-copy semantics of internal frame attributes (`_attrs`) cannot be verified through the public API, so a regression that breaks metadata independence would likely be missed unless it surfaces as observable behavioral change.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 75,\n  \"hardest_part\": \"Deep-copy semantics of internal frame attributes (`_attrs`) cannot be verified through the public API, so a regression that breaks metadata independence would likely be missed unless it surfaces as observable behavioral change.\"\n}\n```\n\n**Reasoning:**\n\n**What I can test robustly (high catch rate):**\n- \u2705 Correct columns present/absent in result (by name and exact order)\n- \u2705 All error conditions and their types (TypeError vs ValueError)\n- \u2705 Validation triggers (missing columns, empty selections, duplicates, non-strings)\n- \u2705 Edge cases (empty list, single column, deduplication in drop_columns)\n- \u2705 Original frame unchanged (shape, columns, dtypes)\n- \u2705 Return type is ArFrame (not mutating input)\n\n**What I cannot test (low catch rate):**\n- \u274c Shallow vs deep copy of `_attrs` \u2014 internal implementation, not observable via public API\n- \u274c Internal `_frame.select_columns()` correctness \u2014 only observable through final column set\n- \u274c Exact error message text \u2014 fragile and not part of spec\n\n**Why 75% confidence:**\nMost realistic regressions affect observable behavior: wrong columns selected/dropped, missing validation, broken order preservation, incorrect error types. These are all detectable. The main gap is internal implementation details like metadata copying, but those would only be caught if they somehow leak into observable behavior. A bug like \"forgot to validate that all columns exist\" or \"swapped remaining/dropped logic\" would be caught immediately.",
+ "cost_usd": 0.0196005,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2346,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 2492,
+  "output_tokens_details": {
+   "thinking_tokens": 2100
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2346,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2492,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 2346,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2346
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

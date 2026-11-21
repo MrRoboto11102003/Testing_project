@@ -1,0 +1,177 @@
+{
+ "id": "arnio-pr1826",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__codeapi",
+ "context": {
+  "mode": "codeapi",
+  "chars": 36276
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 1.15,
+ "detected": false,
+ "n_tests": 13,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 12204,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7133,
+  "output_tokens_details": {
+   "thinking_tokens": 5393
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 12204,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7133,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 12204,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 12204
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.060081999999999997,
+ "model_seconds": 31.4,
+ "seconds": 39.8,
+ "tests": {
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_approx_top_values_ratio_bounds": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_approx_top_values_sample_size_positive": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_basic_returns_report": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DataQualityReport",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_detects_duplicates": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_empty_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_exclude_columns_functionality": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_exclude_nonexistent_column_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_quality_score_in_valid_range": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_report_structure_and_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ColumnProfile",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_sample_size_bool_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_sample_size_negative_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_sample_size_non_integer_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1826.py::TestProfile::test_profile_with_nulls_counts_correctly": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "profile"
+   ]
+  }
+ }
+}

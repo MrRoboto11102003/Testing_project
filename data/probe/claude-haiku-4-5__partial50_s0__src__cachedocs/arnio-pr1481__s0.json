@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1481",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 73,
+ "hardest_part": "Internal dtype preservation and metadata correctness through the ArFrame\u2194pandas conversion pipeline, since filtered results might have correct row counts and values even if column dtypes or frame structure silently degraded.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 73,\n  \"hardest_part\": \"Internal dtype preservation and metadata correctness through the ArFrame\u2194pandas conversion pipeline, since filtered results might have correct row counts and values even if column dtypes or frame structure silently degraded.\"\n}\n```\n\n**Reasoning:**\n\n**High-confidence catches (operator logic, validation, return types):**\n- Each operator (`>`, `<`, `>=`, `<=`, `==`, `!=`) is easy to verify with concrete test cases\n- Input validation (empty column string, invalid op, non-scalar value, missing columns) is straightforward to assert\n- Return type preservation (ArFrame\u2192ArFrame, DataFrame\u2192DataFrame) is directly observable\n- Null handling behavior (`fillna(False)`) is verifiable by filtering on columns with NaN\n\n**Moderate-confidence catches (edge cases):**\n- Empty result sets and \"all rows pass\" scenarios\n- Different data types (int, float, string, bool)\n- Comparison type mismatches and error messages\n\n**Blind spots (observable from public API but subtle):**\n- Whether `reset_index(drop=True)` is actually called for ArFrames (I can test it indirectly via conversion, but the round-trip could mask bugs)\n- Column dtype correctness after conversion (e.g., if `int64` becomes `object` during round-trip)\n- Whether the input frame is accidentally mutated (would need identity checks)\n- Edge cases in `to_pandas()`/`from_pandas()` conversion logic that don't affect final row content\n\n**Likely gap:** A bug in the internal conversion pipeline that preserves row counts and values but corrupts dtypes or structure would likely slip through, since my tests would focus on observable filtering results rather than the metadata preservation through conversion.",
+ "cost_usd": 0.064892,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 26539,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2361,
+  "output_tokens_details": {
+   "thinking_tokens": 1941
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 26539,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2361,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 26539,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 26539
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

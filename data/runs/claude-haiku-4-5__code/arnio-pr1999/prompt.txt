@@ -1,0 +1,225 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.frame.ArFrame.drop_columns, arnio.frame.ArFrame.select_columns, arnio.frame.ArFrame.select_dtypes.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.frame.ArFrame.drop_columns
+    def drop_columns(self, cols: list[str] | tuple[str, ...]) -> ArFrame:
+        """Return a new ArFrame with the specified columns removed.
+
+        Parameters
+        ----------
+        cols : list[str] | tuple[str, ...]
+            Column names to drop. Duplicates are silently ignored.
+            An empty list returns a copy of the frame unchanged.
+
+        Returns
+        -------
+        ArFrame
+            New ArFrame without the dropped columns. Original column
+            order is preserved.
+
+        Raises
+        ------
+        TypeError
+            If cols is not a list, or contains non-string elements.
+        ValueError
+            If any name in cols does not exist in the frame.
+
+        Examples
+        --------
+        >>> frame = ar.read_csv("data.csv")
+        >>> smaller = frame.drop_columns(["col1", "col2"])
+        >>> smaller = frame.drop_columns(("col1", "col2"))
+        """
+        if not isinstance(cols, (list, tuple)):
+            raise TypeError(
+                f"cols must be a list or tuple of column names, got {type(cols).__name__!r}"
+            )
+
+        if any(not isinstance(col, str) for col in cols):
+            raise TypeError("All column names in cols must be strings.")
+
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        unique_cols: list[str] = []
+        for col in cols:
+            if col not in seen:
+                seen.add(col)
+                unique_cols.append(col)
+
+        # Validate all names exist
+        missing = [col for col in unique_cols if col not in self.columns]
+        if missing:
+            raise ValueError(
+                f"Unknown column(s): {missing}. Available columns: {self.columns}"
+            )
+
+        # Empty input — return unchanged copy
+        if not unique_cols:
+            return ArFrame(
+                self._frame.select_columns(self.columns),
+                attrs=copy.deepcopy(self._attrs),
+            )
+
+        # Preserve original order of remaining columns
+        drop_set = set(unique_cols)
+        remaining = [col for col in self.columns if col not in drop_set]
+
+        # Dropping all columns is not supported
+        if not remaining:
+            raise ValueError("drop_columns cannot remove all columns from the frame")
+
+        return ArFrame(
+            self._frame.select_columns(remaining), attrs=copy.deepcopy(self._attrs)
+        )
+
+# arnio.frame.ArFrame.select_columns
+    def select_columns(self, columns: list[str]) -> ArFrame:
+        """Return a new ArFrame with only the selected columns.
+
+        Parameters
+        ----------
+        columns : list[str]
+            List of column names to select.
+
+        Returns
+        -------
+        ArFrame
+            New ArFrame containing only the selected columns.
+
+        Raises
+        ------
+        TypeError
+            If columns is not a valid sequence of strings.
+        ValueError
+            If the selection is empty, contains duplicates,
+            or includes unknown columns.
+        """
+        if isinstance(columns, str):
+            raise TypeError("columns must be a sequence of column names, not a string.")
+
+        if not isinstance(columns, (list, tuple)):
+            raise TypeError("columns must be a list or tuple of column names.")
+
+        if not columns:
+            raise ValueError("Column selection cannot be empty.")
+
+        if any(not isinstance(col, str) for col in columns):
+            raise TypeError("All column names must be strings.")
+
+        if len(columns) != len(set(columns)):
+            raise ValueError("Duplicate column names are not allowed.")
+
+        missing = [col for col in columns if col not in self.columns]
+
+        if missing:
+            raise ValueError(f"Unknown columns: {missing}")
+
+        return ArFrame(
+            self._frame.select_columns(columns), attrs=copy.deepcopy(self._attrs)
+        )
+
+# arnio.frame.ArFrame.select_dtypes
+    def select_dtypes(
+        self,
+        include: str | list[str] | tuple[str, ...] | None = None,
+        exclude: str | list[str] | tuple[str, ...] | None = None,
+    ) -> ArFrame:
+        """Return a new ArFrame containing only columns whose dtype matches the filter.
+
+        At least one of *include* or *exclude* must be provided.
+
+        Parameters
+        ----------
+        include : str, list[str], or tuple[str, ...], optional
+            One or more dtype strings to keep.
+            Accepted values: ``"int64"``, ``"float64"``, ``"string"``,
+            ``"bool"``, ``"null"``.
+        exclude : str, list[str], or tuple[str, ...], optional
+            One or more dtype strings to drop. Applied after *include*.
+
+        Returns
+        -------
+        ArFrame
+            New ArFrame containing only the matched columns, in original
+            column order.
+
+        Raises
+        ------
+        ValueError
+            If neither *include* nor *exclude* is provided, if *include*
+            and *exclude* overlap, or if an unrecognised dtype string is
+            passed.
+        TypeError
+            If *include* or *exclude* is not a string, list, or tuple of
+            strings.
+
+        Examples
+        --------
+        >>> frame = ar.read_csv("data.csv")
+        >>> numeric = frame.select_dtypes(include=["int64", "float64"])
+        >>> without_strings = frame.select_dtypes(exclude="string")
+        """
+        if include is None and exclude is None:
+            raise ValueError(
+                "select_dtypes() requires at least one of 'include' or 'exclude'."
+            )
+
+        def _parse(
+            arg: str | list[str] | tuple[str, ...] | None,
+            name: str,
+        ) -> frozenset[str] | None:
+            if arg is None:
+                return None
+            if isinstance(arg, str):
+                values = [arg]
+            elif isinstance(arg, (list, tuple)):
+                values = list(arg)
+                non_strings = [v for v in values if not isinstance(v, str)]
+                if non_strings:
+                    raise TypeError(
+                        f"'{name}' must contain only strings, "
+                        f"got {[type(v).__name__ for v in non_strings]}."
+                    )
+            else:
+                raise TypeError(
+                    f"'{name}' must be a string, list, or tuple of strings, "
+                    f"got {type(arg).__name__!r}."
+                )
+            unknown = [v for v in values if v not in _VALID_DTYPES]
+            if unknown:
+                raise ValueError(
+                    f"Unrecognised dtype(s) in '{name}': {unknown}. "
+                    f"Valid dtypes are: {sorted(_VALID_DTYPES)}."
+                )
+            return frozenset(values)
+
+        include_set = _parse(include, "include")
+        exclude_set = _parse(exclude, "exclude")
+
+        if include_set is not None and exclude_set is not None:
+            overlap = include_set & exclude_set
+            if overlap:
+                raise ValueError(
+                    f"'include' and 'exclude' overlap: {sorted(overlap)}. "
+                    "A dtype cannot be both included and excluded."
+                )
+
+        col_dtypes = self.dtypes
+        matched: list[str] = []
+        for col in self.columns:  # iterate columns to preserve original order
+            dtype = col_dtypes[col]
+            if include_set is not None and dtype not in include_set:
+                continue
+            if exclude_set is not None and dtype in exclude_set:
+                continue
+            matched.append(col)
+
+        if not matched:
+            return ArFrame(_Frame(len(self)), attrs=self._attrs.copy())
+
+        return self.select_columns(matched)

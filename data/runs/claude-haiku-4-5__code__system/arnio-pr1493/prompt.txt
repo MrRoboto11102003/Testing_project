@@ -1,0 +1,63 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.integrations.duckdb.register_duckdb.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.integrations.duckdb.register_duckdb
+def register_duckdb(
+    frame: ArFrame,
+    conn: duckdb.DuckDBPyConnection,
+    name: str,
+) -> None:
+    """Register an ArFrame as a DuckDB relation.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        The frame to register.
+    conn : duckdb.DuckDBPyConnection
+        An open DuckDB connection.
+    name : str
+        The relation name to use in SQL queries.
+
+    Raises
+    ------
+    TypeError
+        If frame is not an ArFrame or name is not a string.
+    ValueError
+        If name is empty or whitespace-only.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import arnio as ar
+    >>> frame = ar.read_csv("data.csv")
+    >>> conn = duckdb.connect()
+    >>> ar.register_duckdb(frame, conn, "my_table")
+    >>> conn.execute("SELECT * FROM my_table").fetchdf()
+    """
+    if not isinstance(frame, ArFrame):
+        raise TypeError("frame must be an ArFrame")
+    if not isinstance(name, str):
+        raise TypeError("name must be a string")
+    if not name or not name.strip():
+        raise ValueError("name must not be empty or whitespace-only")
+
+    register = getattr(conn, "register", None)
+
+    if not callable(register):
+        raise TypeError(
+            "conn must be a DuckDB connection with a callable register() method"
+        )
+
+    df = to_pandas(frame)
+    conn.register(name, df)

@@ -1,0 +1,764 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.frame.ArFrame.drop_columns.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Public API index (signatures only, no bodies)
+
+# arnio.cleaning
+class CastFailure:  # One failed cast: the original value that could not be converted.
+    column: str
+    row: int
+    value: str
+    target_dtype: str
+
+# arnio.cleaning
+class CastReport:  # Result of ``cast_types(..., errors="report")``.
+    frame: ArFrame
+    failures: list[CastFailure] = field(default_factory=list)
+
+# arnio.cleaning
+def validate_columns_exist(frame: ArFrame, columns: Sequence[str], *, operation: str | None=None) -> ArFrame
+    # Validate that all requested columns exist in a frame.
+
+# arnio.cleaning
+def drop_nulls(frame: ArFrame, *, subset: list[str] | None=None) -> ArFrame
+    # Remove rows containing null/empty values.
+
+# arnio.cleaning
+def drop_columns(frame: ArFrame, columns: Sequence[str]) -> ArFrame
+    # Return a new frame without the requested columns.
+
+# arnio.cleaning
+def keep_rows_with_nulls(frame: ArFrame, *, subset: list[str] | None=None) -> ArFrame
+    # Keep only rows that contain at least one null/empty value.
+
+# arnio.cleaning
+def select_columns(frame: ArFrame, columns: Sequence[str]) -> ArFrame
+    # Return a new frame containing only the requested columns.
+
+# arnio.cleaning
+def fill_nulls(frame: ArFrame, value: Any, *, subset: list[str] | None=None) -> ArFrame
+    # Replace null/empty values with a given fill value.
+
+# arnio.cleaning
+def drop_duplicates(frame: ArFrame, *, subset: list[str] | None=None, keep: str | bool='first') -> ArFrame
+    # Remove duplicate rows.
+
+# arnio.cleaning
+def drop_constant_columns(frame: ArFrame | pd.DataFrame) -> ArFrame | pd.DataFrame
+    # Remove columns with exactly one unique value.
+
+# arnio.cleaning
+def drop_empty_columns(frame: ArFrame) -> ArFrame
+    # Remove columns whose values are entirely null or empty strings.
+
+# arnio.cleaning
+def clip_numeric(frame: ArFrame, *, lower: int | float | None=None, upper: int | float | None=None, subset: list[str] | None=None) -> ArFrame
+    # Clip numeric columns to lower and/or upper bounds.
+
+# arnio.cleaning
+def winsorize_outliers(frame: ArFrame, *, lower: float=0.05, upper: float=0.95, subset: list[str] | None=None) -> ArFrame
+    # Winsorize numeric columns using quantile-based clipping.
+
+# arnio.cleaning
+def normalize_minmax(frame: ArFrame, *, subset: list[str] | None=None, feature_range: tuple[float, float]=(0.0, 1.0)) -> ArFrame
+    # Scale numeric columns to a target range using min-max normalization.
+
+# arnio.cleaning
+def strip_whitespace(frame: ArFrame, *, subset: list[str] | None=None) -> ArFrame
+    # Trim leading/trailing whitespace from string columns.
+
+# arnio.cleaning
+def hash_columns(frame: ArFrame, *, subset: list[str], algorithm: str='sha256') -> ArFrame
+    # Replace values in string columns with their cryptographic hash digest.
+
+# arnio.cleaning
+def normalize_whitespace(frame, columns=None)
+    # Collapse internal whitespace runs to a single space in string columns.
+
+# arnio.cleaning
+def parse_bool_strings(frame: ArFrame, *, subset: Sequence[str] | None=None, true_values: set[str] | None=None, false_values: set[str] | None=None) -> ArFrame
+    # Convert common boolean-like string values into actual booleans.
+
+# arnio.cleaning
+def normalize_case(frame: ArFrame, *, subset: list[str] | None=None, case_type: str='lower') -> ArFrame
+    # Normalize ASCII letters in string columns to lower/upper/title case.
+
+# arnio.cleaning
+def normalize_unicode(frame: ArFrame, *, subset: list[str] | None=None, form: str='NFC') -> ArFrame
+    # Normalize Unicode text columns.
+
+# arnio.cleaning
+def rename_columns(frame: ArFrame, mapping: dict[str, str]) -> ArFrame
+    # Rename columns via a {old: new} dict.
+
+# arnio.cleaning
+def trim_column_names(frame: ArFrame) -> ArFrame
+    # Strip leading and trailing whitespace from column names.
+
+# arnio.cleaning
+def cast_types(frame: ArFrame, mapping: dict[str, str], *, errors: str='raise') -> ArFrame | CastReport
+    # Cast columns to specified types via {col: type_str} dict.
+
+# arnio.cleaning
+def clean(frame: ArFrame, *, strip_whitespace: bool | dict=True, drop_nulls: bool | dict=False, drop_duplicates: bool | dict=False) -> ArFrame
+    # Convenience function to apply common cleaning operations.
+
+# arnio.cleaning
+def filter_rows(frame: ArFrame | pd.DataFrame, column: str, op: str, value: object) -> ArFrame | pd.DataFrame
+    # Filter rows based on a column condition.
+
+# arnio.cleaning
+def round_numeric_columns(frame, *, subset: Sequence[str] | None=None, decimals: int=0)
+    # Round numeric columns to specified decimal places.
+
+# arnio.cleaning
+def combine_columns(frame, *, subset: list[str] | None=None, separator: str=' ', output_column: str='combined')
+    # Combine multiple columns into a single output column.
+
+# arnio.cleaning
+def safe_divide_columns(frame, numerator: str, denominator: str, output_column: str, fill_value: float=0.0)
+    # Divide one column by another, handling division by zero and nulls explicitly.
+
+# arnio.cleaning
+def drop_columns_matching(frame, pattern)
+    # Drop columns whose names match a given pattern.
+
+# arnio.cleaning
+def rename_columns_matching(frame, pattern, replacement)
+    # Rename columns whose names match a given regex pattern.
+
+# arnio.cleaning
+def replace_values(frame: ArFrame | pd.DataFrame, mapping: dict, column: str | None=None) -> ArFrame | pd.DataFrame
+    # Replace values based on a mapping dict.
+
+# arnio.cleaning
+def standardize_missing_tokens(frame, tokens=None, subset=None)
+    # Convert null-like string tokens in the frame to the standard NaN form.
+
+# arnio.cleaning
+def coalesce_columns(frame, *, subset: Sequence[str], output_column: str='coalesced')
+    # Select the first non-null value from a list of columns.
+
+# arnio.cleaning
+def clean_column_names(frame: ArFrame, *, case_type: str='lower') -> ArFrame
+    # Clean and normalize column names.
+
+# arnio.cleaning
+def slugify_column_names(frame, on_duplicates='raise')
+
+# arnio.cleaning
+def find_fuzzy_duplicates(frame, *, subset: list[str] | None=None, threshold: float=0.85, ignore_case: bool=True, normalize_whitespace: bool=True) -> list[list[int]]
+    # Return groups of near-duplicate row indices using similarity matching.
+
+# arnio.convert
+def to_pandas(frame: ArFrame, *, copy: bool=False) -> pd.DataFrame
+    # Convert ArFrame to pandas.DataFrame.
+
+# arnio.convert
+def to_arrow(frame: ArFrame) -> pa.Table
+    # Convert ArFrame to pyarrow.Table.
+
+# arnio.convert
+def from_pandas(df: pd.DataFrame) -> ArFrame
+    # Convert pandas.DataFrame to ArFrame.
+
+# arnio.convert
+def from_arrow(table: pa.Table) -> ArFrame
+    # Convert a PyArrow Table to an ArFrame.
+
+# arnio.convert
+def from_polars(df: object) -> ArFrame
+    # Convert a Polars DataFrame to ArFrame.
+
+# arnio.convert
+def to_polars(frame: ArFrame) -> object
+    # Convert an ArFrame to a Polars DataFrame.
+
+# arnio.convert
+def from_dict(data: dict) -> ArFrame
+    # Converts a dictionary into a structured ArFrame.
+
+# arnio.encode_categorical
+def encode_categorical(frame: ArFrame, columns: Sequence[str], method: str='one_hot', ordinal_mappings: Mapping[str, Mapping[str, int]] | None=None) -> ArFrame
+    # Encode multiple text columns into numbers for machine learning processing.
+
+# arnio.exceptions
+class ArnioError(Exception):  # Base exception for all Arnio errors.
+
+# arnio.exceptions
+class UnknownStepError(ArnioError):  # Raised when a pipeline step name is not registered.
+    def __init__(self, name: str, available: list[str])
+
+# arnio.exceptions
+class CsvReadError(ArnioError):  # Raised when a CSV file cannot be read.
+
+# arnio.exceptions
+class JsonlReadError(ArnioError):  # Raised when a JSON Lines file cannot be read or contains malformed data.
+
+# arnio.exceptions
+class RemoteReadError(ArnioError):  # Raised when a remote CSV URL cannot be fetched or the response is invalid.
+    def __init__(self, message: str, *, url: str='', status_code: int | None=None)
+
+# arnio.exceptions
+class TypeCastError(ArnioError):  # Raised when cast_types encounters an incompatible type.
+
+# arnio.exceptions
+class PipelineStepError(ArnioError):  # Raised when an execution error occurs inside a custom pipeline step.
+    def __init__(self, step_name: str, orig_err: Exception)
+
+# arnio.exceptions
+class SchemaValidationError(ArnioError):  # Raised when a dataframe fails schema validation.
+    def __init__(self, message: str, result: ValidationResult=None)
+
+# arnio.exceptions
+class PipelineSerializationError(ArnioError):  # Raised when a declarative pipeline cannot be saved or loaded.
+
+# arnio.frame
+class ColumnSummary:  # Schema summary for a single column.
+    def __init__(self, name: str, dtype: str, nullable: bool) -> None
+
+# arnio.frame
+class ArFrame:  # Lightweight columnar data container backed by C++.
+    def __init__(self, cpp_frame: _Frame, attrs: dict | None=None) -> None
+    @classmethod
+    def from_dict(cls, data: dict) -> ArFrame
+    @classmethod
+    def from_pandas(cls, df) -> ArFrame
+    @classmethod
+    def from_records(cls, records: list, columns: list[str] | None=None) -> ArFrame
+    def astype(self, dtype)
+    @property
+    def shape(self) -> tuple[int, int]
+    @property
+    def columns(self) -> list[str]
+    @property
+    def dtypes(self) -> dict[str, str]
+    @property
+    def schema_summary(self) -> list[ColumnSummary]
+    @property
+    def is_empty(self) -> bool
+    def memory_usage(self) -> int
+    def head(self, n: int=5) -> ArFrame
+    def tail(self, n: int=5) -> ArFrame
+    def to_dict(self, orient: str='list')
+    def to_csv(self, path, *, delimiter: str=',', write_header: bool=True, **kwargs) -> None
+    def select_columns(self, columns: list[str]) -> ArFrame
+    def drop_columns(self, cols: list[str] | tuple[str, ...]) -> ArFrame
+    def select_dtypes(self, include: str | list[str] | tuple[str, ...] | None=None, exclude: str | list[str] | tuple[str, ...] | None=None) -> ArFrame
+    def describe(self) -> dict[str, dict[str, float]]
+    def preview(self, n: int=5) -> str
+
+# arnio.integrations.duckdb
+def register_duckdb(frame: ArFrame, conn: duckdb.DuckDBPyConnection, name: str) -> None
+    # Register an ArFrame as a DuckDB relation.
+
+# arnio.integrations.pandas
+class ArnioPandasAccessor:  # Run Arnio preparation helpers from an existing pandas DataFrame.
+    def __init__(self, pandas_obj: pd.DataFrame) -> None
+    def to_arframe(self) -> ArFrame
+    def pipeline(self, steps: Sequence[Any]) -> pd.DataFrame
+    def clean(self, steps: Sequence[Any] | None=None, *, strip_whitespace: bool=True, drop_nulls: bool=False, drop_duplicates: bool=False) -> pd.DataFrame
+    def strip_whitespace(self, *, subset: list[str] | None=None) -> pd.DataFrame
+    def drop_nulls(self, *, subset: list[str] | None=None) -> pd.DataFrame
+    def fill_nulls(self, value: Any, *, subset: list[str] | None=None) -> pd.DataFrame
+    def clip_numeric(self, *, lower: int | float | None=None, upper: int | float | None=None, subset: list[str] | None=None) -> pd.DataFrame
+    def profile(self, *, sample_size: int=5, approx_top_values: bool=False, approx_top_values_min_unique: int=1000, approx_top_values_min_ratio: float=0.2, approx_top_values_sample_size: int=2000) -> DataQualityReport
+    def suggest_cleaning(self) -> list[tuple[str, dict[str, Any]]]
+    def auto_clean(self, *, mode: str='safe', return_report: bool=False, dry_run: bool=False, allow_lossy_casts: bool=False, confirmed_casts: dict[str, str] | None=None, explain: bool=False) -> pd.DataFrame | DataQualityReport | tuple[pd.DataFrame, DataQualityReport] | tuple[pd.DataFrame, CleanExplanation] | tuple[pd.DataFrame, DataQualityReport, CleanExplanation]
+    def validate(self, schema: Schema | dict[str, Any], *, max_errors: int | None=None) -> ValidationResult
+
+# arnio.io
+def read_csv(path: str | os.PathLike[str] | io.TextIOBase, *, delimiter: str | None=None, has_header: bool=True, usecols: list[str] | None=None, nrows: int | None=None, skiprows: int | None=None, encoding: str='utf-8', trim_headers: bool=True, decimal_separator: str='.', thousands_separator: str | None=None, null_values: list[str] | None=None, dtype: dict[str, str] | None=None, mode: str='strict', encoding_errors: str='strict', on_bad_lines: str='error') -> ArFrame
+    # Read a CSV file into an ArFrame via C++ backend.
+
+# arnio.io
+def read_csv_chunked(path: str | os.PathLike[str] | io.TextIOBase, *, chunksize: int=10000, dtype: dict[str, str] | None=None, delimiter: str | None=None, has_header: bool=True, usecols: list[str] | None=None, nrows: int | None=None, skip_rows: int=0, skiprows: int | None=None, encoding: str='utf-8', trim_headers: bool=True, decimal_separator: str='.', thousands_separator: str | None=None, null_values: list[str] | None=None, mode: str='strict', on_bad_lines: str='error') -> Iterator[ArFrame]
+    # Read a CSV file in chunks, yielding ArFrame objects.
+
+# arnio.io
+def write_csv(frame: ArFrame, path: str | os.PathLike[str], *, delimiter: str=',', write_header: bool=True, line_terminator: str='\n', escape_formulas: bool=False, encoding: str='utf-8', encoding_errors: str='strict') -> None
+    # Write an ArFrame to a CSV file via C++ backend.
+
+# arnio.io
+def scan_csv(path: str | os.PathLike[str] | io.TextIOBase, *, delimiter: str | None=None, encoding: str='utf-8', trim_headers: bool=True, decimal_separator: str='.', thousands_separator: str | None=None, sample_size: int | None=None, null_values: list[str] | None=None, has_header: bool=True, encoding_errors: str='strict', mode: str='strict', on_bad_lines: str='error') -> dict[str, str]
+    # Return schema (column names + inferred types) without loading data.
+
+# arnio.io
+def read_jsonl(path: str | os.PathLike[str], *, encoding: str='utf-8', encoding_errors: str='strict', nrows: int | None=None) -> ArFrame
+    # Read a JSON Lines file into an ArFrame.
+
+# arnio.io
+def read_jsonl_chunked(path: str | os.PathLike[str], *, chunksize: int=10000, encoding: str='utf-8', encoding_errors: str='strict', nrows: int | None=None) -> Iterator[ArFrame]
+    # Yield JSON Lines records as ``ArFrame`` chunks.
+
+# arnio.io
+def sniff_delimiter(path: str | os.PathLike[str], *, encoding: str='utf-8', sample_size: int=2048) -> str
+    # Sniff and return the field delimiter character from a CSV file.
+
+# arnio.io
+def read_parquet(path: str | os.PathLike[str], *, columns: list[str] | None=None, usecols: list[str] | None=None) -> ArFrame
+    # Read a Parquet file into an ArFrame via pyarrow.
+
+# arnio.io
+def write_parquet(frame: ArFrame, path: str | os.PathLike[str], *, compression: str='snappy', row_group_size: int | None=None, preserve_attrs: bool=True) -> None
+    # Write an ArFrame to a Parquet file via pyarrow.
+
+# arnio.io
+def write_json(frame: ArFrame, path: str | os.PathLike[str], *, orient: str='records', indent: int | None=None) -> None
+    # Write an ArFrame to a JSON file.
+
+# arnio.io
+def write_jsonl(frame: ArFrame, path: str | os.PathLike[str], *, encoding: str='utf-8', encoding_errors: str='strict') -> None
+    # Write an ArFrame to a JSONL file.
+
+# arnio.pipeline
+class PipelineContext:  # Execution context passed to opt-in Python pipeline steps.
+    step_name: str
+    step_index: int
+    total_steps: int
+    dry_run: bool
+
+# arnio.pipeline
+class LineageReport:  # Maps dropped rows back to their original indices and the step that dropped them.
+    dropped_by_step: dict[str, list[int]]
+    total_dropped: int
+    def to_pandas(self) -> pd.DataFrame
+
+# arnio.pipeline
+def register_step(name: str, fn: Callable, overwrite: bool=False)
+    # Register a custom Python pipeline step.
+
+# arnio.pipeline
+def unregister_step(name: str) -> None
+    # Unregister a custom Python pipeline step.
+
+# arnio.pipeline
+def get_builtin_step_signatures() -> dict[str, inspect.Signature]
+    # Return normalized signatures for built-in pipeline steps.
+
+# arnio.pipeline
+def list_steps() -> list[str]
+    # Return available pipeline step names in deterministic order.
+
+# arnio.pipeline
+def pipeline(frame: ArFrame, steps: list[tuple], *, return_metadata: bool=False, dry_run: bool=False, verbose: bool=False, track_lineage: bool=False) -> ArFrame | tuple[ArFrame, dict[str, Any]] | tuple[ArFrame, LineageReport]
+    # Apply a list of cleaning steps sequentially.
+
+# arnio.pipeline
+def reset_steps() -> None
+    # Restore the Python pipeline registry to built-in steps only.
+
+# arnio.pipeline
+def save_pipeline(steps, filepath)
+
+# arnio.pipeline
+def load_pipeline(filepath: str | Path) -> list[tuple]
+    # Load a list of pipeline steps from a JSON or YAML file.
+
+# arnio.quality
+class CleaningSuggestion(tuple):  # A data quality cleaning suggestion that is backwards-compatible with tuples.
+    @property
+    def step(self) -> str
+    @property
+    def kwargs(self) -> dict[str, Any]
+    @property
+    def confidence_score(self) -> float
+    @property
+    def confidence_reason(self) -> str
+
+# arnio.quality
+class ColumnProfile:  # Quality profile for one column.
+    name: str
+    dtype: str
+    semantic_type: str
+    row_count: int
+    null_count: int
+    null_ratio: float
+    unique_count: int
+    unique_ratio: float
+    empty_string_count: int = 0
+    whitespace_count: int = 0
+    suggested_dtype: str | None = None
+    email_validity_ratio: float | None = None
+    url_validity_ratio: float | None = None
+    min: Any = None
+    max: Any = None
+    mean: float | None = None
+    std: float | None = None
+    q25: float | None = None
+    q50: float | None = None
+    q75: float | None = None
+    q95: float | None = None
+    iqr: float | None = None
+    outlier_lower_bound: float | None = None
+    outlier_upper_bound: float | None = None
+    outlier_count: int | None = None
+    outlier_ratio: float | None = None
+    sample_values: list[Any] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    top_values: list[tuple[Any, int, float]] | None = None
+    top_values_is_approximate: bool = False
+    top_values_sample_count: int | None = None
+    top_values_sample_ratio: float | None = None
+    histogram: list[tuple[float, float, int, float]] | None = None
+    def to_dict(self, *, redact_sample_values: bool=False) -> dict[str, Any]
+
+# arnio.quality
+class DataQualityReport:  # Whole-frame data quality report.
+    row_count: int
+    column_count: int
+    memory_usage: int
+    duplicate_rows: int
+    duplicate_ratio: float
+    columns: dict[str, ColumnProfile]
+    quality_score: float = 100.0
+    score_components: dict[str, float] = field(default_factory=dict)
+    suggestions: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
+    def to_dict(self, *, redact_sample_values: bool=False, exclude_columns: list[str] | set[str] | tuple[str, ...] | None=None) -> dict[str, Any]
+    def score_breakdown(self) -> dict[str, float]
+    def to_json(self, *, indent: int | None=None, redact_sample_values: bool=False, exclude_columns: list[str] | set[str] | tuple[str, ...] | None=None, output: Any | None=None) -> str | None
+    def to_markdown(self, output: Any | None=None, max_suggestions: int | None=None, exclude_columns: list[str] | set[str] | tuple[str, ...] | None=None) -> str | None
+    def to_html(self, file_path: str | None=None, output: Any | None=None, max_suggestions: int | None=None, *, redact_top_values: bool=False, exclude_columns: list[str] | set[str] | tuple[str, ...] | None=None) -> str | None
+    def summary(self) -> dict[str, Any]
+    def to_pandas(self) -> pd.DataFrame
+
+# arnio.quality
+class ProfileComparison:  # Structured drift comparison between two quality profiles.
+    left_profile: DataQualityReport
+    right_profile: DataQualityReport
+    drift_report: dict[str, dict[str, Any]]
+    status_counts: dict[str, int] = field(default_factory=dict)
+    def to_dict(self, *, redact_sample_values: bool=False, exclude_columns: list[str] | set[str] | tuple[str, ...] | None=None) -> dict[str, Any]
+    def to_json(self, *, indent: int | None=None, redact_sample_values: bool=False, exclude_columns: list[str] | set[str] | tuple[str, ...] | None=None, output: Any | None=None) -> str | None
+    def to_markdown(self, output: Any | None=None, exclude_columns: list[str] | set[str] | tuple[str, ...] | None=None) -> str | None
+
+# arnio.quality
+class DriftReport:  # Structured dataset drift report between two ArFrame versions.
+    added_columns: list[str]
+    removed_columns: list[str]
+    dtype_changes: dict[str, tuple[str, str]]
+    null_ratio_changes: dict[str, tuple[float, float]]
+    row_count: tuple[int, int]
+    @property
+    def has_drift(self) -> bool
+    def to_dict(self) -> dict[str, Any]
+
+# arnio.quality
+class QualityGateIssue:  # One failed data-quality gate.
+    metric: str
+    message: str
+    column: str | None = None
+    baseline: Any = None
+    current: Any = None
+    threshold: Any = None
+    delta: float | None = None
+    def to_dict(self) -> dict[str, Any]
+
+# arnio.quality
+class QualityGateResult:  # Pass/fail result from threshold-based profile quality gates.
+    baseline_profile: DataQualityReport
+    current_profile: DataQualityReport
+    issues: list[QualityGateIssue]
+    thresholds: dict[str, Any]
+    @property
+    def passed(self) -> bool
+    def summary(self) -> dict[str, Any]
+    def to_dict(self) -> dict[str, Any]
+    def to_markdown(self) -> str
+    def raise_for_failures(self) -> None
+    def to_json(self, *, indent: int | None=None, output: Any | None=None) -> str | None
+
+# arnio.quality
+def profile(frame: ArFrame, *, exclude_columns: Sequence[str] | None=None, sample_size: int=5, approx_top_values: bool=False, approx_top_values_min_unique: int=1000, approx_top_values_min_ratio: float=0.2, approx_top_values_sample_size: int=2000) -> DataQualityReport
+    # Profile data quality for an ArFrame.
+
+# arnio.quality
+def compare_profiles(profile_a: DataQualityReport, profile_b: DataQualityReport) -> ProfileComparison
+    # Compare two data-quality profiles for drift.
+
+# arnio.quality
+def detect_drift(old: ArFrame, new: ArFrame) -> DriftReport
+    # Detect structural and statistical drift between two ArFrame versions.
+
+# arnio.quality
+def check_quality_gates(baseline_profile: DataQualityReport, current_profile: DataQualityReport, *, max_row_count_delta_ratio: float | None=0.1, max_duplicate_ratio_delta: float | None=0.05, max_null_ratio_delta: float | None=0.05, max_numeric_mean_delta_ratio: float | None=0.1, max_numeric_std_delta_ratio: float | None=0.2, allow_new_columns: bool=False, allow_missing_columns: bool=False, fail_on_dtype_change: bool=True) -> QualityGateResult
+    # Check two quality profiles against pass/fail drift thresholds.
+
+# arnio.quality
+def suggest_cleaning(frame_or_report: ArFrame | DataQualityReport) -> list[CleaningSuggestion]
+    # Suggest safe built-in cleaning steps.
+
+# arnio.quality
+class CleanStepRecord:  # Audit record for a single step applied by auto_clean.
+    step: str
+    kwargs: dict[str, Any]
+    rows_before: int
+    rows_after: int
+    rows_removed: int
+    reason: str
+
+# arnio.quality
+class CleanExplanation:  # Structured audit trail returned by ``auto_clean`` when ``explain=True``.
+    mode: str
+    rows_before: int
+    rows_after: int
+    rows_removed: int
+    steps: list[CleanStepRecord]
+
+# arnio.quality
+def auto_clean(frame: ArFrame, *, mode: str='safe', return_report: bool=False, dry_run: bool=False, allow_lossy_casts: bool=False, confirmed_casts: dict[str, str] | None=None, explain: bool=False) -> ArFrame | DataQualityReport | tuple[ArFrame, DataQualityReport] | tuple[ArFrame, CleanExplanation] | tuple[ArFrame, DataQualityReport, CleanExplanation]
+    # Apply built-in automatic cleaning.
+
+# arnio.schema
+class Field:  # Validation rules for one column.
+    dtype: str | None = None
+    nullable: bool = True
+    min: int | float | None = None
+    max: int | float | None = None
+    pattern: str | None = None
+    semantic: str | None = None
+    allowed: set[Any] | None = None
+    case_sensitive: bool = True
+    unique: bool = False
+    min_length: int | None = None
+    max_length: int | None = None
+    format: str | None = None
+    _datetime_min: pd.Timestamp | None = None
+    _datetime_max: pd.Timestamp | None = None
+    _date_min: _dt.date | None = None
+    _date_max: _dt.date | None = None
+    required_if: tuple[str, Any] | None = None
+    severity: str = 'error'
+
+# arnio.schema
+class Schema:  # Named column validation contract.
+    fields: dict[str, Field]
+    strict: bool = False
+    unique: list[str] | tuple[str, ...] | None = None
+    rules: list[Callable[[pd.DataFrame], list[ValidationIssue]]] | None = None
+    def validate(self, frame: ArFrame, max_errors: int | None=None) -> ValidationResult
+    def to_json(self) -> str
+    @classmethod
+    def from_json(cls, value: str) -> Schema
+    @classmethod
+    def bootstrap_from_report(cls, report: Any) -> Schema
+
+# arnio.schema
+class ValidationIssue:  # One validation failure.
+    column: str | None
+    rule: str
+    message: str
+    row_index: int | None = None
+    value: Any = None
+    severity: str = 'error'
+    def to_dict(self) -> dict[str, Any]
+
+# arnio.schema
+class ValidationResult:  # Validation output with row-level issues.
+    row_count: int
+    issue_count: int
+    issues: list[ValidationIssue]
+    bad_rows: list[int] = field(default_factory=list)
+    @property
+    def passed(self) -> bool
+    def to_dict(self) -> dict[str, Any]
+    def summary(self) -> dict[str, Any]
+    def to_pandas(self) -> pd.DataFrame
+    def to_markdown(self, *, max_issues: int | None=None, redact_values: bool=False) -> str
+    def raise_for_errors(self) -> None
+
+# arnio.schema
+class SchemaDiffEntry:  # One schema contract difference.
+    column: str | None
+    change: str
+    attribute: str | None = None
+    expected: Any = None
+    observed: Any = None
+    def to_dict(self) -> dict[str, Any]
+
+# arnio.schema
+class SchemaDiff:  # Result of comparing two schema contracts.
+    differences: list[SchemaDiffEntry]
+    @property
+    def changed(self) -> bool
+    @property
+    def difference_count(self) -> int
+    def to_dict(self) -> dict[str, Any]
+    def summary(self) -> dict[str, Any]
+    def to_markdown(self) -> str
+
+# arnio.schema
+def diff_schema(expected: Schema | dict[str, Field], observed: Schema | dict[str, Field]) -> SchemaDiff
+    # Compare two schema contracts.
+
+# arnio.schema
+def validate(frame: ArFrame, schema: Schema | dict[str, Field], max_errors: int | None=None) -> ValidationResult
+    # Validate an ArFrame against a schema.
+
+# arnio.schema
+def validate_chunked(chunks: Iterable[ArFrame], schema: Schema | dict[str, Field], *, max_errors: int | None=None) -> ValidationResult
+    # Validate an iterable of ArFrame chunks against a schema.
+
+# arnio.schema
+def Int64(*, nullable: bool=True, min: int | None=None, max: int | None=None, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create an int64 schema field.
+
+# arnio.schema
+def Float64(*, nullable: bool=True, min: float | None=None, max: float | None=None, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a float64 schema field.
+
+# arnio.schema
+def String(*, nullable: bool=True, pattern: str | None=None, allowed: set[Any] | list[Any] | tuple[Any, ...] | None=None, case_sensitive: bool=True, unique: bool=False, severity: str='error', min_length: int | None=None, max_length: int | None=None, required_if: tuple[str, Any] | None=None) -> Field
+    # Create a string schema field.
+
+# arnio.schema
+def Bool(*, nullable: bool=True, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a bool schema field.
+
+# arnio.schema
+def Email(*, nullable: bool=True, unique: bool=False, severity: str='error', validation: str='light', required_if: tuple[str, Any] | None=None) -> Field
+    # Create an email-address schema field.
+
+# arnio.schema
+def URL(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None, allowed_schemes: list[str] | None=None) -> Field
+    # Create a URL schema field.
+
+# arnio.schema
+def PhoneNumber(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a phone-number schema field.
+
+# arnio.schema
+def CountryCode(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create an uppercase ISO alpha-2 country-code schema field.
+
+# arnio.schema
+def LanguageCode(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a lowercase ISO 639-1 language-code schema field.
+
+# arnio.schema
+def TimeZone(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create an IANA timezone schema field.
+
+# arnio.schema
+def CurrencyCode(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None, allowed: set[Any] | list[Any] | tuple[Any, ...] | None=None) -> Field
+    # Create a currency-code schema field.
+
+# arnio.schema
+def Date(*, nullable: bool=True, min: Any=None, max: Any=None, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a date schema field.
+
+# arnio.schema
+def UUID(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a UUID schema field.
+
+# arnio.schema
+def IPv4(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a strict IPv4-address schema field.
+
+# arnio.schema
+def MACAddress(*, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a MAC-address schema field.
+
+# arnio.schema
+def Regex(pattern: str, *, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a regex-validated string schema field.
+
+# arnio.schema
+def DateTime(*, nullable: bool=True, min: Any=None, max: Any=None, unique: bool=False, severity: str='error', format: str | None=None, required_if: tuple[str, Any] | None=None) -> Field
+    # Create a datetime schema field for validating string timestamps.
+
+# arnio.schema
+def register_validator(name: str, fn: Callable[[Any], object], *, overwrite: bool=False) -> None
+    # Register a custom validator function for use with Custom().
+
+# arnio.schema
+def Custom(name: str, *, nullable: bool=True, unique: bool=False, severity: str='error', required_if: tuple[str, Any] | None=None) -> Field
+    # Create a field validated by a registered custom validator.
+
+# arnio.schema_export
+def schema_to_dict(schema: dict | Any) -> dict
+    # Convert *schema* to a plain, sorted, serialisation-ready :class:`dict`.
+
+# arnio.schema_export
+def schema_to_yaml(schema: dict | Any, path: str | pathlib.Path | None=None) -> str
+    # Serialise *schema* to a YAML string.
+
+# arnio.schema_export
+def schema_from_yaml(source: str | os.PathLike) -> Schema
+    # Load a Schema from a YAML file path or raw YAML string.
+
+## Source code of the target functions
+
+# arnio.frame.ArFrame.drop_columns
+    def drop_columns(self, cols: list[str] | tuple[str, ...]) -> ArFrame:
+        """Return a new ArFrame with the specified columns removed.
+
+        Parameters
+        ----------
+        cols : list[str] | tuple[str, ...]
+            Column names to drop. Duplicates are silently ignored.
+            An empty list returns a copy of the frame unchanged.
+
+        Returns
+        -------
+        ArFrame
+            New ArFrame without the dropped columns. Original column
+            order is preserved.
+
+        Raises
+        ------
+        TypeError
+            If cols is not a list, or contains non-string elements.
+        ValueError
+            If any name in cols does not exist in the frame.
+
+        Examples
+        --------
+        >>> frame = ar.read_csv("data.csv")
+        >>> smaller = frame.drop_columns(["col1", "col2"])
+        >>> smaller = frame.drop_columns(("col1", "col2"))
+        """
+        if not isinstance(cols, (list, tuple)):
+            raise TypeError(
+                f"cols must be a list or tuple of column names, got {type(cols).__name__!r}"
+            )
+
+        if any(not isinstance(col, str) for col in cols):
+            raise TypeError("All column names in cols must be strings.")
+
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        unique_cols: list[str] = []
+        for col in cols:
+            if col not in seen:
+                seen.add(col)
+                unique_cols.append(col)
+
+        # Validate all names exist
+        missing = [col for col in unique_cols if col not in self.columns]
+        if missing:
+            raise ValueError(
+                f"Unknown column(s): {missing}. Available columns: {self.columns}"
+            )
+
+        # Empty input — return unchanged copy
+        if not unique_cols:
+            return ArFrame(
+                self._frame.select_columns(self.columns),
+                attrs=copy.deepcopy(self._attrs),
+            )
+
+        # Preserve original order of remaining columns
+        drop_set = set(unique_cols)
+        remaining = [col for col in self.columns if col not in drop_set]
+
+        # Dropping all columns is not supported
+        if not remaining:
+            raise ValueError("drop_columns cannot remove all columns from the frame")
+
+        return ArFrame(
+            self._frame.select_columns(remaining), attrs=copy.deepcopy(self._attrs)
+        )

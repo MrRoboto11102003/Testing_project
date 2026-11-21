@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr2030",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "no",
+ "p_catch": 60,
+ "hardest_part": "Bugs in the recursive _normalize_serializable helper or duck-typing logic for ColumnSummary detection that only manifest with complex nested field definitions or when processing edge-case field object types.",
+ "raw": "```json\n{\n  \"verdict\": \"no\",\n  \"p_catch\": 60,\n  \"hardest_part\": \"Bugs in the recursive _normalize_serializable helper or duck-typing logic for ColumnSummary detection that only manifest with complex nested field definitions or when processing edge-case field object types.\"\n}\n```\n\n**Reasoning:**\n\n**Easily testable** (would catch bugs here):\n- Input type validation (TypeError for unsupported types)\n- Path validation (ValueError for empty/directory paths)\n- File I/O operations (file exists, encoding correct, parent dirs created)\n- Basic output structure (`\"fields\"` key present, metadata preserved)\n- YAML newline suffix\n- Field sorting by name\n- Simple flat and structured dict conversions\n\n**Hard to test** (would likely miss bugs here):\n1. **Internal helper functions** (`_normalize_serializable`, `_field_to_dict`, `_emit_value`) \u2014 not visible in public API; a bug in recursive normalization of nested dicts/lists within field definitions would only be caught with exhaustive type combination testing\n2. **Duck-typing attribute checks** \u2014 the hasattr logic for detecting ColumnSummary vs dicts with similar attributes; edge cases where an object has `name` and `dtype` attributes but shouldn't be treated as ColumnSummary\n3. **YAML formatting edge cases** \u2014 special characters, unicode, indentation; without brittle string matching, exact formatting bugs slip through\n4. **Field object extraction internals** \u2014 without seeing the Schema/field class structure, cannot test whether `_field_to_dict` correctly extracts all relevant attributes\n5. **Custom rules detection** \u2014 the `getattr(schema, \"rules\", None)` check; unclear what exactly constitutes \"custom rules\" and what edge cases exist\n\n**Most likely to miss:**\n- Regressions in complex nested value normalization (deeply nested field constraints)\n- Changes to duck-typing detection that affect field object classification\n- YAML formatting bugs beyond the newline check",
+ "cost_usd": 0.028172999999999997,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2922,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 3972,
+  "output_tokens_details": {
+   "thinking_tokens": 3509
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2922,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3972,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2922,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2922
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

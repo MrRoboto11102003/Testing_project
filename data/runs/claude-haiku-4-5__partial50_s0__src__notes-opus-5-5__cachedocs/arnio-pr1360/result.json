@@ -1,0 +1,257 @@
+{
+ "id": "arnio-pr1360",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 40,
+  "chars": 96300,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6978
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.1,
+ "detected": false,
+ "n_tests": 21,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 28450,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10943,
+  "output_tokens_details": {
+   "thinking_tokens": 7733
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 28450,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10943,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 28450,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 28450
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.111624,
+ "model_seconds": 47.0,
+ "seconds": 60.1,
+ "tests": {
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesDtypeChanges::test_dtype_change_raises_changed_status": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesEndToEnd::test_end_to_end_with_real_dataframes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles",
+    "from_pandas",
+    "profile"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesIdenticalProfiles::test_empty_profiles_produce_empty_report": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesIdenticalProfiles::test_identical_profiles_all_ok": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesMultipleColumns::test_multiple_columns_status_counts": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesNullRatioDrift::test_null_ratio_delta_exactly_at_threshold_is_ok": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesNullRatioDrift::test_null_ratio_delta_exceeds_changed_threshold": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesNullRatioDrift::test_null_ratio_delta_exceeds_warning_threshold": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesNumericMetricsDrift::test_mean_change_triggers_changed": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesNumericMetricsDrift::test_mean_change_triggers_warning": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesNumericMetricsDrift::test_numeric_metrics_only_compared_for_numeric_dtypes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesReturnStructure::test_drift_report_columns_sorted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesReturnStructure::test_profiles_are_stored_by_identity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesReturnStructure::test_returns_profilecomparison_with_required_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesReturnStructure::test_status_counts_always_has_three_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesSchemaValidation::test_error_message_shows_sorted_missing_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesSchemaValidation::test_raises_valueerror_if_columns_differ": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesTypeValidation::test_raises_typeerror_if_first_arg_not_report": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesTypeValidation::test_raises_typeerror_if_second_arg_not_report": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesUniqueCountDrift::test_unique_count_changed_threshold": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1360.py::TestCompareProfilesUniqueCountDrift::test_unique_count_warning_threshold": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "compare_profiles"
+   ]
+  }
+ }
+}

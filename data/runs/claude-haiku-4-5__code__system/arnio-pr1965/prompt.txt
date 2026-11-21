@@ -1,0 +1,321 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.schema.validate.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.schema.validate
+def validate(
+    frame: ArFrame,
+    schema: Schema | dict[str, Field],
+    max_errors: int | None = None,
+) -> ValidationResult:
+    """Validate an ArFrame against a schema.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input frame. Must be a single in-memory ArFrame. Chunked validation
+        is not currently supported by this function.
+    schema : Schema or dict[str, Field]
+        Validation schema.
+
+    max_errors : int | None
+        Maximum number of validation issues to return.
+        Validation stops once this limit is reached.
+
+    Returns
+    -------
+    ValidationResult
+        Validation result containing all issues and bad row indexes.
+
+    Raises
+    ------
+    TypeError
+        If schema.unique is provided but is not a list or tuple of strings.
+
+    Examples
+    --------
+    >>> schema = ar.Schema({"email": ar.Email(nullable=False)})
+    >>> result = ar.validate(frame, schema)
+    >>> result.passed
+    """
+    if not isinstance(frame, ArFrame):
+        raise TypeError(
+            "validate() expects a single ArFrame. Chunked validation is not "
+            "currently supported; validate each chunk explicitly or materialize "
+            "the data before validation."
+        )
+
+    schema = schema if isinstance(schema, Schema) else Schema(schema)
+    if max_errors is not None:
+        if isinstance(max_errors, bool) or not isinstance(max_errors, int):
+            raise TypeError("max_errors must be an int or None")
+
+        if max_errors <= 0:
+            raise ValueError("max_errors must be >= 1")
+
+    df = to_pandas(frame)
+    dtypes = frame.dtypes
+    issues: list[ValidationIssue] = []
+
+    def reached_limit() -> bool:
+        return max_errors is not None and len(issues) >= max_errors
+
+    for name, field_def in schema.fields.items():
+        if name not in df.columns:
+            issues.append(
+                ValidationIssue(
+                    column=name,
+                    rule="required_column",
+                    message=f"Missing required column: {name}",
+                    severity=field_def.severity,
+                )
+            )
+
+            if reached_limit():
+                issues = issues[:max_errors]
+
+                return ValidationResult(
+                    row_count=len(df),
+                    issue_count=len(issues),
+                    issues=issues,
+                    bad_rows=sorted(
+                        {
+                            issue.row_index
+                            for issue in issues
+                            if issue.row_index is not None
+                        }
+                    ),
+                )
+
+            continue
+        column_issues = _validate_column(
+            df,
+            df[name],
+            dtypes.get(name),
+            name,
+            field_def,
+        )
+
+        remaining = None if max_errors is None else max_errors - len(issues)
+        if remaining is not None:
+            column_issues = column_issues[:remaining]
+
+        issues.extend(column_issues)
+
+        if reached_limit():
+            issues = issues[:max_errors]
+
+            return ValidationResult(
+                row_count=len(df),
+                issue_count=len(issues),
+                issues=issues,
+                bad_rows=sorted(
+                    {issue.row_index for issue in issues if issue.row_index is not None}
+                ),
+            )
+
+    if schema.strict:
+        expected = set(schema.fields)
+
+        for name in df.columns:
+            if name not in expected:
+                issues.append(
+                    ValidationIssue(
+                        column=str(name),
+                        rule="unexpected_column",
+                        message=f"Unexpected column: {name}",
+                    )
+                )
+
+                if reached_limit():
+                    issues = issues[:max_errors]
+
+                    return ValidationResult(
+                        row_count=len(df),
+                        issue_count=len(issues),
+                        issues=issues,
+                        bad_rows=sorted(
+                            {
+                                issue.row_index
+                                for issue in issues
+                                if issue.row_index is not None
+                            }
+                        ),
+                    )
+
+    if schema.unique is not None:
+        if not isinstance(schema.unique, (list, tuple)):
+            raise TypeError(
+                "Schema 'unique' must be a list or tuple of strings (e.g., ['column_name']), "
+                f"got {type(schema.unique).__name__}."
+            )
+
+        for item in schema.unique:
+            if not isinstance(item, str):
+                raise TypeError(
+                    f"Schema 'unique' members must be strings, got {type(item).__name__} for element {item!r}."
+                )
+
+        if len(schema.unique) == 0:
+            issues.append(
+                ValidationIssue(
+                    column=None,
+                    rule="composite_unique",
+                    message="Composite unique columns cannot be empty",
+                )
+            )
+            if reached_limit():
+                issues = issues[:max_errors]
+
+                return ValidationResult(
+                    row_count=len(df),
+                    issue_count=len(issues),
+                    issues=issues,
+                    bad_rows=sorted(
+                        {
+                            issue.row_index
+                            for issue in issues
+                            if issue.row_index is not None
+                        }
+                    ),
+                )
+
+        else:
+            missing_cols = [c for c in schema.unique if c not in df.columns]
+            if missing_cols:
+                for col in missing_cols:
+                    issues.append(
+                        ValidationIssue(
+                            column=col,
+                            rule="missing_column",
+                            message=f"Column {col!r} not found",
+                        )
+                    )
+
+                    if reached_limit():
+                        issues = issues[:max_errors]
+
+                        return ValidationResult(
+                            row_count=len(df),
+                            issue_count=len(issues),
+                            issues=issues,
+                            bad_rows=sorted(
+                                {
+                                    issue.row_index
+                                    for issue in issues
+                                    if issue.row_index is not None
+                                }
+                            ),
+                        )
+            else:
+                duplicate_mask = df.duplicated(
+                    subset=list(schema.unique),
+                    keep=False,
+                )
+
+                if duplicate_mask.any():
+                    for index in df[duplicate_mask].index:
+                        issues.append(
+                            ValidationIssue(
+                                column=None,
+                                rule="composite_unique",
+                                message=(
+                                    "Duplicate rows found for columns"
+                                    f" {list(schema.unique)}"
+                                ),
+                                row_index=int(index) + 1,
+                            )
+                        )
+
+                        if reached_limit():
+                            issues = issues[:max_errors]
+
+                            return ValidationResult(
+                                row_count=len(df),
+                                issue_count=len(issues),
+                                issues=issues,
+                                bad_rows=sorted(
+                                    {
+                                        issue.row_index
+                                        for issue in issues
+                                        if issue.row_index is not None
+                                    }
+                                ),
+                            )
+
+    if schema.rules:
+        for rule_fn in schema.rules:
+            rule_name = getattr(rule_fn, "__name__", type(rule_fn).__name__)
+            try:
+                result = rule_fn(df)
+                if not isinstance(result, list):
+                    raise TypeError(
+                        f"Rule {rule_name!r} must return a list of "
+                        f"ValidationIssue, got {type(result).__name__!r}"
+                    )
+                for item in result:
+                    if not isinstance(item, ValidationIssue):
+                        raise TypeError(
+                            f"Rule {rule_name!r} returned a non-ValidationIssue "
+                            f"item: {type(item).__name__!r}"
+                        )
+                issues.extend(result)
+                if reached_limit():
+                    issues = issues[:max_errors]
+
+                    return ValidationResult(
+                        row_count=len(df),
+                        issue_count=len(issues),
+                        issues=issues,
+                        bad_rows=sorted(
+                            {
+                                issue.row_index
+                                for issue in issues
+                                if issue.row_index is not None
+                            }
+                        ),
+                    )
+
+            except KeyError as e:
+                issues.append(
+                    ValidationIssue(
+                        column=str(e).strip("'"),
+                        rule="missing_column",
+                        message=f"Cross-field rule referenced a missing column: {e}",
+                    )
+                )
+                if reached_limit():
+                    issues = issues[:max_errors]
+
+                    return ValidationResult(
+                        row_count=len(df),
+                        issue_count=len(issues),
+                        issues=issues,
+                        bad_rows=sorted(
+                            {
+                                issue.row_index
+                                for issue in issues
+                                if issue.row_index is not None
+                            }
+                        ),
+                    )
+
+    bad_rows = sorted(
+        {issue.row_index for issue in issues if issue.row_index is not None}
+    )
+    return ValidationResult(
+        row_count=len(df),
+        issue_count=len(issues),
+        issues=issues,
+        bad_rows=bad_rows,
+    )

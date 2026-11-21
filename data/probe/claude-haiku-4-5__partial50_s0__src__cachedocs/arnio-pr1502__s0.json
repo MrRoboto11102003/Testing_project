@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1502",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "no",
+ "p_catch": 58,
+ "hardest_part": "Subtle bugs in step filtering/ordering (safe mode filtering, confirmed_casts deep equality checking, internal _drop_strict_duplicates_introduced_by_cleaning correctness) would likely evade tests since row counts and return types can pass while step logic is broken.",
+ "raw": "```json\n{\n  \"verdict\": \"no\",\n  \"p_catch\": 58,\n  \"hardest_part\": \"Subtle bugs in step filtering/ordering (safe mode filtering, confirmed_casts deep equality checking, internal _drop_strict_duplicates_introduced_by_cleaning correctness) would likely evade tests since row counts and return types can pass while step logic is broken.\"\n}\n```\n\n**Reasoning:**\n\n**Easy to catch (testable via public API):**\n- Return type combinations (all 5 paths: ArFrame, Report, (ArFrame, Report), (ArFrame, Explanation), (ArFrame, Report, Explanation))\n- Input validation (mode string, bool type checks, conflicting flag errors)\n- Basic mode behavior (safe applies strip_whitespace only; strict adds more)\n- Dry-run returning report without mutation\n- Row count tracking in explanations/before-after\n- Frame immutability (original not modified)\n\n**Hard to catch (subtle/internal):**\n- **Step execution order** \u2013 A bug swapping the order of strip_whitespace \u2192 cast_types \u2192 drop_duplicates might not manifest in test data\n- **Safe mode filtering logic** \u2013 The loop skipping non-strip_whitespace steps in safe mode uses a continue statement; a subtle bug here (e.g., wrong condition) would silently skip steps without obvious test failure if the data doesn't strictly require that step\n- **Cast validation logic** \u2013 The `confirmed_casts_map != kwargs` check is a dict equality; bugs in shallow vs deep comparison or in `_validate_confirmed_casts()` are hard to detect\n- **`_drop_strict_duplicates_introduced_by_cleaning()` correctness** \u2013 This internal function's output is opaque from the API; row counts could be \"reasonable\" while the function is buggy\n- **Suggestion iteration and reason tracking** \u2013 Whether reason is set from `suggestion.confidence_reason` vs the step name depends on the suggestion object type; bugs here show no symptom in row counts\n\nThe public API provides observable row counts and return types, which catches high-level logic failures, but the internal choreography of step filtering, casting validation, and the internal duplicate-removal function are harder to exhaustively verify with ~15 tests.",
+ "cost_usd": 0.019213,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2897,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2190,
+  "output_tokens_details": {
+   "thinking_tokens": 1675
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2897,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2190,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2897,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2897
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

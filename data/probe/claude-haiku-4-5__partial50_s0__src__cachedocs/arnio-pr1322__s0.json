@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1322",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 73,
+ "hardest_part": "Subtle bugs in NA type representation (float('nan') vs None vs pd.NA) where pd.isna() masks the difference, or whitespace-preservation bugs in non-matching tokens that don't affect basic value comparisons.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 73,\n  \"hardest_part\": \"Subtle bugs in NA type representation (float('nan') vs None vs pd.NA) where pd.isna() masks the difference, or whitespace-preservation bugs in non-matching tokens that don't affect basic value comparisons.\"\n}\n```\n\n**Reasoning:**\n\n**High confidence catches (60-70%):**\n- Core logic bugs (wrong bfill index, wrong iloc selection, wrong token comparison)\n- Validation bugs (missing column checks, bad subset)\n- Subset precedence bugs (reversed order, ignored subset parameter)\n- Return type mismatches (DataFrame vs ArFrame)\n- Case sensitivity / stripping logic errors\n- Error condition bugs (missing ValueError checks)\n\nThese are testable via value assertions and error type/condition checks.\n\n**Hard-to-catch bugs (20-30%):**\n- NA type representation differences (the code uses `float(\"nan\")` but a buggy version might use `None` \u2014 both satisfy `pd.isna()` so a naive test passes)\n- Exact whitespace preservation for non-matching tokens (testing `\" value \"` vs `\"value\"` requires string equality checks, not just value presence)\n- Shallow vs deep copy semantics (hard to observe from public API unless you deliberately mutate the original)\n- Exact error message wording (if not explicitly testing message text)\n\nThe functions are straightforward but heavily depend on pandas null-value semantics, which have subtleties with pd.NA, np.nan, and None that aren't always observable through public assertions.",
+ "cost_usd": 0.024968999999999998,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2665,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 3434,
+  "output_tokens_details": {
+   "thinking_tokens": 3061
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2665,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3434,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2665,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2665
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1522",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Copy semantics and in-place mutation bugs from changing deep=False or not properly isolating the dataframe copy, which wouldn't surface from normal comparison tests.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Copy semantics and in-place mutation bugs from changing deep=False or not properly isolating the dataframe copy, which wouldn't surface from normal comparison tests.\"\n}\n```\n\n**Reasoning:**\n\n**Easy to catch** (high confidence tests):\n- Whitespace normalization logic: regex changes, missing `.strip()`, or inverted logic all show immediately in output comparisons\n- Column selection: tests with explicit `columns=` parameter vs auto-detection would reveal filtering logic breaks\n- Non-string value preservation: int/float/bool/None handling is directly observable\n- Return type consistency: pandas\u2192pandas and ArFrame\u2192ArFrame conversions are checkable\n- Missing column errors: `ValueError` raises are observable\n\n**Harder to catch** (lower confidence):\n- **Copy semantics**: The `df.copy(deep=False)` is an implementation detail. If a bug changes this to no copy or deep copy, standard assertion-based tests won't detect aliasing/mutation side effects unless specifically designed to check if the input frame was modified.\n- Error message exact format: Depends on `_validate_existing_column_sequence` helper behavior\n- Dtype detection edge cases: Whether `select_dtypes(include=[\"object\", \"string\"])` behaves exactly as expected across all pandas versions/configurations\n\nThe function's core behavior (whitespace collapsing, strip, column filtering) is straightforward and observable. Most typical regressions (broken regex, removed strip, wrong column logic, broken type handling) would be caught. The main vulnerability is mutations or shallow-copy-related issues that don't change the returned value's content but affect caller state or memory.",
+ "cost_usd": 0.018758,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1602,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2617,
+  "output_tokens_details": {
+   "thinking_tokens": 2222
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1602,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2617,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 1602,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1602
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

@@ -1,0 +1,158 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.cleaning.normalize_case, arnio.cleaning.normalize_unicode.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.normalize_case
+def normalize_case(
+    frame: ArFrame,
+    *,
+    subset: list[str] | None = None,
+    case_type: str = "lower",
+) -> ArFrame:
+    """Normalize ASCII letters in string columns to lower/upper/title case.
+
+    Non-ASCII UTF-8 bytes are preserved unchanged. This keeps accented text,
+    CJK characters, emoji, and other multibyte data valid while avoiding a
+    heavyweight Unicode case-folding dependency.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    subset : list[str], optional
+        Column names to normalize. If None, applies to all string columns.
+    case_type : str, default "lower"
+        Case to normalize to. Options: "lower", "upper", "title".
+
+    Returns
+    -------
+    ArFrame
+        New frame with string columns normalized to specified case.
+
+    Raises
+    ------
+    TypeError
+        If case_type is not a string.
+    ValueError
+        If case_type is not one of the supported options.
+    KeyError
+        If any column in subset does not exist in the frame.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> lower = ar.normalize_case(frame, case_type="lower")
+    """
+    _validate_arframe(frame)
+    if not isinstance(case_type, str):
+        raise TypeError("case_type must be a string")
+    valid_cases = {"lower", "upper", "title"}
+    if case_type not in valid_cases:
+        raise ValueError(f"case_type must be one of {valid_cases}, got {case_type!r}")
+    if subset is not None:
+        subset = _validate_existing_column_sequence(
+            subset,
+            available_columns=frame.columns,
+            argument_name="subset",
+            missing_message=lambda missing, available: (
+                f"Missing columns for normalize_case: {missing}. "
+                f"Available columns: {available}"
+            ),
+        )
+    result = _normalize_case(frame._frame, subset=subset, case_type=case_type)
+    return _wrap(result, frame)
+
+# arnio.cleaning.normalize_unicode
+def normalize_unicode(
+    frame: ArFrame,
+    *,
+    subset: list[str] | None = None,
+    form: str = "NFC",
+) -> ArFrame:
+    """Normalize Unicode text columns.
+
+    This implementation operates natively on the ArFrame's internal columnar
+    representation, avoiding a full pandas roundtrip. Only STRING columns are
+    processed; all other column types are cloned unchanged.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    subset : list[str], optional
+        Column names to normalize. If None, applies to all string columns.
+    form : str, default "NFC"
+        Unicode normalization form. One of "NFC", "NFD", "NFKC", "NFKD".
+
+    Returns
+    -------
+    ArFrame
+        New frame with Unicode-normalized string columns.
+
+    Raises
+    ------
+    ValueError
+        If form is not one of the supported normalization forms.
+    KeyError
+        If any column in subset does not exist in the frame.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> normalized = ar.normalize_unicode(frame, form="NFC")
+    """
+    _validate_arframe(frame)
+    valid_forms = {"NFC", "NFD", "NFKC", "NFKD"}
+    if not isinstance(form, str):
+        raise TypeError("form must be a string")
+    if form not in valid_forms:
+        raise ValueError(f"Unsupported Unicode normalization form: {form}")
+    if subset is not None:
+        subset = _validate_existing_column_sequence(
+            subset,
+            available_columns=frame.columns,
+            argument_name="subset",
+            missing_message=lambda missing, available: (
+                f"Missing columns for normalize_unicode: {missing}. "
+                f"Available columns: {available}"
+            ),
+        )
+    cpp_frame = frame._frame
+    num_cols = cpp_frame.num_cols()
+    target_names: set[str] = (
+        set(subset)
+        if subset is not None
+        else {
+            cpp_frame.column_by_index(i).name()
+            for i in range(num_cols)
+            if cpp_frame.column_by_index(i).dtype() == _DType.STRING
+        }
+    )
+    new_columns: dict[str, list[object]] = {}
+    dtype_hints: dict[str, _DType] = {}
+    _normalize = unicodedata.normalize
+    for i in range(num_cols):
+        col = cpp_frame.column_by_index(i)
+        name = col.name()
+        dtype = col.dtype()
+        if name in target_names and dtype == _DType.STRING:
+            values = col.to_python_list()
+            new_columns[name] = [
+                _normalize(form, v) if v is not None else None for v in values
+            ]
+            dtype_hints[name] = _DType.STRING
+        else:
+            new_columns[name] = col.to_python_list()
+            dtype_hints[name] = dtype
+    new_cpp_frame = _Frame.from_dict(new_columns, dtype_hints, frame.shape[0])
+    return _wrap(new_cpp_frame, frame)

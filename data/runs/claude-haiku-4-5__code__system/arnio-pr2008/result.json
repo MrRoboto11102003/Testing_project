@@ -1,0 +1,239 @@
+{
+ "id": "arnio-pr2008",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__system",
+ "context": {
+  "mode": "code",
+  "chars": 1345
+ },
+ "level": "system",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 2.65,
+ "detected": false,
+ "n_tests": 17,
+ "n_catching": 0,
+ "n_false_alarms": 8,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 1476,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11949,
+  "output_tokens_details": {
+   "thinking_tokens": 9009
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 1476,
+    "output_tokens": 11949,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.061221,
+ "model_seconds": 56.5,
+ "seconds": 64.3,
+ "tests": {
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepBasic::test_register_and_unregister_custom_step": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepBasic::test_unregister_then_register_same_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepBuiltinProtection::test_builtin_protection_error_message_content": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepBuiltinProtection::test_cannot_unregister_builtin_drop_na": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepBuiltinProtection::test_cannot_unregister_builtin_fill_na": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepEndToEnd::test_case_sensitive_step_names": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepEndToEnd::test_complete_workflow_register_use_unregister_reregister": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Pipeline",
+    "UnknownStepError",
+    "load",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepEndToEnd::test_multiple_custom_steps_lifecycle": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Pipeline",
+    "UnknownStepError",
+    "load",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepEndToEnd::test_step_name_with_special_characters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepErrorMessages::test_type_error_message_clarity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepErrorMessages::test_unknown_step_error_message": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepParameterValidation::test_unregister_empty_string_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepParameterValidation::test_unregister_non_string_name_raises_type_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepParameterValidation::test_unregister_nonexistent_step_raises_unknown_step_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnknownStepError",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepWithPipelines::test_other_custom_steps_work_after_unregister": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Pipeline",
+    "load",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepWithPipelines::test_pipeline_serialization_with_registered_step": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Pipeline",
+    "UnknownStepError",
+    "load",
+    "register_step",
+    "unregister_step"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2008.py::TestUnregisterStepWithPipelines::test_unregistered_step_not_usable_in_pipeline": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Pipeline",
+    "UnknownStepError",
+    "load",
+    "register_step",
+    "unregister_step"
+   ]
+  }
+ }
+}

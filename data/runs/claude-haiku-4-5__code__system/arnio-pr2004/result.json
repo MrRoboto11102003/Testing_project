@@ -1,0 +1,217 @@
+{
+ "id": "arnio-pr2004",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__system",
+ "context": {
+  "mode": "code",
+  "chars": 5980
+ },
+ "level": "system",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 1.94,
+ "detected": true,
+ "n_tests": 16,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2768,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7303,
+  "output_tokens_details": {
+   "thinking_tokens": 4881
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2768,
+    "output_tokens": 7303,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.039283,
+ "model_seconds": 34.0,
+ "seconds": 42.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_basic_csv_write": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_custom_delimiter_pipe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_encoding_errors_replace": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_encoding_latin1": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_encoding_utf8_unicode": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_escape_formulas": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_line_terminator_crlf": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_no_header": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_tsv_delimiter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_txt_extension_support": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_csv_with_pathlib_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_error_invalid_delimiter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_error_invalid_line_terminator": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_error_non_arframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_error_unknown_encoding_strict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsv::test_error_unsupported_file_extension": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  }
+ }
+}

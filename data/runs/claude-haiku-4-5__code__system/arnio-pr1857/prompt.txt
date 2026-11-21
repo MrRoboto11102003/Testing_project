@@ -1,0 +1,62 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.convert.from_dict.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.convert.from_dict
+def from_dict(data: dict) -> ArFrame:
+    """Converts a dictionary into a structured ArFrame.
+
+    Args:
+        data: A dictionary where keys are column names and values are lists of data.
+
+    Returns:
+        An ArFrame representation of the input dictionary.
+    """
+
+    if not isinstance(data, dict):
+        raise TypeError(f"Expected dict datatype but instead got {type(data).__name__}")
+    if not all(isinstance(k, str) for k in data.keys()):
+        raise TypeError("All dictionary keys must be strings")
+
+    lengths = {}
+
+    for col_name, value in data.items():
+        if isinstance(value, dict):
+            raise ValueError(f"Nested objects are not supported in column '{col_name}'")
+
+        if isinstance(value, (str, bytes)):
+            raise TypeError(
+                f"Column '{col_name}' must be a sequence of values, not {type(value).__name__}"
+            )
+
+        if not hasattr(value, "__len__"):
+            raise TypeError(
+                f"Column '{col_name}' must be a sequence of values, not {type(value).__name__}"
+            )
+
+        lengths[col_name] = len(value)
+
+    if lengths:
+        unique_lengths = set(lengths.values())
+
+        if len(unique_lengths) > 1:
+            details = ", ".join(f"{name}={length}" for name, length in lengths.items())
+
+            raise ValueError(f"from_dict() column lengths differ: {details}")
+
+    df = pd.DataFrame(data)
+
+    for col_name in df.columns:
+        _check_unsupported_dtype(col_name, df[col_name])
+
+    return from_pandas(df)

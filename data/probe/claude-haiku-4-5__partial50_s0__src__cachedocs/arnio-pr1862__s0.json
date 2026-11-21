@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1862",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 70,
+ "hardest_part": "Thread safety and lock behavior regressions cannot be observed through the public API and would require specialized concurrent testing to detect; subtle state corruption or interaction bugs during reset-then-register sequences are also difficult to catch without direct registry introspection.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 70,\n  \"hardest_part\": \"Thread safety and lock behavior regressions cannot be observed through the public API and would require specialized concurrent testing to detect; subtle state corruption or interaction bugs during reset-then-register sequences are also difficult to catch without direct registry introspection.\"\n}\n```\n\n**Reasoning:**\n\n**High confidence catches (70%+):**\n- Input validation bugs: empty/whitespace names, non-callable fn, wrong overwrite type\n- Overwrite logic regressions: accidentally allowing/forbidding overwrites, not checking flag\n- Registration failures: forgetting to store function, registry not being populated\n- Reset bugs: not clearing custom steps, not restoring built-ins\n- Conflict detection: missing checks against built-in C++/Python registries and reserved namespaces\n\n**Medium confidence catches (50-70%):**\n- Off-by-one or logic errors in validation order\n- Edge cases with deprecated aliases or reserved namespaces\n- State transitions (register \u2192 reset \u2192 re-register)\n\n**Likely misses (<30%):**\n- Thread safety/lock deadlocks (would need concurrent testing harness)\n- Registry corruption that only manifests in complex call sequences\n- Exact error message changes (I'd test for general patterns, not exact text)\n- Internal state mutations that have no observable side effects through public API\n- Race conditions or timing-dependent bugs\n\nThe core issue is that lock behavior, registry internals, and thread safety cannot be reliably validated through `register_step()`, `reset_steps()`, `list_steps()`, and `pipeline()` alone without special instrumentation.",
+ "cost_usd": 0.07982,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 26553,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5341,
+  "output_tokens_details": {
+   "thinking_tokens": 4958
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 26553,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 5341,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 26553,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 26553
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

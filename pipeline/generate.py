@@ -5,6 +5,8 @@ documentation set by the context mode, but never the issue, the fix or the
 project's tests:
 
   signatures  signatures of the target functions only, no docs
+  code        clean source of the target functions only (docstrings included), no doc files
+  codeapi     `code` + a compact index of the whole public API (signatures, types, decorators)
   targeted    README quickstart + target docstrings + API_REFERENCE sections naming them
   full        every user-facing doc file at BASE_REF + target docstrings
   partial     the `full` pool split into sections, keeping a seeded fraction (--keep).
@@ -91,6 +93,9 @@ LIBRARY_LINE = "Library: arnio (import arnio as ar), a pandas data-preparation l
 
 # In full/partial context, the per-bug part (target docstrings, signatures) follows the shared doc files.
 SOURCE_HEADER = "## ===== Source code of the target functions ====="
+NOTES_HEADER = ("## ===== Expert notes on the target functions =====\n"
+                "(Written by a senior engineer from the full clean source of each module, to help you "
+                "write precise tests.)")
 PER_BUG_MARKERS = ("## ===== Source docstrings =====", "## ===== Signatures =====", SOURCE_HEADER)
 
 
@@ -191,6 +196,60 @@ def api_reference_sections(names: set[str]) -> str:
     return "\n".join(keep)[:12000]
 
 
+_API_INDEX: str | None = None
+
+
+def api_index() -> str:
+    """Compact index of arnio's public API at BASE_REF (the names in ``__all__``):
+    function signatures with type hints and return types plus the docstring's first line,
+    and for classes their public methods (with @property/@classmethod/... decorators) and
+    annotated fields. No bodies, no prose docs. Same for every bug."""
+    global _API_INDEX
+    if _API_INDEX is not None:
+        return _API_INDEX
+    init = git("show", f"{config.BASE_REF}:arnio/__init__.py")
+    m = re.search(r"__all__\s*=\s*\[(.*?)\]", init, re.S)
+    public = set(re.findall(r"['\"](\w+)['\"]", m.group(1))) if m else set()
+    files = [f for f in git("ls-tree", "-r", "--name-only", config.BASE_REF, "arnio").split() if f.endswith(".py")]
+
+    def sig(fn: ast.FunctionDef, indent: str = "") -> str:
+        decos = "".join(f"{indent}@{ast.unparse(d)}\n" for d in fn.decorator_list)
+        ret = f" -> {ast.unparse(fn.returns)}" if fn.returns else ""
+        return f"{decos}{indent}def {fn.name}({ast.unparse(fn.args)}){ret}"
+
+    def first_line(node) -> str:
+        doc = (ast.get_docstring(node) or "").strip()
+        return doc.split("\n")[0] if doc else ""
+
+    out, seen = [], set()
+    for f in sorted(files):
+        try:
+            tree = ast.parse(git("show", f"{config.BASE_REF}:{f}"))
+        except SyntaxError:
+            continue
+        for n in tree.body:
+            if not isinstance(n, (ast.FunctionDef, ast.ClassDef)) or n.name not in public or n.name in seen:
+                continue
+            seen.add(n.name)
+            module = f[:-3].replace("/", ".")
+            if isinstance(n, ast.FunctionDef):
+                doc = first_line(n)
+                out.append(f"# {module}\n{sig(n)}" + (f"\n    # {doc}" if doc else ""))
+            else:
+                bases = f"({', '.join(ast.unparse(b) for b in n.bases)})" if n.bases else ""
+                doc = first_line(n)
+                members = []
+                for b in n.body:
+                    if isinstance(b, ast.FunctionDef) and (not b.name.startswith("_") or b.name == "__init__"):
+                        members.append(sig(b, "    "))
+                    elif isinstance(b, ast.AnnAssign):
+                        members.append("    " + ast.unparse(b))
+                out.append(f"# {module}\nclass {n.name}{bases}:" + (f"  # {doc}" if doc else "")
+                           + ("\n" + "\n".join(members) if members else ""))
+    _API_INDEX = "\n\n".join(out)
+    return _API_INDEX
+
+
 def readme_quickstart() -> str:
     """README's quickstart sections: how to build frames and call the API at all.
     Shared by every instance, so it is never ablated."""
@@ -200,7 +259,7 @@ def readme_quickstart() -> str:
     return "\n".join(keep)
 
 
-CONTEXT_MODES = ("signatures", "targeted", "source", "full", "partial")
+CONTEXT_MODES = ("signatures", "code", "codeapi", "targeted", "source", "full", "partial")
 
 # User-facing docs at BASE_REF. Left out: CHANGELOG (it narrates the bug fixes),
 # contributor/process files and internal design notes.
@@ -257,6 +316,13 @@ def build_context(meta: dict, mode: str = "targeted", keep: float = 1.0, seed: i
         text = "## Signatures\n\n" + "\n\n".join(c for c in signatures if c)
         return text, {"mode": mode, "chars": len(text)}
 
+    if mode in ("code", "codeapi"):  # the implementation (+ API index): no README, API reference or doc files
+        code = [symbol_context(s, body=True) for s in symbols]
+        text = "## Source code of the target functions\n\n" + "\n\n".join(c for c in code if c)
+        if mode == "codeapi":
+            text = ("## Public API index (signatures only, no bodies)\n\n" + api_index() + "\n\n" + text)
+        return text, {"mode": mode, "chars": len(text)}
+
     docstrings = [symbol_context(s) for s in symbols]
     if mode in ("targeted", "source"):
         names = {s.split("::")[1].split(".")[-1] for s in symbols}
@@ -305,11 +371,14 @@ def build_context(meta: dict, mode: str = "targeted", keep: float = 1.0, seed: i
 
 
 def run_label(model: str, mode: str, keep: float = 1.0, seed: int = 0, level: str = "unit",
-              cache_docs: bool = False, max_thinking: int | None = None, with_source: bool = False) -> str:
+              cache_docs: bool = False, max_thinking: int | None = None, with_source: bool = False,
+              notes: str | None = None) -> str:
     """Folder name under data/runs/ for one experimental condition (defaults add no suffix)."""
     label = f"{model}__partial{round(keep * 100)}_s{seed}" if mode == "partial" else f"{model}__{mode}"
     if with_source:
         label += "__src"
+    if notes:
+        label += f"__notes-{notes.removeprefix('claude-')}"
     if level != "unit":
         label += f"__{level}"
     if cache_docs:
@@ -340,16 +409,18 @@ def _reset_time(message: str) -> float:
 
 
 def call_claude(prompt: str, model: str, level: str = "unit", max_thinking: int | None = None,
-                system_extra: str | None = None) -> dict:
+                system_extra: str | None = None, system: str | None = None) -> dict:
     """One non-interactive Claude Code call with tools disabled.
 
     ``system_extra`` is appended to the system prompt (passed as a file: it can be far
-    longer than a Windows command line allows). Raises UsageLimit when the subscription
+    longer than a Windows command line allows); ``system`` replaces the test-writing
+    system prompt (e.g. for pipeline.probe). Raises UsageLimit when the subscription
     limit is hit, so callers can wait and retry."""
     env = dict(os.environ)
     if max_thinking is not None:
         env["MAX_THINKING_TOKENS"] = str(max_thinking)
-    system = SYSTEM_PROMPT.format(kind=SYSTEM_KIND[level])
+    if system is None:
+        system = SYSTEM_PROMPT.format(kind=SYSTEM_KIND[level])
     with tempfile.TemporaryDirectory() as cwd:  # keep project files out of its context
         if system_extra:
             sp_file = Path(cwd) / "system_prompt.txt"
@@ -373,14 +444,15 @@ def call_claude(prompt: str, model: str, level: str = "unit", max_thinking: int 
 
 
 def call_claude_waiting(prompt: str, model: str, level: str = "unit", max_thinking: int | None = None,
-                        system_extra: str | None = None, log=print, wait: bool = True) -> dict:
+                        system_extra: str | None = None, log=print, wait: bool = True,
+                        system: str | None = None) -> dict:
     """call_claude, but sleep through usage-limit resets instead of failing
     (with ``wait=False``, re-raise UsageLimit so the caller can stop instead).
     The time spent waiting is returned as ``_waited_s`` so timings can leave it out."""
     waited = 0.0
     while True:
         try:
-            reply = call_claude(prompt, model, level, max_thinking, system_extra)
+            reply = call_claude(prompt, model, level, max_thinking, system_extra, system)
             reply["_waited_s"] = waited
             return reply
         except UsageLimit as exc:
@@ -400,18 +472,25 @@ def extract_code(text: str) -> str:
 def run_one(meta: dict, model: str, mode: str = "targeted", keep: float = 1.0, seed: int = 0,
             log=print, level: str = "unit", slot: str = "check", cache_docs: bool = False,
             max_thinking: int | None = None, with_source: bool = False,
-            wait_on_limit: bool = True) -> dict:
+            wait_on_limit: bool = True, notes: str | None = None) -> dict:
     """``slot`` names the checkout used for scoring; parallel callers need one each.
     ``cache_docs`` moves the shared doc files into the system prompt, which is cached
     across calls (same content, different place; see build_cached_prompt);
     ``max_thinking`` caps the model's thinking tokens (0 turns thinking off);
-    ``with_source`` adds the clean target code (full/partial); ``wait_on_limit=False``
+    ``with_source`` adds the clean target code (full/partial); ``notes`` (an annotator model)
+    appends that model's per-function notes on the targets (pipeline.notes), after everything
+    else so they stay in the per-bug part of the prompt; ``wait_on_limit=False``
     raises UsageLimit instead of sleeping until the reset."""
     out_root = config.DATA / "runs" / run_label(model, mode, keep, seed, level, cache_docs, max_thinking,
-                                                with_source)
+                                                with_source, notes)
     out = out_root / meta["id"]
     out.mkdir(parents=True, exist_ok=True)
     context, ctx_stats = build_context(meta, mode, keep, seed, with_source)
+    if notes:
+        from .notes import notes_for
+        note_text = notes_for(meta, notes)
+        context += f"\n\n{NOTES_HEADER}\n\n{note_text}"
+        ctx_stats = {**ctx_stats, "notes": notes, "notes_chars": len(note_text), "chars": len(context)}
     if cache_docs:
         shared, prompt = build_cached_prompt(meta, context, mode, level)
         (out / "prompt.txt").write_text(f"=== SYSTEM (appended) ===\n{shared}\n\n=== USER ===\n{prompt}",
@@ -443,6 +522,7 @@ def run_one(meta: dict, model: str, mode: str = "targeted", keep: float = 1.0, s
         "cache_docs": cache_docs,
         "max_thinking": max_thinking,
         "with_source": with_source,
+        "notes": notes,
         "mean_arnio_calls": round(sum(len(v) for v in calls.values()) / max(len(calls), 1), 2),
         "detected": scored["detected"],
         "n_tests": n_tests,
@@ -480,6 +560,7 @@ def main() -> None:
     ap.add_argument("--max-thinking", type=int, help="cap thinking tokens (0 = off); for cheap trial runs")
     ap.add_argument("--with-source", action="store_true",
                     help="also show the clean code of the target functions (full/partial; label __src)")
+    ap.add_argument("--notes", help="add this annotator model's per-function notes (pipeline.notes)")
     args = ap.parse_args()
 
     ids = args.only or eligible_ids()[: args.limit]
@@ -488,7 +569,7 @@ def main() -> None:
         try:
             res = run_one(meta, args.model, args.context, args.keep, args.seed,
                           log=lambda m: print(m, flush=True) if "usage limit" in m else None, level=args.level, cache_docs=args.cache_docs, max_thinking=args.max_thinking,
-                          with_source=args.with_source)
+                          with_source=args.with_source, notes=args.notes)
         except Exception as exc:
             print(f"{iid:16} ERROR {exc}")
             continue
@@ -497,7 +578,8 @@ def main() -> None:
               f"false_alarms={res['n_false_alarms']:2} {res['seconds']}s  {meta['target_symbols'][:2]}", flush=True)
 
     out_root = config.DATA / "runs" / run_label(args.model, args.context, args.keep, args.seed, args.level,
-                                                args.cache_docs, args.max_thinking, args.with_source)
+                                                args.cache_docs, args.max_thinking, args.with_source,
+                                                args.notes)
     if (out_root / "summary.json").exists():
         s = json.loads((out_root / "summary.json").read_text(encoding="utf-8"))
         print(f"\n{out_root.name}: detected {s['detected']}/{s['instances']} bugs; "

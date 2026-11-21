@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr2007",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "no",
+ "p_catch": 58,
+ "hardest_part": "Verifying that compression codec, row_group_size, and index parameters are actually applied to the output file requires reading parquet metadata or analyzing file structure, not just checking file existence and roundtrip data integrity.",
+ "raw": "```json\n{\n  \"verdict\": \"no\",\n  \"p_catch\": 58,\n  \"hardest_part\": \"Verifying that compression codec, row_group_size, and index parameters are actually applied to the output file requires reading parquet metadata or analyzing file structure, not just checking file existence and roundtrip data integrity.\"\n}\n```\n\n**Reasoning:**\n\n**What I can easily test (high confidence):**\n- Input type validation (ArFrame, path types, compression/preserve_attrs bools)\n- Parameter value validation (compression in allowed set, row_group_size > 0, file extensions)\n- Error raising for missing pyarrow, non-JSON-serializable attrs, zero-column frames\n- File creation (file exists after call)\n- Data roundtrip via `pd.read_parquet()` (shape, dtypes, values preserved)\n\n**What's hard to verify without introspection:**\n- Whether `compression=\"snappy\"` actually produced snappy-compressed output (vs gzip, etc.) \u2014 only visible in parquet metadata\n- Whether `row_group_size=N` was actually passed to pandas (not observable from file reading alone)\n- Whether `index=False` was honored (would only matter if someone regressed it to `True`, changing output shape \u2014 but reading back would catch this)\n- Whether attrs are actually written to parquet metadata (vs silently dropped) \u2014 requires parquet-specific metadata inspection\n\n**Bug categories likely to slip through:**\n1. `compression` parameter silently ignored or hardcoded to one codec\n2. `row_group_size` not included in kwargs dict (function still works, just uses defaults)\n3. Conditional kwargs logic broken (e.g., `if row_group_size is not None` becoming `if row_group_size`)\n4. The JSON serialization check bypassed when `preserve_attrs=True`\n\nThese require either reading parquet metadata or observing side effects impossible through standard pandas I/O.",
+ "cost_usd": 0.073077,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 30169,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2546,
+  "output_tokens_details": {
+   "thinking_tokens": 2095
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 30169,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2546,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 30169,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 30169
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

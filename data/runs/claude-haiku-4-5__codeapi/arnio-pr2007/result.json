@@ -1,0 +1,308 @@
+{
+ "id": "arnio-pr2007",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__codeapi",
+ "context": {
+  "mode": "codeapi",
+  "chars": 35920
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 2.0,
+ "detected": false,
+ "n_tests": 25,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 12066,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10080,
+  "output_tokens_details": {
+   "thinking_tokens": 7224
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 12066,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10080,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 12066,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 12066
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.074541,
+ "model_seconds": 42.4,
+ "seconds": 50.8,
+ "tests": {
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetBasicFunctionality::test_write_parquet_creates_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetBasicFunctionality::test_write_parquet_pathlib_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetBasicFunctionality::test_write_parquet_pq_extension": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetBasicFunctionality::test_write_parquet_round_trip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "read_parquet",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetCompressionParameter::test_write_parquet_compression_type_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetCompressionParameter::test_write_parquet_invalid_compression_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetCompressionParameter::test_write_parquet_valid_compressions[brotli]": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetCompressionParameter::test_write_parquet_valid_compressions[gzip]": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetCompressionParameter::test_write_parquet_valid_compressions[none]": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetCompressionParameter::test_write_parquet_valid_compressions[snappy]": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetCompressionParameter::test_write_parquet_valid_compressions[zstd]": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetEdgeCases::test_write_parquet_empty_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetEdgeCases::test_write_parquet_multiple_dtypes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetEdgeCases::test_write_parquet_single_row": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetEdgeCases::test_write_parquet_with_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetFileExtension::test_write_parquet_case_insensitive_extension": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetFileExtension::test_write_parquet_invalid_extension_csv": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetFileExtension::test_write_parquet_invalid_extension_txt": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetFrameValidation::test_write_parquet_frame_must_be_arframe": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetPreserveAttrs::test_write_parquet_preserve_attrs_false": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetPreserveAttrs::test_write_parquet_preserve_attrs_not_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetRowGroupSize::test_write_parquet_row_group_size_negative_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetRowGroupSize::test_write_parquet_row_group_size_not_integer": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetRowGroupSize::test_write_parquet_row_group_size_zero_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2007.py::TestWriteParquetRowGroupSize::test_write_parquet_with_row_group_size": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "write_parquet"
+   ]
+  }
+ }
+}

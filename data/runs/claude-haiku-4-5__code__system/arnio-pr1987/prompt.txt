@@ -1,0 +1,56 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.quality.CleanStepRecord.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.quality.CleanStepRecord
+@dataclass(frozen=True)
+class CleanStepRecord:
+    """Audit record for a single step applied by auto_clean."""
+
+    step: str
+    """Name of the cleaning step (e.g. ``strip_whitespace``)."""
+    kwargs: dict[str, Any]
+    """Keyword arguments passed to the step."""
+    rows_before: int
+    """Row count before this step was applied."""
+    rows_after: int
+    """Row count after this step was applied."""
+    rows_removed: int
+    """Number of rows removed by this step (0 for non-row-dropping steps)."""
+    reason: str
+    """Human-readable explanation of why this step was selected."""
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.step, str):
+            raise TypeError(
+                f"CleanStepRecord.step must be a str, got {type(self.step).__name__}"
+            )
+        if not isinstance(self.reason, str):
+            raise TypeError(
+                f"CleanStepRecord.reason must be a str, got {type(self.reason).__name__}"
+            )
+        if not isinstance(self.kwargs, dict):
+            raise TypeError(
+                f"CleanStepRecord.kwargs must be a dict, got {type(self.kwargs).__name__}"
+            )
+        for name, value in (
+            ("rows_before", self.rows_before),
+            ("rows_after", self.rows_after),
+            ("rows_removed", self.rows_removed),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(
+                    f"CleanStepRecord.{name} must be an int, got {type(value).__name__}"
+                )
+            if value < 0:
+                raise ValueError(f"CleanStepRecord.{name} cannot be negative: {value}")

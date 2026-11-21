@@ -1,0 +1,90 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.schema.String.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.schema.String
+def String(
+    *,
+    nullable: bool = True,
+    pattern: str | None = None,
+    allowed: set[Any] | list[Any] | tuple[Any, ...] | None = None,
+    case_sensitive: bool = True,
+    unique: bool = False,
+    severity: str = "error",
+    min_length: int | None = None,
+    max_length: int | None = None,
+    required_if: tuple[str, Any] | None = None,
+) -> Field:
+    """Create a string schema field.
+
+    Args:
+        nullable: Whether null values are allowed.
+        pattern: Regular expression pattern that non-null values must match.
+        allowed: Allowed values for the field.
+        case_sensitive: Whether allowed string matching is case-sensitive.
+        unique: Whether non-null values must be unique.
+        severity: Severity level for validation issues.
+        min_length: Minimum allowed string length.
+        max_length: Maximum allowed string length.
+        required_if: Conditional requirement as a column/value pair.
+
+    Returns:
+        Field: Configured string schema field.
+    """
+
+    min_length = _normalize_length("min_length", min_length)
+    max_length = _normalize_length("max_length", max_length)
+
+    if min_length is not None and max_length is not None and min_length > max_length:
+        raise ValueError("min_length must be less than or equal to max_length")
+
+    if isinstance(allowed, (str, bytes)):
+        raise TypeError(
+            "allowed must be a sequence of allowed values, not a bare string"
+        )
+
+    if pattern is not None:
+        if not isinstance(pattern, str):
+            raise TypeError("pattern must be a string or None")
+
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise ValueError(f"Invalid regex pattern: {pattern!r}") from exc
+        _reject_unsafe_regex_pattern(pattern)
+
+    for name, value in (
+        ("min_length", min_length),
+        ("max_length", max_length),
+    ):
+        if value is not None:
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"{name} must be an integer")
+
+            if value < 0:
+                raise ValueError(f"{name} must be greater than or equal to 0")
+
+    allowed_set = set(allowed) if allowed is not None else None
+
+    return Field(
+        dtype="string",
+        nullable=nullable,
+        pattern=pattern,
+        allowed=allowed_set,
+        case_sensitive=case_sensitive,
+        unique=unique,
+        min_length=min_length,
+        max_length=max_length,
+        required_if=required_if,
+        severity=severity,
+    )

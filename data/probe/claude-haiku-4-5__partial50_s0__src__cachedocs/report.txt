@@ -1,0 +1,78 @@
+Probe vs control claude-haiku-4-5__partial50_s0__src__cachedocs: 50 bugs, control caught 29/50
+cost $1.47
+
+Verdict vs outcome     caught  missed
+  said yes                 26      18
+  said no                   3       3
+  accuracy 0.58 (always-yes baseline 0.58); Fisher p=0.686
+
+p_catch: mean 69, range 52-82, 15 distinct values
+  mean p_catch | caught 69.9  | missed 67.9
+
+AUROC for predicting 'caught' (0.5 = chance; permutation p):
+  p_catch (model)            0.62  p=0.149
+  -source chars (baseline)   0.35  p=0.070
+  -n targets (baseline)      0.58  p=0.203
+
+Against difficulty = # of 4 code runs that caught it (code, codeapi, full+src, p50+src):
+  Spearman(p_catch, n_catch_runs) = 0.14
+  Spearman(-src_chars, n_catch_runs) = -0.24
+
+Escalation sim: flag the k lowest-p_catch bugs (ties broken by id)
+  base miss rate 0.42
+  k= 5: 3/5 flagged were missed (0.60); covers 3/21 of all misses
+  k=10: 5/10 flagged were missed (0.50); covers 5/21 of all misses
+  k=15: 8/15 flagged were missed (0.53); covers 8/21 of all misses
+  k=20: 10/20 flagged were missed (0.50); covers 10/21 of all misses
+
+id             caught runs     p  yes  hardest part
+arnio-pr1516   -         0    52  0.0  Schema.validate() is a thin wrapper delegating to an unseen module-level validate() functi
+arnio-pr1312   -         2    58  1.0  Bugs in dtype mapping via hidden _DTYPE_MAP or in field deserialization (_field_from_json_
+arnio-pr1502   Y         3    58  0.0  Subtle bugs in step filtering/ordering (safe mode filtering, confirmed_casts deep equality
+arnio-pr1965   Y         3    58  0.0  Per-column validation is delegated to _validate_column(), which I cannot observe directly—
+arnio-pr2007   -         1    58  0.0  Verifying that compression codec, row_group_size, and index parameters are actually applie
+arnio-pr2030   Y         3    60  0.0  Bugs in the recursive _normalize_serializable helper or duck-typing logic for ColumnSummar
+arnio-pr1495   -         0    62  0.0  Internal column profiling logic and quality score calculation are opaque from the public A
+arnio-pr1553   -         0    62  1.0  Semantic bugs in constraint-checking logic (e.g., unique key deduplication, conditional re
+arnio-pr1338   Y         4    65  1.0  Bugs in the step selection and execution logic based on mode and suggestions (especially t
+arnio-pr1508   Y         4    65  1.0  Detecting bugs in lineage tracking with repeated step names (merging behavior must preserv
+arnio-pr1635   Y         4    65  1.0  Detecting bugs in lineage tracking and sentinel column handling requires precise verificat
+arnio-pr1852   -         0    65  1.0  Subtle null/NaN/pd.NA semantics in edge cases, especially the complex null-key normalizati
+arnio-pr1749   Y         4    67  1.0  Type inference consistency when chunk boundaries split data with different numeric formats
+arnio-pr1360   -         0    68  1.0  Logic bugs in status_counts accumulation based on opaque return values from _compare_colum
+arnio-pr1826   -         0    68  1.0  Quality score calculation or approximation algorithm bugs would be difficult to detect sin
+arnio-pr1866   Y         1    68  1.0  Silent parameter passing bugs to df.to_parquet() (e.g., compression not applied, row_group
+arnio-pr1868   -         0    68  1.0  Bugs in internal helper functions like _clean_scalar(), _filtered_suggestion_kwargs(), or 
+arnio-pr2026   -         0    68  1.0  Dtype and metadata preservation through ArFrame C++ layer conversions (column_by_name, to_
+arnio-pr1535   Y         4    70  1.0  A subtle bug in null/NaN handling with pandas extension dtypes (nullable Int64, string) or
+arnio-pr1600   Y         4    70  1.0  Testing exact markdown escaping behavior of internal helper functions (_markdown_cell, _cl
+arnio-pr1772   Y         4    70  1.0  Input records being mutated in place, or column ordering from dict key iteration not being
+arnio-pr1854   Y         4    70  1.0  Temporary file cleanup logic and resource management edge cases that don't directly affect
+arnio-pr1857   -         0    70  1.0  Whether unsupported pandas dtypes are correctly rejected by _check_unsupported_dtype, whic
+arnio-pr1862   -         1    70  1.0  Thread safety and lock behavior regressions cannot be observed through the public API and 
+arnio-pr2004   Y         4    70  1.0  Internal C++ backend failures, temporary file cleanup on errors, and exact transcoding cor
+arnio-pr1340   Y         1    71  1.0  Bugs in resource cleanup paths or file-like object materialization that don't affect the r
+arnio-pr1738   Y         4    71  1.0  Bugs in the semantic string construction logic (scheme sorting, escaping, or prefix) might
+arnio-pr1757   -         0    71  1.0  Precision loss or unexpected type coercion in numeric or nullable extension dtype columns 
+arnio-pr1226   Y         4    72  1.0  The conditional FLOAT64 copy logic (`if copy or mask.any(): arr = arr.copy()`) where bugs 
+arnio-pr1479   Y         1    72  1.0  The exact filtering behavior of internal helper function _filtered_suggestion_kwargs and e
+arnio-pr1491   -         1    72  1.0  Data aliasing during the ArFrame↔pandas conversion cycle—a bug where the returned frame im
+arnio-pr1493   Y         3    72  1.0  Silent data corruption or type coercion issues during the `to_pandas()` conversion or Duck
+arnio-pr1522   -         0    72  1.0  Copy semantics and in-place mutation bugs from changing deep=False or not properly isolati
+arnio-pr1726   Y         4    72  1.0  Subtle type-coercion or dtype-preservation bugs where numeric columns get incorrectly coer
+arnio-pr1851   Y         4    72  1.0  Detecting dtype corruption or mutation of non-target columns during the Python dict→C++ fr
+arnio-pr1860   Y         2    72  1.0  Bugs in the kwargs construction (e.g., not passing index=False, incorrect compression=None
+arnio-pr1996   -         0    72  1.0  Exact dtype and nullable-type preservation through the pandas round-trip conversion and di
+arnio-pr1999   -         0    72  1.0  Bugs in metadata (attrs) copying or internal frame isolation are difficult to detect from 
+arnio-pr2005   -         0    72  1.0  Whether parameters like redact_sample_values and exclude_columns are correctly passed to b
+arnio-pr2015   -         0    72  1.0  Detecting subtle bugs in dtype coercion or metadata loss when mixed-content columns (boole
+arnio-pr2028   -         0    72  1.0  Bugs in the internal helper functions _normalize_length() or _reject_unsafe_regex_pattern(
+arnio-pr1322   Y         4    73  1.0  Subtle bugs in NA type representation (float('nan') vs None vs pd.NA) where pd.isna() mask
+arnio-pr1481   Y         4    73  1.0  Internal dtype preservation and metadata correctness through the ArFrame↔pandas conversion
+arnio-pr1782   Y         4    74  1.0  Bugs in the semantic-value mapping (e.g., typos like 'email_strict' instead of 'email:stri
+arnio-pr2011   Y         4    75  1.0  Deep-copy semantics of internal frame attributes (`_attrs`) cannot be verified through the
+arnio-pr2029   Y         2    75  1.0  The camelCase case transformation logic (string splitting/joining) and regex patterns for 
+arnio-pr1539   Y         3    76  1.0  Deep copying of attrs—or subtle column-selection/ordering bugs in the underlying C++ frame
+arnio-pr1978   Y         3    76  1.0  Internal state corruption or metadata mishandling in the empty-result case (when no column
+arnio-pr1987   Y         4    76  1.0  The subtle bool check that must distinguish True/False from valid integers, since isinstan
+arnio-pr2008   -         0    82  1.0  Thread-safety regressions from removing or misusing the _REGISTRY_LOCK would be undetectab

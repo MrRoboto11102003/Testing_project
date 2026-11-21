@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1854",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 70,
+ "hardest_part": "Temporary file cleanup logic and resource management edge cases that don't directly affect yielded data correctness but cause resource leaks or file-locking issues.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 70,\n  \"hardest_part\": \"Temporary file cleanup logic and resource management edge cases that don't directly affect yielded data correctness but cause resource leaks or file-locking issues.\"\n}\n```\n\n**Reasoning:**\n\n**Likely to catch (85-95%):**\n- Chunking logic bugs (wrong chunk counts, incorrect nrows enforcement, off-by-one errors)\n- Parameter validation bugs (invalid delimiter, encoding, chunksize values)\n- Data integrity issues (missing/extra rows, wrong column filtering with usecols)\n- File format detection bugs (.tsv delimiter auto-detection vs explicit override)\n- skip_rows/nrows interaction bugs\n- usecols filtering inconsistency across chunks\n- Error handling on invalid inputs\n\n**Difficult to catch (20-50%):**\n- Temporary file cleanup failures (purely internal resource management, no public API observable)\n- Subtle state management bugs in the C++ `_CsvChunkReader` (if schema inference or state is inconsistently applied)\n- Exact error message matching or specific error conditions\n- Edge cases in parameter conflict detection (skiprows/skip_rows)\n- Encoding/unicode handling in file-like object materialization\n- Empty chunk filtering logic\n- Bad row handling subtleties depending on specific CSV content\n\n**Tests I would write:**\n1-3 basic chunk iteration (count, sizes, row totals)\n2-3 parameter validation and error handling\n2-3 data integrity across chunks\n1-2 file format detection\n2-3 skip_rows and nrows enforcement\n1-2 usecols filtering\n2-3 edge cases (empty files, single row, nrows < chunksize)\n\nThe hardest bugs to catch involve resource cleanup and internal state that don't manifest as incorrect data output.",
+ "cost_usd": 0.024016,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3766,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2803,
+  "output_tokens_details": {
+   "thinking_tokens": 2374
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3766,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2803,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 3766,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3766
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

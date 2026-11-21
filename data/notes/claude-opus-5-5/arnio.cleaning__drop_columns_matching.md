@@ -1,0 +1,82 @@
+# Notes: `arnio.cleaning.drop_columns_matching(frame, pattern)`
+
+## 1. Purpose
+- Drops every column whose name contains a match for the regex `pattern`, using `re.search`. It returns the same kind of object it was given: an `ArFrame` for an `ArFrame`, a `pd.DataFrame` for a `pd.DataFrame`.
+
+## 2. Inputs
+- `frame`: an `ArFrame` or a `pd.DataFrame`, checked by `_validate_frame(frame, allow_pandas=True)`.
+  - Anything else raises `TypeError`.
+  - No `pd.DataFrame` subclass special-casing beyond `isinstance`.
+- `pattern`: must be a `str`. There is no default and no normalisation.
+  - It is compiled once with `re.compile` purely to validate it.
+  - Matching uses `re.search(pattern, str(col))`. This matches anywhere in the name, not anchored. It is case-sensitive because no flags are passed.
+  - Non-string pandas column labels are converted with `str(col)` before matching. Example: label `0` is matched as `"0"`.
+
+## 3. Raises (checks run in this order)
+1. `TypeError("frame must be an ArFrame or a pandas DataFrame")`
+   - Trigger: `drop_columns_matching([1, 2], "x")`.
+   - The frame is checked before the pattern, so `drop_columns_matching(None, 5)` gives this message too.
+2. `TypeError(f"pattern must be a string, got {type(pattern).__name__}")`
+   - The type name is **not** quoted, so the message is exactly `pattern must be a string, got int`.
+   - Trigger: `drop_columns_matching(frame, 5)`.
+   - `re.compile` objects and `None` are also rejected: `got Pattern` / `got NoneType`.
+3. `re.error(f"Invalid regex pattern: {pattern!r}")`, raised `from` the original `re.error`.
+   - Trigger: `drop_columns_matching(frame, "[")`.
+   - `str(exc)` is exactly `Invalid regex pattern: '['`.
+   - `exc.__cause__` is an `re.error`.
+4. Zero-column frame: this is an early return, not an error. It happens **before** the all-match check (see section 6).
+5. `ValueError("Pattern matches all columns. At least one column must remain.")`
+   - Trigger: frame with columns `["a", "b"]` and pattern `""` (empty matches everything), `"."` or `"a|b"`.
+
+## 4. Returns and guarantees
+- Result columns are the original columns minus the matched ones, in their **original relative order**.
+- Rows, row count and cell values are unchanged.
+- **`ArFrame` input:**
+  - The result is `from_pandas(to_pandas(frame).drop(columns=...))`, which is a new `ArFrame`.
+  - `_wrap` is not used, so `attrs` are **not** explicitly copied. Whether `from_pandas` keeps attrs depends on `convert.py` (not shown), so do not assert on attrs.
+  - Dtypes go through a pandas round-trip. For plain int64 / float64 / string columns, `result.dtypes` should equal the input's dtypes for the surviving columns.
+- **`pd.DataFrame` input:**
+  - The result is `df.drop(columns=cols_to_drop)`, a new DataFrame. It is a distinct object even when nothing matched.
+  - Index is preserved, with no reset.
+- No match at all is not an error. You get a new frame with all columns: an `ArFrame` with the same columns, or a DataFrame `equal` to the input but `is not` the input.
+
+## 5. Side effects
+- None. The input DataFrame or `ArFrame` is not mutated, because `df.drop` returns a copy.
+- No global state is touched and no files are written.
+
+## 6. Branches and edge cases
+- **Partial match.** `pd.DataFrame({"temp_a": [1, 2], "b": ["x", "y"], "temp_c": [1.5, 2.5]})` with `"^temp_"` gives columns `["b"]`.
+- **Substring vs anchor.**
+  - Columns `["my_temp", "temp_x", "keep"]` with `"temp"` gives `["keep"]`.
+  - The same columns with `"^temp"` gives `["my_temp", "keep"]`.
+- **Case-sensitive.** Columns `["TEMP_a", "temp_b", "c"]` with `"^temp"` gives `["TEMP_a", "c"]`.
+- **No match.** `"zzz"` returns all columns unchanged (new object).
+- **Zero columns.** If `len(df.columns) == 0`, the function returns the **input object itself**: `result is frame` for both `ArFrame` and DataFrame. This holds even for pattern `""`, so no ValueError is raised.
+  - Use `pd.DataFrame(index=range(3))` to build this case.
+  - Whether `ar.from_pandas` accepts a zero-column frame depends on the C++ core, so prefer the pandas path for this test.
+- **Zero rows, some columns.** Behaves normally: the matched columns are dropped and the result has 0 rows.
+- **Non-string labels (pandas).** `pd.DataFrame({0: [1], 1: [2], "x": [3]})` with `"^\d$"` gives columns `["x"]`.
+- **All match.** Raises the ValueError from item 5 of section 3. Examples: a single-column frame `{"a": [1]}` with `"a"`, or any frame with `""`.
+
+## 7. Rules from the docstring
+- `pattern` is a regex matched against column names.
+- A non-str `pattern` raises TypeError, an invalid regex raises `re.error`, and matching all columns raises ValueError.
+- The return type matches the input type.
+
+## 8. Testing hints
+- Build inputs with `fr = ar.from_pandas(pd.DataFrame({...}))`.
+- Observe results through:
+  - `res.columns` (a list),
+  - `res.shape`,
+  - `ar.to_pandas(res)` together with `pd.testing.assert_frame_equal` against `df[["b"]]`, plus `check_dtype` where the dtypes are simple.
+- Assert `isinstance(res, ar.ArFrame)` for `ArFrame` input and `isinstance(res, pd.DataFrame)` for DataFrame input.
+- Check order: drop the middle column of `["a", "mid", "z"]` with `"^mid$"` and assert `["a", "z"]` exactly.
+- Matching exception messages with `pytest.raises(..., match=...)`:
+  - Wrap them in `re.escape`, because they contain `(`, `.` and `'`. Example: `match=re.escape("Invalid regex pattern: '['")`.
+  - For the type error, `match="pattern must be a string, got int"` works; the type name is not quoted.
+- Non-mutation check for the pandas path: keep `df_copy = df.copy()`, call the function, then `assert_frame_equal(df, df_copy)` and `list(df.columns)` unchanged.
+- Pitfalls:
+  - `""` and `"."` match every non-empty name, so they raise on non-empty frames.
+  - Do not assert that `attrs` survive.
+  - Do not assert `result is frame` except in the zero-column case.
+  - For pandas input the index is **not** reset. After dropping columns the index is the same as the input's anyway.

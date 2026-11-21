@@ -1,0 +1,306 @@
+{
+ "id": "arnio-pr2004",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__system__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 80,
+  "chars": 157601
+ },
+ "level": "system",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 2.12,
+ "detected": false,
+ "n_tests": 24,
+ "n_catching": 0,
+ "n_false_alarms": 4,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3328,
+  "cache_read_input_tokens": 43610,
+  "output_tokens": 9886,
+  "output_tokens_details": {
+   "thinking_tokens": 5962
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3328,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9886,
+    "cache_read_input_tokens": 43610,
+    "cache_creation_input_tokens": 3328,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3328
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.060456,
+ "model_seconds": 45.9,
+ "seconds": 55.8,
+ "tests": {
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvBasic::test_write_csv_default_format": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvBasic::test_write_csv_roundtrip": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "read_csv",
+    "to_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvBasic::test_write_csv_with_pathlib": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvEncoding::test_write_csv_encoding_errors_replace": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvEncoding::test_write_csv_latin1_encoding": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvEncoding::test_write_csv_utf8_unicode": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvErrorHandling::test_write_csv_invalid_encoding": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvErrorHandling::test_write_csv_invalid_encoding_errors": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvErrorHandling::test_write_csv_invalid_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvErrorHandling::test_write_csv_invalid_path_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFileExtensions::test_write_csv_supported_extensions": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFileExtensions::test_write_csv_unsupported_extension": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFormatOptions::test_write_csv_semicolon_delimiter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFormatOptions::test_write_csv_tab_delimiter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFormatOptions::test_write_csv_windows_line_terminator": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFormatOptions::test_write_csv_without_header": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFormulaEscaping::test_escape_formulas_all_triggers": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFormulaEscaping::test_escape_formulas_equals": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvFormulaEscaping::test_no_escape_by_default": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvMixedData::test_write_csv_empty_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvMixedData::test_write_csv_mixed_types_roundtrip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvMixedData::test_write_csv_with_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvWithPipeline::test_write_csv_after_pipeline": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "pipeline",
+    "write_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2004.py::TestWriteCsvWithPipeline::test_write_csv_full_workflow": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv",
+    "write_csv"
+   ]
+  }
+ }
+}

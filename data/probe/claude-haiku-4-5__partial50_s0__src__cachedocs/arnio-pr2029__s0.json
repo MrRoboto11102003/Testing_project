@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr2029",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 75,
+ "hardest_part": "The camelCase case transformation logic (string splitting/joining) and regex patterns for special character handling could have subtle off-by-one errors or edge cases that only manifest on specific character sequences like consecutive special characters, which might be missed unless explicitly tested.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 75,\n  \"hardest_part\": \"The camelCase case transformation logic (string splitting/joining) and regex patterns for special character handling could have subtle off-by-one errors or edge cases that only manifest on specific character sequences like consecutive special characters, which might be missed unless explicitly tested.\"\n}\n```\n\n**Reasoning:**\n\n**Testable behaviors (high confidence catch):**\n- Input validation (TypeError for non-string case_type, ValueError for invalid case_type)\n- Each case_type produces correct output (\"lower\", \"upper\", \"title\", \"camel\", \"none\")\n- Special character replacement works correctly\n- Duplicate detection raises ValueError\n- Empty names default to \"column\"\n- Return type is ArFrame\n\n**Hard to test / likely miss (risk factors):**\n- **Deep copy verification**: Can't easily verify it's a true deep copy without mutation tests that depend on ArFrame internals\n- **Exact error messages**: Unlikely to test exact text\n- **camelCase edge cases**: The split/join logic with parts[0] + \"\".join() could have subtle bugs on unusual inputs (single character segments, numbers, already-camelCase input)\n- **Regex pattern correctness**: Could miss whether `[^a-zA-Z0-9_]` and `_+` patterns handle all intended/unintended cases correctly\n- **Boundary trimming edge cases**: Unusual sequences like \"___col___\" or entirely special-character inputs\n- **Order preservation**: Column ordering in output\n\nThe function is relatively straightforward with clear input/output contracts, making most bugs catchable. However, string manipulation bugs in the camelCase logic or regex patterns could be subtle enough to avoid detection.",
+ "cost_usd": 0.0308465,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2064,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 4854,
+  "output_tokens_details": {
+   "thinking_tokens": 4452
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2064,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 4854,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 2064,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2064
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr2004",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 70,\n  \"hardest_part\": \"Internal C++ backend failures, temporary file cleanup on errors, and exact transcoding correctness for non-UTF-8 encodings are hard to verify through the public API.\"\n}\n```\n\n**Reasoning:**\n\n**High confidence catches (90%+):**\n- Type validation (frame, path, delimiter types)\n- File extension validation (.csv, .txt, .tsv only)\n- Parameter validation (line_terminator in {\"\\n\", \"\\r\\n\", \"\\r\"}, encoding_errors in valid set)\n- Basic write-and-read-back functionality\n- Write header flag behavior\n- Formula escaping (observable from file content: =, +, -, @ prefixed with quote)\n- Delimiter actually used in output\n- Line terminator actually used in output\n\n**Medium confidence catches (50-70%):**\n- Encoding parameter accepted/rejected\n- File overwrite behavior\n- Simple encoding_errors behavior with ASCII-safe content\n- Return value is None\n\n**Hard to catch (20-40%):**\n- Transcoding correctness for non-UTF-8 paths (chunked reading mechanics)\n- Temporary file cleanup on RuntimeError/OSError\n- Atomic write via `os.replace()` semantics\n- Exact C++ backend error messages\n- Edge cases with invalid UTF-8 or special characters\n- Memory efficiency with bounded chunk size\n- Interaction between escape_formulas and CSV quoting rules\n\n**Likely bugs this would catch:** Input validation breaks, formula escaping removed/changed, header flag ignored, wrong delimiter/line-terminator used, file not created/overwritten.\n\n**Likely bugs this would miss:** Transcoding path broken for non-UTF-8, temporary files not cleaned on error, C++ backend integration failure with specific edge cases.",
+ "cost_usd": 0.0209595,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3438,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 2327,
+  "output_tokens_details": {
+   "thinking_tokens": 1897
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3438,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2327,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 3438,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3438
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "verdict": "yes",
+ "p_catch": 70,
+ "hardest_part": "Internal C++ backend failures, temporary file cleanup on errors, and exact transcoding correctness for non-UTF-8 encodings are hard to verify through the public API."
+}

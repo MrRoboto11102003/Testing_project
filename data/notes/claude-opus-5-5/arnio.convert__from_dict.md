@@ -1,0 +1,105 @@
+# Notes: `arnio.convert.from_dict(data: dict) -> ArFrame`
+
+## 1. Purpose
+- Builds an ArFrame from `{column_name: sequence_of_values}`.
+- It validates the dict in Python, builds `pd.DataFrame(data)`, checks each column for unsupported dtypes, then returns `from_pandas(df)`.
+- `ArFrame.from_dict` (the classmethod in `arnio.frame`) is a different function and is not covered here.
+
+## 2. Inputs
+- `data` must be a real `dict`. Subclasses such as `OrderedDict` also pass the `isinstance` check.
+- Every key must be a `str`.
+- Every value must:
+  - not be a `dict`,
+  - not be a `str` or `bytes`,
+  - have `__len__`. Lists, tuples, `range`, numpy arrays, `pd.Series` and `pd.Index` all qualify. Generators do not.
+- All values must have the same length.
+- The empty dict `{}` is accepted.
+
+## 3. Raises (checks run in this order)
+1. Non-dict input: `TypeError(f"Expected dict datatype but instead got {type(data).__name__}")`.
+   - `ar.from_dict([1])` → `"Expected dict datatype but instead got list"`.
+2. Any non-str key: `TypeError("All dictionary keys must be strings")`.
+   - `ar.from_dict({1: [1]})`.
+   - All keys are checked before any value, so `{1: "x"}` raises this error, not the value error.
+3. Per-column checks, in dict insertion order. The first failing column raises.
+   - Value is a dict: **`ValueError`** (not TypeError), `f"Nested objects are not supported in column '{col_name}'"`.
+     - `ar.from_dict({"a": {"x": 1}})`.
+   - Value is str/bytes: `TypeError(f"Column '{col_name}' must be a sequence of values, not {type(value).__name__}")`.
+     - `{"a": "xy"}` → `"... not str"`.
+     - `{"a": b"x"}` → `"... not bytes"`.
+   - Value has no `__len__`: the same template.
+     - `{"a": 5}` → `"Column 'a' must be a sequence of values, not int"`.
+     - `{"a": None}` → `"... not NoneType"`.
+   - Ordering example: `{"a": "x", "b": {}}` raises the TypeError for `a`.
+4. Unequal lengths: `ValueError(f"from_dict() column lengths differ: {details}")`. `details` lists every column as `name=len`, joined by `", "`, in insertion order.
+   - `{"a": [1, 2], "b": [1]}` → `"from_dict() column lengths differ: a=2, b=1"`.
+   - The message contains parentheses, so use `re.escape` with `pytest.raises(match=...)`.
+5. After `pd.DataFrame(data)` is built, `_check_unsupported_dtype` runs per column. In these messages the name is shown as `repr(str(col))`, i.e. `'d'`.
+   - datetime64 or tz dtype: `"Column 'd' has unsupported dtype 'datetime64[ns]'.\n  Fix: df['d'] = df['d'].astype(str)  # or use .dt.strftime('%Y-%m-%d') for formatted dates"`.
+     - Trigger: `{"d": pd.to_datetime(["2020-01-01"])}`.
+     - The unit (`[ns]` vs `[us]`) depends on the pandas version, so match only `"unsupported dtype 'datetime64"`.
+   - timedelta: `"Column 't' has unsupported dtype 'timedelta64[...]'.\n  Fix: df['t'] = df['t'].dt.total_seconds()"`.
+     - Trigger: `{"t": pd.to_timedelta(["1s"])}`.
+   - category: `"Column 'c' has unsupported dtype 'category'.\n  Fix: df['c'] = df['c'].astype(str)"`.
+     - Trigger: `{"c": pd.Categorical(["a"])}`.
+   - complex: `"Column 'z' has unsupported dtype 'complex128'.\n  Fix: df['z'] = df['z'].apply(str)"`.
+     - Trigger: `{"z": [1+2j]}`.
+6. Errors raised from `from_pandas` value conversion:
+   - Nested element: `TypeError("Column 'a' contains unsupported nested value of type 'list' at value [1, 2]. Convert nested objects to strings or flatten them first.")`.
+     - Trigger: `{"a": [[1, 2]]}`. A dict element gives `type 'dict'`.
+   - Other object types: `TypeError` containing `"unsupported scalar value of type 'object'"`.
+     - Trigger: `{"a": [object()]}`.
+   - Infinity: `ValueError("Invalid financial value: NaN or Infinity.")`.
+     - Trigger: `{"a": [1.0, float("inf")]}`. NaN does not raise; it becomes null.
+   - Integer outside int64: `ValueError` starting `"Integer value 9223372036854775808 is out of bounds for signed 64-bit integer."`.
+     - Trigger: `{"a": [2**63]}`.
+   - A set value: pandas itself raises `TypeError` (set is unordered). Do not pin the message.
+
+## 4. Returns and guarantees
+- Returns a new `ArFrame`.
+- Columns appear in dict insertion order. Row count equals the common length.
+- Attrs are empty: a fresh DataFrame has empty `attrs`, so `to_pandas(result).attrs == {}`.
+- Dtypes seen through `ar.to_pandas`:
+  | Input | `to_pandas` dtype |
+  |---|---|
+  | `[1, 2]` | `Int64` |
+  | `[1.5, 2.5]` | numpy `float64` |
+  | `[True, False]` | `boolean` |
+  | `["x", "y"]` | `string` |
+- Nulls:
+  - `[1, None]` becomes pandas float64 `[1.0, nan]`, so the result is a **float64** column with NaN, not Int64.
+  - `["a", None]` gives a string column with `pd.NA`.
+  - `[1.0, float("nan")]` gives a float column with NaN at that position.
+- Mixed object columns (Python-side rule):
+  - Any string mixed with another kind → every value becomes `str`. `[1, "a"]` → `"1"`, `"a"`.
+  - bool mixed with int → strings `"True"`, `"1"`.
+  - int mixed with float → floats.
+- `Decimal` values become exact strings: `Decimal("1.5")` → `"1.5"`.
+
+## 5. Side effects
+- None. The input dict is not mutated, and no global state or files are touched.
+
+## 6. Branches and edge cases
+- `from_dict({})`: no length check. Result has `shape == (0, 0)`; `to_pandas` gives an empty DataFrame with `len == 0`.
+- `{"a": []}`: shape `(0, 1)`. The inferred dtype comes from the C++ core and is unknown, so assert only shape and columns.
+- `{"a": range(3)}`: `[0, 1, 2]` as Int64. A tuple `(1, 2)` and `np.array([1, 2])` also work.
+- A single column skips nothing; the length check is trivially satisfied.
+- Python only gives dtype hints for int64, float64 and bool pandas dtypes. Object columns are typed by the C++ core, which is not visible:
+  - `["x", "y"]` → string is safe to assert.
+  - Avoid numeric-looking strings like `["1", "2"]`, and `[True, None]`.
+
+## 7. Rules from docstrings and comments
+- "keys are column names and values are lists of data".
+- Nested objects and non-sequence values are rejected up front.
+
+## 8. Testing hints
+- Observe the result with `ar.to_pandas(frame)`. Compare with `pd.testing.assert_frame_equal` against an expected frame built with the exact dtypes from section 4, or check `frame.shape` and `frame.columns`.
+- Do not assume `frame.dtypes` string names. They come from `arnio.frame`, which is not visible.
+- Exact-message tests worth writing:
+  - the non-dict type name,
+  - the key error,
+  - dict values raising `ValueError` vs str values raising `TypeError`,
+  - the lengths-differ details string with several columns, e.g. `a=1, b=2, c=1`,
+  - check ordering (the first failing column wins; keys are checked before values).
+- Avoid `pd.Series` values with non-default indexes: pandas aligns on index and introduces NaN.
+- Avoid pinning datetime units or pandas' own error messages.

@@ -1,0 +1,146 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.io.write_parquet.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.io.write_parquet
+def write_parquet(
+    frame: ArFrame,
+    path: str | os.PathLike[str],
+    *,
+    compression: str = "snappy",
+    row_group_size: int | None = None,
+    preserve_attrs: bool = True,
+) -> None:
+    """Write an ArFrame to a Parquet file via pyarrow.
+
+    Requires the ``pyarrow`` package.  Install it with::
+
+        pip install arnio[parquet]
+
+    The implementation converts the frame to a pandas DataFrame via
+    :func:`to_pandas` and delegates encoding to
+    ``pandas.DataFrame.to_parquet(engine="pyarrow")``.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        The data frame to write.
+    path : str or path-like
+        Destination file path.  Must end with ``.parquet`` or ``.pq``.
+    compression : str, default ``"snappy"``
+        Parquet compression codec.  Accepted values: ``"snappy"``,
+        ``"gzip"``, ``"brotli"``, ``"zstd"``, ``"none"``.
+    row_group_size : int, optional
+        Number of rows per Parquet row group.  If ``None``, pyarrow
+        chooses the default (typically 128 MB per group).  Must be a
+        positive integer when provided.
+    preserve_attrs : bool, default ``True``
+        When ``True``, ``DataFrame.attrs`` are written into Parquet
+        metadata; all attr values must be JSON-serializable or a
+        ``TypeError`` is raised with a clear message.  Set to ``False``
+        to silently drop attrs on export.
+
+    Raises
+    ------
+    ImportError
+        If ``pyarrow`` is not installed.
+    TypeError
+        If ``preserve_attrs`` is not a boolean, or if ``preserve_attrs`` is
+        ``True`` and ``DataFrame.attrs`` contains non-JSON-serializable values.
+    ValueError
+        If the file extension is not ``.parquet`` or ``.pq``, if
+        ``compression`` is not a recognised codec, or if
+        ``row_group_size`` is not a positive integer.
+
+    Examples
+    --------
+    >>> ar.write_parquet(frame, "output.parquet")
+    >>> ar.write_parquet(frame, "output.pq", compression="zstd")
+    >>> ar.write_parquet(frame, "output.parquet", row_group_size=50_000)
+    >>> ar.write_parquet(frame, "output.parquet", preserve_attrs=False)
+    """
+    if not isinstance(frame, ArFrame):
+        raise TypeError("frame must be an ArFrame")
+
+    from .convert import to_pandas
+
+    if not isinstance(path, (str, bytes, os.PathLike)):
+        raise TypeError(
+            f"path must be a string, bytes, or os.PathLike object, got {type(path).__name__!r}"
+        )
+
+    path = os.fsdecode(os.fspath(path))
+    path_lower = path.lower()
+    if not (path_lower.endswith(".parquet") or path_lower.endswith(".pq")):
+        raise ValueError(
+            f"Unsupported file format: {path}. "
+            "write_parquet only supports .parquet and .pq files."
+        )
+
+    if not isinstance(compression, str):
+        raise TypeError("compression must be a string")
+
+    if compression not in _VALID_COMPRESSIONS:
+        raise ValueError(
+            f"Unknown compression codec: {compression!r}. "
+            f"Valid options are: {sorted(_VALID_COMPRESSIONS)}"
+        )
+
+    if row_group_size is not None:
+        if isinstance(row_group_size, bool) or not isinstance(row_group_size, int):
+            raise TypeError("row_group_size must be an integer")
+        if row_group_size <= 0:
+            raise ValueError("row_group_size must be a positive integer")
+
+    if not isinstance(preserve_attrs, bool):
+        raise TypeError("preserve_attrs must be a bool")
+
+    try:
+        import pyarrow  # noqa: F401 — presence check only
+    except ImportError as exc:
+        raise ImportError(
+            "pyarrow is required for Parquet export. "
+            "Install it with: pip install arnio[parquet]"
+        ) from exc
+
+    rows, cols = frame.shape
+    if cols == 0 and rows > 0:
+        raise ValueError(
+            f"Cannot write a zero-column ArFrame with {rows} rows to Parquet: the current export path cannot preserve row count without columns."
+        )
+
+    df = to_pandas(frame)
+
+    if df.attrs:
+        if preserve_attrs:
+            try:
+                json.dumps(df.attrs)
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    "write_parquet() requires that DataFrame.attrs contain only "
+                    "JSON-serializable values (str, int, float, bool, list, dict, None). "
+                    f"Serialization failed: {exc}. "
+                    "To export without metadata, pass preserve_attrs=False."
+                ) from exc
+        else:
+            df.attrs = {}
+
+    kwargs: dict = {
+        "engine": "pyarrow",
+        "compression": None if compression == "none" else compression,
+        "index": False,
+    }
+    if row_group_size is not None:
+        kwargs["row_group_size"] = row_group_size
+
+    df.to_parquet(path, **kwargs)

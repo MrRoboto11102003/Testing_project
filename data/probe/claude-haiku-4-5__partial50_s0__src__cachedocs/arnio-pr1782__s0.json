@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1782",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 74,
+ "hardest_part": "Bugs in the semantic-value mapping (e.g., typos like 'email_strict' instead of 'email:strict') that create a valid Field object but break validation downstream, unless the test inspects the Field's internal attributes.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 74,\n  \"hardest_part\": \"Bugs in the semantic-value mapping (e.g., typos like 'email_strict' instead of 'email:strict') that create a valid Field object but break validation downstream, unless the test inspects the Field's internal attributes.\"\n}\n```\n\n**Reasoning:**\n\n**Testable aspects (high confidence):**\n- Input validation logic: TypeError for non-string `validation`, ValueError for invalid values\n- Parameter passing: all six parameters flow correctly to Field constructor\n- Default values and parameter combinations\n- Return type is Field instance\n\n**Hard-to-test aspects:**\n- The exact Field object attributes and their values (depends on Field's public API)\n- Whether `semantic=\"email:strict\"` vs `semantic=\"email_strict\"` are functionally different downstream\n- Internal Field state/behavior changes in pull requests that don't affect immediate API\n\n**Bug types I'd likely catch (80-85%):**\n- Input validation removed/broken\n- Parameters dropped or inverted\n- Default values changed\n- Error handling removed\n\n**Bug types I might miss (40-50%):**\n- Semantic field value typos if Field doesn't expose/validate it\n- Conditional logic inverted but still producing valid Field\n- Downstream behavior changes in Field class itself\n\nAssuming Field exposes its attributes as part of the public API, comprehensive assertion-based tests reach ~74% catch rate.",
+ "cost_usd": 0.0207795,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1618,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 3019,
+  "output_tokens_details": {
+   "thinking_tokens": 2681
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1618,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3019,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 1618,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1618
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

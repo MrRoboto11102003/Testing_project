@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1772",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 70,
+ "hardest_part": "Input records being mutated in place, or column ordering from dict key iteration not being preserved correctly, since these don't affect observable ArFrame output.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 70,\n  \"hardest_part\": \"Input records being mutated in place, or column ordering from dict key iteration not being preserved correctly, since these don't affect observable ArFrame output.\"\n}\n```\n\n**Reasoning:**\n\n**High confidence (catching ~85%):**\n- Core validation logic (empty records, type checking, nested structures, mixed types, column count mismatches)\u2014my tests would directly exercise these error paths\n- Output correctness (resulting frame shape, column names, data values)\u2014observable through `to_pandas()` or frame properties\n- Required argument validation (columns missing for lists/tuples, columns type validation)\n\n**Medium confidence (catching ~60%):**\n- Column ordering edge cases when inferring from dict keys (could be reordered by accident but still produce valid output)\n- None/null handling (covered but not exhaustively)\n- Pandas integration subtleties (dtype inference, missing key handling)\n\n**Low confidence (catching ~20-30%):**\n- Input mutation (would need explicit pre/post comparison test)\n- Exact error message wording (most tests don't assert on exception string)\n- Subtle reference/aliasing bugs\n- Performance regressions (not testable via pytest)\n\n**Most likely missed bug:** A regression that changes internal validation order (e.g., moving the nested structure check after the first use) where only specific record orderings expose the bug, or a change that mutates the input records list as a side effect without affecting the output.",
+ "cost_usd": 0.024163499999999997,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2300,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 3423,
+  "output_tokens_details": {
+   "thinking_tokens": 3070
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2300,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3423,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 2300,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2300
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

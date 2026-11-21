@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1851",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Detecting dtype corruption or mutation of non-target columns during the Python dict\u2192C++ frame reconstruction cycle in normalize_unicode, especially silent type changes that don't immediately fail but corrupt downstream operations.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Detecting dtype corruption or mutation of non-target columns during the Python dict\u2192C++ frame reconstruction cycle in normalize_unicode, especially silent type changes that don't immediately fail but corrupt downstream operations.\"\n}\n```\n\n**Reasoning:**\n\n**Strong testability:**\n- Case conversion results are directly observable (ASCII characters must change case, non-ASCII must preserve)\n- Each Unicode normalization form produces visibly different output\n- Input validation (bad `case_type`, bad `form`, missing columns) produces specific error types\n- `subset` parameter behavior is observable: targeted columns change, others don't\n- Null preservation is verifiable through conversion back to pandas\n- Column order and count are observable\n\n**Harder to catch:**\n1. **Dtype preservation bugs** in `normalize_unicode`: The manual loop reconstructing via `_Frame.from_dict(new_columns, dtype_hints, ...)` could silently corrupt dtypes of non-target columns if `dtype_hints` mapping breaks\u2014observable via `.dtypes` but requires explicit test\n2. **Subset validation bypass**: If `_validate_existing_column_sequence()` is removed, missing columns would fail late in C++ rather than raising `KeyError` early\n3. **Off-by-one in column iteration**: Edge case that might only manifest with specific frame shapes\n4. **C++ backend implementation bugs**: Mutations that happen below the Python API boundary (e.g., the actual `_normalize_case` C++ function behaving differently)\n5. **Wrapping/metadata loss**: If `_wrap()` corrupts metadata during reconstruction, it might not be caught unless the test explicitly re-extracts that metadata\n\n**Coverage plan:** 12-14 focused tests covering basic I/O, all three case types, all four Unicode forms, subset behavior, None subset, mixed dtypes, nulls, error cases, and frame immutability would catch ~72% of realistic PRs that reintroduce regressions\u2014missing mainly internal C++ bugs and very specific edge-case data patterns.",
+ "cost_usd": 0.0279925,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2832,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 3976,
+  "output_tokens_details": {
+   "thinking_tokens": 3492
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2832,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3976,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 2832,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2832
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

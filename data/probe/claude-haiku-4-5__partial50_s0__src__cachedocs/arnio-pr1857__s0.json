@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1857",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 70,
+ "hardest_part": "Whether unsupported pandas dtypes are correctly rejected by _check_unsupported_dtype, which is called but its validation behavior is not observable from the public API.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 70,\n  \"hardest_part\": \"Whether unsupported pandas dtypes are correctly rejected by _check_unsupported_dtype, which is called but its validation behavior is not observable from the public API.\"\n}\n```\n\n**Reasoning:**\n\n**Testable behaviors (high confidence):**\n- Input validation for non-dict, non-string keys, nested dicts, strings/bytes/scalars as column values\n- Column length equality checks\n- Valid inputs with various dtypes (int, float, bool, string, None, mixed types)\n- Empty dict handling\n- Output is an ArFrame object\n- Exact error types and messages (TypeErrors vs ValueErrors)\n\n**Hard-to-test behaviors (low confidence):**\n- Internal ArFrame structure and dtype inference from pandas\n- Exact validation logic inside `_check_unsupported_dtype` (external dependency)\n- Memory ownership/copying semantics\n- Edge cases in pandas DataFrame creation that might fail silently\n- Bugs that only manifest with specific dtype combinations or ArFrame features\n\n**Most likely bugs caught:** Removing validation checks entirely, swapping exception types, missing from_pandas call, breaking column-length logic (~85%)\n\n**Least likely bugs caught:** Subtle operator changes (> vs >=), skipped dtype validation you can't observe, error message rewording, internal ArFrame behavior changes (~40%)",
+ "cost_usd": 0.07326099999999999,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 29106,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3008,
+  "output_tokens_details": {
+   "thinking_tokens": 2681
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 29106,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3008,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 29106,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 29106
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

@@ -1,0 +1,265 @@
+{
+ "id": "arnio-pr1772",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__system",
+ "context": {
+  "mode": "code",
+  "chars": 3967
+ },
+ "level": "system",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 23,
+ "n_catching": 3,
+ "n_false_alarms": 11,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2039,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8907,
+  "output_tokens_details": {
+   "thinking_tokens": 6171
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2039,
+    "output_tokens": 8907,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.046574,
+ "model_seconds": 39.5,
+ "seconds": 48.2,
+ "tests": {
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsBasicSuccess::test_from_dicts_explicit_columns": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsBasicSuccess::test_from_dicts_inferred_columns": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsBasicSuccess::test_from_lists_with_columns": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsBasicSuccess::test_from_tuples_with_columns": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsBasicSuccess::test_large_dataset": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsBasicSuccess::test_single_record": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsBasicSuccess::test_unicode_data": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsBasicSuccess::test_various_scalar_types": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsEndToEnd::test_convert_to_pandas_dataframe": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsEndToEnd::test_create_and_save_csv": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_columns_has_non_string": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_columns_is_dict": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_columns_is_string": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_empty_columns_with_dicts": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_invalid_first_record_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_missing_columns_for_lists": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_mixed_dict_and_list_records": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_mixed_list_and_tuple": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_nested_dict_in_value": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_nested_list_in_value": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_records_empty": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_records_not_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1772.py::TestArFrameFromRecordsErrors::test_row_length_mismatch": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "frame"
+   ]
+  }
+ }
+}

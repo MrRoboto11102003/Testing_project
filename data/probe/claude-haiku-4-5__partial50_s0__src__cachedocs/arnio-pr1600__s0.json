@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1600",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 70,
+ "hardest_part": "Testing exact markdown escaping behavior of internal helper functions (_markdown_cell, _clean_scalar) for special characters like pipes and backslashes that could silently break table formatting without obvious failures.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 70,\n  \"hardest_part\": \"Testing exact markdown escaping behavior of internal helper functions (_markdown_cell, _clean_scalar) for special characters like pipes and backslashes that could silently break table formatting without obvious failures.\"\n}\n```\n\n**Reasoning:**\n\n**Easy to catch (~80% confidence):**\n- Parameter validation (TypeError/ValueError for invalid max_issues/redact_values)\n- Status reporting (\"passed\" vs \"failed\")\n- Redaction behavior (presence of \"[REDACTED]\" when redact_values=True)\n- Max issues limiting (table row count, pagination note, max_issues=0 omission)\n- Table presence/absence based on issue count\n- Return type (must be string, not None)\n- Output contains key headers and structure\n\n**Hard to catch (~30% confidence):**\n- Exact markdown escaping within `_markdown_cell()` and `_clean_scalar()` - realistic bugs could be silent pipe-escaping failures or improper handling of newlines/special chars in value cells that don't obviously break public assertions\n- Column order permutations (if I only check presence, not order)\n- Whitespace/line-separator changes\n- Subtle off-by-one errors in pagination that still produce valid-looking output\n\n**Most likely missed bugs:**\n- Escaping regressions in helper functions (e.g., pipes not escaped in cell values, breaking markdown table parsing)\n- Redaction condition inverted accidentally\n- Off-by-one in max_issues slicing",
+ "cost_usd": 0.0190425,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2072,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 2490,
+  "output_tokens_details": {
+   "thinking_tokens": 2120
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2072,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2490,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 2072,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2072
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1999",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Bugs in metadata (attrs) copying or internal frame isolation are difficult to detect from the public API alone.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Bugs in metadata (attrs) copying or internal frame isolation are difficult to detect from the public API alone.\"\n}\n```\n\n**Reasoning:**\n\n**High-confidence catchable bugs (most likely):**\n- Wrong columns dropped/selected (verify with `frame.columns`)\n- Column order not preserved (can assert order matches expectations)\n- Input type validation missing (test with invalid types: strings, dicts, etc.)\n- Error cases missing (test ValueError for unknown columns, overlap in select_dtypes, etc.)\n- Deduplication logic broken (test duplicate inputs)\n- Edge cases (empty lists, selecting all columns, excluding all columns)\n\n**Lower-confidence blind spots (~28% miss rate):**\n- Metadata/attrs deepcopy not working\u2014can't inspect internal `_attrs` from public API\n- Original frame being modified internally (can verify columns are unchanged, but not deep state)\n- Internal `_Frame` state corruption\u2014no public inspection method\n- Subtle side effects in the C++ backend through `select_columns()` call\n\n**Why 72% not higher:**\nThe three functions are relatively straightforward parameter validation + column filtering + object construction. Most realistic regressions would be in the validation logic or column selection logic, which are testable. However, the deep dependency on internal `_Frame` and `_attrs` handling means some bugs could pass through. I cannot directly verify metadata isolation or observe whether buffers are properly copied vs. aliased.\n\n**Why yes (not no):**\n15 focused tests can cover: (1) happy paths for all three functions, (2) all documented error cases, (3) column order verification, (4) edge cases like empty inputs and duplicates, (5) original frame invariance. This catches the majority of plausible bugs introduced into the core logic.",
+ "cost_usd": 0.025894,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3330,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 3353,
+  "output_tokens_details": {
+   "thinking_tokens": 2920
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3330,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3353,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 3330,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3330
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

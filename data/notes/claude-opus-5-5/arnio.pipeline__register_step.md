@@ -1,0 +1,99 @@
+# Notes: `arnio.pipeline.register_step(name, fn, overwrite=False)`
+
+## 1. Purpose
+- Adds a custom Python step to the global registry `_PYTHON_STEP_REGISTRY`.
+- After that, `ar.pipeline(frame, [(name, kwargs)])` can use the step by name.
+- Returns `None`.
+
+## 2. Inputs
+- `name`: must be a `str` that is non-empty and not whitespace-only.
+  - It is **not** stripped or lower-cased. `" foo "` is stored exactly as given.
+  - Non-str values such as `123` or `None` raise **ValueError**, not TypeError.
+- `fn`: anything for which `callable()` is true (function, lambda, class, object with `__call__`).
+  - Its signature is not checked at registration time.
+- `overwrite`: must be exactly a `bool` (`isinstance` check).
+  - `0`, `1` and `"yes"` are rejected.
+  - `overwrite=True` with a brand-new name is fine and simply registers it.
+- Reserved names, from module constants:
+  - **Prefix `"builtin:"`** (`_BUILTIN_STEP_NAMESPACE + ":"`) is reserved.
+    - The check is case-sensitive: `"Builtin:x"` and `"builtin"` are allowed.
+  - **C++ steps** (`_STEP_REGISTRY`): drop_nulls, drop_columns, select_columns, keep_rows_with_nulls, fill_nulls, validate_columns_exist, drop_duplicates, drop_constant_columns, drop_empty_columns, clip_numeric, winsorize_outliers, normalize_minmax, strip_whitespace, hash_columns, parse_bool_strings, normalize_case, normalize_unicode, rename_columns, cast_types, round_numeric_columns, combine_columns, slugify_column_names, trim_column_names, clean_column_names.
+  - **Built-in Python steps** (`_BUILTIN_PYTHON_STEP_REGISTRY`, filled at import): standardize_missing_tokens, coalesce_columns, normalize_whitespace, filter_rows, drop_columns_matching, rename_columns_matching, safe_divide_columns, replace_values.
+  - **Deprecated aliases** (`_DEPRECATED_STEP_ALIASES`): empty by default. Only the private `_register_deprecated_step_alias` adds to it.
+
+## 3. Raises
+Checks run in this order while holding `_REGISTRY_LOCK`. Use `pytest.raises(..., match=re.escape(msg))`, because the messages contain `.`, `(`, `'` and `=`.
+
+1. **Bad name** → `ValueError("parameter 'name' must be a non-empty string")`
+   - Triggers: `register_step("", f)`, `register_step("   ", f)`, `register_step(123, f)`.
+2. **Bad fn** → `TypeError("parameter 'fn' must be a callable object")`
+   - Trigger: `register_step("x", None)`.
+3. **Bad overwrite** → `TypeError(f"parameter 'overwrite' must be a bool, not {type(overwrite).__name__}")`
+   - Trigger: `register_step("x", f, overwrite=1)` gives `"... not int"`.
+4. **Reserved prefix** → `ValueError(f"Cannot register '{name}': 'builtin:' is reserved for built-in pipeline steps.")`
+   - Trigger: `register_step("builtin:foo", f)`.
+5. **C++ name** → `ValueError(f"Cannot register '{name}': conflicts with built-in C++ step. Use a different name.")`
+   - Trigger: `register_step("drop_nulls", f)`. Raised even with `overwrite=True`.
+6. **Built-in Python name** → `ValueError(f"Cannot register '{name}': conflicts with built-in Python step. Use a different name.")`
+   - Trigger: `register_step("filter_rows", f, overwrite=True)`. Overwrite does not help.
+7. **Deprecated alias** → `ValueError(f"Cannot register '{name}': that name is reserved as a deprecated pipeline step alias.")`
+   - Not reachable through the public API.
+8. **Duplicate custom name without overwrite** → `ValueError(f"Step '{name}' is already registered as a custom Python step. To intentionally overwrite it, set 'overwrite=True'.")`
+   - Trigger: register `"my_step"` twice.
+
+The order matters in these cases:
+- `register_step(123, None)` → name ValueError (name is checked first).
+- `register_step("drop_nulls", None)` → fn TypeError (fn is checked before the conflict checks).
+- `register_step("drop_nulls", f, overwrite="x")` → overwrite TypeError.
+- `register_step("builtin:drop_nulls", f)` → reserved-prefix message, not the C++ message.
+
+## 4. Returns and guarantees
+- Returns `None`.
+- On success, `_PYTHON_STEP_REGISTRY[name] = fn`.
+- With `overwrite=True` the new fn replaces the old one, and the pipeline uses the new fn.
+- On any error the registry is unchanged:
+  - A failed duplicate registration keeps the original fn.
+  - A failed reserved-name registration adds nothing.
+
+## 5. Side effects
+- Mutates module-global state that persists across tests.
+- `ar.list_steps()` (sorted union of C++ and Python names) then includes `name`.
+- Clean up with `ar.unregister_step(name)` or `ar.reset_steps()`; the latter restores only the 8 built-in Python steps. An autouse fixture that calls `reset_steps()` after each test is recommended.
+
+## 6. How a registered step behaves in `pipeline` (observable effects)
+- The step is called as `fn(df, **kwargs)`.
+  - `df` is a pandas DataFrame: for custom steps, a writable copy of a DataFrame subclass.
+  - If `fn`'s signature has a parameter named `context` and kwargs do not supply one, a `PipelineContext(step_name, step_index, total_steps, dry_run)` is injected.
+- It must return a `pd.DataFrame`. Otherwise:
+  - Returning `None` → `TypeError("Custom pipeline step '{name}' returned None. Steps must return a pandas DataFrame.")`
+  - Returning e.g. a list → `TypeError("Custom pipeline step '{name}' returned 'list' instead of a pandas DataFrame. Steps must return a pandas DataFrame.")`
+- If `fn` raises, the exception is wrapped as `PipelineStepError(name, e)`, chained `from e`.
+  - The message format is defined in `arnio.exceptions`, which is not shown. Assert only the type and `__cause__`.
+- Pitfall: if `fn.__module__` starts with `"arnio.cleaning"`, the step is treated as built-in, even under a new alias.
+  - Example: `register_step("my_filter", cleaning.filter_rows)`.
+  - Its errors are re-raised raw (not wrapped).
+  - It also appears in `get_builtin_step_signatures()`.
+  - Plain user functions never appear there.
+
+## 7. Rules from docstrings and comments
+- Overwrite is meant only for replacing custom Python steps. It "Cannot be used to overwrite built-in C++ steps" (and in code, not built-in Python steps either).
+
+## 8. Testing hints
+```python
+import re, pytest, arnio as ar, pandas as pd
+from arnio.pipeline import register_step, list_steps, reset_steps, unregister_step
+
+def f(df): return df
+register_step("my_step", f)
+assert "my_step" in list_steps()
+out = ar.pipeline(ar.from_pandas(pd.DataFrame({"a": [1, 2]})), [("my_step",)])
+assert ar.to_pandas(out)["a"].tolist() == [1, 2]
+```
+- To test overwrite:
+  1. Register `g = lambda df: df.assign(b=1)` with `overwrite=True`.
+  2. Run the pipeline.
+  3. Check that the output has column `"b"`.
+- To test that a failed duplicate leaves the old fn in place, check the pipeline output or `arnio.pipeline._PYTHON_STEP_REGISTRY["my_step"] is f`.
+- Always use unique custom names, and reset the registry after each test.
+- Do not assume `ar.register_step` exists at top level. Importing from `arnio.pipeline` is the safe choice.
+- Do not expect a whitespace-padded name to be stripped: after `register_step(" s ", f)`, `" s "` is in `list_steps()` and `"s"` is not.

@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1749",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 67,
+ "hardest_part": "Type inference consistency when chunk boundaries split data with different numeric formats or null patterns that might affect dtype coercion across chunks",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 67,\n  \"hardest_part\": \"Type inference consistency when chunk boundaries split data with different numeric formats or null patterns that might affect dtype coercion across chunks\"\n}\n```\n\n**Reasoning:**\n\n**Easy to catch (high confidence):**\n- Off-by-one errors in chunk sizes (count rows in each chunk, verify total)\n- Parameter not respected: `nrows`, `usecols`, `skip_rows`, `has_header` (all have observable effects)\n- Delimiter auto-detection broken for `.tsv` files (read .tsv, verify tab-separated)\n- Data loss or corruption (compare chunked iteration sum to single `read_csv` call)\n- Column ordering after filtering (verify `usecols` order preserved)\n- Early termination or missing final chunk (count total rows yielded)\n- File format validation (test unsupported extensions, missing files)\n\n**Hard to catch (medium-to-low confidence):**\n- Type coercion edge cases: If chunks with different numeric value distributions cause type inference to change mid-stream, or if null patterns in one chunk affect dtype of another\n- Decimal/thousands separator handling in complex cases (requires specific edge case CSV fixtures)\n- Memory leaks or resource cleanup failures (not observable from public API without introspection)\n- Changes to exception message text (would need very specific error assertions)\n- Subtle interactions between parameters like `mode=\"permissive\"` with `on_bad_lines` behavior\n- Edge cases in `null_values` list matching or `trim_headers` whitespace handling\n- Type consistency breakage only under specific data patterns I didn't test\n\nWith 15 focused tests, I'd cover the main paths but likely miss subtle type coercion or parameter interaction bugs that only manifest under specific data distributions.",
+ "cost_usd": 0.030928,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3767,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 4185,
+  "output_tokens_details": {
+   "thinking_tokens": 3761
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3767,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 4185,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 3767,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3767
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

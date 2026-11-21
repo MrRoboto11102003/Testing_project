@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1978",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 76,
+ "hardest_part": "Internal state corruption or metadata mishandling in the empty-result case (when no columns match), since the frame's shape would appear correct but internal structures might be malformed.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 76,\n  \"hardest_part\": \"Internal state corruption or metadata mishandling in the empty-result case (when no columns match), since the frame's shape would appear correct but internal structures might be malformed.\"\n}\n```\n\n**Reasoning:**\n\n**High confidence for catching:**\n- Input validation bugs (all 5+ error conditions are checkable with explicit assertions)\n- Column filtering logic (compare returned `.columns` against expected set)\n- Dtype comparison bugs (test each dtype: int64, float64, string, bool, null)\n- Column order corruption (iterate and verify order matches original)\n- Include/exclude overlap detection (straightforward set logic)\n- Combining include + exclude (testable via observable results)\n- Empty result handling (check shape and columns are empty)\n\n**Medium-low confidence for missing:**\n- Internal `_Frame(len(self))` construction bugs for empty results\u2014a malformed frame might still report `shape=(n, 0)` correctly\n- `_attrs.copy()` correctness\u2014metadata bugs won't surface unless I inspect private attributes\n- Subtle aliasing or reference issues that don't affect the returned ArFrame's observable properties\n- Edge cases in how `select_columns` is invoked or how its result is wrapped\n\nThe public API surface is clean and observable (columns, dtypes, shape, return type), making most logic errors catchable. The main vulnerability is the empty-frame construction path and internal metadata handling.",
+ "cost_usd": 0.01569,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2113,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 1799,
+  "output_tokens_details": {
+   "thinking_tokens": 1453
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2113,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 1799,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2113,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2113
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

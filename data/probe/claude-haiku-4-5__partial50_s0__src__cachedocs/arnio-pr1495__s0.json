@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1495",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "no",
+ "p_catch": 62,
+ "hardest_part": "Internal column profiling logic and quality score calculation are opaque from the public API; bugs in `_profile_column`, `_calculate_quality_score`, or complex `approx_top_values` parameter interactions would be invisible through external assertions on row counts and report structure alone.",
+ "raw": "```json\n{\n  \"verdict\": \"no\",\n  \"p_catch\": 62,\n  \"hardest_part\": \"Internal column profiling logic and quality score calculation are opaque from the public API; bugs in `_profile_column`, `_calculate_quality_score`, or complex `approx_top_values` parameter interactions would be invisible through external assertions on row counts and report structure alone.\"\n}\n```\n\n**Reasoning:**\n\n**Easy to catch (~90% confidence):**\n- Parameter type/value validation (sample_size, approx_top_values_min_ratio range checks, etc.)\n- Output structure (DataQualityReport has expected fields)\n- Row/column counts matching input\n- Column exclusion logic (excluded columns don't appear)\n- Crashes on basic inputs\n\n**Hard to catch (~20-40% confidence):**\n- Internal `_profile_column` behavior\u2014returns ColumnProfile objects but we can't verify their contents match the actual column data without deep introspection\n- `_calculate_quality_score` calculation\u2014the formula is hidden; a bug could return a numeric value that's silently wrong\n- `approx_top_values` logic with the three interacting parameters (min_unique, min_ratio, sample_size)\u2014would need to verify exact sampling behavior which is implementation-dependent\n- Duplicate detection edge cases (all duplicates, no duplicates, partially duplicated data)\n- Memory usage conditional logic based on `has_exclusions` flag\n- Suggestions integration via `suggest_cleaning(report)`\u2014we see a list but can't verify correctness\n\n**What would likely be missed:**\nA bug in `_profile_column` that silently produces wrong sample values, or a regression in the quality score formula that still returns a plausible number but is computed incorrectly.",
+ "cost_usd": 0.018602,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2644,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2169,
+  "output_tokens_details": {
+   "thinking_tokens": 1757
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2644,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2169,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2644,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2644
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

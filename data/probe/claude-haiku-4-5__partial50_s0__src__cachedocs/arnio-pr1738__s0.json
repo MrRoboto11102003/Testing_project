@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1738",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 71,
+ "hardest_part": "Bugs in the semantic string construction logic (scheme sorting, escaping, or prefix) might not raise validation errors but silently produce incorrect field.semantic values that only fail downstream during actual validation, not in the factory function itself.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 71,\n  \"hardest_part\": \"Bugs in the semantic string construction logic (scheme sorting, escaping, or prefix) might not raise validation errors but silently produce incorrect field.semantic values that only fail downstream during actual validation, not in the factory function itself.\"\n}\n```\n\n**Reasoning:**\n\n**High confidence areas (~90% catch):**\n- Parameter passing and Field instantiation (dtype, semantic fields)\n- TypeError/ValueError validation for allowed_schemes type checking (bare string, bare bytes, non-sequence)\n- ValueError for empty strings, invalid scheme names, empty sequences\n- Keyword-only argument enforcement\n\n**Medium confidence areas (~70% catch):**\n- Exact semantic string format (`url:` prefix, scheme sorting order, `re.escape` correctness, separator)\n- Whitespace trimming and normalization of schemes\n- Set deduplication ensuring uniqueness of schemes\n\n**Lower confidence areas (~40% catch):**\n- Subtle logic bugs in condition ordering or conditional scheme handling\n- Edge cases in URL_SCHEME_PATTERN matching (without knowing what patterns are valid)\n- Whether Field constructor receives all parameters correctly if Field doesn't expose them as readable properties\n\n**Vulnerabilities:**\n- Cannot directly inspect Field internals if they're read-only; must infer correctness from side effects\n- Bug could exist in semantic string construction but not trigger validation errors, only failing downstream in `validate()`\n- May not know the exact format of valid scheme names or the pattern definition",
+ "cost_usd": 0.020442000000000002,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1869,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2847,
+  "output_tokens_details": {
+   "thinking_tokens": 2494
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1869,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2847,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 1869,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1869
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

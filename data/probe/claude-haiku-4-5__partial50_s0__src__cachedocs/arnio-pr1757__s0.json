@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1757",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 71,
+ "hardest_part": "Precision loss or unexpected type coercion in numeric or nullable extension dtype columns during the internal to_pandas/from_pandas round-trip, which wouldn't be visible from basic structural assertions about shape and column names.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 71,\n  \"hardest_part\": \"Precision loss or unexpected type coercion in numeric or nullable extension dtype columns during the internal to_pandas/from_pandas round-trip, which wouldn't be visible from basic structural assertions about shape and column names.\"\n}\n```\n\n**Reasoning:**\n\n**Easy to test (high confidence):**\n- Basic column removal and presence/absence verification\n- Column order preservation after drop\n- ValueError for non-existent columns, all-columns drop, type errors\n- Input validation (string vs. sequence, bytes, etc.)\n- Multiple-column drops and edge cases (1-col frame, empty frame)\n\n**Hard to test (missed bugs):**\n- Subtle dtype handling issues during the pandas round-trip (Int64/Float64 nullable types, complex numbers, etc.)\u2014my tests would likely spot-check values but might miss precision loss in edge cases\n- Silent aliasing or unexpected mutations if the frame reconstruction is changed\n- Exact error message text rather than exception types\n- Performance regressions (memory copies, unnecessary operations)\n- Unicode or special-character column name edge cases I don't anticipate\n\nThe function's core logic is straightforward and observable through public API, so most regressions (column filtering logic, validation bypass, wrong return type) would be caught. The main vulnerability is data integrity in dtypes during conversion, which is hard to exhaustively verify in 15 tests.",
+ "cost_usd": 0.019090000000000003,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1523,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2715,
+  "output_tokens_details": {
+   "thinking_tokens": 2379
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1523,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2715,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 1523,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1523
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

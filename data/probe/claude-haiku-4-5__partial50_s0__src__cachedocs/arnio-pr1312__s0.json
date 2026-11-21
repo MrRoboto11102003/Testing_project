@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1312",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 58,
+ "hardest_part": "Bugs in dtype mapping via hidden _DTYPE_MAP or in field deserialization (_field_from_json_dict) won't be caught since these internals aren't observable through the public API.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 58,\n  \"hardest_part\": \"Bugs in dtype mapping via hidden _DTYPE_MAP or in field deserialization (_field_from_json_dict) won't be caught since these internals aren't observable through the public API.\"\n}\n```\n\n**Reasoning:**\n\n**Can test well:**\n- JSON round-trip preservation: `schema \u2192 to_json() \u2192 from_json()` should preserve fields, strict, and unique (would catch omission bugs)\n- Type checking: `from_json()` with wrong input types should raise specific exceptions (TypeError vs ValueError)\n- Error conditions: `bootstrap_from_report()` with wrong type, empty report, or missing dtype should raise appropriate errors\n- Warning behavior: `to_json()` should warn when rules are present and set `rules_omitted` flag\n- Basic delegation: `validate()` should accept max_errors and return ValidationResult type\n- Nullable logic: Can create DataFrames with pandas, profile them, bootstrap schema, and check that nullable is True when null_count > 0\n\n**Cannot test well:**\n- **Dtype mapping correctness**: The `_DTYPE_MAP` lookup is internal; a bug like mapping \"float64\" \u2192 \"string\" instead of \"float64\" won't surface from public assertions\n- **Field reconstruction details**: Can't inspect Field objects or verify `_field_from_json_dict` correctly reconstructs all constraints\n- **Validation internals**: The `validate()` method just delegates; can't verify max_errors actually limits results without inspecting ValidationResult.issues length\n- **Bootstrap field construction**: Can't verify Field objects are properly cloned vs aliased\n\n**Most likely missed bugs:**\n- Incorrect dtype string lookups that still produce syntactically valid schemas\n- Off-by-one or boundary errors in nullable determination that only break on edge cases (empty DataFrames, all-null columns)\n- Missing propagation of edge constraints through deserialization",
+ "cost_usd": 0.024974,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2755,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 3399,
+  "output_tokens_details": {
+   "thinking_tokens": 2941
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2755,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3399,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2755,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2755
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

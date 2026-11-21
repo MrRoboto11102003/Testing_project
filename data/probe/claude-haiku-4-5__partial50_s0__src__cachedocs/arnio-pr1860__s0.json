@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1860",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Bugs in the kwargs construction (e.g., not passing index=False, incorrect compression=None conversion, or forgetting to pass row_group_size to pandas) would be missed unless tests explicitly read back and verify written file properties.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Bugs in the kwargs construction (e.g., not passing index=False, incorrect compression=None conversion, or forgetting to pass row_group_size to pandas) would be missed unless tests explicitly read back and verify written file properties.\"\n}\n```\n\n**Reasoning:**\n\n**High-catch-probability issues (~95%+):**\n- Input type validation (TypeError branches)\n- File extension validation (ValueError for wrong extensions)\n- Compression codec validation (ValueError for unknown codecs)\n- row_group_size range validation (TypeError/ValueError for invalid values)\n- preserve_attrs type validation (TypeError for non-bool)\n- pyarrow import check (ImportError)\n- Zero-column frame validation (ValueError)\n- Non-JSON-serializable attrs (TypeError with message check)\n\n**Medium-catch-probability issues (~60-70%):**\n- Actual parquet file is written and readable (requires reading back the file with pyarrow)\n- Compression codec is correctly applied (requires file inspection)\n- Attrs are actually written to parquet metadata (requires pyarrow Table inspection)\n- row_group_size is passed correctly to pandas (observable via file properties)\n\n**Hard-to-catch issues (~20-30%):**\n- Subtle bugs in `compression = None if compression == \"none\" else compression` logic\n- Missing `index=False` in kwargs (would create unwanted index column, needs file read to detect)\n- Typos in pandas.to_parquet kwarg keys\n- Attrs not being cleared when `preserve_attrs=False` despite df.attrs assignment\n- Silently swallowing exceptions in the pandas delegation call\n\nThe gap is that input validation is straightforward to test exhaustively, but output correctness (whether the parquet file is actually correct) requires inspecting the written file with pyarrow, which many developers skip.",
+ "cost_usd": 0.020557,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2509,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2614,
+  "output_tokens_details": {
+   "thinking_tokens": 2166
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2509,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2614,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 2509,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2509
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

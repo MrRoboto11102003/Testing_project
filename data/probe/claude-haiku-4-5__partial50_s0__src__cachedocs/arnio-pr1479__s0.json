@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1479",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "The exact filtering behavior of internal helper function _filtered_suggestion_kwargs and edge cases in _redact_reason when column names overlap or appear as substrings within suggestion reason text.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"The exact filtering behavior of internal helper function _filtered_suggestion_kwargs and edge cases in _redact_reason when column names overlap or appear as substrings within suggestion reason text.\"\n}\n```\n\n**Reasoning:**\n\n**What I can test robustly:**\n- Input validation (TypeError for wrong `exclude_columns` type, KeyError for unknown columns)\n- Parameter passing (`redact_sample_values` correctly propagated to `column.to_dict()`)\n- Column exclusion logic (excluded columns don't appear in output dict)\n- Sorting behavior (columns sorted by name, suggestions sorted by step name)\n- Return structure (dict with expected top-level keys)\n- Empty/None cases (`exclude_columns=None` handled, empty collections)\n- Redaction observable presence (checking if `[REDACTED]` appears in suggestions)\n\n**What's hard to test:**\n1. **Opaque helper functions:** I can't see implementations of `_validate_bool_option()`, `_filtered_suggestion_kwargs()`, or column's `to_dict()` method\u2014bugs in these or their integration points are hard to verify\n2. **Internal string redaction edge cases:** The `_redact_reason()` function uses simple `str.replace()` on column names; a bug replacing too much/too little in overlapping cases (e.g., \"id\" in \"user_id\") would be subtle\n3. **Suggestion structure assumptions:** Without constructing real suggestion objects, I must guess their attribute structure (confidence_score, confidence_reason); mocking these wrong means tests pass trivially\n\n**Likely-to-catch bugs:** Wrong columns excluded, sorting failures, missing parameter propagation, validation removed, incorrect filtering logic.\n\n**Likely-to-miss bugs:** Subtle redaction failures with overlapping names, internal helper function regressions, edge cases in kwargs filtering for specific suggestion structures.",
+ "cost_usd": 0.024641,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1846,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 3696,
+  "output_tokens_details": {
+   "thinking_tokens": 3240
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1846,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3696,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 1846,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1846
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

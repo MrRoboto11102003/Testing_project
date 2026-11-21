@@ -1,0 +1,197 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.schema_export.schema_to_dict, arnio.schema_export.schema_to_yaml.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.schema_export.schema_to_dict
+def schema_to_dict(schema: dict | Any) -> dict:
+    """Convert *schema* to a plain, sorted, serialisation-ready :class:`dict`.
+
+    Parameters
+    ----------
+    schema:
+        Either the raw ``dict`` returned by ``ar.scan_csv`` / ``ar.Schema``,
+        or any object that exposes a ``fields`` attribute (mapping of field
+        name → field descriptor) – whichever arnio uses internally.
+        Also supports ArFrame objects and lists of ColumnSummary.
+
+    Returns
+    -------
+    dict
+        A plain Python dict with only stdlib-serialisable values.
+
+    Raises
+    ------
+    TypeError
+        If *schema* is not of a supported type.
+    """
+    # ── ArFrame path ────────────────────────────────────────────────────────
+    if hasattr(schema, "schema_summary"):
+        schema = schema.schema_summary
+
+    # ── List of ColumnSummary path ──────────────────────────────────────────
+    if isinstance(schema, list):
+        normalised_list = {}
+        for entry in schema:
+            if hasattr(entry, "name") and hasattr(entry, "dtype"):
+                name = entry.name
+                normalised_list[name] = {
+                    "type": str(entry.dtype).upper(),
+                }
+                if hasattr(entry, "nullable"):
+                    normalised_list[name]["nullable"] = entry.nullable
+            elif isinstance(entry, dict) and "name" in entry and "dtype" in entry:
+                name = entry["name"]
+                normalised_list[name] = {
+                    "type": str(entry["dtype"]).upper(),
+                }
+                if "nullable" in entry:
+                    normalised_list[name]["nullable"] = entry["nullable"]
+            else:
+                raise TypeError(f"Unsupported list item type: {type(entry)!r}")
+        return {"fields": normalised_list}
+
+    # ── Schema object path ──────────────────────────────────────────────────
+    if hasattr(schema, "fields"):
+        if getattr(schema, "rules", None):
+            raise ValueError(
+                "schema_to_yaml does not support Schema objects with custom rules "
+                "because callables are not serializable. "
+                "Remove schema.rules before exporting."
+            )
+
+        raw_fields = schema.fields
+        _validate_schema_field_names(raw_fields)
+
+        normalised: dict = {}
+        for name, field in raw_fields.items():
+            if isinstance(field, dict):
+                raw_field = field
+            elif hasattr(field, "dtype"):
+                raw_field = _field_to_dict(field)
+            elif hasattr(field, "__dict__"):
+                raw_field = {
+                    k: v for k, v in vars(field).items() if not k.startswith("_")
+                }
+            else:
+                raw_field = str(field)
+
+            if isinstance(raw_field, str):
+                normalised[name] = {"type": raw_field}
+            elif isinstance(raw_field, dict):
+                normalised[name] = _normalize_serializable(raw_field)
+            else:
+                normalised[name] = raw_field
+
+        # Build result cleanly — metadata never touches the fields namespace
+        result = {"fields": dict(sorted(normalised.items()))}
+        if hasattr(schema, "strict"):
+            result["strict"] = schema.strict
+        if hasattr(schema, "unique"):
+            result["unique"] = schema.unique
+
+        return result
+
+    # ── Raw dict path ────────────────────────────────────────────────────────
+    if isinstance(schema, dict):
+        # Detect explicit structured input:
+        # {"fields": {...}, "strict": ..., "unique": ...}
+        if "fields" in schema and isinstance(schema["fields"], dict):
+            raw_fields = schema["fields"]
+            metadata = {k: v for k, v in schema.items() if k != "fields"}
+        else:
+            # Flat scan_csv-style dict:
+            # all keys are field names
+            raw_fields = schema
+            metadata = {}
+
+        _validate_schema_field_names(raw_fields)
+        normalised = {}
+
+        for field_name in sorted(raw_fields.keys()):
+            value = raw_fields[field_name]
+
+            # Recursively normalize nested containers
+            # into serialization-safe deterministic values.
+            if isinstance(value, str):
+                normalised[field_name] = {"type": value}
+            else:
+                normalised[field_name] = _normalize_serializable(value)
+
+        result = {"fields": normalised}
+
+        # Validate and normalize structured metadata before merging.
+        # Keys must be strings; values must be serialization-safe.
+        for meta_key, meta_val in metadata.items():
+            if not isinstance(meta_key, str):
+                raise TypeError(
+                    f"schema metadata keys must be strings, got {type(meta_key)!r}"
+                )
+            result[meta_key] = _normalize_serializable(meta_val)
+
+        return result
+
+    raise TypeError(
+        f"Expected a dict, an ArFrame, or an object with a 'fields' attribute, "
+        f"got {type(schema)!r}."
+    )
+
+# arnio.schema_export.schema_to_yaml
+def schema_to_yaml(
+    schema: dict | Any,
+    path: str | pathlib.Path | None = None,
+) -> str:
+    """Serialise *schema* to a YAML string.
+
+    Parameters
+    ----------
+    schema:
+        A ``dict`` (e.g. from ``ar.scan_csv``) or an arnio ``Schema`` object.
+    path:
+        Optional file path.  When supplied the YAML is written to that file
+        (UTF-8 encoding, existing file is overwritten).  The string is always
+        returned regardless.
+
+    Returns
+    -------
+    str
+        The YAML representation, always ending with ``\\n``.
+
+    Examples
+    --------
+    >>> import arnio as ar
+    >>> schema = ar.scan_csv("data.csv")
+    >>> print(ar.schema_to_yaml(schema))
+    fields:
+      id:
+        type: INT64
+      name:
+        type: STRING
+
+    >>> ar.schema_to_yaml(schema, path="schema.yaml")   # also write to file
+    """
+    data = schema_to_dict(schema)
+    body = _emit_value(data, depth=0)
+    yaml_str = body if body.endswith("\n") else body + "\n"
+
+    if path is not None:
+        if not isinstance(path, (str, os.PathLike)):
+            raise TypeError("path must be a string or os.PathLike")
+        if isinstance(path, str) and not path.strip():
+            raise ValueError("path must not be empty")
+        target = pathlib.Path(path)
+        if target.is_dir():
+            raise ValueError("path must point to a file, not a directory")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(yaml_str, encoding="utf-8")
+
+    return yaml_str

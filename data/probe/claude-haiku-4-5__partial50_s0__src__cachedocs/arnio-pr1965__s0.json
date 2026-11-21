@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1965",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "no",
+ "p_catch": 58,
+ "hardest_part": "Per-column validation is delegated to _validate_column(), which I cannot observe directly\u2014bugs in dtype checking, field-level constraints, or how validation results flow back would remain hidden since I can only test observable frame-level behavior and parameter validation.",
+ "raw": "```json\n{\n  \"verdict\": \"no\",\n  \"p_catch\": 58,\n  \"hardest_part\": \"Per-column validation is delegated to _validate_column(), which I cannot observe directly\u2014bugs in dtype checking, field-level constraints, or how validation results flow back would remain hidden since I can only test observable frame-level behavior and parameter validation.\"\n}\n```\n\n**Reasoning:**\n\n**What I can reliably test (strong coverage):**\n- Parameter validation (TypeError/ValueError for bad `max_errors`, non-ArFrame inputs)\n- Missing required columns detection\n- Strict mode unexpected column detection\n- Composite unique constraint detection and duplicate row identification\n- max_errors limiting behavior and early termination\n- Return type structure and sorted bad_rows list\n- Custom rule execution and error handling\n\n**What I cannot reliably test (gaps):**\n- The _validate_column() integration\u2014I'd need to mock or understand its full contract, but I don't know what field validation checks it performs (dtype mismatches, range violations, pattern matching, etc.). Bugs hidden inside that function wouldn't surface in my tests.\n- Exact row indexing logic (1-based vs 0-based conversion, off-by-one errors) for the row_index assignments\u2014hard to verify without instrumenting internal state.\n- Issue severity propagation and other ValidationIssue metadata fields beyond what the public API exposes.\n- Complex control flow bugs where the max_errors check is skipped in an obscure path, since my tests would only hit the main paths.\n- Subtle bugs in the order of operations or early-return logic that only manifest under specific schema + frame combinations.\n\n**Likely bugs I'd miss:**\n- Off-by-one in row_index assignment (row_index = int(index) + 1 is correct, but a mutation would be hard to catch)\n- Forgetting a limit check in one of the many early-return paths\n- Incorrect dtype passed to _validate_column (I can't see inside it)",
+ "cost_usd": 0.020681,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3481,
+  "cache_read_input_tokens": 24600,
+  "output_tokens": 2250,
+  "output_tokens_details": {
+   "thinking_tokens": 1791
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3481,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2250,
+    "cache_read_input_tokens": 24600,
+    "cache_creation_input_tokens": 3481,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3481
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

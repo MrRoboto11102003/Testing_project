@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr2005",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Whether parameters like redact_sample_values and exclude_columns are correctly passed to both nested profile.to_dict() calls without mutation or type conversion errors",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Whether parameters like redact_sample_values and exclude_columns are correctly passed to both nested profile.to_dict() calls without mutation or type conversion errors\"\n}\n```\n\n**Reasoning:**\n\n**High-confidence catches (likely \u226585%):**\n- Missing/wrong dict keys in return value\n- Status_counts not converted to dict or wrapped incorrectly  \n- Basic type validation of `exclude_columns` (list/set/tuple handling)\n- Structural integrity of nested \"left_profile\"/\"right_profile\" dicts\n\n**Medium-confidence catches (50-70%):**\n- Parameters not passed to left_profile or right_profile to_dict()\n- Swapped or wrong parameter values in nested calls\n- _clean_drift_entry not applied to all drift_report entries\n- Exclude_columns not propagating correctly to nested calls\n\n**Hard to catch (20-40%):**\n- Subtle type coercion bugs (set\u2192list conversion side effects)\n- Whether nested methods receive parameter copies vs. references\n- Internal mutation of input parameters\n- Edge case behavior when exclude_columns contains non-existent columns (depends on nested implementation)\n- Exact semantics of dict(status_counts) copy behavior\n\nThe function is fundamentally a delegation/aggregation pattern, so most bugs would be in parameter passing or structure\u2014both observable through assertions. The main gap is testing internal parameter semantics without introspecting/mocking nested calls.",
+ "cost_usd": 0.0210795,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1643,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 3069,
+  "output_tokens_details": {
+   "thinking_tokens": 2714
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1643,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 3069,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 1643,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1643
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

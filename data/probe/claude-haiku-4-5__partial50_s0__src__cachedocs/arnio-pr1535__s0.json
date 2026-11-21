@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1535",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 70,
+ "hardest_part": "A subtle bug in null/NaN handling with pandas extension dtypes (nullable Int64, string) or in the index reset mechanics for ArFrame conversion could slip past straightforward operator and return-type tests.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 70,\n  \"hardest_part\": \"A subtle bug in null/NaN handling with pandas extension dtypes (nullable Int64, string) or in the index reset mechanics for ArFrame conversion could slip past straightforward operator and return-type tests.\"\n}\n```\n\n**Reasoning:**\n\n**High confidence for catching (supports \"yes\"):**\n- Operator behavior is testable with simple assertions: `>`, `<`, `>=`, `<=`, `==`, `!=` can each be verified with concrete row counts\n- Return type checking (ArFrame \u2192 ArFrame, pd.DataFrame \u2192 pd.DataFrame) is unambiguous and easy to verify\n- Input validation errors (invalid column, operator, value type) have clear failure modes\n- Both major code paths (ArFrame vs pandas) can be exercised\n- Null handling in the basic case (`fillna(False)`) is observable from the filtered results\n\n**Moderate gaps (keeps p_catch at 70, not higher):**\n- **Extension dtype interactions**: The `mask.fillna(False).astype(bool)` line behaves subtly differently with nullable `Int64`, `boolean`, `string` dtypes\u2014a bug here might not surface unless tests specifically use these types\n- **Mask inversion bugs**: An operator could be accidentally inverted (`>` \u2192 `<=`) but still pass some tests if only boundary values are tested\n- **Index reset subtlety**: The ArFrame path does `reset_index(drop=True)` while pandas doesn't\u2014a bug in when/how this happens might only manifest in specific scenarios\n- **Type coercion edge cases**: Comparing string columns with numeric scalars has specific error behavior that's easy to miss without exhaustive type combination tests\n\n**Hardest part to catch:** A regression in null handling with specific pandas extension dtypes, or a subtle off-by-one/inversion in operator logic that happens to pass common test patterns.",
+ "cost_usd": 0.0174535,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2145,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 2143,
+  "output_tokens_details": {
+   "thinking_tokens": 1695
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2145,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2143,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 2145,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2145
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

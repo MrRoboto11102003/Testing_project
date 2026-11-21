@@ -1,0 +1,276 @@
+{
+ "id": "arnio-pr2015",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__system__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 80,
+  "units_kept": 80,
+  "chars": 154401
+ },
+ "level": "system",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "mean_arnio_calls": 2.65,
+ "detected": false,
+ "n_tests": 20,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2393,
+  "cache_read_input_tokens": 43610,
+  "output_tokens": 10891,
+  "output_tokens_details": {
+   "thinking_tokens": 7032
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2393,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10891,
+    "cache_read_input_tokens": 43610,
+    "cache_creation_input_tokens": 2393,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2393
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.063611,
+ "model_seconds": 48.1,
+ "seconds": 56.8,
+ "tests": {
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsBasic::test_parse_bool_strings_case_insensitive": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsBasic::test_parse_bool_strings_custom_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsBasic::test_parse_bool_strings_numeric_strings": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsBasic::test_parse_bool_strings_subset_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsBasic::test_parse_bool_strings_unsupported_values_preserved": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsBasic::test_parse_bool_strings_whitespace_normalization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsBasic::test_parse_bool_strings_with_defaults": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsErrors::test_error_false_values_bare_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsErrors::test_error_non_string_in_false_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsErrors::test_error_non_string_in_true_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsErrors::test_error_overlapping_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsErrors::test_error_subset_nonexistent_column": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsErrors::test_error_true_values_bare_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsIntegration::test_parse_bool_all_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsIntegration::test_parse_bool_empty_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsIntegration::test_parse_bool_from_pandas_roundtrip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "parse_bool_strings",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsIntegration::test_parse_bool_multiple_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsIntegration::test_parse_bool_normalization_overlap_case_insensitive": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsIntegration::test_parse_bool_pipeline_integration": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "pipeline",
+    "read_csv",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr2015.py::TestParseBoolStringsIntegration::test_parse_bool_write_csv_roundtrip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "parse_bool_strings",
+    "read_csv",
+    "write_csv"
+   ]
+  }
+ }
+}

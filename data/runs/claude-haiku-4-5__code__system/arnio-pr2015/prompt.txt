@@ -1,0 +1,134 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.cleaning.parse_bool_strings.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.parse_bool_strings
+def parse_bool_strings(
+    frame: ArFrame,
+    *,
+    subset: Sequence[str] | None = None,
+    true_values: set[str] | None = None,
+    false_values: set[str] | None = None,
+) -> ArFrame:
+    """Convert common boolean-like string values into actual booleans.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input Arnio frame.
+    subset : sequence of str, optional
+        Columns to apply conversion on. If None, applies to all object/string columns.
+    true_values : set[str], optional
+        String values treated as True.
+    false_values : set[str], optional
+        String values treated as False.
+
+    Returns
+    -------
+    ArFrame
+        New frame with parsed boolean values.
+
+    Notes
+    -----
+    Columns containing both parsed boolean values and unsupported string values
+    may round-trip as strings because of ArFrame column typing semantics.
+    Unsupported values are preserved unchanged.
+
+    Examples
+    --------
+    >>> parsed = ar.parse_bool_strings(frame)
+    """
+    from .convert import from_pandas, to_pandas
+
+    _validate_arframe(frame)
+    if true_values is not None and isinstance(true_values, (str, bytes)):
+        raise TypeError(
+            "true_values must be a set/list/tuple of strings, not a bare string"
+        )
+    if false_values is not None and isinstance(false_values, (str, bytes)):
+        raise TypeError(
+            "false_values must be a set/list/tuple of strings, not a bare string"
+        )
+    if true_values is not None and (
+        isinstance(true_values, Mapping)
+        or not isinstance(true_values, (set, list, tuple))
+    ):
+        raise TypeError("true_values must be a set, list, or tuple of strings")
+
+    if false_values is not None and (
+        isinstance(false_values, Mapping)
+        or not isinstance(false_values, (set, list, tuple))
+    ):
+        raise TypeError("false_values must be a set, list, or tuple of strings")
+    df = to_pandas(frame).copy(deep=False)
+    if true_values is None:
+        true_values = {"true", "yes", "y", "1"}
+    else:
+        invalid = [v for v in true_values if not isinstance(v, str)]
+        if invalid:
+            raise TypeError(
+                f"true_values must contain only strings, got "
+                f"{type(invalid[0]).__name__}"
+            )
+
+    if false_values is None:
+        false_values = {"false", "no", "n", "0"}
+    else:
+        invalid = [v for v in false_values if not isinstance(v, str)]
+        if invalid:
+            raise TypeError(
+                f"false_values must contain only strings, got "
+                f"{type(invalid[0]).__name__}"
+            )
+
+    true_values = {v.strip().lower() for v in true_values}
+    false_values = {v.strip().lower() for v in false_values}
+    overlap = true_values & false_values
+
+    if overlap:
+        raise ValueError(
+            f"true_values and false_values overlap after normalization: {overlap}"
+        )
+
+    if subset is not None:
+        validated_columns = _validate_existing_column_sequence(
+            subset,
+            available_columns=df.columns,
+            argument_name="subset",
+            allow_empty=False,
+            missing_error=ValueError,
+            missing_message=lambda missing, _available: (
+                f"Columns not found in frame: {missing}"
+            ),
+        )
+
+        columns = [
+            col for col in validated_columns if not pd.api.types.is_bool_dtype(df[col])
+        ]
+    else:
+        columns = df.select_dtypes(include=["object", "string"]).columns.tolist()
+
+    for col in columns:
+        df[col] = df[col].apply(
+            lambda x: (
+                True
+                if isinstance(x, str) and x.strip().lower() in true_values
+                else (
+                    False
+                    if isinstance(x, str) and x.strip().lower() in false_values
+                    else x
+                )
+            )
+        )
+
+    return from_pandas(df)

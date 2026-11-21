@@ -1,0 +1,515 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.integrations.sklearn.ArnioCleaner.get_feature_names_out, arnio.io.read_csv, arnio.io.read_csv_chunked.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.integrations.sklearn.ArnioCleaner.get_feature_names_out
+    def get_feature_names_out(self, input_features=None):
+        """Enable compatibility with ColumnTransformer workflows.
+
+        Parameters
+        ----------
+        input_features : array-like of str or None
+            If None, the fitted output feature names are returned.
+            If an array-like, it must be a non-string sequence of feature
+            names that match the fitted input feature names.
+
+        Returns
+        -------
+        feature_names_out : ndarray
+            The output feature names.
+        """
+        check_is_fitted(self, "feature_names_out_")
+
+        if input_features is None:
+            return self.feature_names_out_
+
+        if isinstance(input_features, (str, bytes)):
+            raise TypeError("input_features must be a sequence of strings, not str")
+
+        if not hasattr(input_features, "__len__") or not hasattr(
+            input_features, "__iter__"
+        ):
+            raise TypeError("input_features must be a sequence of strings")
+
+        if not all(isinstance(f, str) for f in input_features):
+            raise TypeError("All input_features must be strings")
+
+        if len(input_features) != self.n_features_in_:
+            raise ValueError(f"input_features should have length {self.n_features_in_}")
+        if list(input_features) != list(self.feature_names_in_):
+            raise ValueError("input_features must match columns seen during fit.")
+
+        return self.feature_names_out_
+
+# arnio.io.read_csv
+def read_csv(
+    path: str | os.PathLike[str] | io.TextIOBase,
+    *,
+    delimiter: str | None = None,
+    has_header: bool = True,
+    usecols: list[str] | None = None,
+    nrows: int | None = None,
+    skiprows: int | None = None,
+    encoding: str = "utf-8",
+    trim_headers: bool = True,
+    decimal_separator: str = ".",
+    thousands_separator: str | None = None,
+    null_values: list[str] | None = None,
+    dtype: dict[str, str] | None = None,
+    mode: str = "strict",
+    encoding_errors: str = "strict",
+    on_bad_lines: str = "error",
+) -> ArFrame:
+    """Read a CSV file into an ArFrame via C++ backend.
+
+    Parameters
+    ----------
+    path : str or file-like object
+        Filesystem path or text file-like object containing CSV data.
+        Any file extension is accepted, including compressed ``.csv.gz`` files.
+        For ``.tsv`` files, the delimiter
+        is automatically set to ``'\t'`` when ``delimiter`` is omitted.
+    delimiter : str or None, default None
+        Field delimiter character.  When ``None`` (the default) the
+        delimiter is inferred from the file extension: ``'\t'`` for
+        ``.tsv`` files and ``','`` for everything else.  Passing an
+        explicit value always takes precedence — for example,
+        ``delimiter=','`` reads a comma-delimited ``.tsv`` file without
+        any auto-detection.
+    has_header : bool, default True
+        Whether the file has a header row.
+    usecols : list[str], optional
+        Columns to read. If None, reads all columns.
+    nrows : int, optional
+        Number of rows to read. If None, reads all rows.
+    skiprows : int, optional
+        Number of lines to skip before reading the header. Useful for
+        CSV files with metadata preambles before the actual data.
+        If None, no lines are skipped.
+    encoding : str, default "utf-8"
+        File encoding.
+    trim_headers : bool, default True
+        Strip leading/trailing whitespace from column names.  Regardless
+        of this setting, headers that differ only by leading or trailing
+        whitespace are always rejected with a :exc:`CsvReadError` because
+        they would produce ambiguous column access.
+    decimal_separator : str, default "."
+        Single non-alphanumeric character used as the decimal separator
+        during numeric parsing. Use "," to opt in to European-style decimals
+        such as ``"12,45"``. Values containing the CSV delimiter must still
+        be quoted.
+    thousands_separator : str, optional
+        Single non-alphanumeric character used as a thousands separator
+        during numeric parsing.
+
+
+
+        Values containing delimiter characters must still be quoted
+        properly in the CSV input. For example, when using a comma
+        delimiter, the value "1,234" must be quoted, while unquoted
+        1,234 is interpreted as two separate fields.
+
+    dtype : dict[str, str], optional
+        Explicit column dtype mapping. Specified columns skip automatic
+        type inference and use the requested dtype directly.
+
+        Supported dtypes:
+        - "string"
+        - "int64"
+        - "float64"
+        - "bool"
+
+    mode : {"strict", "permissive"}, default "strict"
+        Controls malformed row handling.
+
+        - strict: raises CsvReadError on inconsistent row widths.
+        - permissive: fills missing trailing fields with nulls.
+        - both modes reject extra fields because they would otherwise be
+          silently dropped.
+
+    on_bad_lines : {"error", "warn", "skip"}, default "error"
+        Action to take on rows classified as bad by ``mode``.
+
+        - error: raise CsvReadError on the first bad row.
+        - warn: drop the row and emit a UserWarning.
+        - skip: drop the row silently.
+
+        In permissive mode, narrow rows are still padded silently and do
+        not reach this dispatch; only wide rows do. Dropped rows count
+        toward ``nrows``.
+
+    Returns
+    -------
+    ArFrame
+        Data frame containing the CSV data.
+
+    Raises
+    ------
+    ValueError
+        If thousands_separator is invalid.
+
+    TypeError
+        If delimiter is not a string or None, or thousands_separator is
+        not a string or None.
+
+    CsvReadError
+        If CSV input contains NUL bytes and appears binary or corrupted.
+
+    Examples
+    --------
+    >>> import arnio as ar
+
+    Read a basic CSV file:
+
+    >>> df = ar.read_csv("data.csv")              # comma delimiter
+
+    Read a CSV with specific columns and row limit:
+
+    >>> df = ar.read_csv("large_data.csv", usecols=["id", "name"], nrows=1000)
+
+    Other important behaviors:
+
+    >>> df = ar.read_csv("data.tsv")              # tab auto-detected
+    >>> df = ar.read_csv("data.tsv", delimiter=",")  # explicit comma honoured
+    >>> df = ar.read_csv("data.dat")              # non-standard extension accepted
+    """
+    native_path, should_cleanup, is_materialized_text = _materialize_csv_input(path)
+
+    try:
+        # Explicitly validate the decompressed temp file (or local path) rather than the compressed bytes
+        _validate_csv_path(native_path, encoding)
+
+        path_lower = native_path.lower()
+
+        # Resolve the sentinel: auto-detect tab for .tsv only when the caller
+        # truly omitted delimiter (None).  An explicit delimiter="," is always
+        # honoured, even for .tsv paths.
+        if delimiter is None:
+            delimiter = "\t" if path_lower.endswith(".tsv") else ","
+
+        decimal_separator = _validate_decimal_separator(decimal_separator)
+        _validate_thousands_separator(thousands_separator, decimal_separator)
+        delimiter = _validate_delimiter(delimiter)
+        mode = _validate_parser_mode(mode)
+        encoding_errors = _validate_encoding_errors(encoding_errors)
+        on_bad_lines = _validate_on_bad_lines(on_bad_lines)
+        config = _CsvConfig()
+        config.delimiter = delimiter
+        config.has_header = _validate_bool_option(has_header, "has_header")
+        config.encoding = encoding
+        config.trim_headers = _validate_bool_option(trim_headers, "trim_headers")
+        config.decimal_separator = decimal_separator
+        config.thousands_separator = thousands_separator
+        config.mode = mode
+        config.encoding_errors = encoding_errors
+        if null_values is not None:
+            config.null_values = _validate_null_values(null_values)
+        if dtype is not None:
+            config.dtype = _validate_dtype_mapping(dtype)
+
+        if usecols is not None:
+            config.usecols = _validate_usecols(usecols)
+
+        if nrows is not None:
+            config.nrows = _validate_nrows(nrows)
+
+        if skiprows is not None:
+            config.skip_rows = _validate_skip_rows(skiprows)
+
+        reader = _CsvReader(config)
+    except Exception:
+        if should_cleanup and os.path.exists(native_path):
+            os.unlink(native_path)
+        raise
+
+    try:
+        effective_encoding = "utf-8" if is_materialized_text else encoding
+        with _utf8_csv_path(
+            native_path,
+            effective_encoding,
+            encoding_errors=encoding_errors,
+            delimiter=delimiter,
+        ) as native_csv_path:
+            try:
+                cpp_frame, bad_rows = reader.read(native_csv_path, on_bad_lines)
+            except CsvReadError:
+                raise
+            except (ValueError, TypeError):
+                raise
+            except RuntimeError as e:
+                raise _enrich_csv_runtime_error(
+                    e, native_path, encoding, delimiter
+                ) from None
+
+        if on_bad_lines == "warn" and bad_rows:
+            _warn_bad_rows(bad_rows)
+
+        frame = ArFrame(cpp_frame)
+
+        # Case 2: Delimiter mismatch — check only when usecols was not restricted
+        # (usecols can legitimately produce 1 column) and has_header is True
+        # so we can peek at the data line.
+        if usecols is None and has_header:
+            _warn_delimiter_mismatch(native_path, delimiter, frame.shape[1])
+
+        return frame
+
+    except (ValueError, TypeError):
+        raise
+    except CsvReadError:
+        raise
+    except Exception as e:
+        raise CsvReadError(str(e)) from None
+
+    finally:
+        if should_cleanup and os.path.exists(native_path):
+            os.unlink(native_path)
+
+# arnio.io.read_csv_chunked
+def read_csv_chunked(
+    path: str | os.PathLike[str] | io.TextIOBase,
+    *,
+    chunksize: int = 10_000,
+    dtype: dict[str, str] | None = None,
+    delimiter: str | None = None,
+    has_header: bool = True,
+    usecols: list[str] | None = None,
+    nrows: int | None = None,
+    skip_rows: int = 0,
+    skiprows: int | None = None,
+    encoding: str = "utf-8",
+    trim_headers: bool = True,
+    decimal_separator: str = ".",
+    thousands_separator: str | None = None,
+    null_values: list[str] | None = None,
+    mode: str = "strict",
+    on_bad_lines: str = "error",
+) -> Iterator[ArFrame]:
+    """Read a CSV file in chunks, yielding ArFrame objects.
+
+    Column types are inferred from the first chunk and applied consistently
+    to all subsequent chunks. Memory use is bounded by the chunk size.
+
+    Parameters
+    ----------
+    path : str or file-like object
+        Path to the CSV file. Supports .csv, .txt, .tsv, and compressed .csv.gz extensions.
+        Text file-like objects are copied to a temporary file in bounded
+        chunks before native parsing.  For ``.tsv`` paths the delimiter is
+        automatically set to ``'\\t'`` when ``delimiter`` is omitted.
+    chunksize : int, default 10_000
+        Maximum number of data rows per yielded chunk.
+    delimiter : str or None, default None
+        Field delimiter character.  When ``None`` (the default) the
+        delimiter is inferred from the file extension: ``'\\t'`` for
+        ``.tsv`` files and ``','`` for everything else.  Passing an
+        explicit value always takes precedence — for example,
+        ``delimiter=','`` reads a comma-delimited ``.tsv`` file without
+        any auto-detection.
+    has_header : bool, default True
+        Whether the file has a header row.
+    usecols : list[str], optional
+        Columns to read. If None, reads all columns.
+    nrows : int, optional
+        Maximum total number of data rows to read across all chunks.
+    skip_rows : int, default 0
+        Number of data rows to skip after the header row.
+    skiprows : int, optional
+        Alias for ``skip_rows`` for API consistency with ``read_csv``.
+        Note: in chunked mode both ``skip_rows`` and ``skiprows`` skip
+        data rows *after* the header, not lines before it.
+        If both are supplied they must agree; conflicting values raise
+        ``ValueError``.
+    encoding : str, default "utf-8"
+        File encoding.
+    trim_headers : bool, default True
+        Strip leading/trailing whitespace from column names.  Regardless
+        of this setting, headers that differ only by leading or trailing
+        whitespace are always rejected with a :exc:`CsvReadError` because
+        they would produce ambiguous column access.
+    decimal_separator : str, default "."
+        Single non-alphanumeric character used as the decimal separator
+        during numeric parsing.
+    thousands_separator : str, optional
+        Single non-alphanumeric character used as a thousands separator
+        during numeric parsing.
+    null_values : list[str], optional
+        Strings treated as null values.
+
+    mode : {"strict", "permissive"}, default "strict"
+        Controls malformed row handling.
+        Both modes reject extra fields; permissive mode only allows missing
+        trailing fields, which are filled with nulls.
+    on_bad_lines : {"error", "warn", "skip"}, default "error"
+        Action to take on rows classified as bad by ``mode``.
+
+        - error: raise CsvReadError on the first bad row.
+        - warn: drop the row and emit a UserWarning.
+        - skip: drop the row silently.
+
+        In permissive mode, narrow rows are still padded silently and do
+        not reach this dispatch; only wide rows do. Dropped rows count
+        toward ``nrows``.
+
+    Yields
+    ------
+    ArFrame
+        Successive chunks of the CSV data.
+
+    Examples
+    --------
+    >>> for chunk in ar.read_csv_chunked("huge.csv", chunksize=100_000):
+    ...     clean = ar.pipeline(chunk, [("drop_nulls",)])
+    ...     df = ar.to_pandas(clean)
+    ...     process(df)
+
+    Read a TSV file — tab delimiter is inferred automatically:
+
+    >>> for chunk in ar.read_csv_chunked("data.tsv", chunksize=10_000):
+    ...     process(chunk)
+
+    Override auto-detection (e.g. a comma-delimited file with a .tsv extension):
+
+    >>> for chunk in ar.read_csv_chunked("data.tsv", delimiter=",", chunksize=10_000):
+    ...     process(chunk)
+    """
+    is_path_input = isinstance(path, (str, os.PathLike))
+    native_path, should_cleanup, is_materialized_text = _materialize_csv_input(
+        path, caller="read_csv_chunked"
+    )
+    try:
+        path_lower = native_path.lower()
+        if is_path_input:
+            # We check the original path extension if it was passed as a path
+            if isinstance(path, str):
+                orig_path_lower = path.lower()
+            elif isinstance(path, os.PathLike):
+                orig_path_lower = os.fspath(path).lower()
+            else:
+                orig_path_lower = ""
+
+            if not (
+                orig_path_lower.endswith(".csv")
+                or orig_path_lower.endswith(".txt")
+                or orig_path_lower.endswith(".tsv")
+                or orig_path_lower.endswith(".gz")
+            ):
+                raise ValueError(
+                    f"Unsupported file format: {path}. "
+                    "Only .csv, .txt, .tsv, and compressed .csv.gz are supported."
+                )
+
+        # Explicitly validate the decompressed temp file (or local path) rather than the compressed bytes
+        _validate_csv_path(native_path, encoding, reject_utf8_nul_bytes=False)
+
+        # Resolve the sentinel: auto-detect tab for .tsv only when the caller
+        # truly omitted delimiter (None).  An explicit delimiter="," is always
+        # honoured, even for .tsv paths.  File-like objects are materialised
+        # to a temporary .csv path, so auto-detection safely falls back to ","
+        # for those inputs — consistent with read_csv behaviour.
+        if delimiter is None:
+            delimiter = "\t" if path_lower.endswith(".tsv") else ","
+
+        decimal_separator = _validate_decimal_separator(decimal_separator)
+        _validate_thousands_separator(thousands_separator, decimal_separator)
+        delimiter = _validate_delimiter(delimiter)
+        mode = _validate_parser_mode(mode)
+        chunksize = _validate_chunksize(chunksize)
+
+        # Resolve skiprows / skip_rows alias.
+        # Both skip data rows after the header in chunked mode.
+        # skip_rows is kept for backward compatibility; skiprows matches
+        # the read_csv parameter name. Both may be passed as long as they
+        # agree; conflicting values raise ValueError.
+        if skiprows is not None:
+            if isinstance(skiprows, bool) or not isinstance(skiprows, int):
+                raise TypeError("skiprows must be an integer")
+            if skiprows < 0:
+                raise ValueError("skiprows must be non-negative")
+            if skip_rows != 0 and skip_rows != skiprows:
+                raise ValueError(
+                    f"Conflicting values: skiprows={skiprows!r} and "
+                    f"skip_rows={skip_rows!r}. Pass only one of them."
+                )
+            skip_rows = skiprows
+
+        skip_rows = _validate_skip_rows(skip_rows)
+        on_bad_lines = _validate_on_bad_lines(on_bad_lines)
+
+        config = _CsvConfig()
+        config.delimiter = delimiter
+        config.has_header = _validate_bool_option(has_header, "has_header")
+        config.encoding = encoding
+        config.trim_headers = _validate_bool_option(trim_headers, "trim_headers")
+        config.decimal_separator = decimal_separator
+        config.thousands_separator = thousands_separator
+        config.mode = mode
+        config.skip_rows = skip_rows
+
+        if null_values is not None:
+            config.null_values = _validate_null_values(null_values)
+
+        if dtype is not None:
+            config.dtype = _validate_dtype_mapping(dtype)
+
+        if usecols is not None:
+            config.usecols = _validate_usecols(usecols)
+
+        if nrows is not None:
+            config.nrows = _validate_nrows(nrows)
+
+        reader = _CsvChunkReader(config)
+    except Exception:
+        if should_cleanup and os.path.exists(native_path):
+            os.unlink(native_path)
+        raise
+    try:
+        effective_encoding = "utf-8" if is_materialized_text else encoding
+        with _utf8_csv_path(
+            native_path, effective_encoding, delimiter=delimiter
+        ) as native_csv_path:
+            reader.open(native_csv_path)
+            yielded_nonempty_chunk = False
+            try:
+                while True:
+                    chunk = reader.next_chunk(chunksize, on_bad_lines)
+                    if chunk is None:
+                        break
+                    cpp_frame, bad_rows = chunk
+
+                    if on_bad_lines == "warn" and bad_rows:
+                        _warn_bad_rows(bad_rows)
+                    frame = ArFrame(cpp_frame)
+
+                    if frame.shape[0] == 0 and bad_rows:
+                        if yielded_nonempty_chunk:
+                            continue
+
+                    yielded_nonempty_chunk = (
+                        yielded_nonempty_chunk or frame.shape[0] > 0
+                    )
+
+                    yield frame
+            finally:
+                reader.close()
+                if should_cleanup and os.path.exists(native_path):
+                    try:
+                        os.unlink(native_path)
+                    except OSError:
+                        pass
+    except ValueError:
+        raise
+    except CsvReadError:
+        raise
+    except RuntimeError as e:
+        raise CsvReadError(str(e)) from None

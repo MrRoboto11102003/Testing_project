@@ -1,0 +1,34 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.pipeline.unregister_step.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.pipeline.unregister_step
+def unregister_step(name: str) -> None:
+    """Unregister a custom Python pipeline step."""
+    with _REGISTRY_LOCK:
+        if not isinstance(name, str):
+            raise TypeError(
+                f"parameter 'name' must be a string, not {type(name).__name__}"
+            )
+        if not name:
+            raise ValueError("parameter 'name' must be a non-empty string")
+
+        if name not in _PYTHON_STEP_REGISTRY:
+            available_steps = sorted(set(_STEP_REGISTRY) | set(_PYTHON_STEP_REGISTRY))
+            raise UnknownStepError(name, available_steps)
+
+        # Protect only names that were registered as built-ins at module load
+        # time (i.e. present in _BUILTIN_PYTHON_STEP_REGISTRY).  Do NOT use
+        # _is_builtin_python_step here: that helper checks the function's
+        # __module__, which would wrongly block user-defined aliases whose
+        # underlying callable happens to live in arnio.cleaning.
+        if name in _BUILTIN_PYTHON_STEP_REGISTRY:
+            available_steps = sorted(set(_STEP_REGISTRY) | set(_PYTHON_STEP_REGISTRY))
+            raise ValueError(
+                f"Cannot unregister built-in step '{name}'. Only custom user-registered steps can be unregistered."
+            )
+        del _PYTHON_STEP_REGISTRY[name]

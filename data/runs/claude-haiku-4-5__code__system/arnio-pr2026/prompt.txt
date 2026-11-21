@@ -1,0 +1,127 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest system (end-to-end) tests for the parts of arnio that involve: arnio.cleaning.drop_constant_columns, arnio.cleaning.drop_empty_columns.
+Each test must drive a complete user workflow through arnio's outer interfaces, the way a
+user would: real files on disk (use pytest's tmp_path), loading, cleaning / validating /
+profiling, and writing results or converting to pandas. Where relevant also use the
+pandas `.arnio` accessor or the command line, run as
+subprocess.run([sys.executable, "-m", "arnio.cli", ...], capture_output=True, text=True).
+Assert on what the user would observe: output files, returned frames, reports, error
+types and messages, exit codes. Include documented failure cases and edge cases.
+Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.drop_constant_columns
+def drop_constant_columns(
+    frame: ArFrame | pd.DataFrame,
+) -> ArFrame | pd.DataFrame:
+    """Remove columns with exactly one unique value.
+
+    Nulls are counted as values when determining whether a column is constant.
+    This means columns like ``[None, None]`` are dropped, while columns like
+    ``[1, 1, None]`` are kept. Empty columns in zero-row frames are also kept,
+    since they have zero unique values rather than one.
+
+    If every column is dropped, the resulting zero-column frame preserves the
+    original row count.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        New frame without constant columns.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> reduced = ar.drop_constant_columns(frame)
+    """
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    df = to_pandas(frame) if is_arframe else frame
+    if len(df.index) == 0:
+        result_df = df.copy(deep=True)
+
+        if is_arframe:
+            result = from_pandas(result_df)
+
+            if getattr(frame, "_attrs", None) is not None:
+                result._attrs = copy.deepcopy(frame._attrs)
+
+            return result
+
+        return result_df
+
+    nunique_counts = df.nunique(dropna=False)
+    constant_columns = nunique_counts[nunique_counts == 1].index.tolist()
+    result_df = df.drop(columns=constant_columns)
+    return from_pandas(result_df) if is_arframe else result_df
+
+# arnio.cleaning.drop_empty_columns
+def drop_empty_columns(frame: ArFrame) -> ArFrame:
+    """Remove columns whose values are entirely null or empty strings.
+
+    String values containing only whitespace are treated as empty.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+
+    Returns
+    -------
+    ArFrame
+        New frame without fully empty columns.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> reduced = ar.drop_empty_columns(frame)
+    """
+    _validate_arframe(frame)
+    from .convert import to_pandas
+
+    if frame.shape[0] == 0:
+        attrs = copy.deepcopy(frame._attrs) if frame._attrs is not None else None
+        empty_columns_data: dict[str, list[object]] = {}
+        empty_dtype_hints: dict[str, _DType] = {}
+        for col_name in frame.columns:
+            empty_columns_data[col_name] = []
+            empty_dtype_hints[col_name] = frame._frame.column_by_name(col_name).dtype()
+        return ArFrame(
+            _Frame.from_dict(empty_columns_data, empty_dtype_hints, 0), attrs=attrs
+        )
+
+    df = to_pandas(frame)
+    empty_columns: list[str] = []
+    for column in df.columns:
+        series = df[column]
+        is_empty = series.isna() | (
+            series.map(lambda value: isinstance(value, str) and value.strip() == "")
+        )
+        if bool(is_empty.all()):
+            empty_columns.append(column)
+
+    remaining_columns = [
+        column for column in frame.columns if column not in empty_columns
+    ]
+    attrs = copy.deepcopy(frame._attrs) if frame._attrs is not None else None
+    if remaining_columns:
+        columns_data: dict[str, list[object]] = {}
+        dtype_hints: dict[str, _DType] = {}
+        for column in remaining_columns:
+            cpp_column = frame._frame.column_by_name(column)
+            columns_data[column] = cpp_column.to_python_list()
+            dtype_hints[column] = cpp_column.dtype()
+        return ArFrame(_Frame.from_dict(columns_data, dtype_hints), attrs=attrs)
+
+    try:
+        return ArFrame(_Frame.from_dict({}, {}, frame.shape[0]), attrs=attrs)
+    except TypeError:
+        return ArFrame(_Frame(), attrs=attrs)

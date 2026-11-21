@@ -1,0 +1,261 @@
+{
+ "id": "arnio-pr1851",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__codeapi",
+ "context": {
+  "mode": "codeapi",
+  "chars": 35935
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 2.68,
+ "detected": true,
+ "n_tests": 19,
+ "n_catching": 1,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 12058,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8638,
+  "output_tokens_details": {
+   "thinking_tokens": 6414
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 12058,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8638,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 12058,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 12058
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.067315,
+ "model_seconds": 37.0,
+ "seconds": 45.5,
+ "tests": {
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_default_lower": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_invalid_case_type_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_invalid_case_type_value": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_lower": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_missing_column_in_subset": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_preserves_non_ascii": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_subset_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_title": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_upper": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeCase::test_normalize_case_with_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_case",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_invalid_form_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_invalid_form_value": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_missing_column_in_subset": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_nfc_default": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_nfc_explicit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_nfd": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_nfkc_nfkd": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_subset_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1851.py::TestNormalizeUnicode::test_normalize_unicode_with_nulls": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_dict",
+    "normalize_unicode",
+    "to_pandas"
+   ]
+  }
+ }
+}

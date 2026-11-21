@@ -1,0 +1,241 @@
+{
+ "id": "arnio-pr1738",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__system",
+ "context": {
+  "mode": "code",
+  "chars": 2904
+ },
+ "level": "system",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "mean_arnio_calls": 1.15,
+ "detected": true,
+ "n_tests": 20,
+ "n_catching": 5,
+ "n_false_alarms": 4,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 1838,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6879,
+  "output_tokens_details": {
+   "thinking_tokens": 4818
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 1838,
+    "output_tokens": 6879,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.036232999999999994,
+ "model_seconds": 32.3,
+ "seconds": 40.1,
+ "tests": {
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberSchema::test_phone_number_basic_creation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberSchema::test_phone_number_in_schema_and_validation": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberSchema::test_phone_number_non_nullable_constraint": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberSchema::test_phone_number_severity_levels": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberSchema::test_phone_number_unique_constraint": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumberSchema::test_phone_number_with_all_parameters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_allowed_schemes_bare_string_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_allowed_schemes_empty_list_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_allowed_schemes_empty_string_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_allowed_schemes_non_sequence_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_allowed_schemes_non_string_element_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_allowed_schemes_normalization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_allowed_schemes_whitespace_only_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_basic_creation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_in_schema_and_validation": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Schema",
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_with_all_parameters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_with_allowed_schemes_multiple": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_with_allowed_schemes_single": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_with_set_schemes": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "schema"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURLSchema::test_url_with_tuple_schemes": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "schema"
+   ]
+  }
+ }
+}

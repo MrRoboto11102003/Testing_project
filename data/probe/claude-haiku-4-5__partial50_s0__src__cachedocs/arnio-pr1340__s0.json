@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1340",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 71,
+ "hardest_part": "Bugs in resource cleanup paths or file-like object materialization that don't affect the returned ArFrame data.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 71,\n  \"hardest_part\": \"Bugs in resource cleanup paths or file-like object materialization that don't affect the returned ArFrame data.\"\n}\n```\n\n**Reasoning:**\n\n**Likely to catch (~85% of bugs):**\n- Parameter validation logic errors (wrong operators, missing checks, validation order issues)\n- Return value bugs (returning wrong object or attributes)\n- Delimiter auto-detection logic inversions (easy to test with .tsv file)\n- skip_rows/skiprows conflict logic\n- Exception type or timing regressions\n- Basic chunking behavior\n\n**Moderately likely to catch (~70% of bugs):**\n- Configuration field assignment (observable in output if parameters affect the data)\n- Validation step omissions (would affect error handling paths)\n- Length/content mismatch comparisons\n\n**Hard to catch (~40% of bugs):**\n- File cleanup after exceptions (need to mock filesystem operations)\n- File-like object handling specifics (StringIO vs path - limited ability to verify without running)\n- Exact error message text changes\n- C++ backend integration bugs that don't affect observed output\n- Subtle off-by-one errors in uncommon parameter combinations\n\n**Test coverage estimate for 15 tests:**\n- 3-4 on `get_feature_names_out`: validation paths, return values, exception handling\n- 6-7 on `read_csv`: parameter validation, delimiter detection, file I/O, encoding\n- 4-5 on `read_csv_chunked`: chunking behavior, skip_rows aliasing, parameter conflicts\n\nThe main gap is that you cannot easily test file handle lifecycle, temp file cleanup after exceptions, or exact C++ integration behavior without running the tests.",
+ "cost_usd": 0.087188,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 31897,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4677,
+  "output_tokens_details": {
+   "thinking_tokens": 4265
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 31897,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 4677,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 31897,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 31897
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "id": "arnio-pr1493",
+ "sample": 0,
+ "model": "claude-haiku-4-5",
+ "control": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "verdict": "yes",
+ "p_catch": 72,
+ "hardest_part": "Silent data corruption or type coercion issues during the `to_pandas()` conversion or DuckDB registration that don't raise errors but deliver wrong data to queries.",
+ "raw": "```json\n{\n  \"verdict\": \"yes\",\n  \"p_catch\": 72,\n  \"hardest_part\": \"Silent data corruption or type coercion issues during the `to_pandas()` conversion or DuckDB registration that don't raise errors but deliver wrong data to queries.\"\n}\n```\n\n**Reasoning:**\n\n**Easy to catch (90%+ tests would catch):**\n- All six validation error paths (bad frame type, bad name type, empty name, whitespace name, missing register method, non-callable register)\n- Not calling `conn.register()` at all (verify via DuckDB query)\n- Wrong argument order to `conn.register()` (verify via DuckDB query fails to find table)\n\n**Moderate difficulty (60-80% likelihood):**\n- Forgetting the `to_pandas()` conversion (query returns wrong type or fails)\n- Using wrong `name` variable in registration\n- Off-by-one or column-ordering issues (requires comparing registered schema to source)\n\n**Hard to catch (20-40% likelihood):**\n- Data corruption during pandas conversion that doesn't raise errors (requires deep comparison of values, dtypes, nulls across rows)\n- Silent null-handling issues in registration\n- Subtle DuckDB type coercion differences that only manifest on specific data\n\n**Coverage gaps:**\n- The function is a thin wrapper around `to_pandas()` and `conn.register()`. Bugs in those dependencies or in subtle type/data handling won't surface without careful value-level assertions.\n- No return value means I can only verify via side effects (DuckDB state).\n- Requires DuckDB to be installed and working for integration tests.",
+ "cost_usd": 0.0196005,
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1816,
+  "cache_read_input_tokens": 24395,
+  "output_tokens": 2704,
+  "output_tokens_details": {
+   "thinking_tokens": 2318
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1816,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 2704,
+    "cache_read_input_tokens": 24395,
+    "cache_creation_input_tokens": 1816,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1816
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ }
+}

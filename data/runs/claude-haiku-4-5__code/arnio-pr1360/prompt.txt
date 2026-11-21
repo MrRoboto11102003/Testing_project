@@ -1,0 +1,78 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.quality.compare_profiles.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.quality.compare_profiles
+def compare_profiles(
+    profile_a: DataQualityReport,
+    profile_b: DataQualityReport,
+) -> ProfileComparison:
+    """Compare two data-quality profiles for drift.
+
+    The comparison is column-wise and focuses on changes in null ratios, dtype,
+    uniqueness, and numeric distribution metrics. Numeric columns compare
+    ``mean``, ``std``, ``min``, and ``max`` when available.
+
+    Parameters
+    ----------
+    profile_a, profile_b : DataQualityReport
+        Profiles produced by :func:`profile`.
+
+    Returns
+    -------
+    ProfileComparison
+        Structured comparison containing a ``drift_report`` entry for each
+        shared column.
+
+    Raises
+    ------
+    ValueError
+        If the two profiles do not cover the same set of columns.
+
+    Examples
+    --------
+    >>> baseline = ar.profile(ar.read_csv("baseline.csv"))
+    >>> current = ar.profile(ar.read_csv("current.csv"))
+    >>> comparison = ar.compare_profiles(baseline, current)
+    >>> comparison.drift_report["score"]["status"]
+    'warning'
+    """
+    if not isinstance(profile_a, DataQualityReport) or not isinstance(
+        profile_b, DataQualityReport
+    ):
+        raise TypeError("compare_profiles expects two DataQualityReport instances")
+
+    columns_a = set(profile_a.columns)
+    columns_b = set(profile_b.columns)
+    if columns_a != columns_b:
+        missing_from_a = sorted(columns_b - columns_a)
+        missing_from_b = sorted(columns_a - columns_b)
+        raise ValueError(
+            "Profiles have incompatible schemas: "
+            f"missing from profile_a={missing_from_a}, "
+            f"missing from profile_b={missing_from_b}. "
+            "This is likely caused by calling profile() with different exclude_columns "
+            "on each dataset. Profile both datasets with the same included/excluded "
+            "columns before comparing."
+        )
+
+    drift_report: dict[str, dict[str, Any]] = {}
+    status_counts = {"ok": 0, "warning": 0, "changed": 0}
+
+    for name in sorted(columns_a):
+        entry = _compare_column_profiles(
+            profile_a.columns[name], profile_b.columns[name]
+        )
+        drift_report[name] = entry
+        status_counts[entry["status"]] += 1
+
+    return ProfileComparison(
+        left_profile=profile_a,
+        right_profile=profile_b,
+        drift_report=drift_report,
+        status_counts=status_counts,
+    )
