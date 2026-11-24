@@ -1,0 +1,201 @@
+{
+ "id": "openlens-pr275",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 118,
+  "units_kept": 59,
+  "chars": 55873
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.81,
+ "detected": true,
+ "n_tests": 16,
+ "n_catching": 2,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4913,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 13319,
+  "output_tokens_details": {
+   "thinking_tokens": 10870
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4913,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 13319,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 4913,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4913
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0777216,
+ "model_seconds": 57.1,
+ "seconds": 63.4,
+ "tests": {
+  "tests/_generated/test_openlens_pr275.py::TestFresnelCoefficients::test_fresnel_normal_incidence": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr275.py::TestFresnelCoefficients::test_fresnel_total_internal_reflection": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr275.py::TestJonesMatricesLinearPolarizer::test_linear_polarizer_0_degrees": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "JonesMatrices"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestJonesMatricesLinearPolarizer::test_linear_polarizer_45_degrees": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "JonesMatrices"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestJonesMatricesLinearPolarizer::test_linear_polarizer_90_degrees": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "JonesMatrices"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestLensFocalLengths::test_bfl_afocal_returns_none": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestLensFocalLengths::test_bfl_converging_biconvex": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestLensFocalLengths::test_ffl_afocal_returns_none": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestLensFocalLengths::test_ffl_converging_lens_negative": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestPolarizationState::test_apply_jones_matrix": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "JonesMatrices",
+    "PolarizationState"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestPolarizationState::test_elliptical_polarization_normalized": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PolarizationState"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestPolarizationState::test_intensity_linear_polarization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PolarizationState"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestPolarizationState::test_stokes_parameters_linear_x": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PolarizationState"
+   ]
+  },
+  "tests/_generated/test_openlens_pr275.py::TestReflectanceTransmittance::test_reflectance_transmittance_energy_conservation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr275.py::TestReflectanceTransmittance::test_reflectance_transmittance_tir": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr275.py::TestToleranceType::test_tolerance_type_enum_members": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ToleranceType"
+   ]
+  }
+ }
+}

@@ -1,0 +1,54 @@
+{
+ "id": "openlens-pr417",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 308,
+ "issue_title": "Optimizer and Monte Carlo reseed the process-global `random` module",
+ "issue_body": "**File:** `src/global_optimizer.py:33-34` and `src/tolerancing.py:338-339`\n\n```python\nif seed is not None:\n    random.seed(seed)          # global module state\n```\n\n**Repro (verified):**\n```\nrandom.seed(1);  a = random.random()   # 0.134364\nrandom.seed(99); MonteCarloAnalyzer(None, [], seed=7)\nb = random.random()                    # 0.323833   -> a != b\n```\n\n`GlobalOptimizer.__init__` runs inside a `QThread` (`optimization_tab.py:97-132`), so it mutates\nRNG state the Qt thread may be consuming concurrently. Worse, `seed=` does **not** make these\nreproducible: all draws come from the same shared global stream, so any unrelated `random` call\nanywhere interleaves. No `numpy.random.default_rng(seed)` is used anywhere in `src/`.\n\n**Fix:** add `self._rng = np.random.default_rng(seed)` (or `random.Random(seed)`) to `GlobalOptimizer`\nand `MonteCarloAnalyzer`, thread it through `ToleranceOperand.generate_value(rng)`, and delete the\n`random.seed` calls.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/308",
+ "pr": 417,
+ "pr_title": "fix(optimizer): stop the optimizers reseeding the process-global RNG",
+ "pr_body": "Closes #308\n\n## Two problems\n\n**1. Constructing an optimizer rewrote process-global RNG state.**\n\n```python\nif seed is not None:\n    random.seed(seed)\n```\n\n```\nrandom.seed(99); MonteCarloAnalyzer(None, [], seed=7); random.random()\n  before:  0.32383276483316237   <- seed 7's first draw, not seed 99's\n  after:   0.40397807494366633   <- the caller's stream, bit-for-bit intact\n```\n\n`GlobalOptimizer.__init__` runs inside a **QThread** (`optimization_tab.py`), so this mutated RNG state the Qt thread could be consuming concurrently.\n\n**2. `seed=` did not make a run reproducible at all.**\n\nEvery draw came from the one shared stream, so any unrelated `random` call anywhere in the process interleaved with it \u2014 which is exactly what a seed is supposed to prevent.\n\n## Fix\n\nEach class owns a `random.Random(seed)`. `GlobalOptimizer`'s eleven module-level `random.*` calls became `self._rng.*`, and `ToleranceOperand.generate_value` takes an optional `rng` that `MonteCarloAnalyzer` passes. `generate_value` still falls back to the module-level `random` when called without one, so standalone callers are unaffected.\n\nVerified: two runs at `seed=7` return **identical** results with 25 unrelated global `random` draws interleaved between them, and `seed=8` differs.\n\n## Tests\n\n12 tests, **7 fail without the change**: the global stream is untouched by constructing either class and by running a full analysis; `seed=7` is reproducible with interleaved noise; the supplied rng is actually used and deterministic; gaussian draws stay clamped; two operands sharing one rng differ; and a scan of all of `src/` fails if `random.seed(` reappears \u2014 stripping comments, so these fixes can name the call they removed.\n",
+ "fix_commit": "7d3e970407da5d1d15616a144a418cd55efae7eb",
+ "merged_at": "2026-10-07T03:35:20Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/global_optimizer.py",
+  "openlens/tolerancing.py"
+ ],
+ "test_files": [
+  "tests/test_optimizer_rng_isolation.py"
+ ],
+ "target_symbols": [
+  "openlens/global_optimizer.py::GlobalOptimizer.__init__",
+  "openlens/global_optimizer.py::GlobalOptimizer._crossover",
+  "openlens/global_optimizer.py::GlobalOptimizer._derive_cooling_rate",
+  "openlens/global_optimizer.py::GlobalOptimizer._mutate",
+  "openlens/global_optimizer.py::GlobalOptimizer._tournament_select",
+  "openlens/global_optimizer.py::GlobalOptimizer.optimize_genetic",
+  "openlens/global_optimizer.py::GlobalOptimizer.optimize_simulated_annealing",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._apply_tolerances",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._set_system_state",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._spot_rms",
+  "openlens/tolerancing.py::ToleranceOperand.generate_value",
+  "openlens/tolerancing.py::serialize_operands"
+ ],
+ "fail_to_pass": [
+  "tests/test_optimizer_rng_isolation.py::TestGenerateValueApi::test_gaussian_stays_within_limits",
+  "tests/test_optimizer_rng_isolation.py::TestGenerateValueApi::test_two_operands_from_one_rng_differ",
+  "tests/test_optimizer_rng_isolation.py::TestGenerateValueApi::test_uses_the_supplied_rng",
+  "tests/test_optimizer_rng_isolation.py::TestGlobalStreamIsUntouched::test_a_run_does_not_disturb_the_global_stream",
+  "tests/test_optimizer_rng_isolation.py::TestGlobalStreamIsUntouched::test_constructing_a_global_optimizer_does_not_reseed",
+  "tests/test_optimizer_rng_isolation.py::TestGlobalStreamIsUntouched::test_constructing_an_analyzer_does_not_reseed_the_module",
+  "tests/test_optimizer_rng_isolation.py::TestNoModuleLevelReseedRemains::test_no_random_seed_calls_in_src"
+ ],
+ "pass_to_pass": [
+  "tests/test_optimizer_rng_isolation.py::TestGenerateValueApi::test_works_without_an_rng",
+  "tests/test_optimizer_rng_isolation.py::TestSeedIsActuallyReproducible::test_different_seed_different_result",
+  "tests/test_optimizer_rng_isolation.py::TestSeedIsActuallyReproducible::test_global_optimizer_seed_is_reproducible",
+  "tests/test_optimizer_rng_isolation.py::TestSeedIsActuallyReproducible::test_same_seed_same_result",
+  "tests/test_optimizer_rng_isolation.py::TestSeedIsActuallyReproducible::test_same_seed_survives_interleaved_global_draws"
+ ],
+ "patch_lines": 53
+}

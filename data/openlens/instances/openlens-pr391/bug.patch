@@ -1,0 +1,44 @@
+diff --git a/openlens/validation.py b/openlens/validation.py
+index 1afebdc4a1fd18a6f4199d8afb72af8f4f088477..2ade035131c95601622e5e4fe8ffe7e12aa817ad 100644
+--- a/openlens/validation.py
++++ b/openlens/validation.py
+@@ -584,22 +584,13 @@ def safe_float_conversion(
+ 
+     Returns:
+         Tuple[bool, float]: (success, converted_value)
+-
+-    Note:
+-        This function's contract is that it never raises. ``float()`` on a
+-        large int raises OverflowError rather than returning inf, so a JSON
+-        integer literal such as ``10**400`` used to escape - as did anything
+-        TypeError could reach.
+     """
+     # Reject booleans explicitly (bool is subclass of int in Python)
+     if isinstance(value, bool):
+         return False, default
+ 
+     if isinstance(value, (int, float)):
+-        try:
+-            result = float(value)
+-        except (ValueError, OverflowError, TypeError):
+-            return False, default
++        result = float(value)
+         if math.isnan(result) or math.isinf(result):
+             return False, default
+         return True, result
+@@ -607,11 +598,11 @@ def safe_float_conversion(
+     if isinstance(value, str):
+         try:
+             result = float(value)
+-        except (ValueError, OverflowError, TypeError):
++            if math.isnan(result) or math.isinf(result):
++                return False, default
++            return True, result
++        except ValueError:
+             return False, default
+-        if math.isnan(result) or math.isinf(result):
+-            return False, default
+-        return True, result
+ 
+     return False, default
+ 

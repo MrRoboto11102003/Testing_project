@@ -1,0 +1,173 @@
+{
+ "id": "openlens-pr408",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 109,
+  "chars": 88529
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.13,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 15,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2087,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 8776,
+  "output_tokens_details": {
+   "thinking_tokens": 6756
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2087,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8776,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 2087,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2087
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0505332,
+ "model_seconds": 45.3,
+ "seconds": 51.5,
+ "tests": {
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_accepts_learning_rate": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_accepts_max_iterations": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_accepts_tolerance": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_backtracking_handles_large_learning_rate": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_handles_tight_tolerance": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_history_lengths_match": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_improvement_calculation": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_improvement_non_negative": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_merit_decreases": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_merit_history_monotonic": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_message_contains_info": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_multiple_variables": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_result_has_required_fields": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_returns_optimization_result": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_gradient_descent_success_indicates_validity": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

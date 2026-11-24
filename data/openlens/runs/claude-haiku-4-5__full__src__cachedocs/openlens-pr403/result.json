@@ -1,0 +1,164 @@
+{
+ "id": "openlens-pr403",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 109,
+  "chars": 90775
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.07,
+ "detected": true,
+ "n_tests": 14,
+ "n_catching": 12,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2728,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 6768,
+  "output_tokens_details": {
+   "thinking_tokens": 3891
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2728,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 6768,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 2728,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2728
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0417752,
+ "model_seconds": 32.9,
+ "seconds": 37.5,
+ "tests": {
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_multi_element_system": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_output_file_contains_step_format": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_plano_convex_lens": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "StepExporter"
+   ]
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_repeated_calls_reset_buffer": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_return_values_are_valid_types": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_returns_dict_structure": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_single_lens_creates_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_single_lens_produces_shapes": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_skipped_parts_consistency": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_with_empty_housing_list": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_with_invalid_housing_non_numeric": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_with_malformed_housing_missing_keys": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_with_valid_housing_parts": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr403.py::TestStepExporterExport::test_export_without_housing_parameter": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  }
+ }
+}

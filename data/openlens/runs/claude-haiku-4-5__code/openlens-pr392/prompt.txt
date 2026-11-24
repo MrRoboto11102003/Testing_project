@@ -1,0 +1,18 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.material_database.MaterialDatabase.clear_cache.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.material_database.MaterialDatabase.clear_cache
+    def clear_cache(self):
+        """Clear this instance's refractive index cache.
+
+        Previously this called cache_clear() on the class-wide lru_cache
+        wrapper, so one instance adding a material wiped every other
+        instance's cache.
+        """
+        self._index_cache.clear()
+        self._alias_keys = None

@@ -1,0 +1,58 @@
+{
+ "id": "openlens-pr699",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 609,
+ "issue_title": "bug: _update_positions desynchronizes flat elements from the nested assembly tree",
+ "issue_body": "## Summary\n\nAfter `_rebuild_from_tree()`, the flat `elements` list and the node tree agree on global positions. Calling `_update_positions()` then re-lays the flat list out from x=0 using only element thicknesses, ignoring the enclosing assembly's offset, while the tree keeps its global positions. 2D/ABCD tracing (flat list) and 3D tracing (tree) then analyse different geometry.\n\n## Impact\n\n- Nested assemblies (a doublet/group inserted at a non-zero position) are traced at different axial positions by the 2D and 3D paths.\n- `_update_positions()` is called from the GUI assembly tab, tolerancing, desensitization, environmental analysis, and the optimizer \u2014 so the desync can be introduced by routine edits.\n- Symptoms are confusing: spot/MTF results change depending on which tracer/analysis path runs, and saved flat positions no longer match the tree.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.optical_node import OpticalAssembly, OpticalElement\nfrom openlens.vector3 import vec3\n\ns = OpticalSystem()\nasm = OpticalAssembly(\"doublet\")\ne1 = OpticalElement(Lens(), \"e1\"); e1.position = vec3(0, 0, 0)\ne2 = OpticalElement(Lens(), \"e2\"); e2.position = vec3(20, 0, 0)\nasm.add_child(e1); asm.add_child(e2)\ns.add_assembly(asm, position=50.0)\n\nprint([e.position for e in s.elements])                 # [50.0, 70.0]\ns._update_positions()\nprint([e.position for e in s.elements])                 # [0.0, 20.0]  <- flat\nprint([n.get_global_position().x for n, _ in s.root.get_flat_list()\n       if getattr(n, \"is_element\", False)])             # [50.0, 70.0] <- tree\n```\n\nOutput:\n\n```\nafter add_assembly flat: [50.0, 70.0]\nafter add_assembly tree: [50.0, 70.0]\nafter _update_positions flat: [0.0, 20.0]\nafter _update_positions tree: [50.0, 70.0]\n```\n\n## Root cause\n\n`openlens/optical_system.py:368-405` \u2014 `_update_positions()` starts `current_pos = 0.0` and assigns every flat element `element.position = current_pos`, accumulating only through `element.thickness`/`air_gaps`. It updates root-level nodes by model identity, but nested element nodes are deliberately left alone (\"Nested positions belong to the enclosing assembly\"). The flat positions therefore lose the assembly's `50 mm` translation.\n\n## Expected behaviour\n\nAfter `_update_positions()`, flat element positions equal the global positions from the tree, including assembly offsets; 2D and 3D tracers agree.\n\n## Suggested fix\n\nDerive flat positions from `self.root.get_flat_list()` (the same source `_rebuild_from_tree()` uses), or treat a node's global position as authoritative and only recompute gaps. Add a regression test that builds a nested assembly at x=50, calls `_update_positions()`, and asserts flat positions == tree global positions.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/609",
+ "pr": 699,
+ "pr_title": "fix(physics): keep the assembly offset when the flat layout is rebuilt",
+ "pr_body": "## Description\n\n`_update_positions()` laid the flat `elements` list out from `x = 0`, using\nonly element thicknesses. For a system whose first element sits inside an\nassembly inserted at 50 mm, that moved the flat list back to the origin while\nthe node tree kept its global positions:\n\n```\nafter add_assembly        flat [50, 70]   tree [50, 70]\nafter _update_positions   flat [ 0, 20]   tree [50, 70]\n```\n\nThe 2D/ABCD tracer reads the flat list and the 3D tracer reads the tree, so\nthe same system was analysed at two different axial placements. And\n`_update_positions()` runs after routine edits - GUI gap changes,\ntolerancing, desensitization, environmental analysis, the optimizer - so the\ndesync was easy to introduce and hard to explain: spot/MTF numbers changed\ndepending on which analysis path ran.\n\n## What changed\n\n- `openlens/optical_system.py`: the layout now starts at the global position\n  of the first element instead of zero, so an assembly's offset is part of\n  the rebuilt layout.\n- Every element node follows the re-laid-out list: a root-level node takes the\n  global position, a nested one the same position minus its assembly's global\n  `x`. That keeps the two views equal after a nested thickness or gap edit\n  too, which previously drifted apart (a nested element stayed put while the\n  flat list moved on).\n- Flat systems - the common case - are unchanged: their first element already\n  sits at zero.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #609\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_update_positions_assembly_offset.py` (seven of its ten\ntests fail on the unfixed code):\n\n- `test_the_flat_positions_include_the_offset`\n- `test_the_flat_list_and_the_tree_agree`\n- `test_an_element_inside_an_assembly_is_not_moved_to_zero`\n- `test_template_positions_survive_an_assembly_at_zero`\n- `test_a_nested_thickness_change_moves_the_following_element`\n- `test_a_gap_change_moves_the_following_element`\n- `test_repeated_updates_are_stable`\n- `test_a_root_child_after_the_assembly_keeps_its_distance`\n- `test_a_flat_system_still_starts_at_zero`\n- `test_a_thickness_change_still_moves_the_next_element`\n\n`tests/test_update_positions_identity.py` follows the new contract: nested\nnodes now move with the flat layout instead of being left behind (the old\ntest pinned the drift as a \"pre-existing limit\").\n\nFull local suite: `Ran 2671 tests ... OK (skipped=35)`.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "4b8029fb45c6605379d4d5cd779d29e8209a3279",
+ "merged_at": "2026-10-22T10:13:05Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/optical_system.py"
+ ],
+ "test_files": [
+  "tests/test_update_positions_assembly_offset.py",
+  "tests/test_update_positions_identity.py"
+ ],
+ "target_symbols": [
+  "openlens/optical_system.py::OpticalSystem._update_positions",
+  "openlens/optical_system.py::OpticalSystem.calculate_optical_power",
+  "openlens/optical_system.py::OpticalSystem.get_system_focal_length",
+  "openlens/optical_system.py::OpticalSystem.get_total_length"
+ ],
+ "fail_to_pass": [
+  "tests/test_update_positions_assembly_offset.py::TestAssemblyOffsetSurvives::test_an_element_inside_an_assembly_is_not_moved_to_zero",
+  "tests/test_update_positions_assembly_offset.py::TestAssemblyOffsetSurvives::test_the_flat_list_and_the_tree_agree",
+  "tests/test_update_positions_assembly_offset.py::TestAssemblyOffsetSurvives::test_the_flat_positions_include_the_offset",
+  "tests/test_update_positions_assembly_offset.py::TestEditsKeepTheTwoViewsTogether::test_a_gap_change_moves_the_following_element",
+  "tests/test_update_positions_assembly_offset.py::TestEditsKeepTheTwoViewsTogether::test_a_nested_thickness_change_moves_the_following_element",
+  "tests/test_update_positions_assembly_offset.py::TestEditsKeepTheTwoViewsTogether::test_a_root_child_after_the_assembly_keeps_its_distance",
+  "tests/test_update_positions_assembly_offset.py::TestEditsKeepTheTwoViewsTogether::test_repeated_updates_are_stable",
+  "tests/test_update_positions_identity.py::TestNestedSystem::test_nested_thickness_change_moves_the_nested_elements"
+ ],
+ "pass_to_pass": [
+  "tests/test_update_positions_assembly_offset.py::TestAssemblyOffsetSurvives::test_template_positions_survive_an_assembly_at_zero",
+  "tests/test_update_positions_assembly_offset.py::TestFlatSystemsAreUnchanged::test_a_flat_system_still_starts_at_zero",
+  "tests/test_update_positions_assembly_offset.py::TestFlatSystemsAreUnchanged::test_a_thickness_change_still_moves_the_next_element",
+  "tests/test_update_positions_identity.py::TestFlatSystemStillUpdates::test_air_gap_positions_are_set",
+  "tests/test_update_positions_identity.py::TestFlatSystemStillUpdates::test_decenter_is_preserved",
+  "tests/test_update_positions_identity.py::TestFlatSystemStillUpdates::test_empty_system_is_a_no_op",
+  "tests/test_update_positions_identity.py::TestFlatSystemStillUpdates::test_flat_and_tree_agree",
+  "tests/test_update_positions_identity.py::TestFlatSystemStillUpdates::test_nodes_receive_axial_positions",
+  "tests/test_update_positions_identity.py::TestFlatSystemStillUpdates::test_positions_follow_a_thickness_change",
+  "tests/test_update_positions_identity.py::TestNestedSystem::test_agreement_holds_across_repeated_updates",
+  "tests/test_update_positions_identity.py::TestNestedSystem::test_decenter_on_a_root_child_is_preserved",
+  "tests/test_update_positions_identity.py::TestNestedSystem::test_flat_list_and_tree_stay_in_agreement",
+  "tests/test_update_positions_identity.py::TestNestedSystem::test_flat_order_is_the_whole_tree",
+  "tests/test_update_positions_identity.py::TestNestedSystem::test_nested_nodes_keep_their_own_positions",
+  "tests/test_update_positions_identity.py::TestNestedSystem::test_root_child_thickness_change_propagates",
+  "tests/test_update_positions_identity.py::TestNestedSystem::test_update_does_not_move_an_unrelated_root_child"
+ ],
+ "patch_lines": 36
+}

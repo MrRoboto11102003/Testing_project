@@ -1,0 +1,71 @@
+{
+ "id": "openlens-pr540",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 435,
+ "issue_title": "STEP export: lens names are written unquoted or unescaped, producing invalid Part 21",
+ "issue_body": "**Where:** `src/io/step_export.py:39`, `:50-66` (names reach it via `_solid_label`, `:599`)\n\n`_format_text` writes a string unquoted if it starts with `#`, `.`, `*` or `$`, or if `float()` parses it. That includes names like `\"50\"`, `\"Infinity\"` and `\"nan\"`. Backslashes are not doubled and non-ASCII text is not encoded as `\\X2\\...\\X0\\`, though Part 21 requires both.\n\n```\n'50' -> 50    'Infinity' -> Infinity    'nan' -> nan    '#3 doublet' -> #3 doublet    '.T.' -> .T.\n'C:\\lens' -> 'C:\\lens'    'f=50mm u' -> not encoded\n```\n\n**Fix:** don't guess types from a string. Use explicit `StepRef`/`StepEnum` marker types for internal tokens, always quote real text, double backslashes and encode non-ASCII.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/435",
+ "pr": 540,
+ "pr_title": "fix(io): STEP text is quoted, escaped and ASCII - never guessed",
+ "pr_body": "## Description\n\nfix(io): STEP text is quoted, escaped and ASCII \u2014 never guessed\n\n`StepWriter._format_text` guessed types from the string:\n\n- a value starting with `#`, `.`, `*` or `$` was returned **unquoted** as pre-written syntax;\n- anything `float()` could parse was returned **bare**.\n\nA lens named `50` was written as the real number `50`; `Infinity` and `nan` likewise; `#3 doublet` became a dangling reference. Part 21 also requires backslashes to be doubled and non-ASCII to be encoded as `\\X2\\\u2026\\X0\\`, and neither was done \u2014 a name like `C:\\lens` or `f=50mm \u00fc` produced an invalid file.\n\n### The fix: no guessing, explicit markers\n\n| Value | Marker |\n| --- | --- |\n| `#id` reference | `StepRef` (already existed) |\n| `.T.` / `.F.` enumeration | `StepEnum` + `STEP_TRUE` / `STEP_FALSE`, validated |\n| `*` derived attribute | `StepDerived` + `STEP_DERIVED` |\n| `$` unset | `None` (Python) |\n| everything else | real text, always quoted |\n\nThe issue's examples now render as:\n\n```text\n'50'          -> #1=X('50');\n'Infinity'    -> #1=X('Infinity');\n'nan'         -> #1=X('nan');\n'#3 doublet'  -> #1=X('#3 doublet');\n'.T.'         -> #1=X('.T.');\n'C:\\lens'     -> #1=X('C:\\\\lens');\n'f=50mm \u00fc'    -> #1=X('f=50mm \\X2\\00FC\\X0\\');\n\"Bob's\"       -> #1=X('Bob''s');\n```\n\nEscaping doubles apostrophes and backslashes, and encodes non-ASCII as `\\X2\\` with UTF-16BE code units (adjacent characters share one directive; non-BMP becomes a surrogate pair).\n\n`step_reader._unescape` learns to reverse exactly that with a **left-to-right scan**. That matters: the writer doubles a literal backslash, so a name literally containing `\\X2\\00FC\\X0\\` arrives as `\\\\X2\\\\00FC\\\\X0\\\\`, and an order-dependent replacement pass would \"decode\" text that never encoded anything.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n- [ ] Breaking change \u2014 exported files change for the previously-mangled cases only; everything else is byte-identical\n\n## Related Issues\n\nCloses #435\n\n## How Has This Been Tested?\n\n- [x] 15 new/strengthened tests in `tests/test_step_writer.py`\n- [x] **Part-by-part reverts:**\n\n  | Reverted | Failures |\n  | --- | --- |\n  | old guessing `_format_text` | 16 |\n  | reader back to apostrophe-only unescape | 4 |\n  | one call site passing `\".T.\"` as text | 1 |\n  | one call site passing `\"*\"` as text | 1 |\n\n- [x] The first call-site revert **passed** and exposed a gap: it only exercised the lens export. The call-site test now covers both the lens solid and the housing-tube export, which carry separate call sites; the revert then failed as intended.\n- [x] Round-trips through `read_step_solids`: `\u00fc`, `\u00b5`, non-BMP emoji, trailing backslash, and a literal `\\X2\\00FC\\X0\\` name\n- [x] Targeted: `test_step_writer`, `test_step_export`, `test_step_export_multi`, `test_step_assembly`, `test_gui_export_wiring`, `test_clear_aperture` \u2014 64 tests, OK\n- [x] Full suite: `Ran 2195 tests`, `FAILED (errors=6, skipped=34)` \u2014 the same six pre-existing `gui_flows` loader errors, no new failures\n- [x] `black --check` \u2014 250 files unchanged; `flake8` \u2014 identical to the master baseline for both source files (`step_export.py`'s pre-existing `E402`/`F401`/`F841` set is untouched)\n\n### Coverage\n\nNumbers and token lookalikes as names; enum marker validation; derived/unset markers; backslash doubling; apostrophe + backslash together; single- and multi-character non-ASCII and non-BMP encoding; reader round-trips for all of the above including the literal-directive trap; and a real-export call-site check that neither the lens nor the tube path leaks a quoted `.T.`/`*`.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [x] I have made corresponding changes to the documentation (docstrings on every marker and both escape routines)\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "6ba1f0c046c7b00017bf68e93be14f6e5ddc204d",
+ "merged_at": "2026-10-19T15:14:20Z",
+ "port_method": "partial_hunks:12/15",
+ "src_files": [
+  "openlens/io/step_export.py",
+  "openlens/io/step_reader.py"
+ ],
+ "test_files": [
+  "tests/test_step_writer.py"
+ ],
+ "target_symbols": [
+  "openlens/io/step_export.py::StepExporter._export_lens_solid",
+  "openlens/io/step_export.py::StepExporter._export_tube_solid",
+  "openlens/io/step_export.py::StepExporter._solid_label",
+  "openlens/io/step_reader.py::_unescape",
+  "openlens/io/step_reader.py::read_step_solids"
+ ],
+ "fail_to_pass": [
+  "tests/test_step_writer.py::TestStepExporterReuse::test_orientation_markers_are_not_quoted",
+  "tests/test_step_writer.py::TestStepWriterTextRoundTrip::test_a_literal_x2_directive_in_a_name_round_trips",
+  "tests/test_step_writer.py::TestStepWriterTextRoundTrip::test_backslash_name_round_trips",
+  "tests/test_step_writer.py::TestStepWriterTextRoundTrip::test_non_ascii_name_round_trips",
+  "tests/test_step_writer.py::TestStepWriterTextRoundTrip::test_non_bmp_name_round_trips"
+ ],
+ "pass_to_pass": [
+  "tests/test_step_writer.py::TestStepExporterReuse::test_context_entities_are_not_duplicated",
+  "tests/test_step_writer.py::TestStepExporterReuse::test_entity_count_does_not_grow",
+  "tests/test_step_writer.py::TestStepExporterReuse::test_ids_are_sequential_and_unique",
+  "tests/test_step_writer.py::TestStepExporterReuse::test_repeated_exports_are_identical",
+  "tests/test_step_writer.py::TestStepExporterReuse::test_solids_are_not_duplicated",
+  "tests/test_step_writer.py::TestStepWriter::test_a_run_of_non_ascii_shares_one_directive",
+  "tests/test_step_writer.py::TestStepWriter::test_apostrophe_and_backslash_together",
+  "tests/test_step_writer.py::TestStepWriter::test_apostrophe_in_aggregate_element_is_escaped",
+  "tests/test_step_writer.py::TestStepWriter::test_apostrophe_in_literal_is_doubled",
+  "tests/test_step_writer.py::TestStepWriter::test_backslash_is_doubled",
+  "tests/test_step_writer.py::TestStepWriter::test_booleans_render_as_step_logicals",
+  "tests/test_step_writer.py::TestStepWriter::test_derived_and_unset_markers_render_as_syntax",
+  "tests/test_step_writer.py::TestStepWriter::test_derived_marker_is_distinct_from_text",
+  "tests/test_step_writer.py::TestStepWriter::test_entity_id_from_add_entity_written_as_reference",
+  "tests/test_step_writer.py::TestStepWriter::test_entity_ids_sequential_from_one",
+  "tests/test_step_writer.py::TestStepWriter::test_enum_marker_rejects_text_that_is_not_an_enumeration",
+  "tests/test_step_writer.py::TestStepWriter::test_enum_marker_renders_verbatim",
+  "tests/test_step_writer.py::TestStepWriter::test_exported_file_has_no_dangling_internal_references",
+  "tests/test_step_writer.py::TestStepWriter::test_exported_solid_references_its_shell",
+  "tests/test_step_writer.py::TestStepWriter::test_housing_part_name_with_apostrophe_is_escaped",
+  "tests/test_step_writer.py::TestStepWriter::test_integer_valued_attribute_stays_integer",
+  "tests/test_step_writer.py::TestStepWriter::test_leading_quote_in_text_is_escaped_not_treated_as_syntax",
+  "tests/test_step_writer.py::TestStepWriter::test_lens_name_with_apostrophe_round_trips_through_reader",
+  "tests/test_step_writer.py::TestStepWriter::test_non_ascii_text_is_encoded",
+  "tests/test_step_writer.py::TestStepWriter::test_non_bmp_text_is_encoded_as_a_surrogate_pair",
+  "tests/test_step_writer.py::TestStepWriter::test_numeric_and_string_arguments_rendered",
+  "tests/test_step_writer.py::TestStepWriter::test_references_inside_aggregate_are_not_quoted",
+  "tests/test_step_writer.py::TestStepWriter::test_text_that_looks_like_a_number_is_quoted",
+  "tests/test_step_writer.py::TestStepWriter::test_text_that_looks_like_syntax_is_quoted",
+  "tests/test_step_writer.py::TestStepWriter::test_written_file_contains_header_and_entities",
+  "tests/test_step_writer.py::TestStepWriter::test_xml_special_characters_need_no_escape"
+ ],
+ "patch_lines": 106
+}

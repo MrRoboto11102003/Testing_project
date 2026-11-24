@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr265",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 247,
+ "issue_title": "**Fake Strehl ratio** `aberrations.py:377-388`",
+ "issue_body": "`(Airy/max(Airy,spot))\u00b2` with hardcoded `spot=5.0\u00b5m` for every singlet.\n   True Strehl is `exp[\u2212(2\u03c0\u03c3_waves)\u00b2]`. Mislabeled placeholder surfaces in GUI.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/247",
+ "pr": 265,
+ "pr_title": "fix(aberrations): compute Strehl ratio from traced wavefront error",
+ "pr_body": "Replace the Airy/spot-area placeholder (with hardcoded 5um singlet spot) with the Born & Wolf pupil average S = |<exp(i*2*pi*W)>|^2 over a chief-referenced exit-pupil wavefront, shared by singlets and systems. Also report wfe_rms_waves, forward wavelength to Strehl/MTF/Airy, and cache results keyed on optical state.\r\n\r\nFix root causes in the wavefront chain: accumulate per-segment OPL in LensRayTracer3D.trace_surface (in-glass path was missing) and rewrite WavefrontSensor with a reference sphere on the traced paraxial focus plus piston/tilt removal and a correct terminated-ray guard.\r\n\r\nAdd tests/test_strehl.py (range, y^4 scaling, Marechal consistency, aperture monotonicity, wavelength scaling). Full suite: 698 tests OK.",
+ "fix_commit": "1aa0adf16da762e5187d6f598a08694ff45da5a9",
+ "merged_at": "2026-09-11T08:12:28Z",
+ "port_method": "partial_hunks:5/10",
+ "src_files": [
+  "openlens/aberrations.py",
+  "openlens/analysis/diffraction_psf.py",
+  "openlens/tracer_3d.py"
+ ],
+ "test_files": [
+  "tests/test_strehl.py"
+ ],
+ "target_symbols": [
+  "openlens/aberrations.py::AberrationsCalculator._calculate_all_at_wavelength",
+  "openlens/analysis/diffraction_psf.py::DiffractionPSFCalculator.calculate_psf",
+  "openlens/analysis/diffraction_psf.py::WavefrontSensor._compute_pupil_wavefront"
+ ],
+ "fail_to_pass": [
+  "tests/test_strehl.py::TestPistonTiltFitFallback::test_fit_failure_is_logged_and_still_returns_an_rms",
+  "tests/test_strehl.py::TestStrehlRatio::test_marechal_consistency_for_small_aberration",
+  "tests/test_strehl.py::TestStrehlRatio::test_mtf_cutoff_scales_inversely_with_wavelength",
+  "tests/test_strehl.py::TestStrehlRatio::test_no_hardcoded_singlet_value",
+  "tests/test_strehl.py::TestStrehlRatio::test_short_focus_lens_gets_real_strehl",
+  "tests/test_strehl.py::TestStrehlRatio::test_slow_lens_near_diffraction_limited",
+  "tests/test_strehl.py::TestStrehlRatio::test_spherical_wavefront_scales_with_aperture_fourth_power",
+  "tests/test_strehl.py::TestStrehlRatio::test_strehl_decreases_with_aperture",
+  "tests/test_strehl.py::TestStrehlRatio::test_strehl_in_physical_range_singlet",
+  "tests/test_strehl.py::TestStrehlRatio::test_strehl_in_physical_range_system",
+  "tests/test_strehl.py::TestStrehlRatio::test_wfe_rms_waves_reported",
+  "tests/test_strehl.py::TestWavefrontSensor::test_reference_sphere_wavefront_small_for_slow_lens"
+ ],
+ "pass_to_pass": [],
+ "patch_lines": 90
+}

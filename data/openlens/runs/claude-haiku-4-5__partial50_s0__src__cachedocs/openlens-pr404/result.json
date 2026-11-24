@@ -1,0 +1,148 @@
+{
+ "id": "openlens-pr404",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 111,
+  "units_kept": 56,
+  "chars": 51443
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.0,
+ "detected": true,
+ "n_tests": 12,
+ "n_catching": 3,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3145,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 9304,
+  "output_tokens_details": {
+   "thinking_tokens": 6289
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3145,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9304,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 3145,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3145
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.054110599999999995,
+ "model_seconds": 37.1,
+ "seconds": 43.6,
+ "tests": {
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_airy_disk_calls_figure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_airy_disk_closes_figure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_airy_disk_matplotlib_unavailable": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_airy_disk_saves_with_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_airy_disk_shows_without_save_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_encircled_energy_basic": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_encircled_energy_matplotlib_unavailable": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_encircled_energy_saves_with_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_psf_2d_basic": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_psf_2d_closes_figure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_psf_2d_matplotlib_unavailable": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestDiffractionCalculatorPlotting::test_plot_psf_2d_saves_with_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

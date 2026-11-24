@@ -1,0 +1,1923 @@
+=== SYSTEM (appended) ===
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+## ===== README.md =====
+
+# openLens
+
+<div align="center">
+
+**An interactive optical design and simulation tool for single lenses and multi-element systems**
+
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://github.com/pmaasz/openLens/actions/workflows/ci.yml/badge.svg)](https://github.com/pmaasz/openLens/actions/workflows/ci.yml)
+
+</div>
+
+---
+
+## What is openlens?
+
+openlens is a desktop application for designing and analyzing **glass optical
+lenses and multi-element systems**. Whether you're a student learning optics, an
+engineer designing optical systems, or a hobbyist exploring lens physics,
+openlens provides an intuitive interface to:
+
+- Design single lenses or assemblies with precise physical parameters
+- Calculate first-order properties with thick-lens and paraxial models
+- Experiment with different glass materials, surface profiles, and geometries
+- Assign camera mounts and compute working flange distance
+- Store and manage lenses, assemblies, and tolerance sets in SQLite
+- Trace rays and inspect aberrations, spots, PSF/MTF, and wavefront error
+- Export mechanical and manufacturing data as STL, STEP, or ISO 10110 drawings
+
+## Installation
+
+### Standalone executables (no Python required)
+
+Every [release](https://github.com/pmaasz/openLens/releases/latest) includes
+standalone builds for the desktop platforms:
+
+| Platform | Download |
+|----------|----------|
+| Windows | `OpenLens-<version>-Windows.exe` |
+| macOS (Apple silicon) | `OpenLens-<version>-macOS-arm64.zip` |
+| macOS (Intel) | `OpenLens-<version>-macOS-x64.zip` |
+| Linux | `OpenLens-<version>-Linux` |
+
+Unzip a macOS download and drag `OpenLens.app` to Applications. The builds are
+not code-signed, so the first launch needs **right-click -> Open** (or
+**System Settings -> Privacy & Security -> Open Anyway**). On Linux, make the
+downloaded file executable with `chmod +x`.
+
+### Prerequisites
+
+**Core Requirements:**
+- **Python 3.10 or higher** (CI tests 3.10-3.12; `python_requires` in `setup.py` is the authority)
+- **PySide6 ≥ 6.2** (GUI framework - installed via pip)
+- **X11 display server** (Linux) or native display (Windows/Mac)
+
+**Recommended Dependencies:**
+
+| Package | Version | Features Enabled |
+|---------|---------|------------------|
+| numpy | ≥1.19.0 | Numerical operations, ray tracing, STL export |
+| matplotlib | ≥3.3.0 | Plots, analysis dialogs |
+
+**Optional Dependencies:**
+
+| Package | Version | Features Enabled |
+|---------|---------|------------------|
+| scipy | ≥1.5.0 | Advanced diffraction calculations, image simulation |
+| Pillow (PIL) | ≥8.0.0 | Image loading for image simulator |
+
+**Note:** The recommended/optional dependencies are gracefully handled - the application will run with reduced functionality if they are not installed.
+
+### Installing PySide6
+
+```bash
+pip install PySide6
+```
+(or simply `pip install -r requirements.txt`)
+
+### Method 1: Automated Setup (Recommended)
+
+Use the provided setup script to automatically create and configure the virtual environment:
+
+**Linux/macOS:**
+```bash
+./setup_venv.sh
+source venv/bin/activate
+
+# Install OpenLens in editable mode
+pip install -e .
+
+# Install optional dependencies for full features (recommended)
+pip install -e .[visualization]
+
+# For advanced features (diffraction, image simulation)
+pip install scipy Pillow
+```
+
+**Windows:**
+```cmd
+setup_venv.bat
+venv\Scripts\activate
+
+REM Install OpenLens in editable mode
+pip install -e .
+
+REM Install optional dependencies for full features (recommended)
+pip install -e .[visualization]
+
+REM For advanced features (diffraction, image simulation)
+pip install scipy Pillow
+```
+
+The script will:
+- Check Python installation
+- Create virtual environment
+- Display activation instructions
+
+**What works without optional dependencies:**
+- ✅ All core lens calculations (focal length, optical power)
+- ✅ Lens creation, editing, and management
+- ✅ GUI interface (PySide6)
+- ✅ Data persistence (SQLite)
+- ⚠️ Ray tracing and analysis plots need numpy/matplotlib
+- ❌ Advanced diffraction calculations with Bessel functions (requires scipy)
+- ❌ Image simulation (requires scipy + Pillow)
+
+### Method 2: Manual Setup
+
+1. **Clone or download the repository:**
+   ```bash
+   git clone <repository-url>
+   cd openLens
+   ```
+
+2. **Set up virtual environment (recommended):**
+   ```bash
+   # Create virtual environment
+   python3 -m venv venv
+
+   # Activate virtual environment
+   # On Linux/macOS:
+   source venv/bin/activate
+
+   # On Windows:
+   venv\Scripts\activate
+   ```
+
+3. **Install OpenLens and optional dependencies:**
+
+   ```bash
+   # Install the package and its required PySide6 dependency
+   pip install -e .
+
+   # Full plotting and numerical features (recommended)
+   pip install -e .[visualization]
+   ```
+
+   **For advanced features:**
+   ```bash
+   pip install scipy Pillow
+   ```
+
+   **Or install all optional dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   Note: The application works without these, with features gracefully disabled.
+
+4. **Verify Python and PySide6:**
+   ```bash
+   python3 --version
+   # Should show Python 3.10 or higher
+
+   python3 -c "import PySide6; print('PySide6 available')"
+   ```
+
+5. **Run the application:**
+   ```bash
+   # GUI version (recommended)
+   python3 -m openlens
+
+   # OR CLI version
+   python3 -m openlens.lens_editor
+   ```
+
+6. **When done, deactivate virtual environment (if used):**
+   ```bash
+   deactivate
+   ```
+
+---
+
+## Project Structure
+
+```
+openLens/
+├── openlens/__main__.py              # PySide6 GUI entry point (main window)
+├── openlens/                     # Source package
+│   ├── __init__.py
+│   ├── lens.py              # Core Lens model
+│   ├── optical_system.py    # Multi-element systems
+│   ├── lens_editor.py       # CLI application + LensManager
+│   ├── ray_tracer.py        # 2D/3D ray tracing engine
+│   ├── aberrations.py       # Seidel aberrations
+│   ├── optimizer.py         # Lens optimization engine
+│   ├── tolerancing.py       # Monte Carlo / sensitivity analysis
+│   ├── database.py          # SQLite persistence
+│   ├── validation.py        # Input validation
+│   ├── services.py          # Service layer
+│   ├── constants.py         # Constants and configuration
+│   ├── gui/                 # GUI implementation (widgets/, tabs/, dialogs/, theme.py)
+│   ├── analysis/            # Spot diagram, PSF/MTF, ghost, wavefront
+│   └── io/                  # STEP / ISO 10110 export
+├── tests/                   # unittest test suites (~56 files)
+├── openlens.db              # Data storage (SQLite, created on first run)
+├── requirements.txt         # Runtime dependencies
+└── setup.py                 # Package distribution (pip install -e .)
+```
+
+---
+
+## Troubleshooting
+
+### Issue: "No display name and no $DISPLAY environment variable" / Qt platform plugin errors
+
+This occurs when running on a headless server or via SSH without X11 forwarding.
+
+**Solutions:**
+- **If using SSH**: Connect with X11 forwarding: `ssh -X user@host`
+- **If running locally**: Ensure your display server is running (restart your desktop environment if needed)
+- **For remote headless servers**: Use a virtual display:
+  ```bash
+  sudo apt-get install xvfb
+  xvfb-run python3 -m openlens
+  ```
+  or force Qt's offscreen platform for testing:
+  ```bash
+  QT_QPA_PLATFORM=offscreen python3 -m openlens
+  ```
+- **WSL users**: Install an X server like VcXsrv or X410, then:
+  ```bash
+  export DISPLAY=:0
+  python3 -m openlens
+  ```
+
+### Issue: PySide6 not found
+
+**Error:** `ModuleNotFoundError: No module named 'PySide6'`
+
+**Solution:**
+```bash
+pip install PySide6
+# or
+pip install -r requirements.txt
+```
+
+### Issue: Lenses not saving
+
+**Solution:**
+- Check write permissions in the directory
+- Ensure `openlens.db` is not locked by another process
+- Check disk space
+
+### Issue: 3D visualization not working
+
+**Solution:**
+```bash
+# Install required dependencies
+pip install matplotlib numpy
+
+# Or if using venv:
+source venv/bin/activate
+pip install matplotlib numpy
+```
+
+---
+
+## Contributing
+
+Contributions are welcome! We appreciate bug fixes, new features, documentation improvements, and more.
+
+### How to Contribute
+
+Please read our comprehensive [Contributing Guidelines](docs/CONTRIBUTING.md) for:
+- Code of conduct
+- Development setup
+- Coding standards
+- Testing requirements
+- Pull request process
+- Issue guidelines
+
+### Quick Start for Contributors
+
+```bash
+# 1. Fork the repository
+# 2. Clone your fork
+git clone https://github.com/YOUR_USERNAME/openLens.git
+cd openLens
+
+# 3. Create a branch (branch names start with the ticket number)
+git checkout -b 223-vertex-collapse
+
+# 4. Make changes and test
+python3 -m unittest discover -s tests -t .
+
+# 5. Submit a pull request
+```
+
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for detailed instructions.
+
+---
+
+## ===== docs/README.md =====
+
+## Build and View Locally
+
+```bash
+pip install sphinx sphinx-rtd-theme
+cd sphinx
+make html
+xdg-open build/html/index.html   # Linux
+open build/html/index.html       # macOS
+```
+
+## Reference Markdown
+
+| File | Status |
+|------|--------|
+| `README.md` | This index. |
+| `CONTRIBUTING.md` | Short entry point; the authoritative guide is `sphinx/source/contributing.rst`. Kept because the root README links to it. |
+| `TESTING.md` | Short test-command reference; authoritative details are in `sphinx/source/contributing.rst`. |
+| `ARCHITECTURE.md` | Short architecture summary; authoritative page is `sphinx/source/architecture.rst`. |
+| `API_DOCUMENTATION.md` | Short library entry point; authoritative signatures are in `sphinx/source/api/`. |
+| `FEATURE_ABERRATIONS.md` | Technical reference for the aberration calculations, not yet migrated. |
+
+The feature-status and ray-tracing implementation notes that used to live here
+were duplicates of the Sphinx pages and of `CHANGELOG.md`, so they are gone.
+The Nikon prescription note moved to
+`sphinx/source/nikon_series_e_50mm.rst`.
+
+## ===== docs/API_DOCUMENTATION.md =====
+
+# OpenLens Python API
+
+> **The authoritative API reference is
+> [`docs/sphinx/source/api/index.rst`](sphinx/source/api/index.rst).**
+> It is generated from the source docstrings. This file is kept as a short
+> entry point for links to `docs/API_DOCUMENTATION.md`.
+
+## Install
+
+```bash
+pip install -e .
+pip install -e .[visualization]   # numpy + matplotlib
+```
+
+## First lens
+
+```python
+from openlens.lens import Lens
+
+lens = Lens(
+    name="Biconvex demo",
+    radius_of_curvature_1=50.0,
+    radius_of_curvature_2=-50.0,
+    thickness=5.0,
+    diameter=25.0,
+    material="BK7",
+)
+
+print(lens.calculate_focal_length())
+print(lens.calculate_back_focal_length())
+print(lens.calculate_working_flange_distance())
+```
+
+## Trace rays
+
+```python
+from openlens.ray_tracer import LensRayTracer
+
+tracer = LensRayTracer(lens)
+rays = tracer.trace_parallel_rays(num_rays=11)
+```
+
+## Analyze image quality
+
+```python
+from openlens.aberrations import AberrationsCalculator
+from openlens.performance_metrics import PerformanceMetrics
+
+aberrations = AberrationsCalculator(lens).calculate_all_aberrations(field_angle_deg=5.0)
+report = PerformanceMetrics(lens).format_metrics_report()
+```
+
+Failed traces and undefined quantities return `None`; check before formatting.
+For multi-element systems, use `OpticalSystem` from
+`openlens.optical_system`. For persistence, use `DatabaseManager` or the GUI
+`LensStorage` facade; JSON is an interchange format, not primary state.
+
+## ===== docs/FEATURE_ABERRATIONS.md =====
+
+# openlens v1.1.0 - Lens Aberrations Feature Implementation
+
+## 🎉 Feature Added: Comprehensive Lens Aberrations Calculator
+
+### Overview
+A complete optical aberrations analysis system has been implemented for openlens, enabling professional-grade optical design analysis. This feature calculates and displays the five primary (Seidel) aberrations plus chromatic aberration and diffraction limits.
+
+---
+
+## ⚙️ Modifications
+
+### `/openlens/lens_editor_gui.py`
+**Added:**
+- Import of aberrations calculator module
+- New "Aberrations Analysis" panel in Simulation tab
+- Field angle control
+- `analyze_aberrations()` method
+- Scrollable text display for aberration results
+
+---
+
+## 📊 Quality Assessment System
+
+### Automatic Quality Scoring (0-100)
+The system analyzes aberrations and assigns a quality score:
+
+**Excellent (90-100):**
+- Spherical aberration < 0.001 mm
+- Chromatic aberration < 0.1 mm
+- Distortion < 1%
+- Astigmatism < 0.1 mm
+
+**Good (75-89):**
+- Moderate aberrations
+- Suitable for general optical applications
+
+**Fair (60-74):**
+- Noticeable aberrations
+- May be acceptable for specific uses
+
+**Poor (40-59):**
+- Significant aberrations
+- Design optimization recommended
+
+**Very Poor (<40):**
+- Severe aberrations
+- Redesign necessary
+
+### Issue Detection
+Automatically identifies and reports:
+- High spherical aberration
+- Excessive chromatic aberration
+- Significant distortion
+- Problematic astigmatism
+
+---
+
+## 📚 Mathematical Foundations
+
+### Formulas Implemented
+
+1. **Spherical Aberration:**
+   Exact trace (fallback: third-order Seidel):
+   ```
+   LSA = marginal focus - paraxial focus   (paraxial ray at y = 0.001 mm)
+   LSA_Seidel = -(y²/8f)·[(n/(n-1))² + (n+2)/(n(n-1)²)·(B + 2(n²-1)/(n+2)·C)²]
+   B = (c1+c2)/(c1-c2)  [shape factor from curvatures; flat c = 0], C = -1
+   ```
+
+2. **Coma:**
+   ```
+   Coma = (err_top + err_bottom) / 2   (traced tangential fan, chief-referenced)
+   ```
+
+3. **Astigmatism:**
+   ```
+   AST = |tan_focus - sag_focus|   (traced best-focus split, longitudinal)
+   ```
+
+4. **Field Curvature:**
+   ```
+   R_petzval = n · f
+   ```
+
+5. **Distortion:**
+   ```
+   Dist = 0  (single lens, stop at lens: S5 = 0 exactly)
+   General stops: traced distortion curve (chief-ray heights)
+   ```
+
+6. **Chromatic Aberration:**
+   ```
+   LCA = f / V_d            (single thin lens)
+   LCA = BFL_C - BFL_F      (systems: traced back focal lengths)
+   V_d = Abbe number
+   ```
+
+7. **Airy Disk:**
+   ```
+   d_airy = 2.44 · λ · (f/D)
+   ```
+
+---
+
+## 📖 References
+
+### Optical Theory
+- Seidel aberration theory
+- Lensmaker's equation (thick lens form)
+- Gaussian optics
+- Diffraction theory (Airy disk)
+
+### Standards
+- Sign conventions follow ISO 10110
+- Abbe number definitions from glass catalogs
+- F-number and NA standard definitions
+
+---
+
+## ✅ Verification Checklist
+
+- [x] Aberrations calculator module created
+- [x] Comprehensive test suite written
+- [x] GUI integration completed
+- [x] Documentation added
+- [x] Quick test script created
+- [x] Mathematical formulas verified
+- [x] Quality assessment system implemented
+- [x] Material database included
+- [x] Error handling implemented
+- [x] Dark mode compatible
+
+---
+
+## 📝 Notes
+
+### Known Limitations
+1. **Single Lens Only:** Aberrations calculated for individual lenses, not systems
+2. **Paraxial Approximation:** Uses third-order (Seidel) aberrations
+3. **Monochromatic:** LCA calculated, but not full spectral analysis
+4. **Simplified Formulas:** Professional tools use more complex ray tracing
+
+### Design Decisions
+- Used Seidel aberrations (industry standard for first-order analysis)
+- Included Abbe number database for common materials
+- Provided quality scoring for quick assessment
+- Formatted output for readability
+
+---
+
+**Implementation Complete:** Lens Aberrations Calculator fully integrated into openlens v1.1.0
+
+**Next Feature:** Ray Tracing Visualization (planned for v1.2.0)
+
+## ===== docs/sphinx/source/index.rst =====
+
+Features
+--------
+
+* **Interactive lens design** with spherical, conic, parabolic, and Fresnel
+  surfaces, clear apertures, bevels, and coatings.
+* **Multi-element assemblies** with air gaps, an aperture stop, element
+  alignment, nesting, and undo/redo.
+* **Ray tracing** in 2-D and 3-D, including point sources, off-axis fields,
+  multiple wavelengths, ghosts, and total internal reflection.
+* **Image quality** through Seidel aberrations, spot diagrams, PSF, MTF,
+  wavefront error, Strehl ratio, and encircled energy.
+* **Design tools** for optimization, tolerancing, thermal/environmental
+  perturbations, and desensitization.
+* **Mechanical and manufacturing** output: camera mounts, working flange
+  distance, lens cells, spacers, STL/STEP solids, and ISO 10110-style drawings.
+* **SQLite library** for lenses, assemblies, and tolerance sets, with JSON
+  interchange and image/report export.
+* **Material catalog** with Sellmeier dispersion, thermal expansion, and
+  Schott TIE-19 temperature coefficients where available.
+* **Optional dependencies** are guarded: the core model and ray tracer start
+  without numpy, matplotlib, scipy, or Pillow.
+
+Installation
+------------
+
+.. code-block:: bash
+
+   git clone https://github.com/pmaasz/openLens.git
+   cd openLens
+   pip install -e .
+   pip install -e .[dev]     # tests, formatters, linters
+
+PySide6 is required. numpy and matplotlib are highly recommended for
+simulation and plots; scipy and Pillow enable advanced diffraction and image
+simulation features.
+
+Build Documentation
+-------------------
+
+.. code-block:: bash
+
+   cd docs/sphinx
+   make html
+
+   # View documentation
+   open build/html/index.html
+
+## ===== docs/sphinx/source/getting_started.rst =====
+
+Getting Started
+===============
+
+This guide installs OpenLens, starts the desktop application, and runs a first
+lens through the Python API.
+
+Installation
+------------
+
+From Source
+^^^^^^^^^^^
+
+.. code-block:: bash
+
+   git clone https://github.com/pmaasz/openLens.git
+   cd openLens
+   pip install -e .
+
+For plotting, optimization, and the full development toolset:
+
+.. code-block:: bash
+
+   pip install -e .[visualization]
+   pip install -e .[dev]
+
+Requirements
+^^^^^^^^^^^^
+
+- Python 3.10 or newer (CI tests 3.10, 3.11, and 3.12).
+- PySide6 for the desktop application.
+- numpy and matplotlib are strongly recommended for ray-tracing plots,
+  spot/PSF/MTF analysis, and optimization.
+- scipy and Pillow enable advanced diffraction and image-simulation features.
+
+The optional packages are guarded: the core model and command-line interface
+still start without them.
+
+Testing the Installation
+------------------------
+
+.. code-block:: bash
+
+   # Full unit suite
+   python3 -m unittest discover -s tests -t .
+
+   # One module
+   python3 -m unittest tests.test_lens
+
+   # GUI flow tests (pytest-qt from the dev extra)
+   QT_QPA_PLATFORM=offscreen pytest tests/gui_flows -q
+
+## ===== docs/sphinx/source/user_guide.rst =====
+
+GUI Overview
+------------
+
+The main window keeps one active target: either a single lens or an optical
+assembly. Selecting a library row loads that target into the editor tabs.
+
+Selection Tab
+^^^^^^^^^^^^^
+
+The **Selection** tab is the library browser. It supports:
+
+- browsing and filtering lenses and assemblies;
+- loading a row into the active-target tabs;
+- creating, duplicating, renaming, and deleting library records;
+- saving to the SQLite library;
+- importing/exporting JSON for interchange.
+
+The default library is a per-user SQLite database. The status bar reports save
+and load failures; a failed save is never presented as a success.
+
+Lens Editor Tab
+^^^^^^^^^^^^^^^
+
+The **Lens Editor** edits a single element and shows calculated properties as
+the prescription changes.
+
+**Surface parameters**
+
+- Radius of curvature for each surface, in millimetres.
+- Optional conic constant for each surface.
+- Legacy parabolic sag control where a measured sag is preferred.
+- Clear aperture and bevel for each surface.
+
+**Geometry and material**
+
+- Centre thickness and mechanical diameter.
+- Material from the catalog, or a model glass defined by ``nd``/``Vd``.
+- Design wavelength and operating temperature.
+- Refractive index, either resolved from the selected glass or entered for a
+  model glass.
+
+**Coatings**
+
+Each surface can carry a thin-film stack. Coating presets can be loaded from
+the coating tools; the stack modulates reflected/transmitted energy while the
+geometric ray direction continues to follow Snell's law.
+
+**Calculated properties**
+
+The panel updates focal length, optical power, back and front focal lengths,
+working flange distance, edge thickness, and feasibility warnings. Thin or
+negative edge thickness warnings mean the surfaces intersect inside the clear
+aperture and the shape is not manufacturable as drawn.
+
+Camera Mounts
+^^^^^^^^^^^^^
+
+The **Mount** group assigns a camera mount to the lens. It reports the
+**working flange distance**, measured from the rear lens vertex to the sensor
+plane:
+
+.. code-block:: text
+
+   working flange distance = back focal length + mount flange distance
+
+Built-in mounts are C, CS, M42, M39, T, Fujifilm X, Leica M, Canon EF, and
+Nikon F. Use **Manage mounts…** to add a custom mount from its flange
+distance. Custom mounts are shared by every lens and stored in ``mounts.json``
+under the per-user OpenLens data directory; ``OPENLENS_MOUNTS_PATH`` overrides
+the file location.
+
+.. code-block:: python
+
+   from openlens.lens import Lens
+
+   lens = Lens(radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0)
+   lens.mount_type = "M42"
+   print(lens.calculate_working_flange_distance())
+
+If the lens is afocal or the mount is unknown, the distance is ``None``. The
+mount is saved with the lens in the SQLite library.
+
+Assembly Tab
+^^^^^^^^^^^^
+
+The **Assembly** tab edits a multi-element ``OpticalSystem``:
+
+- add, remove, reorder, and nest lens elements;
+- set the air gap before each element;
+- place an aperture stop in a gap and set its diameter;
+- apply decenter and tilt to individual elements;
+- inspect the optical layout and element positions;
+- edit tolerances and alignment values for the assembly.
+
+Assembly edits are undoable. The window-level undo/redo controls follow the
+active lens editor or assembly stack.
+
+Simulation Tab
+^^^^^^^^^^^^^^
+
+The **Simulation** tab traces rays through a lens or assembly:
+
+- choose a parallel fan or point source;
+- set ray count, field angle, and ray height range;
+- trace at one or more wavelengths;
+- enable ghost reflections to inspect unwanted paths;
+- place the detector at an absolute image plane, or leave it on **Auto** for
+  the paraxial focus. The view marks a configured plane and reports the RMS
+  spot measured there in either mode; the Performance spot metric and the
+  optimizer's RMS-spot target use the same plane;
+- switch between 2-D and 3-D views;
+- clear the trace and reset the view without changing the optical model.
+
+Vignetted rays are dropped at clear apertures or the system stop. The status
+area reports the trace result; a failed trace is not replaced by an empty
+“perfect” image.
+
+Performance Tab
+^^^^^^^^^^^^^^^
+
+The **Performance** tab calculates the image-quality dashboard:
+
+- first-order values (EFL, BFL, f-number, numerical aperture);
+- Seidel spherical, coma, astigmatism, field curvature, and distortion;
+- axial and lateral chromatic estimates;
+- RMS spot size and AIRY disk diameter;
+- Strehl ratio and RMS wavefront error;
+- MTF cutoff;
+- spot diagram, ray fan, field curves, PSF, MTF, wavefront, and ghost views.
+
+Expensive calculations run in background workers. If a trace or wavefront
+sample fails, the affected field is reported as unavailable or invalid instead
+of zero. See :doc:`scientific/image_quality` for the definitions and limits of
+each metric.
+
+Optimization Tab
+^^^^^^^^^^^^^^^^
+
+The **Optimization** tab builds a merit function from variables and targets:
+
+- choose radii, thicknesses, air gaps, and selected system parameters as
+  variables;
+- target focal length, back focal length, aberration values, or other metrics;
+- run the default simplex optimizer, or choose another available algorithm;
+- inspect the merit value and variable values after convergence.
+
+The merit function penalizes invalid geometry such as negative edge thickness.
+Optimization runs on a copy of the model until the result is applied, so a
+cancelled run does not leave a half-mutated assembly behind.
+
+Tolerancing Tab
+^^^^^^^^^^^^^^^
+
+The **Tolerancing** tab studies manufacturing and environmental variation:
+
+- define tolerance sets for radii, thickness, gaps, decentre, tilt, and index;
+- run sensitivity or Monte Carlo analysis;
+- inspect the distribution of spot, MTF, or other image-quality metrics;
+- save tolerance sets with the lens or assembly metadata.
+
+A nominal design with a small spot but no tolerance margin is not yet a
+manufacturable design. Compensators and focus adjustment should be included
+explicitly.
+
+Startup and Updates
+-------------------
+
+The welcome screen checks the latest GitHub release in the background while the
+rest of the window stays responsive. Under the title it reports one of:
+
+- the running version is up to date;
+- a newer version is available;
+- the newer release has no build for the current operating system and
+  architecture;
+- the check could not reach GitHub.
+
+The check is advisory. A network failure never blocks startup and never opens
+an error dialog; use **Retry** on the welcome screen to check again.
+
+When a compatible newer release exists, the available action depends on how
+OpenLens was installed:
+
+Standalone Linux and Windows build
+    **Download and install** fetches the release asset, waits for the current
+    process to exit, replaces the executable, and starts the new version. If
+    the replacement cannot be written, the old executable is started again and
+    the reason is written to ``openlens-update-error.log`` beside the
+    downloaded file.
+
+Standalone macOS build
+    **Download and install** fetches the matching ``macOS-arm64`` or
+    ``macOS-x64`` archive, extracts it under ``~/Downloads``, and opens the new
+    application bundle. Drag that bundle to **Applications** to keep it, then
+    close the old copy.
+
+Source checkout or pip install
+    **Download from GitHub** opens the release page. OpenLens does not replace
+    a Python-managed installation behind the package manager's back.
+
+After a standalone update restarts, the new version opens the SQLite library
+normally. Schema migrations run as part of database initialization, so an
+update that changes the schema upgrades the existing library in place. Back up
+the database before skipping several major versions.
+
+.. note::
+
+   The update check contacts the public GitHub Releases API at startup. It
+   sends no library data, only a request for the latest release metadata. Set
+   ``OPENLENS_NO_UPDATE_CHECK=1`` to skip the request; the welcome screen then
+   shows only the running version.
+
+Ray Tracing
+-----------
+
+The UI ray tracer and the Python tracers share the same surface intersection
+and refraction code. A parallel fan is launched relative to the front vertex;
+the default fills the full aperture so rim aberration is included. Point
+sources use a position and an angular range. Off-axis analysis rotates or
+displaces the bundle instead of changing the lens model.
+
+For a first-order check, use the paraxial matrix results (EFL, BFL, FFL).
+For a real design, inspect the ray fans and spot diagrams at the intended
+field and wavelength.
+
+Mounts and Mechanical Output
+----------------------------
+
+**File → Export** provides:
+
+- **STL** for lens solids and printable models;
+- **STEP** for lenses plus suggested cells, spacers, and a barrel;
+- **ISO 10110** for a manufacturing-style drawing;
+- **Report** for a text/plot summary.
+
+The STEP housing is derived from the current assembly and mount. Threads are
+specified in the part name but are not modeled as helical solids without a CAD
+kernel. Treat the suggested housing as a mechanical starting point and verify
+it in CAD before manufacture.
+
+Persistence and Interchange
+---------------------------
+
+SQLite is the application's source of truth. **Save** updates the active
+library record; **Save As...** writes a JSON copy. JSON is also used for
+import/export and for user preferences such as custom mounts, but it is not the
+primary library.
+
+A lens stores its mount type, wavelength, temperature, conic/parabolic terms,
+clear apertures, bevels, coatings, and metadata. An assembly stores its element
+order, air gaps, stop, alignment, and tolerance metadata. Round-tripping through
+SQLite or JSON preserves those fields.
+
+## ===== docs/sphinx/source/mcp.rst =====
+
+MCP Server
+==========
+
+OpenLens can expose its lens database, preset library, and performance
+calculators through the
+`Model Context Protocol (MCP) <https://modelcontextprotocol.io/>`_, so an AI
+assistant can list, create, and analyse lenses from the same SQLite store as
+the GUI.
+
+Example request
+---------------
+
+.. code-block:: json
+
+   {
+     "name": "create_lens",
+     "arguments": {
+       "name": "MCP singlet",
+       "radius_of_curvature_1": 50.0,
+       "radius_of_curvature_2": -50.0,
+       "thickness": 5.0,
+       "diameter": 25.0
+     }
+   }
+
+## ===== docs/sphinx/source/nikon_series_e_50mm.rst =====
+
+Nikon Series E 50mm f/1.8 - Glass Prescription Reference
+========================================================
+
+This note records the best publicly available optical data for the Nikon
+Series E 50mm 1:1.8, for use as a modelling reference in OpenLens.
+
+.. note::
+
+   Nikon never published factory as-built drawings (exact radii,
+   center/edge thicknesses, diameters, melt-specific glass data) for this
+   lens. The data below comes from the design patent the lens was built
+   from. Treat it as the design prescription, not a metrology report.
+
+Prescription: Example 2 scaled to 50 mm (recommended starting point)
+--------------------------------------------------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 8 22 30 40
+
+   * - Surf
+     - Radius [mm]
+     - Thickness / air [mm]
+     - Glass
+   * - 1
+     - +45.4915
+     - L1 3.390
+     - n1 = 1.713, Vd = 53.9
+   * - 2
+     - +612.3255
+     - air 0.095
+     - -
+   * - 3
+     - +19.0930
+     - L2 4.360
+     - n2 = 1.713, Vd = 53.9
+   * - 4
+     - +32.0980
+     - air 1.550
+     - -
+   * - 5
+     - +88.0105
+     - L3 0.970
+     - n3 = 1.64831, Vd = 33.8
+   * - 6
+     - +16.0455
+     - air + stop 8.820
+     - -
+   * - 7
+     - -17.5195
+     - L4a 0.970
+     - n4 = 1.64831, Vd = 33.8
+   * - 8
+     - -65.1165 (cement)
+     - L4b 4.845
+     - n5 = 1.713, Vd = 53.9
+   * - 9
+     - -19.9610
+     - air 0.095
+     - -
+   * - 10
+     - +70.9620
+     - L5 2.520
+     - n6 = 1.713, Vd = 53.9
+   * - 11
+     - -117.6550
+     - back focal length ~37.5 to film
+     - -
+
+Unscaled patent values (``f = 100 mm``) for verification:
+
+.. code-block:: text
+
+   r1=90.983,  d1=6.78  | r2=1224.651, d2=0.19 | r3=38.186,  d3=8.72
+   r4=64.196,  d4=3.10  | r5=176.021,  d5=1.94 | r6=32.091,  d6=17.64
+   r7=-35.039, d7=1.94  | r8=-130.233, d8=9.69 | r9=-39.922, d9=0.19
+   r10=141.924, d10=5.04 | r11=-235.310, Bf=75.0, track=130.3
+
+Derived: ``f1 = 290.5 (f=100)``, ``f2 = 98.1``, ``D = 103.5``,
+``Bf ~= 37.5 mm at 50 mm`` - the long back focus required for an SLR mirror.
+
+Using this in OpenLens
+----------------------
+
+#. Build an ``OpticalSystem`` from the scaled Example 2 table above.
+#. Verify EFL ~= 50 mm and BFL ~= 37.5 mm before adding stops/baffles.
+#. Fit modern glass equivalents only after the paraxial check passes.
+#. See alternate corrections (Examples 3-4 in US4234242A) if optimizing for
+   coma / lateral color trade-offs.
+
+## ===== docs/sphinx/source/scientific/optics.rst =====
+
+Optical Model
+=============
+
+This page collects the conventions and equations that OpenLens uses for
+first-order layout, surface shape, and ray refraction. It is deliberately
+close to the implementation so a calculated number can be reproduced by hand.
+
+.. contents:: Table of Contents
+   :local:
+   :depth: 2
+
+Sign Convention
+---------------
+
+OpenLens uses the usual Cartesian optical convention:
+
+- Light propagates from left to right along the positive *x* axis.
+- Surface vertices are the reference points for surface coordinates.
+- A radius is positive when the centre of curvature lies to the right of the
+  surface vertex. For a biconvex lens in air, ``R1 > 0`` and ``R2 < 0``.
+- Distances to the right of a reference are positive.
+- A converging element has positive effective focal length (EFL).
+- Angles are measured from the optical axis; the ray tracer stores them in
+  radians internally.
+
+The Lens model uses the helium d-line, 587.6 nm, as its default design
+wavelength and for ``nd``/``Vd`` catalog data. Visualization, spot diagrams,
+PSF/MTF, and resolution defaults use the photopic green line, 550 nm.
+
+Surface Shape
+-------------
+
+Spherical sag
+^^^^^^^^^^^^^
+
+For a spherical surface of radius ``R``, the vertex-referenced sag at radial
+height ``r`` is
+
+.. math::
+
+   z(r) = \operatorname{sgn}(R)\left(|R| - \sqrt{R^2 - r^2}\right).
+
+Flat surfaces have ``z = 0``. OpenLens clamps ``|r|`` to the real domain so a
+ray outside the sphere's cap does not produce a complex sag.
+
+Conic sag
+^^^^^^^^^
+
+A conic surface is described by the vertex radius ``R`` and conic constant
+``K``:
+
+.. math::
+
+   z(r) = \frac{c r^2}{1 + \sqrt{1 - (1+K)c^2 r^2}},
+   \qquad c = \frac{1}{R}.
+
+The common special cases are:
+
+- ``K = 0``: sphere.
+- ``K = -1``: paraboloid.
+- ``-1 < K < 0``: prolate ellipsoid.
+- ``K > 0``: oblate ellipsoid.
+- ``K < -1``: hyperboloid.
+
+OpenLens also supports the older parabolic control, which stores the sag at
+the half-diameter and scales it as ``z(r) = z_{D/2}(r/(D/2))^2``. The conic
+model is preferred when an exact conic constant is known.
+
+Lensmaker's Equation
+--------------------
+
+For a thick lens in air with refractive index ``n``, centre thickness ``d``
+and surface radii ``R1`` and ``R2``:
+
+.. math::
+
+   \frac{1}{f} = (n-1)\left(
+   \frac{1}{R1} - \frac{1}{R2}
+   + \frac{(n-1)d}{n R1 R2}
+   \right).
+
+A flat surface contributes ``1/R = 0``. A plane-parallel plate therefore has
+zero power, as expected. For a thin lens (``d`` small compared with the
+radii), the last term is omitted.
+
+Back and Front Focal Lengths
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The back focal length (BFL) is measured from the rear vertex to the rear
+paraxial focus:
+
+.. math::
+
+   \mathrm{BFL} = f\left(1 - \frac{d P_1}{n}\right),
+   \qquad P_1 = \frac{n-1}{R1}.
+
+The front focal length (FFL) is a signed Cartesian coordinate measured from
+the front vertex. For a converging lens the front focus lies to the left, so
+the coordinate is negative:
+
+.. math::
+
+   \mathrm{FFL} = -f\left(1 - \frac{d P_2}{n}\right),
+   \qquad P_2 = \frac{1-n}{R2}.
+
+Both return ``None`` for an afocal element where the focal length is
+undefined.
+
+Camera Mounts and Working Flange
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A camera mount fixes the sensor plane a specified flange distance behind the
+mounting face. OpenLens models the mount as being at the lens rear vertex, so
+
+.. math::
+
+   \text{working flange distance} = \mathrm{BFL} + \text{mount flange distance}.
+
+For example, a lens with a 27.93 mm BFL and an M42 mount (45.46 mm) has a
+working flange distance of 73.39 mm. If the mount is unknown, or the lens is
+afocal, the result is ``None`` rather than an assumed value.
+
+Apertures, Bevels, and Stops
+----------------------------
+
+- The mechanical diameter is the outer lens diameter.
+- A clear aperture, when set, is the polished optical aperture of that
+  surface. Rays outside it are vignetted.
+- Bevels model the protective chamfer at the rim and reduce the usable clear
+  aperture near the edge.
+- An optical system may define an aperture stop in an air gap. The stop has a
+  diameter and is applied before the following element; rays outside it are
+  blocked and reported as vignetted.
+- Surface profiles are clamped to their real domain at the rim. A diameter
+  larger than a spherical cap can support is therefore a validation issue, not
+  a reason to invent a complex surface.
+
+Ray Fans and Field Points
+-------------------------
+
+A parallel fan at angle ``θ`` is launched from a plane in front of the first
+vertex. Its heights are chosen across a fraction of the semi-aperture; the
+default is the full aperture so rim spherical aberration is included. Point
+sources launch rays from a specified position with angles spanning a requested
+range. Off-axis field analysis uses the same tracing machinery with a rotated
+or displaced ray bundle.
+
+## ===== docs/sphinx/source/scientific/image_quality.rst =====
+
+Image Quality
+=============
+
+A lens prescription determines first-order properties, but two lenses with the
+same focal length can form very different images. OpenLens reports both
+geometric and diffraction-based measures. This page explains what each number
+means and when it is trustworthy.
+
+.. contents:: Table of Contents
+   :local:
+   :depth: 2
+
+Seidel Aberrations
+------------------
+
+OpenLens reports the five primary (third-order) aberrations. Some are
+calculator estimates from first-order parameters; field-dependent coma,
+astigmatism, field curvature, and distortion use traced off-axis rays.
+
+Spherical aberration
+    Longitudinal shift between the paraxial focus and the marginal-ray focus.
+    It is present on axis and grows rapidly with aperture. Stopping down
+    reduces it.
+
+Coma
+    An off-axis aberration that makes a point source look like a comet.
+    OpenLens estimates it from the asymmetry of the traced ray fan.
+
+Astigmatism
+    The tangential and sagittal ray fans focus at different distances. The
+    reported value is the longitudinal separation of those foci.
+
+Field curvature
+    The image surface is curved rather than flat: best focus changes with
+    field angle. A flat sensor therefore cannot be in focus everywhere.
+
+Distortion
+    The image height is not proportional to the ideal ``f tan θ`` mapping.
+    Distortion moves points but does not by itself blur a point.
+
+For a single spherical lens, third-order Seidel distortion is zero by
+construction; the traced distortion curve is the useful measure.
+
+Chromatic Aberration
+--------------------
+
+The refractive index depends on wavelength. OpenLens reports longitudinal
+chromatic aberration as the focus shift between spectral lines. The Abbe
+number is the usual first-order measure:
+
+.. math::
+
+   V_d = \frac{n_d - 1}{n_F - n_C}.
+
+A low Abbe number means high dispersion and usually more chromatic
+aberration. The calculation uses the material's catalog value where possible;
+otherwise it falls back to a coarse estimate based on refractive index. Treat
+that fallback as an estimate, not a measured glass property.
+
+Achromatic Doublets
+^^^^^^^^^^^^^^^^^^^
+
+Combining a positive crown element with a negative flint element can bring two
+wavelengths to a common focus. The cemented-doublet tools and optimizer in
+OpenLens expose the element radii and glass choice as variables. A good
+first-order achromat still needs a real ray check for spherical aberration and
+manufacturing tolerances.
+
+PSF
+---
+
+The point spread function is the image of an ideal point source. OpenLens can
+compute it in two ways:
+
+Geometric PSF
+    Bin traced ray intersections on a detector grid. This is cheap and shows
+    the geometric blur, but it ignores diffraction and can be noisy with few
+    rays. The window grows to cover the traced spot; the result reports how
+    much of the traced energy was captured. A low captured fraction means the
+    PSF is clipped by the detector, not that the lens is perfect.
+
+Diffraction PSF
+    Take the complex pupil function from the traced wavefront and propagate it
+    with an FFT. This includes diffraction and defocus, and is the appropriate
+    model near the diffraction limit. It needs ``numpy`` and a sampled pupil.
+
+The PSF is normalized so its integral represents the captured energy. When a
+metric is computed from a clipped PSF, the report should be read together with
+the captured fraction.
+
+Strehl Ratio and Wavefront Error
+--------------------------------
+
+The Strehl ratio is the ratio of the aberrated peak irradiance to the ideal
+peak. OpenLens obtains it from the traced pupil wavefront:
+
+.. math::
+
+   S = \left|\left\langle e^{i 2\pi W}\right\rangle\right|^2,
+
+where ``W`` is the wavefront error in waves after piston and tilt are removed.
+For small aberrations this is close to the Maréchal approximation
+
+.. math::
+
+   S \approx e^{-(2\pi\sigma)^2},
+
+with ``σ`` the RMS wavefront error in waves. A Strehl ratio of 0.8 or above is
+often treated as “diffraction limited”, but the threshold is a convention, not
+a hard physical boundary.
+
+Wavefront maps are sampled on a pupil grid. If too few rays reach the pupil,
+the result is reported as unavailable rather than as a good wavefront.
+
+Through-Focus and Tolerancing
+-----------------------------
+
+Image quality changes with focus. OpenLens can evaluate metrics at a requested
+focus shift instead of assuming the paraxial image plane. A lens or assembly
+can also pin an absolute detector plane with ``image_plane_x_mm``: spot-based
+analyses, the RMS spot metric, and the optimizer's RMS-spot target then
+measure at that plane. An unset plane keeps the paraxial focus as the default.
+Tolerancing extends
+this idea to manufacturing errors: element decentre, tilt, thickness, radius,
+and index perturbations are sampled, and the resulting metric distribution is
+reported. A nominal design with a good spot but no tolerance margin is not a
+manufacturable design.
+
+What the Numbers Do Not Cover
+-----------------------------
+
+- Geometric ray tracing ignores diffraction until the diffraction PSF/MTF
+  branch is selected.
+- Scalar diffraction does not model polarization or vector pupil effects;
+  those need the coating/polarization models.
+- A single-wavelength MTF does not describe a broadband image. Use the
+  chromatic tools and multiple wavelengths.
+- Ghost analysis follows unwanted reflections but does not predict sensor
+  blooming or stray light outside the modeled aperture.
+- Manufacturing tolerances are statistical inputs. The output is only as good
+  as the distributions and compensators supplied.
+
+Where to Look in the Code
+-------------------------
+
+- ``openlens/aberrations.py``: Seidel estimates, chromatic, Airy, Strehl.
+- ``openlens/analysis/spot_diagram.py``: spot and encircled energy.
+- ``openlens/analysis/geometric.py``: field curves and distortion.
+- ``openlens/analysis/psf_mtf.py``: geometric and diffraction PSF/MTF.
+- ``openlens/analysis/diffraction_psf.py``: pupil wavefront propagation.
+- ``openlens/tolerancing.py``: Monte Carlo and sensitivity analysis.
+
+## ===== docs/sphinx/source/scientific/thermal_mechanical.rst =====
+
+Thermal Scaling
+---------------
+
+For a change in temperature ``ΔT`` from the 20 °C reference, a material with
+linear coefficient of thermal expansion ``α`` changes its dimensions by
+
+.. math::
+
+   L(T) = L_0 \left(1 + \alpha \Delta T\right).
+
+OpenLens applies this factor to the lens radii, centre thickness, diameter,
+and - when a housing coefficient is supplied - to the air gaps. The radii and
+thickness scaling preserves the shape of a homogeneous element to first order.
+It is not a thermo-elastic finite-element model: it does not predict stress,
+bending, or a cemented-interface failure.
+
+The refractive index also changes. Catalog glasses can carry Schott TIE-19
+coefficients ``D0``, ``D1``, ``D2``, ``E0``, ``E1`` and a thermal resonance
+wavelength. When they are present, OpenLens evaluates
+
+.. math::
+
+   \Delta n = \frac{n^2-1}{2n}\left[
+   D_0\Delta T + D_1\Delta T^2 + D_2\Delta T^3
+   + \frac{E_0\Delta T + E_1\Delta T^2}{\lambda^2-\lambda_{tk}^2}
+   \right],
+
+with wavelength in micrometres. All-zero coefficients mean “no thermal data”,
+and no correction is applied. A model glass defined only by ``nd``/``Vd`` has
+no temperature coefficients either; its index is not invented.
+
+Housing Expansion
+-----------------
+
+The air gaps are set by the mechanical housing, not by the glass. A first-order
+estimate scales every gap by
+
+.. math::
+
+   g(T) = g_0 \left(1 + \alpha_\text{housing}\Delta T\right).
+
+The default housing coefficient is aluminium, ``23.6 × 10⁻⁶ /K``. Steel is
+roughly ``12 × 10⁻⁶ /K``, Invar ``1 × 10⁻⁶ /K``, and common plastics can be
+tens to hundreds of ``10⁻⁶ /K``. Using the wrong housing coefficient can
+change focus by more than the glass expansion does, especially in a long
+assembly.
+
+This is a uniform scaling model. A real barrel has a front and rear section,
+retainers, and possibly different materials; those require a mechanical model
+or a tolerance sensitivity study.
+
+Where to Look in the Code
+-------------------------
+
+- ``openlens/analysis/environmental.py``: CTE, dn/dT, air index, conditioning.
+- ``openlens/material_database.py``: thermal coefficients and glass data.
+- ``openlens/mechanical_designer.py``: cells, spacers, barrel, mounts.
+- ``openlens/mounts.py``: standard and custom flange distances.
+- ``openlens/tolerancing.py``: perturbation, Monte Carlo, reports.
+- ``openlens/io/step_export.py``: STEP solids for lenses and housings.
+
+=== USER ===
+## ===== Source docstrings =====
+
+# openlens.diffraction.DiffractionCalculator.plot_airy_disk
+    def plot_airy_disk(
+        self,
+        focal_length: float,
+        aperture_diameter: float,
+        save_path: Optional[str] = None,
+    ):
+        """
+        Plot Airy disk intensity pattern
+
+        Args:
+            focal_length: Focal length in mm
+            aperture_diameter: Aperture diameter in mm
+            save_path: Optional path to save the plot
+        """
+    ...
+
+# openlens.diffraction.DiffractionCalculator.plot_encircled_energy
+    def plot_encircled_energy(
+        self,
+        focal_length: float,
+        aperture_diameter: float,
+        save_path: Optional[str] = None,
+    ):
+        """
+        Plot encircled energy curve
+
+        Args:
+            focal_length: Focal length in mm
+            aperture_diameter: Aperture diameter in mm
+            save_path: Optional path to save the plot
+        """
+    ...
+
+## ===== Source code of the target functions =====
+
+# openlens.diffraction.DiffractionCalculator.plot_airy_disk
+    def plot_airy_disk(
+        self,
+        focal_length: float,
+        aperture_diameter: float,
+        save_path: Optional[str] = None,
+    ):
+        """
+        Plot Airy disk intensity pattern
+
+        Args:
+            focal_length: Focal length in mm
+            aperture_diameter: Aperture diameter in mm
+            save_path: Optional path to save the plot
+        """
+        airy_r = self.airy_disk_radius(focal_length, aperture_diameter)
+        max_radius = 5 * airy_r
+        if not MATPLOTLIB_AVAILABLE:
+            logger.warning("plot_airy_disk unavailable: matplotlib is not installed. Skipping.")
+            return
+
+        r, intensity = self.airy_pattern(max_radius, focal_length, aperture_diameter)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(r, np.real(intensity), "b-", linewidth=2)
+        plt.axvline(
+            x=airy_r,
+            color="r",
+            linestyle="--",
+            label=f"Airy disk radius = {airy_r:.2f} μm",
+        )
+        plt.axhline(y=0.5, color="g", linestyle=":", alpha=0.5)
+
+        plt.xlabel("Radius (μm)")
+        plt.ylabel("Normalized Intensity")
+        plt.title(
+            f"Airy Diffraction Pattern\n(f={focal_length}mm, D={aperture_diameter}mm, "
+            f"λ={self.wavelength*1e9:.0f}nm)"
+        )
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        else:
+            plt.show()
+
+        plt.close()
+
+# openlens.diffraction.DiffractionCalculator.plot_encircled_energy
+    def plot_encircled_energy(
+        self,
+        focal_length: float,
+        aperture_diameter: float,
+        save_path: Optional[str] = None,
+    ):
+        """
+        Plot encircled energy curve
+
+        Args:
+            focal_length: Focal length in mm
+            aperture_diameter: Aperture diameter in mm
+            save_path: Optional path to save the plot
+        """
+        r, encircled = self.encircled_energy(focal_length, aperture_diameter)
+        if not MATPLOTLIB_AVAILABLE:
+            logger.warning(
+                "plot_encircled_energy unavailable: matplotlib is not installed. Skipping."
+            )
+            return
+
+        airy_r = self.airy_disk_radius(focal_length, aperture_diameter)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(r, np.real(encircled) * 100, "b-", linewidth=2)
+        plt.axvline(
+            x=airy_r,
+            color="r",
+            linestyle="--",
+            label=f"Airy disk radius = {airy_r:.2f} μm",
+        )
+
+        # Mark 50% and 80% energy
+        idx_50 = np.argmin(np.abs(encircled - 0.5))
+        idx_80 = np.argmin(np.abs(encircled - 0.8))
+        plt.axhline(y=50, color="g", linestyle=":", alpha=0.5)
+        plt.axhline(y=80, color="orange", linestyle=":", alpha=0.5)
+        plt.plot(r[idx_50], 50, "go", markersize=8, label=f"50% @ {r[idx_50]:.2f} μm")
+        plt.plot(
+            r[idx_80],
+            80,
+            "o",
+            color="orange",
+            markersize=8,
+            label=f"80% @ {r[idx_80]:.2f} μm",
+        )
+
+        plt.xlabel("Radius (μm)")
+        plt.ylabel("Encircled Energy (%)")
+        plt.title(
+            f"Encircled Energy Curve\n(f={focal_length}mm, D={aperture_diameter}mm, "
+            f"λ={self.wavelength*1e9:.0f}nm)"
+        )
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.ylim(0, 105)
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        else:
+            plt.show()
+
+        plt.close()
+
+# openlens.diffraction.DiffractionCalculator.plot_psf_2d
+    def plot_psf_2d(
+        self,
+        focal_length: float,
+        aperture_diameter: float,
+        save_path: Optional[str] = None,
+    ):
+        """
+        Plot 2D point spread function
+
+        Args:
+            focal_length: Focal length in mm
+            aperture_diameter: Aperture diameter in mm
+            save_path: Optional path to save the plot
+        """
+        airy_r = self.airy_disk_radius(focal_length, aperture_diameter)
+        size = 10 * airy_r
+        if not MATPLOTLIB_AVAILABLE:
+            logger.warning("plot_psf_2d unavailable: matplotlib is not installed. Skipping.")
+            return
+
+        psf = self.point_spread_function_2d(size, focal_length, aperture_diameter)
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+        # 2D PSF
+        extent = [-size / 2, size / 2, -size / 2, size / 2]
+        im = ax1.imshow(psf, extent=extent, cmap="hot", origin="lower")
+        ax1.set_xlabel("X (μm)")
+        ax1.set_ylabel("Y (μm)")
+        ax1.set_title("2D Point Spread Function")
+        plt.colorbar(im, ax=ax1, label="Normalized Intensity")
+
+        # Cross-section
+        center = psf.shape[0] // 2
+        profile = psf[center, :]
+        x_coords = np.linspace(-size / 2, size / 2, len(profile))
+        ax2.plot(x_coords, np.real(profile), "b-", linewidth=2)
+        ax2.axvline(
+            x=airy_r,
+            color="r",
+            linestyle="--",
+            label=f"Airy disk radius = {airy_r:.2f} μm",
+        )
+        ax2.axvline(x=-airy_r, color="r", linestyle="--")
+        ax2.set_xlabel("Position (μm)")
+        ax2.set_ylabel("Normalized Intensity")
+        ax2.set_title("PSF Cross-Section")
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+
+        plt.suptitle(
+            f"Point Spread Function Analysis\n(f={focal_length}mm, "
+            f"D={aperture_diameter}mm, λ={self.wavelength*1e9:.0f}nm)"
+        )
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        else:
+            plt.show()
+
+        plt.close()
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.diffraction.DiffractionCalculator.plot_airy_disk
+
+# Notes: `DiffractionCalculator.plot_airy_disk(focal_length, aperture_diameter, save_path=None)`
+
+## 1. Purpose
+- Draws the normalized 1-D Airy intensity profile with matplotlib.
+- Marks the Airy-disk radius and a 50 % line on the plot.
+- Saves the figure to `save_path`, or calls `plt.show()` when no path is given.
+- Always closes the figure and returns `None`.
+
+## 2. Inputs
+- `focal_length` (mm) and `aperture_diameter` (mm): plain numbers.
+  - No validation or conversion is done.
+  - They are inserted into the title exactly as given: `100` prints as `100`, `100.0` prints as `100.0`.
+- `save_path`: optional `str` or path-like.
+  - The check is truthiness, so `None` and `""` both go to `plt.show()`.
+  - Any truthy value goes to `plt.savefig(save_path, dpi=300, bbox_inches="tight")`.
+- Instance state used:
+  - `self.wavelength_m` drives the numbers. The default is `550e-9`. `DiffractionCalculator(wavelength=633e-9)` also sets it through the kwargs alias.
+  - `self.wavelength` (an alias of `wavelength_m`) is used for the title.
+
+## 3. Raises
+Order of operations: compute `airy_r`, then check `MATPLOTLIB_AVAILABLE`, then plot. So division errors happen even when matplotlib is missing.
+- **`aperture_diameter=0`** raises `ZeroDivisionError("float division by zero")`.
+  - It comes from `airy_disk_radius_um`, which computes `1.22*λ*f/D` with Python floats.
+  - Example: `DiffractionCalculator().plot_airy_disk(100, 0)`.
+- **`focal_length=0`** does not raise.
+  - numpy produces NaN with a RuntimeWarning, so the plot is meaningless.
+  - Avoid it in tests.
+- Errors from `savefig` (for example a bad directory) propagate from matplotlib.
+
+## 4. Returns and guarantees
+- Always returns `None`.
+- Computed values:
+  - `airy_r = 1.22 * wavelength_m * focal_length / aperture_diameter * 1e6`, in µm. Example: λ = 550 nm, f = 100, D = 10 gives `6.71`.
+  - `max_radius = 5 * airy_r`.
+  - The data comes from `self.airy_pattern(max_radius, focal_length, aperture_diameter)` with the default 1000 points.
+- Figure content (one Axes, `figsize=(10, 6)`):
+  - `lines[0]`: the curve `plot(r, np.real(intensity), "b-", linewidth=2)`.
+    - 1000 points; x runs from 0 to `5*airy_r`.
+    - y is normalized, so its max is `1.0` and `y[0]` ≈ 1.0. It has no label.
+  - `lines[1]`: `axvline(x=airy_r, color="r", linestyle="--", label=f"Airy disk radius = {airy_r:.2f} μm")`. Its xdata is `[airy_r, airy_r]`.
+  - `lines[2]`: `axhline(y=0.5, color="g", linestyle=":", alpha=0.5)`. Its ydata is `[0.5, 0.5]`.
+  - xlabel is `"Radius (μm)"` and ylabel is `"Normalized Intensity"` (µ here is U+03BC Greek mu, not the micro sign).
+  - Title template: `f"Airy Diffraction Pattern\n(f={focal_length}mm, D={aperture_diameter}mm, λ={self.wavelength*1e9:.0f}nm)"`. Example: `"Airy Diffraction Pattern\n(f=100mm, D=10mm, λ=550nm)"`.
+  - Grid is on with `alpha=0.3`.
+  - The legend has exactly one entry: `"Airy disk radius = 6.71 μm"` for the example above.
+
+## 5. Side effects
+- Creates a new pyplot figure.
+- Then calls `savefig` (writes a file at dpi 300) or `show`.
+- Finally calls `plt.close()`, which closes the current (new) figure. The count from `plt.get_fignums()` is unchanged afterwards.
+- No instance attributes are changed.
+
+## 6. Branches
+- **Matplotlib unavailable**:
+  - Triggered with `monkeypatch.setattr(openlens.diffraction, "MATPLOTLIB_AVAILABLE", False)`.
+  - Logs a WARNING on logger `"openlens.diffraction"` with the exact text: `"plot_airy_disk unavailable: matplotlib is not installed. Skipping."`
+  - Returns `None` without calling `airy_pattern` or any `plt` function.
+  - `airy_r` is still computed, so `aperture_diameter=0` still raises here.
+- **`save_path` truthy**: `plt.savefig(save_path, dpi=300, bbox_inches="tight")`. `plt.show` is not called.
+- **`save_path` is `None` or `""`**: `plt.show()`. `savefig` is not called.
+- `plt.close()` runs on both plotting paths.
+
+## 8. Testing hints
+- Use the non-GUI backend: `import matplotlib; matplotlib.use("Agg")` before importing pyplot.
+- File test:
+  - Call `calc.plot_airy_disk(100, 10, save_path=str(tmp_path/"a.png"))`.
+  - Assert the file exists and has size > 0, and the return value is `None`.
+- Inspecting the figure: it is closed before return, so capture it inside a patched `savefig`.
+  ```python
+  import openlens.diffraction as d
+  cap = {}
+  def fake_savefig(path, **kw):
+      fig = d.plt.gcf(); ax = fig.axes[0]
+      cap.update(kw=kw, path=path, title=ax.get_title(), xl=ax.get_xlabel(),
+                 lines=[(l.get_xdata(), l.get_ydata()) for l in ax.get_lines()],
+                 legend=[t.get_text() for t in ax.get_legend().get_texts()])
+  monkeypatch.setattr(d.plt, "savefig", fake_savefig)
+  d.DiffractionCalculator().plot_airy_disk(100, 10, save_path="x.png")
+  ```
+  Then assert:
+  - `kw == {"dpi": 300, "bbox_inches": "tight"}`.
+  - The title matches exactly.
+  - `len(lines[0][0]) == 1000`.
+  - `lines[0][0][-1]` ≈ `5*6.71` (use `pytest.approx`).
+  - `max(lines[0][1])` ≈ 1.0.
+  - `lines[1][0][0]` ≈ 6.71 and `lines[2][1][0] == 0.5`.
+- To confirm the show branch, patch `d.plt.show` with a counter, call with `save_path=None` (and again with `""`), and assert it was called once per call and `savefig` was not.
+- Use `pytest.approx` for numbers and exact strings for formatted labels.
+  - The `:.2f` and `:.0f` formatting removes float noise: `550e-9*1e9` becomes `550`.
+  - Other wavelengths: `633e-9` gives title `λ=633nm` and label `"Airy disk radius = 7.72 μm"` (f = 100, D = 10).
+- Pitfalls:
+  - Do not try to read the figure after the call returns; it is already closed.
+  - The curve line has no label, so do not expect two legend entries.
+  - `scipy.special.j1` or the numpy fallback may be used. The values are equal to roughly 1e-6, so use tolerances.
+
+### openlens.diffraction.DiffractionCalculator.plot_encircled_energy
+
+# Notes: `DiffractionCalculator.plot_encircled_energy(self, focal_length, aperture_diameter, save_path=None)`
+
+## 1. Purpose
+- Draws the analytic Airy encircled-energy curve (in %) with matplotlib.
+- Marks the Airy radius and the 50% / 80% points.
+- Then either saves the figure to `save_path` or calls `plt.show()`, and always closes it.
+- Returns `None`.
+
+## 2. Inputs
+- `focal_length` (mm) and `aperture_diameter` (mm): plain numbers, not validated.
+- They are passed unchanged to `self.encircled_energy(...)` and `self.airy_disk_radius(...)`.
+- They appear verbatim in the title via `{focal_length}`. So `100` renders as `f=100mm` and `100.0` renders as `f=100.0mm`.
+- `save_path`: optional. Its truthiness decides the branch:
+  - Truthy: `plt.savefig(save_path, dpi=300, bbox_inches="tight")`.
+  - `None` or `""`: `plt.show()`.
+- Wavelength comes from `self.wavelength_m` (default `550e-9`). The `wavelength` property is an alias, and the title uses `self.wavelength*1e9`.
+
+## 3. Raises
+- **Check order:**
+  1. `encircled_energy` is computed first, before the matplotlib check.
+  2. Then the `MATPLOTLIB_AVAILABLE` check.
+  3. Then `airy_disk_radius`.
+- `aperture_diameter=0` (int or float) raises `ZeroDivisionError("float division by zero")`.
+  - Source: `airy_disk_radius_um`, line `1.22*λ*f/D` with `D = 0/1000.0` (a Python float).
+  - It is raised from inside `encircled_energy`, because `max_radius_um` defaults to 5× the Airy radius.
+  - It is raised **even when matplotlib is unavailable**.
+  - Example: `DiffractionCalculator().plot_encircled_energy(100, 0)`.
+- `focal_length=0` does not raise in this module. Numpy array division gives NaN with a RuntimeWarning. Do not test this case.
+- An unwritable or nonexistent directory in `save_path` makes matplotlib's `savefig` raise (behaviour lives in matplotlib, not here).
+
+## 4. Returns and guarantees
+- Always returns `None`, on both the plotting and the skip path.
+- **Figure contents** (Axes = `plt.gca()` of the one figure, `figsize=(10, 6)`). `ax.get_lines()` holds 6 Line2D objects, in this order:
+  1. Curve: x = `r` (μm, 100 points from `encircled_energy` default `num_points=100`), y = `encircled*100`, colour `"b"`, linewidth 2.
+  2. `axvline(x=airy_r)`: colour `"r"`, linestyle `"--"`, label `f"Airy disk radius = {airy_r:.2f} μm"`.
+  3. `axhline(y=50)`: colour `"g"`, linestyle `":"`, alpha 0.5.
+  4. `axhline(y=80)`: colour `"orange"`, linestyle `":"`, alpha 0.5.
+  5. Marker `"go"` at `(r[idx_50], 50)`, markersize 8, label `f"50% @ {r[idx_50]:.2f} μm"`.
+  6. Orange `"o"` marker at `(r[idx_80], 80)`, label `f"80% @ {r[idx_80]:.2f} μm"`.
+- `idx_50 = np.argmin(np.abs(encircled - 0.5))`, and `idx_80` likewise with 0.8. These use the fractions, not the percentages.
+- Legend texts, in order: `["Airy disk radius = … μm", "50% @ … μm", "80% @ … μm"]`.
+- Labels and title:
+  - xlabel `"Radius (μm)"`.
+  - ylabel `"Encircled Energy (%)"`.
+  - Title `f"Encircled Energy Curve\n(f={focal_length}mm, D={aperture_diameter}mm, λ={self.wavelength*1e9:.0f}nm)"`.
+- Grid is on (alpha 0.3) and `ylim == (0, 105)`.
+- **Worked example:** default calculator, `f=100`, `D=10`.
+  - `airy_r = 6.71` μm, so the label is `"Airy disk radius = 6.71 μm"`.
+  - Title is `"Encircled Energy Curve\n(f=100mm, D=10mm, λ=550nm)"`.
+  - The curve's x data runs from 0 to about 33.55 (= 5·6.71); y[0] = 0.0.
+
+## 5. Side effects
+- Creates one pyplot figure and closes it with `plt.close()` (the current figure).
+- With a truthy `save_path`, writes that file.
+- `self` is not mutated and there is no global state.
+- On the skip path it logs a WARNING on logger `"openlens.diffraction"`, with the exact text `"plot_encircled_energy unavailable: matplotlib is not installed. Skipping."`.
+
+## 6. Branches
+- **`MATPLOTLIB_AVAILABLE` is False:** logs the warning and returns `None`. No figure is created and `airy_disk_radius` is not called, but `encircled_energy` already ran. Test with `monkeypatch.setattr(openlens.diffraction, "MATPLOTLIB_AVAILABLE", False)`.
+- **`save_path` truthy:** `savefig(save_path, dpi=300, bbox_inches="tight")` is called exactly once and `show` is not called. `close` is called once.
+- **`save_path` is `None` or `""`:** `show()` is called with no args, `savefig` is not called, then `close()`.
+
+## 7. Rules from comments / docstrings
+- The encircled-energy values are the closed form `EE = 1 - J0(v)^2 - J1(v)^2`, clipped to [0, 1].
+- The plotting extent (5× Airy radius) must not change the values.
+- EE at the first Airy zero ≈ 0.838, so the curve is not forced to 100% at the last sample. The last y is about 96–97%, not 100.
+
+## 8. Testing hints
+- Use a non-interactive backend: `import matplotlib; matplotlib.use("Agg")` before importing pyplot. Or monkeypatch `openlens.diffraction.plt.show` to a recorder; Agg's `show` may emit a UserWarning.
+- **To inspect the figure:** monkeypatch `openlens.diffraction.plt.savefig` (or `show`) with a fake that grabs `plt.gcf()` and reads it before `close` runs:
+  ```python
+  import openlens.diffraction as d, matplotlib.pyplot as plt
+  seen = {}
+  def fake_save(path, **kw):
+      seen["path"], seen["kw"], seen["ax"] = path, kw, plt.gcf().axes[0]
+  monkeypatch.setattr(d.plt, "savefig", fake_save)
+  d.DiffractionCalculator().plot_encircled_energy(100, 10, save_path="x.png")
+  assert seen["kw"] == {"dpi": 300, "bbox_inches": "tight"}
+  ax = seen["ax"]
+  assert ax.get_title().startswith("Encircled Energy Curve\n(f=100mm, D=10mm, λ=550nm)")
+  ```
+  - `ax.get_title()` returns the title string exactly.
+  - Compare `ax.get_ylim()` to `(0.0, 105.0)`.
+- **Recompute expected values** with `r, ee = calc.encircled_energy(100, 10)`:
+  - Curve x data equals `r`; y data equals `ee*100` (use `np.allclose`).
+  - Marker x data equals `[r[np.argmin(abs(ee-0.5))]]`.
+  - Don't hard-code those radii.
+- A real save into `tmp_path / "ee.png"` works; assert the file exists and is non-empty.
+- Mock `plt.close` to count calls; expect exactly 1 on both branches.
+- **Pitfalls:**
+  - The `μ` and `λ` characters are Unicode. Copy them exactly as `"μm"` and `"λ="`.
+  - Float formatting in the title depends on the input type (`100` vs `100.0`).
+  - Don't assert that the curve's last value is 100.
+  - Wavelength formatting is `:.0f`, so `632.8e-9` renders as `633nm`.
+  - Whether scipy is installed doesn't matter for these values (j0/j1 fallbacks agree to ~1e-10); use tolerances.
+
+### openlens.diffraction.DiffractionCalculator.plot_psf_2d
+
+# Notes: `openlens.diffraction.DiffractionCalculator.plot_psf_2d`
+
+## 1. Purpose
+- Draws a two-panel matplotlib figure: a 2D Airy PSF image on the left and its horizontal centre cross-section on the right.
+- It then saves the figure to a file or shows it, and closes it. It always returns `None`.
+
+## 2. Inputs
+- `self.wavelength_m`
+  - Set by `DiffractionCalculator(wavelength_m=550e-9)` or by the `wavelength=` kwarg.
+  - `self.wavelength` is an alias for it.
+- `focal_length` (mm), `aperture_diameter` (mm)
+  - Plain numbers. No validation is done.
+  - They are put into the suptitle with `str()` formatting: `100` gives `"100"`, `100.0` gives `"100.0"`.
+- `save_path: Optional[str] = None`
+  - Truthy: `plt.savefig(save_path, dpi=300, bbox_inches="tight")`.
+  - Falsy (`None` or `""`): `plt.show()`.
+
+## 3. Raises
+- `ZeroDivisionError` ("float division by zero") when `aperture_diameter=0`:
+  - `airy_r` is computed first as `1.22*λ*(f/1000)/(D/1000)*1e6`.
+  - This happens before the matplotlib check, so it raises even when matplotlib is unavailable.
+  - Example: `DiffractionCalculator().plot_psf_2d(100, 0)`.
+- There are no explicit `raise` statements. Any other errors come from numpy or matplotlib.
+
+## 4. Returns and guarantees
+- Always returns `None`.
+- Values for the default λ = 550e-9, f = 100, D = 10:
+  - `airy_r = 1.22*λ*f/D*1e6` = **6.71 µm**. Use `pytest.approx`.
+  - `size = 10*airy_r` = **67.1 µm**.
+- It calls `psf = self.point_spread_function_2d(size, focal_length, aperture_diameter)`:
+  - Arguments are positional, with default `pixels=256`.
+  - The result is a 256×256 array normalised so its max is 1.
+- Figure layout: `plt.subplots(1, 2, figsize=(14, 6))`. After the colorbar is added, `fig.axes == [ax1, ax2, colorbar_ax]`.
+- `ax1` (PSF image):
+  - `imshow(psf, extent=[-size/2, size/2, -size/2, size/2], cmap="hot", origin="lower")`.
+  - xlabel `"X (μm)"`, ylabel `"Y (μm)"`, title `"2D Point Spread Function"`.
+  - The colorbar label `"Normalized Intensity"` is the colorbar axes' ylabel.
+- `ax2` (cross-section):
+  - `ax2.lines[0]` is the profile `psf[psf.shape[0]//2, :]`, i.e. row 128. Its x-data is `np.linspace(-size/2, size/2, 256)`. Style is `"b-"`, linewidth 2.
+  - `ax2.lines[1]` is an axvline at `+airy_r`, red, dashed, label `f"Airy disk radius = {airy_r:.2f} μm"`. For the default case this is `"Airy disk radius = 6.71 μm"`.
+  - `ax2.lines[2]` is an axvline at `-airy_r`, red, dashed, with no label.
+  - xlabel `"Position (μm)"`, ylabel `"Normalized Intensity"`, title `"PSF Cross-Section"`.
+  - Grid is on (alpha 0.3). The legend has exactly 1 text, the Airy label.
+- Suptitle, exact template: `f"Point Spread Function Analysis\n(f={focal_length}mm, D={aperture_diameter}mm, λ={self.wavelength*1e9:.0f}nm)"`.
+  - For (100, 10) this gives `"Point Spread Function Analysis\n(f=100mm, D=10mm, λ=550nm)"`.
+  - For λ = 632.8e-9 the end is `"λ=633nm"`.
+- `plt.tight_layout()` runs before save or show. `plt.close()` closes the current figure at the end.
+
+## 5. Side effects
+- Writes a PNG/other file at `save_path`. The format comes from the file extension; dpi is 300.
+- Otherwise it calls `plt.show()`, which can block on an interactive backend.
+- It does not mutate `self`. No figure is left open afterwards.
+
+## 6. Branches and edge cases
+- **matplotlib missing** (`openlens.diffraction.MATPLOTLIB_AVAILABLE` is False):
+  - `airy_r` is still computed.
+  - Logs WARNING `"plot_psf_2d unavailable: matplotlib is not installed. Skipping."` on logger `"openlens.diffraction"`.
+  - Returns `None` without calling `point_spread_function_2d` or any `plt` function.
+- **`save_path` truthy**: `savefig` is called and `show` is not.
+- **`save_path` is `None` or `""`**: `show` is called and `savefig` is not.
+- `focal_length=0`: `size` becomes 0, giving a degenerate extent. Avoid this case; matplotlib behaviour is uncertain.
+
+## 7. Rules from comments/docstring
+- Both inputs are in mm. The plot extent is 10× the Airy radius, i.e. ±5 Airy radii.
+
+## 8. Testing hints
+- Setup:
+  - Use `pytest.importorskip("matplotlib")`.
+  - Force a non-GUI backend before importing openlens: `import matplotlib; matplotlib.use("Agg")`. Alternatively set `MPLBACKEND=Agg`.
+- Never let the real `plt.show()` run. Either pass `save_path=str(tmp_path/"psf.png")` or monkeypatch `openlens.diffraction.plt.show`.
+- To inspect the figure before `plt.close()`, patch `savefig` (or `show`) to grab `plt.gcf()`:
+  ```python
+  import openlens.diffraction as d
+  cap = {}
+  monkeypatch.setattr(d.plt, "savefig", lambda *a, **k: cap.update(fig=d.plt.gcf(), args=a, kw=k))
+  d.DiffractionCalculator().plot_psf_2d(100, 10, save_path="x.png")
+  fig = cap["fig"]
+  assert cap["args"] == ("x.png",)
+  assert cap["kw"] == {"dpi": 300, "bbox_inches": "tight"}
+  ```
+- What to check on the captured figure:
+  - `fig._suptitle.get_text()`.
+  - `fig.axes[0].images[0].get_extent()` ≈ `[-33.55, 33.55, -33.55, 33.55]`.
+  - `.get_cmap().name == "hot"`.
+  - `fig.axes[1].lines[1].get_xdata()[0]` ≈ 6.71.
+  - `fig.axes[1].get_legend().get_texts()[0].get_text()`.
+- Real save: pass `tmp_path/"psf.png"` and assert the file exists with size > 0.
+- Show branch: patch `show` and `savefig` with counters. With `save_path=None` or `""`, expect `show` once and `savefig` 0 times.
+- Spy on PSF arguments:
+  - `monkeypatch.setattr(calc, "point_spread_function_2d", fake)`.
+  - `fake` must return a 2D array such as `np.ones((256, 256))`, because `.shape[0]` and indexing are used.
+  - Assert it received `(approx 67.1, 100, 10)`.
+- Missing-matplotlib branch:
+  - `monkeypatch.setattr(d, "MATPLOTLIB_AVAILABLE", False)`.
+  - Use `caplog.at_level("WARNING", logger="openlens.diffraction")` and check the exact message.
+  - Make `point_spread_function_2d` raise to prove it is not called.
+- Pitfalls:
+  - Compare floats with `approx`.
+  - The labels contain the Unicode `μ` (U+03BC) and `λ`; copy them exactly.
+  - `plt.close()` runs after save or show, so do not inspect `plt.gcf()` after the call returns.
+
+Write pytest tests for these functions: openlens.diffraction.DiffractionCalculator.plot_airy_disk, openlens.diffraction.DiffractionCalculator.plot_encircled_energy, openlens.diffraction.DiffractionCalculator.plot_psf_2d.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.

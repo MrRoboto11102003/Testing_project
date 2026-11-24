@@ -1,0 +1,133 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.validation.check_physical_feasibility.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.validation.check_physical_feasibility
+def check_physical_feasibility(
+    radius1: float,
+    radius2: float,
+    thickness: float,
+    diameter: float,
+    is_parabolic_1: bool = False,
+    parabolic_sag_1: float = 0.0,
+    is_parabolic_2: bool = False,
+    parabolic_sag_2: float = 0.0,
+    clear_aperture_1: Optional[float] = None,
+    clear_aperture_2: Optional[float] = None,
+    conic_constant_1: float = 0.0,
+    conic_constant_2: float = 0.0,
+) -> Tuple[bool, Optional[str]]:
+    """
+    Check if lens parameters are physically feasible.
+
+    Args:
+        radius1: Front surface radius (mm)
+        radius2: Back surface radius (mm)
+        thickness: Center thickness (mm)
+        diameter: Lens diameter (mm)
+        is_parabolic_1: Whether the front surface is parabolic
+        parabolic_sag_1: Front parabolic sag at D/2 (mm)
+        is_parabolic_2: Whether the back surface is parabolic
+        parabolic_sag_2: Back parabolic sag at D/2 (mm)
+        clear_aperture_1: Front clear aperture diameter (mm), or None. Judged
+            at the radius the lens is actually polished to rather than at
+            diameter/2 - see Lens.get_manufacturing_radius.
+        clear_aperture_2: Back clear aperture diameter (mm), or None
+        conic_constant_1: Front conic constant K
+        conic_constant_2: Back conic constant K
+
+    Returns:
+        Tuple[bool, Optional[str]]: (is_feasible, warning_message)
+    """
+    warnings = []
+
+    # Hard geometric check via the single source of truth: probe the spec
+    # through Lens so rim/edge math cannot drift from the tracer or views.
+    # Thickness is the CENTER (vertex to vertex) thickness, so the VERTEX-
+    # correct edge is thickness - sag1 + sag2 (a plus-sign variant would
+    # reject valid concave lenses). Edge <= 0 means the surfaces intersect
+    # within the clear aperture; edge None means the aperture overhangs a
+    # surface (|R| < D/2, sag undefined).
+    hard_error = None
+    h = diameter / 2
+    try:
+        probe = Lens(
+            radius_of_curvature_1=radius1,
+            radius_of_curvature_2=radius2,
+            thickness=thickness,
+            diameter=diameter,
+            is_parabolic_1=is_parabolic_1,
+            parabolic_sag_1=parabolic_sag_1,
+            is_parabolic_2=is_parabolic_2,
+            parabolic_sag_2=parabolic_sag_2,
+            conic_constant_1=conic_constant_1,
+            conic_constant_2=conic_constant_2,
+            clear_aperture_1=clear_aperture_1,
+            clear_aperture_2=clear_aperture_2,
+        )
+        edge = probe.calculate_edge_thickness()
+    except Exception:
+        edge = None
+    if edge is None:
+        for r in (radius1, radius2):
+            if r is not None and math.isfinite(r) and abs(r) >= EPSILON and abs(h) > abs(r):
+                hard_error = (
+                    f"Aperture overhangs a surface (|R| = {abs(r):.1f}mm < "
+                    f"D/2 = {h:.1f}mm) - no real surface exists at the rim. "
+                    "Reduce the diameter or flatten the radii."
+                )
+                break
+        if hard_error is None:
+            hard_error = (
+                "Lens geometry is undefined for these parameters. "
+                "Reduce the diameter or flatten the radii."
+            )
+    elif edge <= 0:
+        hard_error = (
+            f"Surfaces intersect within the clear aperture (edge thickness "
+            f"{edge:.2f}mm <= 0). Increase center thickness, reduce diameter, "
+            "or flatten the radii."
+        )
+
+    # Soft floor: positive yet fragile rim (parabolic-aware via the probe).
+    if hard_error is None and edge is not None and edge < MIN_EDGE_THICKNESS:
+        warnings.append(
+            f"Edge thickness ({edge:.2f}mm) is below {MIN_EDGE_THICKNESS}mm. " "May be fragile."
+        )
+
+    min_radius = min(abs(radius1), abs(radius2))
+
+    # Check if thickness is reasonable compared to radii
+    if thickness > 0.5 * min_radius:
+        warnings.append(
+            f"Thickness ({thickness:.1f}mm) is very large compared to "
+            f"minimum radius ({min_radius:.1f}mm). Lens may be impractical."
+        )
+
+    # Check if diameter is reasonable compared to radii
+    if diameter > 0.8 * min_radius:
+        warnings.append(
+            f"Diameter ({diameter:.1f}mm) is large compared to "
+            f"minimum radius ({min_radius:.1f}mm). Edge effects may be significant."
+        )
+
+    # Check for very thin lenses relative to diameter
+    if thickness < 0.02 * diameter:
+        warnings.append(
+            f"Lens is very thin ({thickness:.1f}mm) relative to "
+            f"diameter ({diameter:.1f}mm). May be fragile."
+        )
+
+    if hard_error is not None:
+        if warnings:
+            return False, hard_error + " " + " ".join(warnings)
+        return False, hard_error
+
+    if warnings:
+        return False, " ".join(warnings)
+
+    return True, None

@@ -1,0 +1,212 @@
+{
+ "id": "openlens-pr415",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 113,
+  "units_kept": 56,
+  "chars": 77107,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 25610
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.73,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 4,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 13466,
+  "cache_read_input_tokens": 12724,
+  "output_tokens": 18045,
+  "output_tokens_details": {
+   "thinking_tokens": 16089
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 13466,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 18045,
+    "cache_read_input_tokens": 12724,
+    "cache_creation_input_tokens": 13466,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 13466
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.11843839999999999,
+ "model_seconds": 73.8,
+ "seconds": 81.7,
+ "tests": {
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_correct_shapes": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_deterministic_results": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_empty_system": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_grid_size_one_zero_intensity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_intensity_non_negative_finite": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamAdvanceQ::test_advance_q_divides_by_index_and_preserves_ray": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamAdvanceQ::test_advance_q_with_unit_index": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamRX::test_R_x_negative_real_part": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamRX::test_R_x_pure_imaginary_returns_infinity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamRX::test_R_x_specific_value": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamRX::test_R_x_zero_q_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamWX::test_w_x_at_waist": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamWX::test_w_x_zero_imaginary_returns_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamWY::test_w_y_at_waist": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamWY::test_w_y_zero_imaginary_returns_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam"
+   ]
+  }
+ }
+}

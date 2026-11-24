@@ -1,0 +1,182 @@
+{
+ "id": "openlens-pr515",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 50084
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.08,
+ "detected": true,
+ "n_tests": 13,
+ "n_catching": 12,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2491,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 10692,
+  "output_tokens_details": {
+   "thinking_tokens": 8003
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2491,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10692,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 2491,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2491
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0597426,
+ "model_seconds": 44.1,
+ "seconds": 49.7,
+ "tests": {
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_backward_compat_field_angle_deg": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_contains_all_major_sections": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_contains_lens_name_and_material": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_contains_system_name_and_element_count": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_custom_parameters_passed_correctly": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_default_parameters": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator",
+    "WAVELENGTH_GREEN"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_handles_all_none_values": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_handles_error_in_results": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_handles_inf_values": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_handles_mixed_valid_and_invalid_values": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_handles_nan_values": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_includes_specific_metrics_in_output": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_returns_string": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  }
+ }
+}

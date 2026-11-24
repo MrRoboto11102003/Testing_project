@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr547",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 474,
+ "issue_title": "Material catalog import rewrites materials.json once per glass (O(N^2)) and aborts on write failure",
+ "issue_body": "**Where:** `src/material_database.py:357-362`, `:666`, `:706`, `:627-628`, `:711-712`\n\n`add_material` calls `save_database()` (a full atomic JSON rewrite) per material, so importing N glasses rewrites the file N times. If a write fails (for example a read-only install path), the broad `except Exception` stops the import partway and returns an under-counted number after logging. Keys in the JSON file that are lowercase can't be found by `get_material`, which uppercases the name.\n\n**Fix:** add materials without saving during an import and save once at the end, let I/O errors reach the caller, and uppercase keys in `_load_database`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/474",
+ "pr": 547,
+ "pr_title": "fix(materials): save a catalog import once and surface write failures",
+ "pr_body": "## Description\n\nfix(materials): save a catalog import once and surface write failures\n\nThree defects in one path:\n\n1. **One full rewrite per glass.** `add_material` called `save_database()` on every call, and `save_database` is an atomic full-file rewrite (temp file + rename). Importing N glasses rewrote `materials.json` N times.\n2. **A failed write looked like a short import.** The importer's broad `except Exception` swallowed an I/O failure from the final write, logged it, and returned an under-counted number. On a read-only install path the user saw \"imported 3 of 10\" with nothing saying the catalog was never written.\n3. **Lower-case keys were unreachable.** `_load_database` stored JSON keys verbatim while `get_material` upper-cases the lookup, so a hand-edited `\"nbk7\"` key could never be found.\n\n### The fix\n\n- `add_material(material, save=True)` \u2014 the importers pass `save=False`, then save once after the loop, **outside** the parse guard, so a write error reaches the caller.\n- The AGF and CSV importers batch their writes; the per-row parse handling is unchanged.\n- Loaded materials are keyed by their uppercased name, matching `get_material`.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking)\n\n## Related Issues\n\nCloses #474\n\n## How Has This Been Tested?\n\n- [x] **7 new tests** in `tests/test_material_import_persistence.py`: one save for a 2-glass AGF import, one save for a 2-row CSV import, the single write contains the whole batch, `add_material` still saves by default, an AGF write failure propagates, a CSV write failure propagates, and a lower-case JSON key is loadable\n- [x] **Red before the fix**: `FAILED (failures=5)` \u2014 2 saves for 2 glasses, 2 saves for 2 rows, both write failures swallowed, lower-case key `None`\n- [x] `tests.test_material_import_persistence`, `tests.test_agf_import`, `tests.test_material_database_resilience`, `tests.test_material_database` \u2014 58 tests OK\n- [x] Full suite: `Ran 2249 tests`, `FAILED (errors=6)` \u2014 master (2242) plus the seven new tests; the six errors are the pre-existing `gui_flows` loader failures (pytest is not installed locally)\n- [x] `black --check` clean; `flake8` clean on the touched files\n",
+ "fix_commit": "be9327a9a7d57b288a83530130c49e70f7836da9",
+ "merged_at": "2026-10-19T18:45:37Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/material_database.py"
+ ],
+ "test_files": [
+  "tests/test_material_import_persistence.py"
+ ],
+ "target_symbols": [
+  "openlens/material_database.py::MaterialDatabase._load_database",
+  "openlens/material_database.py::MaterialDatabase._normalised_keys",
+  "openlens/material_database.py::MaterialDatabase._process_agf_glass",
+  "openlens/material_database.py::MaterialDatabase.add_material",
+  "openlens/material_database.py::MaterialDatabase.calculate_model_index",
+  "openlens/material_database.py::MaterialDatabase.export_material",
+  "openlens/material_database.py::MaterialDatabase.import_agf_catalog",
+  "openlens/material_database.py::MaterialDatabase.import_csv_catalog",
+  "openlens/material_database.py::MaterialDatabase.list_materials"
+ ],
+ "fail_to_pass": [
+  "tests/test_material_import_persistence.py::TestImportsSaveOnce::test_agf_import_writes_the_catalog_once",
+  "tests/test_material_import_persistence.py::TestImportsSaveOnce::test_csv_import_writes_the_catalog_once",
+  "tests/test_material_import_persistence.py::TestWriteFailuresReachTheCaller::test_agf_import_propagates_a_write_failure",
+  "tests/test_material_import_persistence.py::TestWriteFailuresReachTheCaller::test_csv_import_propagates_a_write_failure"
+ ],
+ "pass_to_pass": [
+  "tests/test_material_import_persistence.py::TestImportsSaveOnce::test_add_material_still_saves_by_default",
+  "tests/test_material_import_persistence.py::TestImportsSaveOnce::test_the_single_write_contains_the_whole_batch",
+  "tests/test_material_import_persistence.py::TestLowercaseKeysAreLoadable::test_a_lowercase_key_is_found_by_name"
+ ],
+ "patch_lines": 44
+}

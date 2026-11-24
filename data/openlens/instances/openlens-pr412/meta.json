@@ -1,0 +1,44 @@
+{
+ "id": "openlens-pr412",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 347,
+ "issue_title": "Unbounded merit cache plus a full `deepcopy` of the system per cache miss",
+ "issue_body": "**File:** `src/optimizer.py:646-654, 659`\n\n```python\ncache_key = tuple(round(v, 10) for v in values)\nself._merit_cache[cache_key] = merit\nsystem = copy.deepcopy(self.system)\n```\n\nEvery simplex vertex is a distinct point, so the hit rate is ~0 and the cache grows without bound for\nthe process lifetime while contributing nothing. Measured: 25 simplex iterations \u2192 37 cache entries,\n1.48 s, essentially all of it in `deepcopy` + the aberration/spot trace.\n\n**Fix:** drop the cache (or bound it with an LRU), and mutate a single reusable system in place\ninstead of deep-copying per evaluation \u2014 `_apply_variables` is the only thing that needs the copy\n(for the *returned* result), not the merit evaluation.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/347",
+ "pr": 412,
+ "pr_title": "fix(optimizer): bound the merit cache",
+ "pr_body": "Closes #347\n\n## Problem\n\n`_evaluate_design` cached every design it saw in a plain dict that lived for the process lifetime:\n\n```python\ncache_key = tuple(round(v, 10) for v in values)\nif cache_key in self._merit_cache:\n    merit = self._merit_cache[cache_key]\nelse:\n    ...\n    self._merit_cache[cache_key] = merit\n```\n\nEvery simplex vertex is a distinct point, so the hit rate there is only ~12% \u2014 25 simplex iterations left **59 entries**, growing forever.\n\n## I bounded it rather than dropping it\n\nThe issue offers \"drop the cache (or bound it with an LRU)\". Dropping it would cost real evaluations, because the hit rate is **not** zero:\n\n```\nsimplex            12%\ngradient descent   33%\n```\n\nGradient descent re-evaluates the same point when it backtracks to a smaller step, and simplex shrink re-evaluates the best vertex.\n\nSo: capped at `MERIT_CACHE_MAX` (4096) with **FIFO** eviction \u2014 dicts preserve insertion order, so the oldest key is first, and a precise LRU would cost more bookkeeping than it saves at this hit rate.\n\nThe lookup also became a single `.get`, which must be `is not None` rather than truthy \u2014 a merit of `0.0` is a real merit. A test pins that.\n\n## I declined the other suggestion, because the measurement doesn't support it\n\nThe issue attributes most of the evaluation cost to `deepcopy`. Measured over 25 evaluations:\n\n```\n25 evaluations      : 0.954 s\n25 deepcopies alone : 0.003 s   (0.3%)\n```\n\nThe cost is the **aberration and spot trace**, not the copy. Reusing a single system would save ~0.3% while introducing aliasing between the scratch system and `merit_function`'s own reference. A test asserts the copy stays a small fraction of evaluation time, so the claim stays honest if that ratio ever changes.\n\n## Tests\n\n12 tests, **4 fail without the change**: the cap holds under 200 distinct evaluations and under a full simplex run, the cap is the documented class default, FIFO evicts the oldest key, and recent entries survive. Others confirm hits still work, a cached value equals a fresh computation, and similar-but-distinct designs are not confused.\n",
+ "fix_commit": "f8ff0d185b2e3fa8a89541a281f23138510b57bf",
+ "merged_at": "2026-10-06T21:25:51Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_optimizer_merit_cache_bound.py"
+ ],
+ "target_symbols": [
+  "openlens/optimizer.py::LensOptimizer.__init__",
+  "openlens/optimizer.py::LensOptimizer._apply_variables",
+  "openlens/optimizer.py::LensOptimizer._evaluate_design"
+ ],
+ "fail_to_pass": [
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheIsBounded::test_a_simplex_run_stays_bounded",
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheIsBounded::test_cap_is_the_class_default",
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheIsBounded::test_distinct_evaluations_do_not_exceed_the_cap",
+  "tests/test_optimizer_merit_cache_bound.py::TestEvictionPolicy::test_oldest_entry_is_evicted_first"
+ ],
+ "pass_to_pass": [
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheIsBounded::test_cache_never_exceeds_the_cap_under_repetition",
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheIsBounded::test_zero_merit_is_cached_rather_than_treated_as_a_miss",
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheStillWorks::test_cached_value_equals_a_fresh_computation",
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheStillWorks::test_optimization_results_are_unchanged",
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheStillWorks::test_repeat_evaluation_is_a_hit",
+  "tests/test_optimizer_merit_cache_bound.py::TestCacheStillWorks::test_similar_but_distinct_designs_are_not_confused",
+  "tests/test_optimizer_merit_cache_bound.py::TestDeepcopyCostIsNotTheBottleneck::test_deepcopy_is_a_small_fraction_of_evaluation_time",
+  "tests/test_optimizer_merit_cache_bound.py::TestEvictionPolicy::test_eviction_keeps_recently_used_entries"
+ ],
+ "patch_lines": 25
+}

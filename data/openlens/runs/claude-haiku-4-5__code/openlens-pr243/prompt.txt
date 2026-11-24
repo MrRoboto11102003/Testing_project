@@ -1,0 +1,18 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.optical_system.OpticalSystem.calculate_back_focal_length.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.optical_system.OpticalSystem.calculate_back_focal_length
+    def calculate_back_focal_length(self, n_overrides=None) -> Optional[float]:
+        """Calculate Back Focal Length (BFL) of the system."""
+        matrix = self._calculate_system_matrix(n_overrides=n_overrides)
+        if not matrix:
+            return None
+        A, B, C, D = matrix
+        if abs(C) < 1e-10:
+            return None
+        return -A / C

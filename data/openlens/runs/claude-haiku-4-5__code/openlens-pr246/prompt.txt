@@ -1,0 +1,97 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.tracer_2d.LensRayTracer.trace_parallel_rays, openlens.tracer_2d.SystemRayTracer.trace_parallel_rays.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.tracer_2d.LensRayTracer.trace_parallel_rays
+    def trace_parallel_rays(
+        self,
+        num_rays: int = DEFAULT_NUM_RAYS,
+        ray_height_range: Optional[Tuple[float, float]] = None,
+        wavelength_mm: float = WAVELENGTH_GREEN * NM_TO_MM,
+        angle_deg: float = 0.0,
+        fill: float = 1.0,
+    ) -> List[Ray]:
+        """Trace parallel rays (collimated beam) through the lens.
+
+        Args:
+            fill: Fraction of the semi-aperture spanned by the fan when
+                ``ray_height_range`` is omitted. Defaults to the full
+                aperture so rim spherical aberration is traced; pass the
+                legacy viz-style ``APERTURE_FILL_FACTOR`` (0.95) explicitly
+                for display fans.
+        """
+        if ray_height_range is None:
+            max_height = self.D / 2 * fill
+            ray_height_range = (-max_height, max_height)
+
+        rays = []
+        min_h, max_h = ray_height_range
+        angle_rad = math.radians(angle_deg)
+        # The bundle is referenced to the front vertex, not to the origin. With
+        # lens_x hard-coded to 0.0 a lens placed anywhere else had its
+        # back-projection computed against the wrong plane, so it received the
+        # fan at the wrong heights: a 0-height 5 deg ray for a lens at
+        # x_offset=50 arrived at y=4.3744 mm instead of on axis. The start
+        # plane moves with the vertex so the ray still begins in front of it.
+        lens_x = self.front_vertex_x
+        start_x = lens_x - RAY_START_OFFSET_MM
+
+        for i in range(num_rays):
+            if num_rays == 1:
+                height = 0
+            else:
+                height = min_h + (max_h - min_h) * i / (num_rays - 1)
+
+            y_start = height - (lens_x - start_x) * math.tan(angle_rad)
+            ray = Ray(start_x, y_start, angle_rad, wavelength_mm=wavelength_mm)
+            self.trace_ray(ray)
+            rays.append(ray)
+
+        return rays
+
+# openlens.tracer_2d.SystemRayTracer.trace_parallel_rays
+    def trace_parallel_rays(
+        self,
+        num_rays: int = DEFAULT_NUM_RAYS,
+        angle_deg: float = 0.0,
+        wavelength_mm: float = WAVELENGTH_GREEN * NM_TO_MM,
+        fill: float = 1.0,
+    ) -> List[Ray]:
+        """Trace parallel rays through the entire optical system.
+
+        Args:
+            fill: Fraction of the entrance-pupil semi-aperture spanned by
+                the fan. Defaults to the full aperture; pass the legacy
+                viz-style ``APERTURE_FILL_FACTOR`` (0.95) explicitly for
+                display fans.
+        """
+        if not self.system.elements:
+            return []
+
+        self._sync_tracers()
+
+        first_lens = self.system.elements[0].lens
+        max_height = first_lens.diameter / 2 * fill
+        min_h, max_h = -max_height, max_height
+
+        rays = []
+        angle_rad = math.radians(angle_deg)
+        first_pos = self.system.elements[0].position
+        start_x = first_pos - RAY_START_OFFSET_MM
+
+        for i in range(num_rays):
+            if num_rays == 1:
+                height = 0
+            else:
+                height = min_h + (max_h - min_h) * i / (num_rays - 1)
+
+            y_start = height - (first_pos - start_x) * math.tan(angle_rad)
+            ray = Ray(start_x, y_start, angle_rad, wavelength_mm=wavelength_mm)
+            self._trace_ray_through_system(ray)
+            rays.append(ray)
+
+        return rays

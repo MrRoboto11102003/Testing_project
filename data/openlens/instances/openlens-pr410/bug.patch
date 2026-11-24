@@ -1,0 +1,21 @@
+diff --git a/openlens/global_optimizer.py b/openlens/global_optimizer.py
+index babc4d7234b901fc96b03524ab4a596cc9265b3a..b67d35a655cb4c83d3c8a5cd880b47bab0fab196 100644
+--- a/openlens/global_optimizer.py
++++ b/openlens/global_optimizer.py
+@@ -3,7 +3,6 @@ Global Optimization Algorithms for Optical Systems.
+ Includes Simulated Annealing and Differential Evolution.
+ """
+ 
+-import logging
+ import math
+ import random
+ from typing import List, Dict, Optional, Callable
+@@ -16,8 +15,6 @@ from .optimizer import (
+ )
+ from .optical_system import OpticalSystem
+ 
+-logger = logging.getLogger(__name__)
+-
+ 
+ class GlobalOptimizer(LensOptimizer):
+     """

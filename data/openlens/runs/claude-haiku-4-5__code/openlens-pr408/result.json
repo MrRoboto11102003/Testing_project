@@ -1,0 +1,163 @@
+{
+ "id": "openlens-pr408",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code",
+ "context": {
+  "mode": "code",
+  "chars": 4487
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": null,
+ "mean_arnio_calls": 0.21,
+ "detected": false,
+ "n_tests": 14,
+ "n_catching": 0,
+ "n_false_alarms": 14,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2067,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10812,
+  "output_tokens_details": {
+   "thinking_tokens": 8195
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2067,
+    "output_tokens": 10812,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.056127,
+ "model_seconds": 52.1,
+ "seconds": 58.8,
+ "tests": {
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_backtracking_handles_large_learning_rate": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_basic_convergence": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_convergence_with_large_tolerance": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_history_consistency": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_improvement_calculation_with_positive_merit": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_improvement_zero_when_initial_merit_zero": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_invalid_variables_in_result": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_learning_rate_affects_convergence_speed": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_max_iterations_respected": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_merit_monotonically_decreases": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_result_object_has_all_fields": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_stalling_on_zero_gradient": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_tolerance_affects_final_merit": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr408.py::TestOptimizeGradientDescent::test_variable_history_structure": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

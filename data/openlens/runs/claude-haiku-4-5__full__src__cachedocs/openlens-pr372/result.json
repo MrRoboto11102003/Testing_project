@@ -1,0 +1,169 @@
+{
+ "id": "openlens-pr372",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 109,
+  "chars": 87249
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.0,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 2,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1955,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 9587,
+  "output_tokens_details": {
+   "thinking_tokens": 7528
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1955,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9587,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 1955,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1955
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0543242,
+ "model_seconds": 43.1,
+ "seconds": 47.2,
+ "tests": {
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_abbe_numbers_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_achromatism_condition": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_crown_element_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_dictionary_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_error_message_contains_guidance": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_flint_element_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_focal_length_reciprocal": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_material_names_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_multiple_focal_lengths": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_power_sum_condition": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_powers_opposite_signs": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_refractive_indices_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_returns_dictionary": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_same_abbe_number_raises_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr372.py::TestDesignAchromaticDoublet::test_total_focal_length_matches_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

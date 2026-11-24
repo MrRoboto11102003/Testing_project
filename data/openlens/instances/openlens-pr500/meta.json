@@ -1,0 +1,43 @@
+{
+ "id": "openlens-pr500",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 440,
+ "issue_title": "Lens.refractive_index_at() ignores an explicit refractive_index for materials not in the catalog",
+ "issue_body": "**Where:** `src/lens.py:399-415`\n\nWhen the material database is available, `refractive_index_at()` accepts its BK7 fallback even for a material that is not in the catalog. Wavelength-dependent calculations then use a different index from the one stored and used by the tracer.\n\n**Repro:** `Lens(material=\"Custom\", refractive_index=1.7).refractive_index_at(587.6)` returns `1.5168`.\n\n**Fix:** check that the material exists before querying; otherwise keep the stored index (optionally with a Cauchy/Abbe model).",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/440",
+ "pr": 500,
+ "pr_title": "fix(analysis): do not invent a refractive index for an unknown material",
+ "pr_body": "## Description\n\nfix(analysis): do not invent a refractive index for an unknown material\n\n`refractive_index_at` queried the material database for whatever string the lens\ncarried. When the material is not in the catalog, the lookup falls back to a\n**BK7 default** and returns it \u2014 so a lens explicitly given its own index came\nback with a different one:\n\n```python\nLens(material=\"Custom\", refractive_index=1.7).refractive_index_at(587.6)\n# -> 1.5168, not 1.7\n```\n\nThe stored index is what the tracer uses, so the wavelength-dependent numbers\nand the geometry disagreed: a lens built to a stated index of 1.7 was analysed\nas if it were 1.5168.\n\nThe catalog is now only asked about a material it actually has. An unknown\nmaterial keeps the index the lens was given, **at every wavelength**.\n\nKnown glasses are unaffected: BK7 still comes from the Sellmeier data, still\ndisperses, and model-glass mode still computes from `nd`/`vd` rather than from\nthe catalog.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #440\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      confirmed, the pre-fix run produced\n      `AssertionError: 1.5168 != 1.7 within 6 places`\n- [x] Verified by reverting **only** the existence check: **4 of 5 fail, 5 of 5\n      pass** with it restored\n- [x] `python3 -m unittest tests.test_refractive_index_at` \u2014 5 tests, OK\n- [x] `python3 -m unittest tests.test_refractive_index_at tests.test_lens_menu tests.test_aberrations tests.test_chromatic_analyzer tests.test_ray_tracer tests.test_material_database` \u2014 140 tests, OK\n- [x] Full suite: `Ran 1686 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 218 files unchanged\n- [x] `flake8 src/lens.py tests/test_refractive_index_at.py` \u2014 no new findings.\n      The `E402` in `lens.py` is pre-existing (verified against\n      `git show master:src/lens.py`)\n- [x] Coverage includes: an explicit index kept at the d-line, the same at the F\n      and C lines (not just one wavelength), a known material still coming from\n      the catalog, a known material still dispersing (blue above red), and\n      model-glass mode being unaffected\n\n### Note on the \"at every wavelength\" case\n\nThe fix is not only about the d-line. Before it, an unknown material returned\nthe BK7 fallback at *every* wavelength, so a dispersion calculation over an\nunknown glass silently produced BK7's dispersion. The test pins three\nwavelengths for that reason.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "5954d607eb6a07f59441a9aa6cb64a445040e7a9",
+ "merged_at": "2026-10-17T17:58:46Z",
+ "port_method": "partial_hunks:1/2",
+ "src_files": [
+  "openlens/lens.py",
+  "openlens/optical_system.py"
+ ],
+ "test_files": [
+  "tests/test_refractive_index_at.py",
+  "tests/test_refresh_references.py"
+ ],
+ "target_symbols": [
+  "openlens/optical_system.py::OpticalSystem._rebuild_from_tree",
+  "openlens/optical_system.py::OpticalSystem.refresh_references"
+ ],
+ "fail_to_pass": [
+  "tests/test_refresh_references.py::TestRefreshReferencesUpdatesTheTree::test_a_multi_element_system_refreshes_every_node",
+  "tests/test_refresh_references.py::TestRefreshReferencesUpdatesTheTree::test_the_flat_list_and_the_tree_agree",
+  "tests/test_refresh_references.py::TestRefreshReferencesUpdatesTheTree::test_the_tree_node_gets_the_new_lens"
+ ],
+ "pass_to_pass": [
+  "tests/test_refractive_index_at.py::TestUnknownMaterialKeepsItsIndex::test_a_known_material_keeps_its_dispersion",
+  "tests/test_refractive_index_at.py::TestUnknownMaterialKeepsItsIndex::test_a_known_material_still_uses_the_catalog",
+  "tests/test_refractive_index_at.py::TestUnknownMaterialKeepsItsIndex::test_an_explicit_index_is_kept",
+  "tests/test_refractive_index_at.py::TestUnknownMaterialKeepsItsIndex::test_model_glass_mode_is_unaffected",
+  "tests/test_refractive_index_at.py::TestUnknownMaterialKeepsItsIndex::test_the_index_is_kept_at_every_wavelength",
+  "tests/test_refresh_references.py::TestRefreshReferencesUpdatesTheTree::test_positions_are_still_consistent_after_a_refresh",
+  "tests/test_refresh_references.py::TestRefreshReferencesUpdatesTheTree::test_the_replacement_thickness_is_used"
+ ],
+ "patch_lines": 14
+}

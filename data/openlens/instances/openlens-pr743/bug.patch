@@ -1,0 +1,17 @@
+diff --git a/openlens/seed_data.py b/openlens/seed_data.py
+index 9b86478691a08cd43bfa586e6a747ff0b677ac75..8713dc545c2c399068324fb47cae476fdec4f6cf 100644
+--- a/openlens/seed_data.py
++++ b/openlens/seed_data.py
+@@ -282,11 +282,7 @@ def ensure_nikon_series_e_example(db_or_path: Union[str, Any]) -> bool:
+                     for i, lens_dict in enumerate(lens_list)
+                 ],
+                 "air_gaps": [
+-                    # positions[i + 1] is the station after this gap, so the
+-                    # gap starts one gap-thickness before it - the same
+-                    # new_pos - air_gap_before arithmetic as add_lens().
+-                    {"thickness": gap, "position": positions[i + 1] - gap}
+-                    for i, gap in enumerate(NIKON_SERIES_E_AIR_GAPS)
++                    {"thickness": gap, "position": 0.0} for gap in NIKON_SERIES_E_AIR_GAPS
+                 ],
+             }
+             db.save_assembly(assembly_dict)

@@ -1,0 +1,121 @@
+# Notes: `AberrationsCalculator.get_aberration_summary`
+
+## 1. Purpose
+- Runs `self.calculate_all_aberrations(...)` and formats the result as a fixed multi-line box-drawing text report.
+- If the result dict contains `"error"`, it returns a one-line `"Error: ..."` string instead.
+
+## 2. Inputs
+- `object_distance=None`. Passed **positionally** as `object_distance_mm`. Any non-None value raises (see Raises).
+- `field_angle=5.0`. Used for the **labels** `Coma (@ {field_angle}°)` etc. Formatted with plain `str()`:
+  - `5.0` gives `5.0`
+  - `5` (int) gives `5`
+  - `-10.0` gives `-10.0`
+- `wavelength_nm=WAVELENGTH_GREEN` (constant from `openlens.constants`). Forwarded as `wavelength_nm=`.
+- `**kwargs`: only `field_angle_deg` is read. `field_angle_deg = kwargs.get("field_angle_deg", field_angle)` is the angle actually **computed**. Other kwargs are silently ignored.
+  - Quirk: the label still prints `field_angle`. For example, `get_aberration_summary(field_angle_deg=10)` computes at 10° but the text says `(@ 5.0°)`.
+- Exact call made: `self.calculate_all_aberrations(object_distance, field_angle_deg, wavelength_nm=wavelength_nm)`.
+
+## 3. Raises
+- `ValueError` when `object_distance` is not None. It comes from the inner calculation and is not caught. For example, `calc.get_aberration_summary(100.0)` raises with this message (note the `!r`):
+  `"object distance is not supported: got 100.0 mm. Every aberration here is computed for an object at infinity; pass object_distance_mm=None for that case."`
+  - Use `pytest.raises(ValueError, match="object distance is not supported")`.
+  - This check happens before the focal-length or error branch.
+  - Lens indices are still restored (the restore is in a `finally` block).
+- Format failures on None or NaN values are deliberately avoided; see the helpers below.
+
+## 4. Returns
+- Always returns a `str`.
+- **Error branch:** if `results.get("error")` is truthy, it returns exactly `f"Error: {results['error']}"`.
+  - For zero focal length this is `"Error: Cannot calculate focal length (zero optical power)"`.
+  - Whether a given `Lens` has `calculate_focal_length() is None` depends on `lens.py` (not shown). Force it instead: `calc.lens.calculate_focal_length = lambda: None`.
+- **Normal branch:** the report starts with `"\n"` and ends with `"\n"`.
+  - Header line: `║              LENS ABERRATIONS ANALYSIS                        ║`
+  - Then `║ Lens: {name:<52} ║` and `║ Material: {material:<48} ║`. Names are left-padded but never truncated.
+  - Section titles: `BASIC PARAMETERS`, `PRIMARY ABERRATIONS (Seidel)`, `CHROMATIC ABERRATION`, `INTERPRETATION:`.
+- Single-lens target: `name = lens.name`, `material = lens.material`.
+- System target: `name = f"{system.name} ({len(elements)} elements)"` and `material = "-"`.
+  - Example: `"Optical System (1 elements)"`. The plural is not fixed for 1.
+- Metric lines use `_metric(key, spec, suffix)`:
+  - Value present: `f"{value:>10{spec}}{suffix}"`.
+  - Value None or a non-finite float (NaN, inf): `"unavailable" + suffix`. The word is 11 chars, so there is no padding.
+
+| key | spec | suffix |
+|---|---|---|
+| focal_length | .2f | ` mm` |
+| f_number | .2f | (none) |
+| numerical_aperture | .4f | (none) |
+| airy_disk_diameter | .6f | ` mm (diffraction limit)` |
+| spherical | .4f | ` mm (longitudinal)` |
+| coma | .4f | ` (relative)` |
+| astigmatism | .4f | ` mm` |
+| field_curvature | .2f | ` mm (tangential focus shift)` |
+| distortion | .4f | ` %` |
+| chromatic | .4f | ` mm (focal shift)` |
+
+- Examples:
+  - `100.0` formats as `"    100.00 mm"`.
+  - `-0.0123` with .4f formats as `"   -0.0123 mm (longitudinal)"`. The sign is kept.
+  - Missing NA gives `"unavailable"`.
+- Interpretation block (text lines; the detail line has a 2-space indent):
+  ```
+  • Spherical Aberration: {trend}\n  {detail}
+  • Chromatic Aberration: {trend}\n  {detail}
+  • Distortion: {trend}\n  {detail}
+  • Resolution Limit: {detail}
+  ```
+- `_trend(key, low, high)` uses `abs(v)`:
+  - `abs(v) < low` gives label 0, `< high` gives label 1, otherwise label 2.
+  - None or non-finite gives `"unavailable"`.
+  - Spherical: bounds (0.001, 0.01), labels Negligible / Moderate / Significant.
+  - Chromatic: bounds (0.1, 0.5), same labels.
+  - Distortion: bounds (0.1, 1e9), labels `['None','None','Present']`. Any finite distortion below 1e9 therefore gives `"None"`.
+- `_detail(key, spec, suffix)` gives `f"({abs(v):{spec}} {suffix})"`:
+  - spherical / chromatic: `.4f`, `mm`, e.g. `(0.0123 mm)`. This is the **abs** value.
+  - distortion: `.2f`, `%`, e.g. `(0.50 %)`.
+  - airy: `.2f`, `um`. The value is in **mm** and is **not** converted, so 0.0013 mm prints `(0.00 um)`.
+  - None or non-finite: `"(mm unavailable)"`, `"(% unavailable)"`, `"(um unavailable)"`.
+
+## 5. Side effects
+- Lens `wavelength` and `refractive_index` are temporarily changed to `wavelength_nm` and then restored. Tests can assert they are equal before and after.
+- `self._field_cache` and `self._strehl_cache` get populated, so repeated calls give identical text.
+- No files are written.
+
+## 6. Branches / edge cases
+- `object_distance` not None raises `ValueError`.
+- Error result returns the one-line `"Error: ..."` string.
+- System target uses the `(N elements)` name and `-` for material.
+- On-axis singlet (`field_angle_deg` 0): coma and astigmatism are exactly 0.0, which prints `    0.0000 (relative)` and `    0.0000 mm`.
+- A failed trace gives None for that metric, which prints `unavailable`. Other lines are unaffected.
+- `_metric` checks `isinstance(value, float)`, so numpy float64 NaN also prints `unavailable`.
+
+## 7. Rules from comments
+- None must render as "unavailable" rather than crash with a `TypeError` or show a fictional 0.
+- A system target must not touch `self.lens`. Before the fix this raised `AttributeError`.
+
+## 8. Testing hints
+- **Most robust approach:** stub the inner call on the instance, then assert exact substrings.
+  ```python
+  calc = AberrationsCalculator(Lens(name="L1"))
+  calc.calculate_all_aberrations = lambda od, fa, wavelength_nm=None: {
+      "focal_length": 100.0, "f_number": 4.0, "numerical_aperture": 0.125,
+      "airy_disk_diameter": 0.0013, "spherical": -0.005, "coma": None,
+      "astigmatism": 0.02, "field_curvature": float("nan"),
+      "distortion": 0.5, "chromatic": 0.3}
+  s = calc.get_aberration_summary()
+  # Expect these substrings in s:
+  #   "    100.00 mm", "      4.00", "    0.1250", "  0.001300 mm (diffraction limit)"
+  #   "   -0.0050 mm (longitudinal)", "unavailable (relative)",
+  #   "unavailable mm (tangential focus shift)", "• Spherical Aberration: Moderate",
+  #   "(0.0050 mm)", "• Chromatic Aberration: Moderate", "(0.3000 mm)",
+  #   "• Distortion: None", "(0.50 %)", "• Resolution Limit: (0.00 um)", "Lens: L1"
+  ```
+- Stub with `{"error": "boom"}` and expect the result to equal `"Error: boom"` exactly.
+- Record the stub's arguments to check forwarding:
+  - `get_aberration_summary(None, 3.0, 600.0, field_angle_deg=7.0)` should forward `fa == 7.0` and `wavelength_nm == 600.0`.
+  - The text should contain `(@ 3.0°)`.
+- Real-lens test: compare against `r = calc.calculate_all_aberrations(None, 5.0, wavelength_nm=W)` and check that `f"{r['focal_length']:>10.2f} mm"` is in the summary. Do not hardcode physics values.
+- **Pitfalls:**
+  - Do not assert full lines or trailing padding; column widths vary.
+  - `°` and `║` are non-ASCII characters.
+  - `s.startswith("\n")` is true.
+  - For a single lens, the material defaults to `"BK7"`.

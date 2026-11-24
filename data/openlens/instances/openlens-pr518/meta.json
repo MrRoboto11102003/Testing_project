@@ -1,0 +1,61 @@
+{
+ "id": "openlens-pr518",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 449,
+ "issue_title": "Geometric PSF/MTF silently drops rays outside a fixed 0.256 mm window and over-reports MTF",
+ "issue_body": "**Where:** `src/analysis/psf_mtf.py:180-191`, `:345-357`\n\n`histogram2d` discards rays outside the bins, and the image is normalised by the binned sum rather than the number of rays. For any spot larger than about 0.13 mm radius, the MTF describes only the truncated core and is too optimistic.\n\n**Repro:** at 2 mm defocus on the doublet (RMS spot 0.537 mm), only 8.9% of 1387 rays land inside the window, yet the normalised image still sums to 1.0.\n\n**Fix:** size the window from the geometric radius (e.g. 2.2x) and set the pixel size from `max_freq`; at least normalise by `len(points)` and warn when energy is lost.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/449",
+ "pr": 518,
+ "pr_title": "fix(analysis): stop the geometric PSF from discarding rays silently",
+ "pr_body": "## Description\n\nfix(analysis): stop the geometric PSF from discarding rays silently\n\n`histogram2d` throws away points outside the bins, and the resulting image was\nnormalised by the **binned** sum \u2014 so it always summed to 1.0 however much light\nhad been dropped. The window was a fixed `0.2 mm` (and the MTF branch a fixed\n`0.256 mm` with 128 pixels), so any spot wider than about 0.1 mm radius lost most\nof its energy, and the MTF then described only the **clipped core**.\n\nAt 2 mm defocus on the doublet the RMS spot is 0.537 mm, only **8.9% of 1387 rays**\nlanded inside the window, yet the image still summed to 1.0 and the MTF was flat.\n\n### Changes\n\n- **The window grows to cover the spot the tracer produced** \u2014 2.2 RMS radii,\n  which encloses a Gaussian spot \u2014 with the requested sensor size as a floor and\n  a cap so a pathological spot cannot exhaust memory.\n- **The image is normalised by the number of rays traced**, not by the binned sum,\n  and the shortfall is reported as `captured_fraction` and logged.\n- `captured_fraction` joined `PSF_KEYS`, so all three branches owe it.\n- **The geometric MTF sizes its window the same way and derives the pixel count\n  from it** at ~2 \u00b5m. Fixing the window while leaving 128 pixels fixed would have\n  kept the clipping away but coarsened the sampling \u2014 trading one wrong answer for\n  another.\n\n## This PR broke one of my own earlier tests, correctly\n\n`tests/test_diffraction_defocus` measured the PSF's second moment **in pixel\nunits**. Once the window became adaptive, a wider spot spanned fewer pixels \u2014 so\nthe metric was reporting the *zoom*, not the blur, and the defocused PSF came out\n**narrower** than the in-focus one.\n\n\"Is the defocused spot wider\" is a statement about shape, so it now measures in mm\nand normalises first. Verified by reverting to the pixel-unit version: it fails.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #449\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **each part separately**:\n\n  | Reverted | Failures |\n  | --- | --- |\n  | the geometric PSF window sizing | 3 of 17 |\n  | normalisation by ray count | 1 of 17 |\n  | the MTF window and pixel count | 0 of 17 \u26a0\ufe0f |\n\n- [x] `python3 -m unittest tests.test_geometric_psf_truncation` \u2014 17 tests, OK\n- [x] `python3 -m unittest tests.test_geometric_psf_truncation tests.test_diffraction_defocus tests.test_encircled_energy tests.test_psf_mtf` \u2014 46 tests, OK after rebasing onto the merged #517\n- [x] `python3 -m unittest tests.test_psf_mtf tests.test_psf_result_contract tests.test_image_simulator_api tests.test_mtf_no_dead_code` \u2014 62 tests, OK\n- [x] Full suite: `Ran 1836 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 230 files unchanged\n- [x] `flake8 tests/test_geometric_psf_truncation.py` \u2014 clean\n\n### The \u26a0\ufe0f row, stated plainly\n\n**The MTF window and pixel-count change has no test that distinguishes it.** Reverting\nit leaves all 17 tests green. It is covered only indirectly, by the pixel-unit\nmetric fix above \u2014 with the old fixed window the geometry was less wrong, not right.\n\nI kept it because fixing the window without fixing the sampling would be actively\nharmful: the clipping would be gone but the MTF resolution would have silently\ndropped. But it should be read as a correction for a problem this change *creates*,\nnot as a verified fix on its own, and it deserves a test that actually pins the\nsampling.\n\n### Two of my assertions were wrong before the fix\n\n- **\"The MTF is monotonically decreasing in focus.\"** It is not: the geometric\n  PSF comes from ~1000 Monte Carlo rays, so 66 of 149 steps go *up* on this\n  system, and it rings after its first null (rising from 0.045 at 24.7 lp/mm to\n  0.051 at 74.7). Asserting monotonicity would have meant asserting that sampling\n  noise does not exist. It now asserts the collapse from unity before the first\n  null, which is the property that carries meaning.\n- **Comparing `max(mtf)` between focus and defocus** \u2014 the same mistake I made on\n  #447. The geometric branch normalises DC to 1.0, so the peak is 1.0 either way.\n  The comparison is made at a non-zero frequency.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "bb1194f2f58d0f4dcb5eba2a775342ed406d5ac7",
+ "merged_at": "2026-10-18T11:27:57Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/analysis/psf_mtf.py"
+ ],
+ "test_files": [
+  "tests/test_diffraction_defocus.py",
+  "tests/test_geometric_psf_truncation.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._apply_defocus",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._pupil_geometry",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._wavefront_is_degenerate",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.calculate_mtf",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.calculate_psf",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.calculate_spot_diagram",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.simulate_image",
+  "openlens/analysis/psf_mtf.py::_map_to_raw_indices"
+ ],
+ "fail_to_pass": [
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfIsStillUsable::test_every_psf_branch_provides_the_new_key",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfKeepsItsEnergy::test_a_sufficient_window_captures_everything",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfKeepsItsEnergy::test_a_tight_spot_still_sums_to_one",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfKeepsItsEnergy::test_a_wide_spot_is_no_longer_clipped",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfKeepsItsEnergy::test_clipping_is_reported_when_the_window_cannot_grow",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfKeepsItsEnergy::test_the_captured_fraction_is_reported",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfKeepsItsEnergy::test_the_captured_fraction_matches_the_image_sum",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfKeepsItsEnergy::test_the_window_really_did_grow",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfKeepsItsEnergy::test_the_window_scales_with_the_spot"
+ ],
+ "pass_to_pass": [
+  "tests/test_diffraction_defocus.py::TestDiffractionMtfRespondsToDefocus::test_the_mtf_drops_with_defocus",
+  "tests/test_diffraction_defocus.py::TestDiffractionMtfRespondsToDefocus::test_the_mtf_is_not_identical_at_two_defocus_values",
+  "tests/test_diffraction_defocus.py::TestDiffractionPsfRespondsToDefocus::test_a_defocused_psf_is_wider",
+  "tests/test_diffraction_defocus.py::TestDiffractionPsfRespondsToDefocus::test_the_psf_is_not_bit_identical_at_two_defocus_values",
+  "tests/test_diffraction_defocus.py::TestDiffractionPsfRespondsToDefocus::test_the_psf_stays_normalised",
+  "tests/test_diffraction_defocus.py::TestDiffractionPsfRespondsToDefocus::test_zero_defocus_leaves_the_psf_unchanged",
+  "tests/test_geometric_psf_truncation.py::TestGeometricMtfDoesNotFlatterTheLens::test_defocus_lowers_the_geometric_mtf",
+  "tests/test_geometric_psf_truncation.py::TestGeometricMtfDoesNotFlatterTheLens::test_max_freq_is_respected",
+  "tests/test_geometric_psf_truncation.py::TestGeometricMtfDoesNotFlatterTheLens::test_the_mtf_falls_sharply_before_its_first_null",
+  "tests/test_geometric_psf_truncation.py::TestGeometricMtfDoesNotFlatterTheLens::test_the_mtf_still_starts_near_unity_in_focus",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfIsStillUsable::test_a_blocked_design_still_returns_a_zero_image",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfIsStillUsable::test_the_centroid_is_still_reported",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfIsStillUsable::test_the_geometric_result_has_the_same_keys_as_the_diffraction_one",
+  "tests/test_geometric_psf_truncation.py::TestGeometricPsfIsStillUsable::test_the_image_is_still_non_negative_and_finite"
+ ],
+ "patch_lines": 128
+}

@@ -1,0 +1,22 @@
+diff --git a/openlens/performance_metrics.py b/openlens/performance_metrics.py
+index f7651b518baf48e48097e292cdeb1b47aea68faf..1aeef9cf81b3fb3128c256133c36177736ef5597 100644
+--- a/openlens/performance_metrics.py
++++ b/openlens/performance_metrics.py
+@@ -116,11 +116,12 @@ class PerformanceMetrics:
+             # working-flange breakdown by several millimetres.
+             return self.lens.calculate_back_focal_length()
+         elif self.system:
+-            # Delegate: OpticalSystem already derives the BFL from the system
+-            # ABCD matrix (-A/C, measured from the last surface). Returning
+-            # the EFL here reported a back focal distance that was too long
+-            # by the whole distance from the last surface to focus.
+-            return self.system.calculate_back_focal_length()
++            # For system: focal point distance from last surface
++            f = self.system.get_system_focal_length()
++            if f and self.system.elements:
++                last_elem = self.system.elements[-1]
++                # Approximate: system focal length - distance to last surface
++                return f
+         return None
+ 
+     def calculate_working_flange_distance(self) -> Optional[float]:

@@ -1,0 +1,82 @@
+diff --git a/openlens/stl_export.py b/openlens/stl_export.py
+index 05131227552b2862818902e10fb919b8eedf2591..cf40fbd30f6bc1a8277e3a48d297b985c1d97c20 100644
+--- a/openlens/stl_export.py
++++ b/openlens/stl_export.py
+@@ -355,23 +355,15 @@ class STLExporter:
+         diameter: float,
+         filename: str,
+         resolution: int = 50,
+-        lens: Optional[Any] = None,
+     ) -> int:
+-        """Export a lens to STL format.
+-
+-        Pass ``lens`` to mesh the model's actual conic, parabolic or Fresnel
+-        surfaces. Without it the legacy numeric spherical parameters are used.
+-        """
++        """Export a lens to STL format"""
+         self.triangles = []
+ 
+         # 1. Front Surface (R1)
+         # Vertex at (0,0,0).
+-        if lens is not None:
+-            profile1 = self._model_surface_profile(lens, 1, resolution)
+-        else:
+-            profile1 = self.calculate_surface_profile(
+-                r1, diameter, is_front=True, resolution=resolution
+-            )
++        profile1 = self.calculate_surface_profile(
++            r1, diameter, is_front=True, resolution=resolution
++        )
+         if profile1:
+             self.triangles.extend(
+                 self.generate_surface_triangles(
+@@ -388,12 +380,9 @@ class STLExporter:
+ 
+         # 2. Back Surface (R2)
+         # Vertex at (0,0,thickness)
+-        if lens is not None:
+-            profile2 = self._model_surface_profile(lens, 2, resolution)
+-        else:
+-            profile2 = self.calculate_surface_profile(
+-                r2, diameter, is_front=False, resolution=resolution
+-            )
++        profile2 = self.calculate_surface_profile(
++            r2, diameter, is_front=False, resolution=resolution
++        )
+         if profile2:
+             self.triangles.extend(
+                 self.generate_surface_triangles(
+@@ -483,7 +472,12 @@ def export_lens_stl(item: Any, filename: str, resolution: int = 50) -> int:
+ 
+             # Generate lens triangles
+             # 1. Front Surface
+-            profile1 = exporter._model_surface_profile(lens, 1, resolution)
++            profile1 = exporter.calculate_surface_profile(
++                lens.radius_of_curvature_1,
++                lens.diameter,
++                is_front=True,
++                resolution=resolution,
++            )
+             if profile1:
+                 local.extend(
+                     exporter.generate_surface_triangles(profile1, 0.0, num_segments=resolution * 2)
+@@ -496,7 +490,12 @@ def export_lens_stl(item: Any, filename: str, resolution: int = 50) -> int:
+                 )
+ 
+             # 2. Back Surface
+-            profile2 = exporter._model_surface_profile(lens, 2, resolution)
++            profile2 = exporter.calculate_surface_profile(
++                lens.radius_of_curvature_2,
++                lens.diameter,
++                is_front=False,
++                resolution=resolution,
++            )
+             if profile2:
+                 local.extend(
+                     exporter.generate_surface_triangles(
+@@ -543,5 +542,4 @@ def export_lens_stl(item: Any, filename: str, resolution: int = 50) -> int:
+         item.diameter,
+         filename,
+         resolution,
+-        lens=item,
+     )

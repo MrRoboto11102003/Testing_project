@@ -1,0 +1,271 @@
+{
+ "id": "openlens-pr274",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code",
+ "context": {
+  "mode": "code",
+  "chars": 17633
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": null,
+ "mean_arnio_calls": 1.64,
+ "detected": true,
+ "n_tests": 22,
+ "n_catching": 10,
+ "n_false_alarms": 2,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 6067,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 15295,
+  "output_tokens_details": {
+   "thinking_tokens": 9651
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 6067,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 15295,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 6067,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 6067
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.088618,
+ "model_seconds": 67.6,
+ "seconds": 76.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_basic_lens_quality_returns_expected_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_error_handling_returns_zero_score": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_field_angle_parameter_passed": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_high_aberrations_reduce_score": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_quality_score_valid_range": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_rating_in_valid_options": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestGeometricTraceAnalysis::test_calculate_field_curvature_distortion_returns_expected_structure": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GeometricTraceAnalysis"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestGeometricTraceAnalysis::test_calculate_field_curvature_wavelength_applied": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GeometricTraceAnalysis"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestGeometricTraceAnalysis::test_calculate_ray_fan_pupil_axes": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GeometricTraceAnalysis"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestGeometricTraceAnalysis::test_calculate_ray_fan_returns_expected_structure": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GeometricTraceAnalysis"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestImageSimulator::test_simulate_image_auto_image_distance": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ImageSimulator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestImageSimulator::test_simulate_image_color_input": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ImageSimulator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestImageSimulator::test_simulate_image_grayscale_input": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ImageSimulator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestImageSimulator::test_simulate_image_magnification_calculation": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ImageSimulator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestLensRayTracer3D::test_trace_surface_front_surface_refraction": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensRayTracer3D",
+    "REFRACTIVE_INDEX_AIR",
+    "Ray3D",
+    "RefractionResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestLensRayTracer3D::test_trace_surface_invalid_surface_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensRayTracer3D",
+    "Ray3D",
+    "RefractionResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestLensRayTracer3D::test_trace_surface_reflection_interaction": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensRayTracer3D",
+    "REFRACTIVE_INDEX_AIR",
+    "Ray3D",
+    "RefractionResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystem::test_calculate_chromatic_aberration_structure": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystem::test_chromatic_aberration_corrected_flag": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystem::test_optical_system_load_nonexistent_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystem::test_optical_system_load_oversized_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystem::test_optical_system_load_valid_json": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  }
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "id": "openlens-pr729",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 614,
+ "issue_title": "bug(performance): SystemRayTracer3D cache is never invalidated on position changes",
+ "issue_body": "## Summary\n\n`SystemRayTracer3D` caches the prepared scene and explicitly requires callers to call `invalidate()` after position/structure changes, but there are **zero production call sites**. Long-lived tracer owners (`InteractiveRayTracer`, `SpotDiagram`, `GeometricAnalyzer`, `DiffractionPSFCalculator`, `BeamSynthesisPropagator`, `ParaxialAnalyzer`) keep the stale scene and silently trace the old geometry after an element is moved.\n\n## Impact\n\n- Moving an element in the assembly editor and re-running an analysis can return results for the previous position, with no error.\n- Only lens-parameter changes are auto-detected (`_scene_is_current` checks `tracer.matches(lens)`); node positions/transforms are not.\n- The cache tests themselves document the hazard: `tests/test_tracer3d_batch_cache.py:180` \u2014 \"A moved element is only visible after `invalidate()`\".\n- All production uses listed above are per-instance and never invalidate.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.tracer_3d import SystemRayTracer3D\nfrom openlens.ray import Ray3D\nfrom openlens.vector3 import vec3\n\ns = OpticalSystem()\ns.add_lens(Lens(radius_of_curvature_1=100.0, radius_of_curvature_2=-100.0,\n                refractive_index=1.5168, thickness=5.0, diameter=25.0))\ntracer = SystemRayTracer3D(s)\nr1 = Ray3D(vec3(-10, 5, 0), vec3(1, 0, 0)); tracer.trace_ray(r1)\nprint(\"before:\", r1.path[-1])\n\ns.root.children[0].position = vec3(20, 0, 0)   # what the assembly editor does\nr2 = Ray3D(vec3(-10, 5, 0), vec3(1, 0, 0)); tracer.trace_ray(r2)\nprint(\"after (no invalidate):\", r2.path[-1])      # unchanged\n\ntracer.invalidate()\nr3 = Ray3D(vec3(-10, 5, 0), vec3(1, 0, 0)); tracer.trace_ray(r3)\nprint(\"after invalidate:\", r3.path[-1])           # moved\n```\n\nOutput:\n\n```\nbefore move: (54.8129, 2.3506, 0.0)\nafter move (no invalidate): (54.8129, 2.3506, 0.0) | stale: True\nafter invalidate: (74.8129, 2.3506, 0.0)\n```\n\n`grep -rn \".invalidate()\" openlens/ tests/` finds only test uses; `openlens/` has none.\n\n## Root cause\n\n- `openlens/tracer_3d.py:699-750` \u2014 `invalidate()` exists but is never called by the library.\n- `openlens/tracer_3d.py:722-724` \u2014 `_scene_is_current()` only compares lens state, not transforms.\n- Owners such as `openlens/analysis/spot_diagram.py:22` store a tracer for the analyzer's lifetime.\n\n## Expected behaviour\n\nPosition/structure edits are detected automatically on the next trace, or every long-lived owner invalidates the tracer when the system changes.\n\n## Suggested fix\n\nCheapest robust option: include a cheap scene revision (count + positions/transforms) in `_scene_is_current`, or expose `invalidate()` up through the analyzers and call it from the GUI/analysis refresh path. Add an integration test that moves a node between two `SpotDiagram.trace_spot()` calls and asserts the result changes.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/614",
+ "pr": 729,
+ "pr_title": "fix(tracer): detect moved elements instead of tracing a stale scene",
+ "pr_body": "## Description\n\n`SystemRayTracer3D` caches the prepared scene (each element's transform and\n`LensRayTracer3D`) and relied on callers to call `invalidate()` after a\nposition or structure change. There were no production call sites: long-lived\ntracer owners (`InteractiveRayTracer`, `SpotDiagram`, `GeometricAnalyzer`,\n`DiffractionPSFCalculator`, `BeamSynthesisPropagator`, `ParaxialAnalyzer`)\nkept the stale scene and silently traced the old geometry after an element was\nmoved. Only lens-parameter changes were auto-detected.\n\n## What changed\n\n- **`openlens/tracer_3d.py`**\n  - `_scene_signature()` describes the scene cheaply: element-node identities,\n    local positions/rotations, element-model identities, air-gap stations and\n    the aperture stop. It reads attributes only \u2014 no matrix is built and no\n    global transform is recomputed \u2014 so it is cheap enough to run on every ray.\n  - `_scene_is_current()` compares that signature as well as the existing\n    per-lens `matches()` check. A moved/added element, a replaced element\n    model, a re-stationed gap or a changed stop rebuilds the scene\n    automatically.\n  - `invalidate()` is kept as a forced rebuild, and the docstrings no longer\n    claim that position changes require it.\n- **`tests/test_tracer3d_batch_cache.py`**\n  - Moved node and moved flat element are picked up without `invalidate()`.\n  - An added element rebuilds the scene.\n  - An integration test moves a node between two `SpotDiagram.trace_spot()`\n    calls and asserts the result changes and matches a fresh diagram.\n  - The existing \"scene walk does not scale with the batch\" test still passes:\n    the signature does not call `get_global_transform()` per ray.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #614\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2824 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nThe issue's reproduction now reports the moved position (`74.81\u2026` instead of\nthe stale `54.81\u2026`) without calling `invalidate()`.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "8017038de96fbed20574ec49d2b7ec2f0139ae7c",
+ "merged_at": "2026-10-23T07:55:59Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tracer_3d.py"
+ ],
+ "test_files": [
+  "tests/test_tracer3d_batch_cache.py"
+ ],
+ "target_symbols": [
+  "openlens/tracer_3d.py::SystemRayTracer3D.__init__",
+  "openlens/tracer_3d.py::SystemRayTracer3D._absorb_before_first_element",
+  "openlens/tracer_3d.py::SystemRayTracer3D._absorb_in_casing_path",
+  "openlens/tracer_3d.py::SystemRayTracer3D._prepare",
+  "openlens/tracer_3d.py::SystemRayTracer3D._scene_is_current",
+  "openlens/tracer_3d.py::SystemRayTracer3D.invalidate",
+  "openlens/tracer_3d.py::SystemRayTracer3D.trace_ray"
+ ],
+ "fail_to_pass": [
+  "tests/test_tracer3d_batch_cache.py::TestPositionChangesAreDetected::test_a_moved_element_changes_a_spot_diagram",
+  "tests/test_tracer3d_batch_cache.py::TestPositionChangesAreDetected::test_a_moved_flat_element_is_picked_up_without_invalidate",
+  "tests/test_tracer3d_batch_cache.py::TestPositionChangesAreDetected::test_a_moved_node_is_picked_up_without_invalidate"
+ ],
+ "pass_to_pass": [
+  "tests/test_tracer3d_batch_cache.py::TestCachingChangesNothingOptical::test_a_refractive_index_change_is_picked_up_without_invalidate",
+  "tests/test_tracer3d_batch_cache.py::TestCachingChangesNothingOptical::test_a_warm_cache_traces_the_same_paths_as_a_fresh_tracer",
+  "tests/test_tracer3d_batch_cache.py::TestExplicitInvalidation::test_invalidate_is_cheap_and_idempotent",
+  "tests/test_tracer3d_batch_cache.py::TestExplicitInvalidation::test_invalidate_rebuilds_after_a_position_change",
+  "tests/test_tracer3d_batch_cache.py::TestPositionChangesAreDetected::test_an_added_element_invalidates_the_scene",
+  "tests/test_tracer3d_batch_cache.py::TestSceneIsPreparedOncePerBatch::test_each_element_tracer_is_built_once_for_a_whole_batch",
+  "tests/test_tracer3d_batch_cache.py::TestSceneIsPreparedOncePerBatch::test_the_scene_walk_does_not_scale_with_the_batch",
+  "tests/test_tracer3d_batch_cache.py::TestSceneIsPreparedOncePerBatch::test_the_wavefront_grid_reuses_the_element_tracers",
+  "tests/test_tracer3d_batch_cache.py::TestSingleLensTracerIsUnchanged::test_a_ray_still_refracts_at_both_surfaces"
+ ],
+ "patch_lines": 78
+}

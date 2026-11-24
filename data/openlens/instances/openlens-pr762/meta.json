@@ -1,0 +1,34 @@
+{
+ "id": "openlens-pr762",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 757,
+ "issue_title": "bug(io): STL assembly export ignores element decenter and tilt",
+ "issue_body": "## Summary\n\nThe assembly branch of `export_lens_stl()` lays out every element with `pos = element.position` and generates a surface of revolution around the system axis. It never applies `element.decenter_y/z` or `element.tilt_x/y/z`, so a decentered or tilted assembly exports geometrically identical to the aligned one.\n\n## Impact\n\nA 3 mm decenter and 5 degree tilt produce a byte-identical STL file. Users exporting an assembly for 3D printing or CAD get a model that does not match the design. The STEP exporter was fixed for this in #624, but STL was not.\n\n## Reproduction\n\n```python\nimport os\nimport struct\nimport sys\nimport tempfile\n\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.stl_export import export_lens_stl\n\n\ndef lens(name):\n    return Lens(\n        name=name,\n        radius_of_curvature_1=50.0,\n        radius_of_curvature_2=-50.0,\n        thickness=5.0,\n        diameter=25.0,\n        refractive_index=1.5168,\n    )\n\n\ndef triangles(path):\n    with open(path, \"rb\") as handle:\n        data = handle.read()\n    count = struct.unpack(\"<I\", data[80:84])[0]\n    return data[84 : 84 + count * 50]\n\n\nsystem = OpticalSystem(name=\"S\")\nsystem.add_lens(lens(\"L1\"))\nsystem.add_lens(lens(\"L2\"), air_gap_before=10.0)\n\nwith tempfile.TemporaryDirectory() as tmp:\n    aligned = os.path.join(tmp, \"aligned.stl\")\n    moved = os.path.join(tmp, \"moved.stl\")\n    export_lens_stl(system, aligned, resolution=16)\n    system.set_element_alignment(1, decenter_y=3.0, tilt_y=5.0)\n    export_lens_stl(system, moved, resolution=16)\n    print(\"aligned vs moved STL identical:\", triangles(aligned) == triangles(moved))\n```\n\nObserved:\n\n```\naligned vs moved STL identical: True\n```\n\n## Root cause\n\n`openlens/stl_export.py:367-443`, assembly branch: `pos = element.position` at `:377` is the only transform used. The code never reads `element.decenter_y/z` or `element.tilt_x/y/z`, and all generated points are circles around the global X axis. The same omission exists for node positions set via `OpticalSystem.set_element_alignment()`.\n\n## Expected behaviour\n\nEach element solid must be transformed by its global placement (decenter and tilt), as the 3D tracer and STEP export do. Two systems that differ only in alignment must not produce the same STL.\n\n## Suggested fix\n\nBuild each element's mesh in local coordinates and apply the element's `Matrix4x4` transform before writing triangles, or use the node transform from `system.root`. Add a regression test that exports aligned versus decentered/tilted assemblies and asserts the vertex data differs.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/757",
+ "pr": 762,
+ "pr_title": "fix(io): apply element alignment in STL assemblies",
+ "pr_body": "## Description\n\nAssembly STL export placed each element at its axial position and ignored the node's decenter and tilt. Each solid is now built at the local origin, moved through the element's global node transform, and mapped to STL coordinates with the orientation-preserving `(x, y, z)_sys -> (y, z, x)_stl` permutation.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #757\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `python3 -m unittest tests.test_stl_assembly_winding tests.test_stl_export`\n- [x] Full suite: `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .` \u2014 2940 tests, 36 skipped, exit 0\n- [x] `black --line-length=100 --exclude 'openlens/__main__.py' openlens/stl_export.py tests/test_stl_assembly_winding.py --check`\n- [x] `.venv/bin/flake8` on the changed files\n- [x] Checked the signed volume stays positive for aligned, decentered and tilted assemblies\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "31622613001110d897e2f8cda7c09f52fc1ce3fd",
+ "merged_at": "2026-10-26T11:00:37Z",
+ "port_method": "partial_hunks:3/5",
+ "src_files": [
+  "openlens/stl_export.py"
+ ],
+ "test_files": [
+  "tests/test_stl_assembly_winding.py"
+ ],
+ "target_symbols": [
+  "openlens/stl_export.py::STLExporter._model_surface_profile",
+  "openlens/stl_export.py::STLExporter.export_lens_to_stl"
+ ],
+ "fail_to_pass": [
+  "tests/test_stl_assembly_winding.py::TestAssemblyExportIsNotInsideOut::test_the_exported_assembly_has_a_positive_volume",
+  "tests/test_stl_assembly_winding.py::TestAssemblyExportIsNotInsideOut::test_the_exported_volume_is_the_lenses_volume",
+  "tests/test_stl_assembly_winding.py::TestAssemblyRespectsAlignment::test_decenter_moves_the_element_mesh",
+  "tests/test_stl_assembly_winding.py::TestAssemblyRespectsAlignment::test_tilt_rotates_the_element_mesh"
+ ],
+ "pass_to_pass": [],
+ "patch_lines": 19
+}

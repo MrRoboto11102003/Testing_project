@@ -1,0 +1,30 @@
+diff --git a/openlens/optimizer.py b/openlens/optimizer.py
+index 5aa712620b3b28b3d9b04511ba3a30217f659d0e..e18bf2b6b0c21335d51aa32e68f907e528646426 100644
+--- a/openlens/optimizer.py
++++ b/openlens/optimizer.py
+@@ -376,14 +376,7 @@ class MeritFunction:
+                 merit += 1e5
+ 
+         for i, gap in enumerate(system.air_gaps):
+-            # A gap of zero is a cemented interface, not an air space: the
+-            # two surfaces meet and there is no clearance to keep. The checks
+-            # below treated it as an air gap anyway, so every cemented
+-            # doublet collected a soft penalty for the missing air and a hard
+-            # 1e8 for a clearance of exactly zero - permanently infeasible,
+-            # with the real merit invisible next to the penalty.
+-            cemented = abs(gap.thickness) <= EPSILON
+-            if not cemented and gap.thickness < min_ag:
++            if gap.thickness < min_ag:
+                 merit += 1e5 * (min_ag - gap.thickness) ** 2
+ 
+             if i < len(system.elements) - 1:
+@@ -396,9 +389,6 @@ class MeritFunction:
+                 ):
+                     merit += self.HARD_PENALTY
+                     continue
+-                if cemented:
+-                    # The surfaces meet: there is no air space to keep clear.
+-                    continue
+                 s_back_1 = lens1.get_sag_2(max_h)
+                 s_front_2 = lens2.get_sag_1(max_h)
+                 edge_clearance = gap.thickness + s_front_2 - s_back_1

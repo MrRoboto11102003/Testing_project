@@ -1,0 +1,199 @@
+{
+ "id": "openlens-pr237",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 46211
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.0,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 14,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 14271,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8568,
+  "output_tokens_details": {
+   "thinking_tokens": 6684
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 14271,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8568,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 14271,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 14271
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.071391,
+ "model_seconds": 40.3,
+ "seconds": 46.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_all_parameters_combined": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_default_angle_behavior": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_deterministic_behavior": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_empty_system_returns_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_even_number_of_rays_distribution": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_full_aperture_fill_default": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_large_ray_count": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_non_zero_angle_accepted": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_num_rays_parameter_respected": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_odd_number_of_rays_distribution": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_partial_aperture_fill_factors": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_returns_list_type": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_single_ray_case": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_very_small_fill_factor": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerParallelRays::test_wavelength_parameter_variations": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  }
+ }
+}

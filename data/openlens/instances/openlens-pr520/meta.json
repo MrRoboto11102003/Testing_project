@@ -1,0 +1,46 @@
+{
+ "id": "openlens-pr520",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 452,
+ "issue_title": "Tolerancing: optimize_limits turns NaN sensitivities into NaN tolerance limits",
+ "issue_body": "**Where:** `src/tolerancing.py:786-799`\n\n`calculate_sensitivities` deliberately returns NaN for vignetted cases (`:725-727`). Then `abs(nan) < 1e-9` is `False`, so `new_limit = budget / nan = nan`, and the operand gets `min_val = max_val = nan`.\n\n**Fix:** `if not math.isfinite(s) or s < 1e-9: new_limit = original_tol.max_val` and log a warning. Add a test with a vignetted operand.\n\n**Also:** `InverseSensitivityAnalyzer._get_system_state` and `_set_system_state` are each defined twice (`:674-680` and `:747-753`).",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/452",
+ "pr": 520,
+ "pr_title": "fix(tolerancing): a NaN sensitivity must not become a NaN tolerance",
+ "pr_body": "## Description\n\nfix(tolerancing): a NaN sensitivity must not become a NaN tolerance\n\n`calculate_sensitivities` deliberately reports **NaN** for a vignetted operand \u2014\n\"could not be measured\" rather than \"insensitive\". `optimize_limits` then did:\n\n```python\ns = abs(nan)               # nan\nif s < 1e-9:               # False \u2014 NaN fails every comparison\n    new_limit = original\nelse:\n    new_limit = budget / s  # nan\n```\n\nso the operand came back with `min_val = max_val = nan`. A NaN tolerance is\nneither tight nor loose \u2014 it propagates silently into every later trace,\ncomparison and report.\n\n### A second case the issue did not name\n\nAn **infinite** sensitivity took the same `else` branch and produced\n`budget / inf = 0` \u2014 a **zero** tolerance, which reads as \"this dimension is\ninfinitely sensitive\" and quietly removes the parameter from the budget\naltogether. Same guard, same fix.\n\nThree distinct situations now share one safe answer \u2014 keep the operand's original\nlimit, because the optimisation cannot shrink what it could not measure:\n\n| sensitivity | before | after |\n| --- | --- | --- |\n| NaN (could not measure) | `nan` | original limit, logged |\n| infinite | `0.0` | original limit, logged |\n| finite and insensitive | original | original (unchanged) |\n\nEach non-finite case is logged with the operand, its type, and the value it kept \u2014\nso an operand that could not be budgeted is *visible* rather than quietly\nunchanged.\n\n## The duplicate methods, and why they mattered\n\n`InverseSensitivityAnalyzer._get_system_state` / `_set_system_state` were each\ndefined twice. Both copies delegated to the module-level `_capture_state` /\n`_restore_state` and were byte-identical, so removing the later one changes no\nbehaviour \u2014 confirmed by a test that compares the two bodies rather than assuming\nit.\n\nWorth keeping the reasoning: the `F811` was the **only** warning, and it is\nprecisely how a later *divergent* copy would have gone unnoticed. That is the\nfailure mode duplicates invite, not the duplication itself.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #452\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **each part separately**:\n  - the NaN/infinite guard \u2192 **6 of 13 fail**\n  - restoring the duplicate definitions \u2192 **2 of 13 fail**\n- [x] `python3 -m unittest tests.test_optimize_limits_nan` \u2014 13 tests, OK\n- [x] `python3 -m unittest tests.test_optimize_limits_nan tests.test_tolerance_persistence tests.test_irregularity_fringes tests.test_tolerancing_live_design` \u2014 50 tests, OK\n- [x] Full suite: `Ran 1873 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 234 files unchanged\n- [x] `flake8 src/tolerancing.py` \u2014 **0 findings**, down from 2 on `master` (the\n      two `F811` redefinitions this PR removes)\n- [x] Coverage includes: no operand receiving a NaN bound, the vignetted operand\n      keeping its original limit *while the measurable one beside it is still\n      re-budgeted* (the two differing is the point), the originals not being\n      mutated, zero / tiny / infinite / negative sensitivities, both allocation\n      methods, an all-NaN run, and the duplicate-definition checks\n\n### The test that keeps this from becoming a blanket \"keep everything\"\n\n`test_the_measurable_operand_is_still_re_budgeted` and\n`test_the_two_operands_differ` exist because the fix widens a guard. A guard like\n`if not isfinite(s) or s < 1e-9` is exactly the kind of change that quietly turns\ninto \"never re-budget anything\", which would pass a suite that only checked\n`isfinite`. Requiring the *neighbouring* operand to still be divided by its\nsensitivity is what pins the behaviour.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "9f557fd9f31d084dab73a07d50643a1191c98348",
+ "merged_at": "2026-10-18T15:58:26Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tolerancing.py"
+ ],
+ "test_files": [
+  "tests/test_optimize_limits_nan.py"
+ ],
+ "target_symbols": [
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer._apply_single_tolerance",
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer._get_system_state",
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer.optimize_limits",
+  "openlens/tolerancing.py::_golden"
+ ],
+ "fail_to_pass": [
+  "tests/test_optimize_limits_nan.py::TestDegenerateSensitivitiesAreAllSafe::test_all_nan_sensitivities_are_all_safe",
+  "tests/test_optimize_limits_nan.py::TestDegenerateSensitivitiesAreAllSafe::test_every_method_produces_finite_limits",
+  "tests/test_optimize_limits_nan.py::TestDegenerateSensitivitiesAreAllSafe::test_infinite_sensitivity_keeps_the_original",
+  "tests/test_optimize_limits_nan.py::TestNaNSensitivityKeepsTheOriginalTolerance::test_no_operand_gets_a_nan_limit",
+  "tests/test_optimize_limits_nan.py::TestNaNSensitivityKeepsTheOriginalTolerance::test_the_vignetted_operand_keeps_its_original_limit",
+  "tests/test_optimize_limits_nan.py::TestNoDuplicateMethodDefinitions::test_state_helpers_are_defined_once"
+ ],
+ "pass_to_pass": [
+  "tests/test_optimize_limits_nan.py::TestDegenerateSensitivitiesAreAllSafe::test_negative_sensitivity_is_handled_by_magnitude",
+  "tests/test_optimize_limits_nan.py::TestDegenerateSensitivitiesAreAllSafe::test_tiny_sensitivity_keeps_the_original",
+  "tests/test_optimize_limits_nan.py::TestDegenerateSensitivitiesAreAllSafe::test_zero_sensitivity_keeps_the_original",
+  "tests/test_optimize_limits_nan.py::TestNaNSensitivityKeepsTheOriginalTolerance::test_the_measurable_operand_is_still_re_budgeted",
+  "tests/test_optimize_limits_nan.py::TestNaNSensitivityKeepsTheOriginalTolerance::test_the_originals_are_not_mutated",
+  "tests/test_optimize_limits_nan.py::TestNaNSensitivityKeepsTheOriginalTolerance::test_the_two_operands_differ",
+  "tests/test_optimize_limits_nan.py::TestNoDuplicateMethodDefinitions::test_the_duplicate_definitions_were_identical"
+ ],
+ "patch_lines": 42
+}

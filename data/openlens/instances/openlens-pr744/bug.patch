@@ -1,0 +1,37 @@
+diff --git a/openlens/coating_designer.py b/openlens/coating_designer.py
+index b8bd1cb8c372da6d1ac4bef3e113511123e45310..48563d21e9d05312e480c4157287fb0315d1dea5 100644
+--- a/openlens/coating_designer.py
++++ b/openlens/coating_designer.py
+@@ -328,18 +328,8 @@ class CoatingDesigner:
+         Returns:
+             List of (wavelength_nm, reflectivity) tuples
+         """
+-        if num_points < 1:
+-            raise ValueError("num_points must be at least 1")
+-
+         min_wl, max_wl = wavelength_range
+-        if num_points == 1:
+-            # A single sample sits at the start of the requested range; the
+-            # usual linspace would divide by num_points - 1.
+-            wavelengths = [min_wl]
+-        else:
+-            wavelengths = [
+-                min_wl + (max_wl - min_wl) * i / (num_points - 1) for i in range(num_points)
+-            ]
++        wavelengths = [min_wl + (max_wl - min_wl) * i / (num_points - 1) for i in range(num_points)]
+ 
+         curve = []
+         for wl in wavelengths:
+diff --git a/openlens/diffraction.py b/openlens/diffraction.py
+index b7d2d3b72b7e2615e84d6245a14ca3effdde9ec7..47cd519d5a78b726309209a2a0f7b0d40b03f4f1 100644
+--- a/openlens/diffraction.py
++++ b/openlens/diffraction.py
+@@ -422,7 +422,7 @@ class DiffractionCalculator:
+         # max_radius_um - it is a plotting extent, and it must not influence
+         # the answer.
+         r, _ = self.airy_pattern(
+-            max_radius_um, focal_length_mm, aperture_diameter_mm, num_points=num_points
++            max_radius_um, focal_length_mm, aperture_diameter_mm, num_points=1000
+         )
+ 
+         # Encircled energy is available in closed form for the Airy pattern:

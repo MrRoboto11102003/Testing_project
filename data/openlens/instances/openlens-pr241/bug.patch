@@ -1,0 +1,74 @@
+diff --git a/openlens/constants.py b/openlens/constants.py
+index e67d0a96e4e68cf3d30f8537568bc570742a8807..7a67ce4b0ef93187c111fb525b570810ac9b6b60 100644
+--- a/openlens/constants.py
++++ b/openlens/constants.py
+@@ -202,7 +202,6 @@ MIN_DIAMETER = 1.0  # mm
+ MAX_DIAMETER = 500.0  # mm
+ MIN_REFRACTIVE_INDEX = 1.0
+ MAX_REFRACTIVE_INDEX = 3.0
+-MIN_EDGE_THICKNESS = 0.5  # mm - manufacturable rim (edge thickness) floor
+ 
+ # ==================== Calculation Constants ====================
+ 
+diff --git a/openlens/optimizer.py b/openlens/optimizer.py
+index 5aa712620b3b28b3d9b04511ba3a30217f659d0e..c35360d15e0772c7d1fd950c48f3d46e212d0498 100644
+--- a/openlens/optimizer.py
++++ b/openlens/optimizer.py
+@@ -114,7 +114,7 @@ class MeritFunction:
+         self.constraints = constraints or {
+             "min_center_thickness": 1.0,
+             "max_center_thickness": 100.0,
+-            "min_edge_thickness": MIN_EDGE_THICKNESS,
++            "min_edge_thickness": 0.5,
+             "min_air_gap": 0.1,
+             "min_edge_clearance": 0.1,
+         }
+@@ -328,7 +328,7 @@ class MeritFunction:
+         merit = 0.0
+         min_ct = self.constraints.get("min_center_thickness", 1.0)
+         max_ct = self.constraints.get("max_center_thickness", 100.0)
+-        min_et = self.constraints.get("min_edge_thickness", MIN_EDGE_THICKNESS)
++        min_et = self.constraints.get("min_edge_thickness", 0.5)
+         min_ag = self.constraints.get("min_air_gap", 0.1)
+         min_ec = self.constraints.get("min_edge_clearance", 0.1)
+ 
+diff --git a/openlens/validation.py b/openlens/validation.py
+index 1afebdc4a1fd18a6f4199d8afb72af8f4f088477..8c1918b567e0dc4f3373c2d06f95a1149f416d0e 100644
+--- a/openlens/validation.py
++++ b/openlens/validation.py
+@@ -26,7 +26,6 @@ from .constants import (
+     MAX_DIAMETER,
+     MIN_REFRACTIVE_INDEX,
+     MAX_REFRACTIVE_INDEX,
+-    MIN_EDGE_THICKNESS,
+     EPSILON,
+ )
+ from .lens import Lens
+@@ -794,11 +793,9 @@ def check_physical_feasibility(
+ 
+     # Hard geometric check via the single source of truth: probe the spec
+     # through Lens so rim/edge math cannot drift from the tracer or views.
+-    # Thickness is the CENTER (vertex to vertex) thickness, so the VERTEX-
+-    # correct edge is thickness - sag1 + sag2 (a plus-sign variant would
+-    # reject valid concave lenses). Edge <= 0 means the surfaces intersect
+-    # within the clear aperture; edge None means the aperture overhangs a
+-    # surface (|R| < D/2, sag undefined).
++    # Thickness is the CENTER (vertex to vertex) thickness; edge <= 0 means
++    # the surfaces intersect within the clear aperture, and edge None means
++    # the aperture overhangs a surface (|R| < D/2, sag undefined).
+     hard_error = None
+     h = diameter / 2
+     try:
+@@ -840,12 +837,6 @@ def check_physical_feasibility(
+             "or flatten the radii."
+         )
+ 
+-    # Soft floor: positive yet fragile rim (parabolic-aware via the probe).
+-    if hard_error is None and edge is not None and edge < MIN_EDGE_THICKNESS:
+-        warnings.append(
+-            f"Edge thickness ({edge:.2f}mm) is below {MIN_EDGE_THICKNESS}mm. " "May be fragile."
+-        )
+-
+     min_radius = min(abs(radius1), abs(radius2))
+ 
+     # Check if thickness is reasonable compared to radii

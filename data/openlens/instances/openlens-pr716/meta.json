@@ -1,0 +1,73 @@
+{
+ "id": "openlens-pr716",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 641,
+ "issue_title": "bug(physics): lateral color is a bundle-centroid difference, not the documented chief-ray value",
+ "issue_body": "## Summary\n\n`ChromaticAnalyzer.analyze_lens()` documents lateral color as the \"chief-ray\nimage-height difference between the extreme wavelengths\", but the\nimplementation returns the separation of the *centroids* of two hexapolar\npupil bundles. The centroid of a pupil bundle is not the chief ray: it mixes\nin coma and spherical aberration, so the reported lateral color depends on the\naperture and is not the quantity the docstring promises.\n\nFor the same BK7 singlet the true chief-ray lateral colour (F-C) is\n0.00300 mm and does not depend on the aperture, while `analyze_lens()` reports\n0.0052 mm at 5 mm diameter, 0.0141 mm at 10 mm, 0.0536 mm at 25 mm and\n0.0076 mm at 40 mm - an 18x error at 25 mm diameter and non-monotonic in the\naperture.\n\n## Impact\n\n- Lateral colour is used for chromatic tolerance and correction decisions; a\n  value that scales with the stop is not a usable metric.\n- The public docstring is wrong, so callers have no way to know the number is\n  a centroid difference.\n- For an off-axis system the centroid difference is dominated by coma, so the\n  \"lateral color\" can even change sign with aperture.\n\n## Reproduction\n\nThe chief-ray reference (traced by hand through the lens vertex):\n\n```python\nchief-ray lateral color F-C = 0.002995446 mm (aperture independent)\n```\n\nThe analyzer on the same lens:\n\n```python\nfrom openlens.chromatic_analyzer import ChromaticAnalyzer\n\nBASE = dict(radius1=50.0, radius2=-50.0, thickness=5.0, material=\"BK7\")\nanalyzer = ChromaticAnalyzer()\nfor diameter in (5.0, 10.0, 25.0, 40.0):\n    result = analyzer.analyze_lens(dict(BASE, diameter=diameter),\n                                    wavelengths=[486.1, 587.6, 656.3], num_rays=37)\n    print(\"diameter=%5.1f mm -> lateral_color=%.9f mm\" % (diameter, result.lateral_color))\n```\n\nOutput:\n\n```\ndiameter=  5.0 mm -> lateral_color=0.005167561 mm\ndiameter= 10.0 mm -> lateral_color=0.014117635 mm\ndiameter= 25.0 mm -> lateral_color=0.053649953 mm\ndiameter= 40.0 mm -> lateral_color=0.007641923 mm\n```\n\n## Root cause\n\n- `openlens/chromatic_analyzer.py:118-119` (public docstring) and `:244-249`\n  (helper docstring) describe a chief-ray image-height difference.\n- `openlens/chromatic_analyzer.py:286-290` takes `spot[\"centroid\"]` from\n  `SpotDiagram.trace_spot()` and returns the separation of the two centroids.\n  `SpotDiagram` traces a hexapolar bundle and reports the centroid of the\n  traced rays; it does not expose a chief ray.\n\n## Expected behaviour\n\nLateral colour is the chief-ray image-height difference between the extreme\nwavelengths at the reference field, and it must not depend on the aperture\nstop. Either the implementation or the documentation has to change.\n\n## Suggested fix\n\nTrace the chief ray explicitly (a single ray through the pupil centre at\n`REFERENCE_FIELD_DEG`, intersected with the reference image plane) and use\nits height, or rename the metric to reflect that it is a bundle-centroid\ndifference and document the aperture dependence. Add a regression test that\nthe reported lateral colour is (nearly) independent of the lens diameter and\nmatches a hand-traced chief-ray value.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/641",
+ "pr": 716,
+ "pr_title": "fix(analysis): measure lateral color from the chief ray",
+ "pr_body": "## Description\n\n`ChromaticAnalyzer._lateral_color()` documented and reported \"chief-ray image-height\ndifference\", but it traced two hexapolar bundles and subtracted their **centroids**.\nA centroid mixes in coma and spherical aberration, so the reported lateral colour\ngrew with the aperture for the same lens:\n\n```text\nBK7 singlet, 5 deg field      lateral_color\nD =  5 mm                     0.0052 mm\nD = 10 mm                     0.0141 mm\nD = 25 mm                     0.0536 mm\nchief ray (aperture free)     0.0030 mm\n```\n\nLateral colour is a property of the chief ray, so it must not move when the stop\nis opened.\n\n## What changed\n\n- **`openlens/analysis/spot_diagram.py`**\n  - Added `SpotDiagram.trace_chief_ray()`. It builds the ray through the centre of\n    the entrance pupil at the requested field angle and wavelength and intersects\n    it with the reference image plane, so the result carries no aperture-dependent\n    aberrations.\n- **`openlens/chromatic_analyzer.py`**\n  - `_lateral_color()` now traces that single chief ray at each extreme\n    wavelength instead of two `trace_spot()` bundles and returns the distance\n    between the two image heights. It no longer needs the reference wavelength or\n    ray count.\n- **`tests/test_chromatic_analyzer.py`**\n  - Added `TestLateralColorIsTheChiefRay`: the value is checked against a\n    hand-traced chief ray and is identical across 5, 10, 25 and 40 mm apertures.\n  - Corrected the old bound, which was derived from `|f_F - f_C| * tan(theta)`\n    and therefore encoded the centroid behaviour, to the physical 0.002995 mm.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #641\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2789 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nThe new aperture test fails on the old implementation at every diameter except\nthe value it happened to match (the centroid separation changed by two orders of\nmagnitude over the same range). The hand-traced test pins the image-height\ndifference to the ray intersection.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "2addf17f993095c19ca0b05e096965537f1d6753",
+ "merged_at": "2026-10-22T14:51:54Z",
+ "port_method": "partial_hunks:3/5",
+ "src_files": [
+  "openlens/analysis/spot_diagram.py",
+  "openlens/chromatic_analyzer.py"
+ ],
+ "test_files": [
+  "tests/test_chromatic_analyzer.py"
+ ],
+ "target_symbols": [
+  "openlens/chromatic_analyzer.py::ChromaticAnalyzer._lateral_color"
+ ],
+ "fail_to_pass": [
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_chromatic_metrics",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_spot_scales_with_aperture",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_thick_focal_lengths",
+  "tests/test_chromatic_analyzer.py::TestLateralColorIsTheChiefRay::test_lateral_color_does_not_depend_on_the_aperture",
+  "tests/test_chromatic_analyzer.py::TestLateralColorIsTheChiefRay::test_lateral_color_matches_a_hand_traced_chief_ray",
+  "tests/test_chromatic_analyzer.py::TestWavelengthOrderIndependence::test_axial_colour_agrees_with_the_focal_shift",
+  "tests/test_chromatic_analyzer.py::TestWavelengthOrderIndependence::test_permuted_wavelengths_give_the_same_scalar_metrics"
+ ],
+ "pass_to_pass": [
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_abbe_number_rejects_zero_dispersion",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_alias_glasses_with_identical_abbe_are_rejected",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_different_glasses_still_design_normally",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_message_names_the_glasses_and_explains",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_near_equal_abbe_numbers_are_not_rejected",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_same_glass_raises_for_each_catalog_pair",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_same_glass_raises_value_error",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_abbe_number_calculation",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_abbe_number_flint_vs_crown",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_achromatic_condition",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_achromatic_doublet_design",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_afocal_raises",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_chromatic_focal_shift",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_chromatic_result_structure",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_extreme_wavelengths",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_high_index_material",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_multiple_materials",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_partial_dispersion",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_refractive_index_temperature_dependence",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_refractive_index_wavelength_dependence",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_transmission_data",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_transmission_interpolation",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_uv_material_fused_silica",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_wavelength_constants",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_partial_dispersion_of_a_flat_material_raises_value_error",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_partial_dispersion_of_an_unknown_material_raises_value_error",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_plot_chromatic_focal_shift_requires_at_least_two_points",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_plot_chromatic_focal_shift_still_accepts_two_points",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_case_insensitive_lookup",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_get_material",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_list_by_catalog",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_load_builtin_materials",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_physical_properties",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_sellmeier_coefficients",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_temperature_coefficients"
+ ],
+ "patch_lines": 27
+}

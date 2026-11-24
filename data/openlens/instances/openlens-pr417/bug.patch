@@ -1,0 +1,151 @@
+diff --git a/openlens/global_optimizer.py b/openlens/global_optimizer.py
+index babc4d7234b901fc96b03524ab4a596cc9265b3a..1a52eee8a343d719322f357e2b62a1442de37164 100644
+--- a/openlens/global_optimizer.py
++++ b/openlens/global_optimizer.py
+@@ -33,12 +33,8 @@ class GlobalOptimizer(LensOptimizer):
+         seed: Optional[int] = None,
+     ):
+         super().__init__(system, variables, targets, constraints)
+-        # Private generator, not self._rng.seed(). This __init__ runs inside a
+-        # QThread (optimization_tab.py), so reseeding the module-level stream
+-        # mutated RNG state the Qt thread could be consuming concurrently -
+-        # and `seed=` was not reproducible anyway, because every draw came
+-        # from that shared stream.
+-        self._rng = random.Random(seed)
++        if seed is not None:
++            random.seed(seed)
+ 
+     #: Temperature at which annealing is considered frozen. The loop stops
+     #: here, so it is the number the derived cooling schedule targets.
+@@ -156,12 +152,12 @@ class GlobalOptimizer(LensOptimizer):
+             scale_factor = max(0.01, min(1.0, temperature / initial_temperature))
+ 
+             # Select random variable to modify
+-            idx = self._rng.randint(0, n_vars - 1)
++            idx = random.randint(0, n_vars - 1)
+             var = self.variables[idx]
+ 
+             # Random perturbation
+             # Range is heuristic: step_size * scale * Gaussian
+-            delta = var.step_size * scale_factor * self._rng.gauss(0, 1)
++            delta = var.step_size * scale_factor * random.gauss(0, 1)
+             neighbor_values[idx] = var.clamp(neighbor_values[idx] + delta)
+ 
+             # Evaluate neighbor
+@@ -181,7 +177,7 @@ class GlobalOptimizer(LensOptimizer):
+                 else:
+                     prob = math.exp(-delta_E / temperature)
+ 
+-                accept = self._rng.random() < prob
++                accept = random.random() < prob
+ 
+             if accept:
+                 current_values = neighbor_values
+@@ -255,7 +251,7 @@ class GlobalOptimizer(LensOptimizer):
+             individual = []
+             for var in self.variables:
+                 # Random value in range
+-                val = self._rng.uniform(var.min_value, var.max_value)
++                val = random.uniform(var.min_value, var.max_value)
+                 individual.append(val)
+             population.append(individual)
+ 
+@@ -320,7 +316,7 @@ class GlobalOptimizer(LensOptimizer):
+                 parent2 = self._tournament_select(population, merits)
+ 
+                 # Crossover
+-                if self._rng.random() < crossover_rate:
++                if random.random() < crossover_rate:
+                     child = self._crossover(parent1, parent2)
+                 else:
+                     child = list(parent1)
+@@ -369,13 +365,13 @@ class GlobalOptimizer(LensOptimizer):
+         if not population:
+             raise ValueError("cannot select from an empty population")
+         k = max(1, min(k, len(population)))
+-        selected_indices = self._rng.sample(range(len(population)), k)
++        selected_indices = random.sample(range(len(population)), k)
+         best_idx = min(selected_indices, key=lambda i: merits[i])
+         return population[best_idx]
+ 
+     def _crossover(self, p1, p2):
+         # Arithmetic crossover
+-        alpha = self._rng.random()
++        alpha = random.random()
+         child = []
+         for v1, v2 in zip(p1, p2):
+             val = alpha * v1 + (1 - alpha) * v2
+@@ -384,9 +380,9 @@ class GlobalOptimizer(LensOptimizer):
+ 
+     def _mutate(self, individual, rate):
+         for i in range(len(individual)):
+-            if self._rng.random() < rate:
++            if random.random() < rate:
+                 var = self.variables[i]
+                 # Gaussian mutation scaled by range
+                 sigma = (var.max_value - var.min_value) * 0.1
+-                individual[i] += self._rng.gauss(0, sigma)
++                individual[i] += random.gauss(0, sigma)
+                 individual[i] = var.clamp(individual[i])
+diff --git a/openlens/tolerancing.py b/openlens/tolerancing.py
+index 3f211a4585509d066806163a7b3c46c9df210bb0..48fe5883b03daa9931c70fd5a650345de6d2197c 100644
+--- a/openlens/tolerancing.py
++++ b/openlens/tolerancing.py
+@@ -107,29 +107,20 @@ class ToleranceOperand:
+     )
+     surface: int = 1  # Surface the operand acts on where applicable (1 or 2)
+ 
+-    def generate_value(self, rng: Optional["random.Random"] = None) -> float:
+-        """Generate a random deviation value based on distribution.
+-
+-        Args:
+-            rng: Source of randomness. Defaults to the module-level ``random``
+-                when not supplied, so a standalone caller keeps working - but
+-                MonteCarloAnalyzer always passes its own generator, so a seeded
+-                run is reproducible and cannot be perturbed by unrelated
+-                ``random`` calls elsewhere in the process.
+-        """
+-        source = rng if rng is not None else random
++    def generate_value(self) -> float:
++        """Generate a random deviation value based on distribution."""
+         if self.distribution == "gaussian":
+             # If std_dev is not provided, assume range is +/- 3 sigma
+             sigma = self.std_dev
+             if sigma == 0:
+                 sigma = (self.max_val - self.min_val) / 6.0
+ 
+-            val = source.gauss(0, sigma)
++            val = random.gauss(0, sigma)
+             # Clamp to limits? Typically yes for manufacturing
+             return max(self.min_val, min(self.max_val, val))
+         else:
+             # Uniform
+-            return source.uniform(self.min_val, self.max_val)
++            return random.uniform(self.min_val, self.max_val)
+ 
+ 
+ def serialize_operands(operands: List[ToleranceOperand]) -> List[Dict[str, Any]]:
+@@ -490,12 +481,8 @@ class MonteCarloAnalyzer:
+         self.compensators = list(compensators) if compensators else []
+         self.comp_sweeps = max(1, comp_sweeps)
+         self.results: List[Dict[str, Any]] = []
+-        # A private generator, not random.seed(). Seeding the module-level RNG
+-        # rewrote process-global state: constructing an analyzer inside a
+-        # QThread reseeded the stream any other thread was drawing from, and
+-        # `seed=` still was not reproducible because every draw came from that
+-        # one shared stream.
+-        self._rng = random.Random(seed)
++        if seed is not None:
++            random.seed(seed)
+ 
+     def _get_system_state(self, system: OpticalSystem) -> Dict[str, Any]:
+         """Get a capture of the current system parameters for restoration."""
+@@ -518,7 +505,7 @@ class MonteCarloAnalyzer:
+         skipped = []
+ 
+         for tol in self.tolerances:
+-            delta = tol.generate_value(self._rng)
++            delta = tol.generate_value()
+             perturbations[f"El_{tol.element_index}_{tol.param_type.name}"] = delta
+             applied = _apply_value(
+                 system, tol.param_type, tol.element_index, delta, surface=tol.surface

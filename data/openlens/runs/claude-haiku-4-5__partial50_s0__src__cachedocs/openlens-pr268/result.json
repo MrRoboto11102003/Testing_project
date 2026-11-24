@@ -1,0 +1,222 @@
+{
+ "id": "openlens-pr268",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 111,
+  "units_kept": 56,
+  "chars": 48466
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.29,
+ "detected": true,
+ "n_tests": 17,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2169,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 8786,
+  "output_tokens_details": {
+   "thinking_tokens": 5814
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2169,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8786,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 2169,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2169
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.049568600000000004,
+ "model_seconds": 39.6,
+ "seconds": 43.9,
+ "tests": {
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseClearCache::test_clear_cache_clears_internal_state": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseClearCache::test_clear_cache_idempotent": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseClearCache::test_clear_cache_instance_specific": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_get_transmission_beer_lambert_scaling": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_get_transmission_fallback_double_thickness": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_get_transmission_fallback_half_thickness": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_get_transmission_fallback_no_material": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_get_transmission_negative_base_returns_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_get_transmission_no_transmission_data": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_get_transmission_physical_bounds": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_get_transmission_zero_base_returns_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_material_properties_defaults": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_material_properties_from_dict": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_material_properties_full_initialization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_material_properties_minimal_creation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_material_properties_roundtrip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_material_properties_to_dict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  }
+ }
+}

@@ -1,0 +1,43 @@
+{
+ "id": "openlens-pr387",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 310,
+ "issue_title": "Monte Carlo `_restore_state` does not restore the glass model; the nominal system drifts",
+ "issue_body": "**File:** `src/tolerancing.py:116-117` (capture), `:151-155` (restore)\n\n```python\n# capture\n\"nd\": (lens.model_nd if lens.model_glass_mode else lens.refractive_index),\n\"vd\": lens.model_vd if lens.model_glass_mode else 0,\n...\n# restore\nlens.model_glass_mode = ls[\"glass_mode\"]\nif lens.model_glass_mode:          # <- nd/vd restored ONLY in this branch\n    lens.model_nd = ls[\"nd\"]\n    lens.model_vd = ls[\"vd\"]\nlens.update_refractive_index()\n```\n\n`_apply_value` \u2192 `_ensure_model_glass` (`:245, 299-312`) flips a fixed-index lens into model-glass\nmode. The restore puts `model_glass_mode` back to `False` but **leaves `model_nd`/`model_vd`\nperturbed**, and `update_refractive_index()` then takes the material-DB branch, which does not\nreproduce the original index.\n\n**Repro (verified):**\n```\nbefore:    glass_mode=False n=1.516800 model_nd=1.5168 model_vd=64.17\nperturbed: n=1.518798 model_nd=1.5188 model_vd=65.17\nrestored:  glass_mode=False n=1.516798 model_nd=1.5188 model_vd=65.17   <- NOT restored\n```\n\nTrial *N+1* starts from trial *N*'s index, contaminating the nominal reference, all percentiles, and\nthe yield with a monotone index walk.\n\n**Fix:** always capture and always restore `model_nd`, `model_vd`, `model_glass_mode` **and**\n`refractive_index` as separate fields; restore `refractive_index` by direct assignment rather than\nvia `update_refractive_index()`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/310",
+ "pr": 387,
+ "pr_title": "fix(tolerancing): restore glass state exactly so MC stops walking the index",
+ "pr_body": "Closes #310\n\n## Problem\n\n`_capture_state` folded the glass model into one `\"nd\"/\"vd\"` pair, keeping `model_nd`/`model_vd` **only when the element was already in model-glass mode**:\n\n```python\n\"nd\": (lens.model_nd if lens.model_glass_mode else lens.refractive_index),\n\"vd\": lens.model_vd if lens.model_glass_mode else 0,\n```\n\nBut an index tolerance goes through `_ensure_model_glass`, which flips a fixed-index lens into model-glass mode and perturbs `model_nd`. The restore put `glass_mode` back to `False`, left `model_nd` perturbed, then called `update_refractive_index()` \u2014 which takes the material-DB branch and does not reproduce the original fixed index.\n\nTrial *N+1* therefore started from trial *N*'s index: a monotone walk contaminating the nominal reference, all percentiles, and the yield.\n\n## Verified\n\nBefore:\n\n```\nnominal    mode=False n=1.516800 nd=1.5168\nperturbed  mode=True  n=1.513519 nd=1.5135211140893239\nrestored   mode=False n=1.516798 nd=1.5135211140893239   <- drifted\n```\n\nAfter \u2014 identical on every trial:\n\n```\nnominal    mode=False n=1.516800000 nd=1.5168 vd=64.17\nresturbed  mode=False n=1.516800000 nd=1.5168 vd=64.17\n```\n\n## Fix\n\n`model_glass_mode`, `model_nd`, `model_vd` and `refractive_index` are captured as four separate fields and restored unconditionally, with the index assigned directly rather than re-derived. The state dict is internal to `tolerancing.py` \u2014 nothing else reads those keys \u2014 so the shape change is contained.\n\n## Tests\n\n10 tests, **7 fail without the change**: exact-index restore, no drift over 25 trials, an Abbe-number tolerance (same code path), an element that starts in model-glass mode, and a full seeded run. Three more guard the geometry, glass-mode and air-gap restores that were already correct.",
+ "fix_commit": "744ba4692982ee0767b287de1e8fa4b569e4d880",
+ "merged_at": "2026-10-05T21:59:11Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tolerancing.py"
+ ],
+ "test_files": [
+  "tests/test_tolerancing_state_restore.py"
+ ],
+ "target_symbols": [
+  "openlens/tolerancing.py::_capture_state",
+  "openlens/tolerancing.py::_radius_for_fringes",
+  "openlens/tolerancing.py::_restore_state",
+  "openlens/tolerancing.py::_spherical_sag"
+ ],
+ "fail_to_pass": [
+  "tests/test_tolerancing_state_restore.py::TestMonteCarloDeterminism::test_nominal_index_is_unchanged_after_a_full_run",
+  "tests/test_tolerancing_state_restore.py::TestMonteCarloDeterminism::test_same_seed_gives_identical_results_and_a_clean_nominal",
+  "tests/test_tolerancing_state_restore.py::TestStateRestoreIsExact::test_abbe_number_tolerance_also_restores",
+  "tests/test_tolerancing_state_restore.py::TestStateRestoreIsExact::test_fixed_index_lens_returns_to_its_exact_index",
+  "tests/test_tolerancing_state_restore.py::TestStateRestoreIsExact::test_model_glass_attributes_are_restored",
+  "tests/test_tolerancing_state_restore.py::TestStateRestoreIsExact::test_model_glass_lens_round_trips",
+  "tests/test_tolerancing_state_restore.py::TestStateRestoreIsExact::test_repeated_trials_do_not_walk_the_index"
+ ],
+ "pass_to_pass": [
+  "tests/test_tolerancing_state_restore.py::TestStateRestoreIsExact::test_air_gaps_are_still_restored",
+  "tests/test_tolerancing_state_restore.py::TestStateRestoreIsExact::test_geometry_is_still_restored",
+  "tests/test_tolerancing_state_restore.py::TestStateRestoreIsExact::test_glass_mode_is_restored"
+ ],
+ "patch_lines": 25
+}

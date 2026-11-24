@@ -1,0 +1,199 @@
+{
+ "id": "openlens-pr374",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 56813,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6437
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 0.0,
+ "detected": true,
+ "n_tests": 19,
+ "n_catching": 15,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4768,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 14822,
+  "output_tokens_details": {
+   "thinking_tokens": 11668
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4768,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 14822,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 4768,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4768
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0849466,
+ "model_seconds": 74.5,
+ "seconds": 93.5,
+ "tests": {
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_2d_grayscale_shape_and_dtype": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_3d_channel_mismatch_raises_value_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_3d_rgb_shape_and_dtype": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_all_psf_calls_have_use_diffraction_true": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_calls_calculate_psf_once_per_wavelength": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_empty_optical_system_returns_all_zeros": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_empty_system_3d_rgb_returns_zeros": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_float_input_not_scaled": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_grayscale_uses_mean_of_wavelength_convolutions": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_invalid_dimensions_0d_raises_value_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_invalid_dimensions_1d_raises_value_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_invalid_dimensions_4d_raises_value_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_legacy_pixel_size_kwarg_works": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_legacy_wavelengths_kwarg_works": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_output_clipped_to_0_to_1": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_plain_list_raises_attribute_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_psf_size_is_odd_and_matches_sensor_size": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_uint8_integer_input_scaled_by_max": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr374.py::TestImageQualityAnalyzerSimulateImage::test_unexpected_kwargs_raises_type_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

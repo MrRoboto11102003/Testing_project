@@ -56,7 +56,7 @@ def fetch_issues() -> list[dict]:
 def changed_files(commit: str) -> list[str]:
     # First parent covers both merge commits and squash merges.
     out = git("diff", "--name-only", f"{commit}^1", commit)
-    return [line for line in out.splitlines() if line]
+    return [config.alias_path(line) for line in out.splitlines() if line]
 
 
 def classify(issue: dict, pr: dict) -> dict:
@@ -74,7 +74,8 @@ def classify(issue: dict, pr: dict) -> dict:
     if not is_ancestor(oid, config.BASE_REF):
         return {**row, "status": "after_base"}
     files = changed_files(oid)
-    src = [f for f in files if f.startswith(config.SRC_PREFIX) and f.endswith(".py")]
+    src = [f for f in files if f.startswith(config.SRC_PREFIX) and f.endswith(".py")
+           and not f.startswith(config.EXCLUDED_SRC_PREFIXES)]
     tests = [f for f in files if f.startswith(config.TEST_PREFIX) and f.endswith(".py")]
     native = [f for f in files if f.startswith(config.NATIVE_PREFIXES)]
     row.update(src_files=src, test_files=tests, native_files=native)

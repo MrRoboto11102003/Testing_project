@@ -1,0 +1,211 @@
+{
+ "id": "openlens-pr507",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code",
+ "context": {
+  "mode": "code",
+  "chars": 12707
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": null,
+ "mean_arnio_calls": 0.72,
+ "detected": false,
+ "n_tests": 18,
+ "n_catching": 0,
+ "n_false_alarms": 18,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 4076,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11048,
+  "output_tokens_details": {
+   "thinking_tokens": 9044
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 4076,
+    "output_tokens": 11048,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.05931600000000001,
+ "model_seconds": 50.9,
+ "seconds": 57.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeGenetic::test_genetic_callback_invoked": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeGenetic::test_genetic_full_crossover_rate": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeGenetic::test_genetic_full_mutation_rate": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeGenetic::test_genetic_merit_history_tracked": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeGenetic::test_genetic_returns_optimization_result": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeGenetic::test_genetic_zero_crossover_rate": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeGenetic::test_genetic_zero_generations": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeGenetic::test_genetic_zero_mutation_rate": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_callback_invoked": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_cooling_rate_none_derived": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_cooling_rate_provided": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_merit_history_tracked": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_negative_temperature_clamped": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_restart_threshold_accepted": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_returns_optimization_result": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_variable_history_tracked": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_zero_max_iterations": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr507.py::TestOptimizeSimulatedAnnealing::test_sa_zero_temperature_clamped": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  }
+ }
+}

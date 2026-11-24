@@ -1,0 +1,85 @@
+diff --git a/openlens/analysis/environmental.py b/openlens/analysis/environmental.py
+index 8d67a66b3bd76fb54e6a10117113430cf7627b55..7231b5fb15ad5c94e4c3f7a89406adb81128e4ac 100644
+--- a/openlens/analysis/environmental.py
++++ b/openlens/analysis/environmental.py
+@@ -115,6 +115,7 @@ class EnvironmentalAnalyzer:
+ 
+             # Thickness
+             lens.thickness *= scaling_factor
++            element.thickness = lens.thickness  # Update wrapper too
+ 
+             # Diameter (mechanical only, but good to update)
+             lens.diameter *= scaling_factor
+diff --git a/openlens/optical_system.py b/openlens/optical_system.py
+index 4113bb20ba36abb0b6181d613217c3f1cb18a8dd..246fb4138a93b5921c126bfa536668f68e77f343 100644
+--- a/openlens/optical_system.py
++++ b/openlens/optical_system.py
+@@ -57,35 +57,18 @@ class LensElement:
+     tilt_z: float = 0.0  # Roll about the optical axis (deg)
+ 
+     def __post_init__(self) -> None:
+-        """Ensure the ID is set."""
++        """Calculate element thickness and ensure ID is set"""
++        self.thickness = self.lens.thickness
+         if self.lens_id is None and hasattr(self.lens, "id"):
+             self.lens_id = self.lens.id
+ 
+-    @property
+-    def thickness(self) -> float:
+-        """The element's own thickness - the lens's, always.
+-
+-        This used to be a copy taken when the element was built (or
+-        refreshed), and the copy went stale as soon as the lens changed. The
+-        stale value decided where the next element sat, so a thickness change
+-        moved the air gap instead of the elements behind it. Reading it from
+-        the lens makes the copy unnecessary.
+-        """
+-        return self.lens.thickness
+-
+-    @thickness.setter
+-    def thickness(self, value: float) -> None:
+-        """Set the element's thickness - on the lens it holds.
+-
+-        The element and its lens are one thing, so there is no second copy
+-        to keep in step.
+-        """
+-        self.lens.thickness = value
+-
+     def refresh(self, lens_lookup: Optional[dict] = None) -> None:
+         """Update the lens reference if it exists in the lookup table"""
+         if lens_lookup and self.lens_id in lens_lookup:
+             self.lens = lens_lookup[self.lens_id]
++            self.thickness = self.lens.thickness
++        else:
++            self.thickness = self.lens.thickness
+ 
+ 
+ @dataclass
+diff --git a/openlens/optimizer.py b/openlens/optimizer.py
+index 5aa712620b3b28b3d9b04511ba3a30217f659d0e..3b437c4969e95408d9264222318eb0b181163271 100644
+--- a/openlens/optimizer.py
++++ b/openlens/optimizer.py
+@@ -1069,15 +1069,15 @@ class LensOptimizer:
+             system.elements[element_index].lens.is_parabolic_2 = True
+             system.elements[element_index].lens.parabolic_sag_2 = value
+         elif parameter == "thickness":
+-            # The element's thickness is the lens's (LensElement.thickness
+-            # reads it), so _update_positions() moves the element and the
+-            # elements behind it: the air gap stays what the model says.
+-            # It used to advance by a copy taken when the element was built,
+-            # so the element did not move - the air gap the positions
+-            # implied no longer matched air_gaps, the ABCD model and the
+-            # tracer analysed two different systems, and a thick enough lens
++            element = system.elements[element_index]
++            element.lens.thickness = value
++            # The element's own thickness wrapper is a copy of the lens value,
++            # and it is what _update_positions() advances by. Leaving it
++            # stale meant the element did not move: the air gap the positions
++            # implied no longer matched air_gaps, so the ABCD model and the
++            # tracer analysed two different systems - and a thick enough lens
+             # could pass through its neighbour without any penalty.
+-            system.elements[element_index].lens.thickness = value
++            element.thickness = value
+         elif parameter == "diameter":
+             system.elements[element_index].lens.diameter = value
+         elif parameter == "air_gap":

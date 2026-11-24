@@ -1,0 +1,76 @@
+diff --git a/openlens/analysis/spot_diagram.py b/openlens/analysis/spot_diagram.py
+index f0115fd725a9e9e0c9f70170d69113c90cbfae39..6311202fae54b1ee41751d596829e87ec3f98e52 100644
+--- a/openlens/analysis/spot_diagram.py
++++ b/openlens/analysis/spot_diagram.py
+@@ -158,26 +158,18 @@ class SpotDiagram:
+         # exception, so a tracer failure that happened before the first spot
+         # point landed was reported as a clean rms_radius of 0.0 - a tracer bug
+         # masquerading as an optical result - instead of propagating.
+-        if valid_rays < 2:
+-            # Fewer than two rays cannot define a spot: the RMS radius would be
+-            # the distance of a single ray from its own centroid, i.e. exactly
+-            # 0.0. Reporting that as a perfect spot lets a fully vignetted
+-            # system outscore every physically real design in the optimizer
+-            # and score 100% production yield in Monte Carlo. None forces
+-            # callers to treat it as a failure instead of a great number.
+-            logger.warning(
+-                "Only %d ray(s) reached the image plane (blocked or TIR); "
+-                "spot statistics are undefined",
+-                valid_rays,
+-            )
++        if not spot_points:
++            # A genuine "no rays arrived" outcome, not an error. Return empty
++            # stats and log it; the GUI handles this gracefully.
++            logger.warning("No rays reached the image plane (blocked or TIR)")
+             return {
+-                "rms_radius": None,
+-                "geo_radius": None,
++                "rms_radius": 0.0,
++                "geo_radius": 0.0,
+                 "centroid": (0.0, 0.0),
+-                "points": spot_points,
+-                "valid_rays": valid_rays,
++                "points": [],
++                "valid_rays": 0,
+                 "image_plane_x": target_x,
+-                "error": "Fewer than 2 rays reached the image plane",
++                "error": "No rays reached the image plane",
+             }
+ 
+         # Centroid
+diff --git a/openlens/tolerancing.py b/openlens/tolerancing.py
+index 3f211a4585509d066806163a7b3c46c9df210bb0..3f51a3945a3fc683534b4613489e9a4c77c321e3 100644
+--- a/openlens/tolerancing.py
++++ b/openlens/tolerancing.py
+@@ -534,17 +534,10 @@ class MonteCarloAnalyzer:
+         return perturbations
+ 
+     def _spot_rms(self, focus_shift_mm: float = 0.0) -> float:
+-        """RMS spot radius at an optional image-plane shift (inf on failure).
+-
+-        A vignetted result reports ``rms_radius: None`` rather than 0.0, so it
+-        becomes inf here - an unusable design, never a perfect one.
+-        """
++        """RMS spot radius at an optional image-plane shift (inf on failure)."""
+         try:
+             spot = SpotDiagram(self.nominal_system)
+-            value = spot.trace_spot(focus_shift_mm=focus_shift_mm)["rms_radius"]
+-            if value is None:
+-                return float("inf")
+-            return float(value)
++            return float(spot.trace_spot(focus_shift_mm=focus_shift_mm)["rms_radius"])
+         except Exception as e:
+             logger.debug("Spot evaluation failed: %s", e)
+             return float("inf")
+@@ -771,11 +764,7 @@ class InverseSensitivityAnalyzer:
+         # Nominal performance
+         spot_nom = SpotDiagram(self.system)
+         res_nom = spot_nom.trace_spot()
+-        # A vignetted nominal reports None; inf keeps the sensitivity
+-        # arithmetic below well-defined instead of raising on None.
+         nominal_val = res_nom["rms_radius"]
+-        if nominal_val is None:
+-            nominal_val = float("inf")
+ 
+         for i, tol in enumerate(self.tolerances):
+             # Test at max value

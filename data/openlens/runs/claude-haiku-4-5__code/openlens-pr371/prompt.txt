@@ -1,0 +1,112 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.optical_system.AchromaticDoubletDesigner.design_cemented_doublet.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.optical_system.AchromaticDoubletDesigner.design_cemented_doublet
+    @staticmethod
+    def design_cemented_doublet(
+        focal_length: float,
+        diameter: float,
+        crown_material: str = "BK7",
+        flint_material: str = "SF11",
+    ) -> OpticalSystem:
+        """
+        Design a cemented achromatic doublet
+
+        Uses the achromatic condition:
+        f1/ν1 + f2/ν2 = 0
+        1/f = 1/f1 + 1/f2
+
+        where ν is the Abbe number
+        """
+        db = get_material_database() if HAS_MATERIAL_DATABASE else None
+
+        crown = db.get_material(crown_material) if db else None
+        flint = db.get_material(flint_material) if db else None
+
+        if not crown or not flint:
+            raise ValueError(f"Materials not found: {crown_material}, {flint_material}")
+
+        # Achromatic condition
+        v1 = crown.vd
+        v2 = flint.vd
+
+        # Power distribution for achromat:
+        # P1 = P * V1 / (V1 - V2)
+        # P2 = P * V2 / (V2 - V1)
+        # f1 = 1/P1, f2 = 1/P2
+
+        if v1 == v2:
+            # Impossible to achromatize with same Abbe number
+            f1 = focal_length * 2
+            f2 = focal_length * 2
+        else:
+            f1 = focal_length * (v1 - v2) / v1
+            f2 = focal_length * (v2 - v1) / v2
+
+        # Calculate radii for each element
+        # Crown (Equiconvex approximation)
+        n1 = crown.nd
+        n2 = flint.nd
+
+        # Lensmaker: 1/f = (n-1)(1/R1 - 1/R2)
+        # Equiconvex: R1 = -R2 = 2*f*(n-1)
+
+        R1_crown = 2 * f1 * (n1 - 1)
+        R2_crown = -R1_crown
+
+        # Flint element (negative)
+        # Cemented: R1_flint = R2_crown
+        R1_flint = R2_crown
+
+        # Calculate R2_flint to satisfy f2
+        # P2 = 1/f2 = (n2-1)(1/R1_flint - 1/R2_flint)
+        # 1/f2 / (n2-1) = 1/R1_flint - 1/R2_flint
+        # 1/R2_flint = 1/R1_flint - 1/(f2*(n2-1))
+
+        term = 1.0 / (f2 * (n2 - 1))
+        inv_R2 = (1.0 / R1_flint) - term
+
+        if abs(inv_R2) < 1e-10:
+            R2_flint = float("inf")  # Planar? Or infinite?
+        else:
+            R2_flint = 1.0 / inv_R2
+
+        # Create lenses. The refractive index must be the one the radii were
+        # solved with: Lens.__init__ otherwise falls back to
+        # DEFAULT_MATERIAL_INDICES (SF11 -> 1.78), not the catalog nd
+        # (1.78472) used above, leaving the doublet built to a different index
+        # than its geometry assumes. Lens.for_material is no substitute: it
+        # re-evaluates Sellmeier and lands on yet another value (1.785107).
+        crown_lens = Lens(
+            name=f"{crown_material} Element",
+            radius_of_curvature_1=R1_crown,
+            radius_of_curvature_2=R2_crown,
+            thickness=diameter * 0.15,  # ~15% of diameter
+            diameter=diameter,
+            material=crown_material,
+            refractive_index=n1,
+            wavelength=WAVELENGTH_D_LINE,
+        )
+
+        flint_lens = Lens(
+            name=f"{flint_material} Element",
+            radius_of_curvature_1=R1_flint,
+            radius_of_curvature_2=R2_flint,
+            thickness=diameter * 0.08,  # Thinner flint
+            diameter=diameter,
+            material=flint_material,
+            refractive_index=n2,
+            wavelength=WAVELENGTH_D_LINE,
+        )
+
+        # Create system
+        system = OpticalSystem(name="Achromatic Doublet")
+        system.add_lens(crown_lens, air_gap_before=0.0)
+        system.add_lens(flint_lens, air_gap_before=0.0)  # Cemented (no gap)
+
+        return system

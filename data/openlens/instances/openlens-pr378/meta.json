@@ -1,0 +1,49 @@
+{
+ "id": "openlens-pr378",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 316,
+ "issue_title": "Global optimizers hardcode `success=True` and report fabricated `initial_merit` / `iterations`",
+ "issue_body": "**Files:** `src/global_optimizer.py:140-150, 237-251` vs `src/optimizer.py:520-534`\n\n```python\nreturn OptimizationResult(\n    success=True,                                                    # never validated\n    iterations=generations * population_size + local_result.iterations,  # counts evaluations\n    initial_merit=history_merit[0],                                  # best of gen 0, not the start\n```\n\n`optimize_simplex` computes `best_valid = all(var.is_valid(v) ...)` and reports `success=best_valid`;\nboth global paths discard it. `history_merit[0]` is the best design of generation 0 (after 50 random\nmutations), not `current_design`, so `improvement` is computed against a fabricated baseline.\n\n**Fix:** factor the \"pick best, validate bounds, build result\" tail of `optimize_simplex` into a\nshared `_finalize(best_values, ...)` used by all three algorithms.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/316",
+ "pr": 378,
+ "pr_title": "fix(optimizer): report honest success, iterations and baselines",
+ "pr_body": "Closes #316\n\n## Problem\n\nBoth global optimizer paths discarded the bookkeeping `optimize_simplex` already did correctly:\n\n```python\nsuccess=True,                                              # never validated\niterations=generations * population_size + local_result.iterations,   # evaluations\ninitial_merit=history_merit[0],                            # best of gen 0\n```\n\n`optimize_simplex` computes `best_valid = all(var.is_valid(v) ...)` and reports it \u2014 the global paths threw that away.\n\n`history_merit[0]` is the **best design of generation 0**, i.e. after up to 50 random mutations \u2014 not the starting design. Improvement was therefore measured against a baseline the search never started from, inflating the reported percentage.\n\n## Fix\n\nThe \"pick best, validate bounds, build result\" tail of `optimize_simplex` is factored into `_finalize()`, used by all three algorithms:\n\n- `success` comes from the bounds check, never asserted. Out-of-bounds now yields `success=False` and a message naming the cause.\n- `initial_merit` is the merit of the **actual starting design**. For SA the entry merit is captured before the annealing loop reassigns `current_merit`; for the GA the starting design is re-evaluated instead of reading generation 0.\n- `iterations` counts iterations performed \u2014 the GA now reports `generations + local steps`, not `generations * population_size + local steps`.\n\n## Why `best_values` was added to the result\n\nThe global paths refine with a second `optimize_simplex` pass. Without the settled design exposed on the result, they would have bounds-checked the *pre-refinement* point while returning the *refined* system \u2014 validating the wrong thing. `OptimizationResult.best_values` makes the reported design checkable, and the asphyxiation early-return in `optimize_simplex` populates it too.\n\n## Tests\n\n6 tests in `tests/test_global_optimizer.py`; 3 fail without the change.\n\nTwo notes from writing them, both pre-existing and left alone:\n- The global paths assign `variables[i].current_value` **in place**, so a test must build fresh `OptimizationVariable` objects per run or an earlier run moves the next one's starting point.\n- Merit evaluation touches the system's own lenses (wavelength-dependent indices), so a shared `OpticalSystem` across algorithms makes the baseline drift.",
+ "fix_commit": "cc652674c5b7d4bafc8332f06d77a5d00974b32c",
+ "merged_at": "2026-10-04T21:09:53Z",
+ "port_method": "partial_hunks:7/8",
+ "src_files": [
+  "openlens/global_optimizer.py",
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_global_optimizer.py"
+ ],
+ "target_symbols": [
+  "openlens/global_optimizer.py::GlobalOptimizer._tournament_select",
+  "openlens/global_optimizer.py::GlobalOptimizer.optimize_genetic",
+  "openlens/global_optimizer.py::GlobalOptimizer.optimize_simulated_annealing",
+  "openlens/optimizer.py::LensOptimizer.optimize_simplex",
+  "openlens/optimizer.py::MeritFunction.__init__",
+  "openlens/optimizer.py::OptimizationResult"
+ ],
+ "fail_to_pass": [
+  "tests/test_global_optimizer.py::TestOptimizerResultIntegrity::test_all_algorithms_report_the_real_starting_merit",
+  "tests/test_global_optimizer.py::TestOptimizerResultIntegrity::test_every_algorithm_reports_the_settled_design",
+  "tests/test_global_optimizer.py::TestOptimizerResultIntegrity::test_genetic_iterations_count_generations_not_evaluations",
+  "tests/test_global_optimizer.py::TestOptimizerResultIntegrity::test_gradient_descent_result_has_best_values_field",
+  "tests/test_global_optimizer.py::TestOptimizerResultIntegrity::test_out_of_bounds_design_never_reports_success"
+ ],
+ "pass_to_pass": [
+  "tests/test_global_optimizer.py::TestGeneticNoFiniteMerit::test_nan_merit_does_not_crash",
+  "tests/test_global_optimizer.py::TestGeneticNoFiniteMerit::test_nan_merit_normalises_to_infeasible",
+  "tests/test_global_optimizer.py::TestGeneticNoFiniteMerit::test_normal_runs_still_improve",
+  "tests/test_global_optimizer.py::TestGeneticNoFiniteMerit::test_simulated_annealing_unaffected",
+  "tests/test_global_optimizer.py::TestGeneticNoFiniteMerit::test_zero_generations_does_not_crash",
+  "tests/test_global_optimizer.py::TestGeneticNoFiniteMerit::test_zero_generations_reports_a_finite_baseline",
+  "tests/test_global_optimizer.py::TestGlobalOptimizer::test_genetic_algorithm_seeded",
+  "tests/test_global_optimizer.py::TestGlobalOptimizer::test_simulated_annealing"
+ ],
+ "patch_lines": 100
+}

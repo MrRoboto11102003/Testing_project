@@ -1,0 +1,38 @@
+{
+ "id": "openlens-pr501",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 447,
+ "issue_title": "Diffraction PSF/MTF ignores focus_shift_mm; image simulator defocus does nothing",
+ "issue_body": "**Where:** `src/analysis/psf_mtf.py:122-125`, `:234-252`, `:407-426`, `:601-608`\n\n`_calculate_diffraction_psf` accepts `focus_shift_mm` but never uses it, and the diffraction branch of `calculate_mtf` drops it. `simulate_image` always takes the diffraction path, so its defocus argument has no effect.\n\n**Repro:** on a doublet, the PSF and the diffraction MTF at 0 mm and 2 mm defocus are bit-identical (`np.array_equal` -> `True`).\n\n**Fix:** add a defocus term to the wavefront before the FFT (`dz * rho^2 * NA^2 / (2 lambda)` paraxially) or shift the reference-sphere centre. Add a test that MTF at a defocus is lower than at best focus.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/447",
+ "pr": 501,
+ "pr_title": "fix(analysis): make the diffraction PSF and MTF respond to defocus",
+ "pr_body": "## Description\n\nfix(analysis): make the diffraction PSF and MTF respond to defocus\n\n`_calculate_diffraction_psf` accepted `focus_shift_mm` and never used it, and\nthe diffraction branch of `calculate_mtf` dropped it entirely. The wavefront is\nreferenced to the Gaussian focus, so with no defocus term added, the PSF and\nthe MTF at 0 mm and at 2 mm of defocus came out **bit-identical**:\n\n```python\nnp.array_equal(psf_at_0, psf_at_2)  # -> True\n```\n\n`simulate_image` always takes the diffraction path, so its defocus argument did\nnothing either.\n\n### The physics\n\nAn image-plane defocus of `dz` adds a quadratic phase across the pupil:\n\n```\nW(p) = dz * NA^2 * p^2 / (2 * lambda)\n```\n\nwith `p` normalised to 1 at the pupil edge and `lambda` in mm.\n\nThe **`NA^2` factor matters**: without it the term is off by `1/NA^2`, which for\na typical f/4 system is a factor of 64. The sign does not change the PSF (the\nintensity is a squared modulus and the pupil is symmetric), but the magnitude\ndoes \u2014 so the scale is the whole fix.\n\nThe term is applied in **both** places that build a wavefront: the PSF helper,\nand the MTF branch, which had its own copy of the wavefront\u2192PSF chain and\nsilently dropped the argument. Pupil diameter, EFL and NA now come from one\n`_pupil_geometry()` helper, so the defocus term and the PSF resampling use the\nsame approximations.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #447\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **only** the defocus term: **2 of 6 fail, 6 of 6\n      pass** with it restored\n- [x] `python3 -m unittest tests.test_diffraction_defocus` \u2014 6 tests, OK\n- [x] `python3 -m unittest tests.test_psf_mtf tests.test_psf_result_contract tests.test_psf_resample_indices tests.test_mtf_no_dead_code tests.test_image_simulator_api tests.test_image_sim_aberration_scale` \u2014 71 tests, OK\n- [x] Full suite: `Ran 1700 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 220 files unchanged\n- [x] `flake8 src/analysis/psf_mtf.py tests/test_diffraction_defocus.py` \u2014 no new\n      findings. The `E402`/`F841`/`E501` in `psf_mtf.py` are pre-existing;\n      verified against `git show master:src/analysis/psf_mtf.py` (6 findings,\n      unchanged)\n- [x] Coverage includes: the PSF differing at two defocus values, the defocused\n      PSF being *wider* (second moment, not just \"different\"), the in-focus PSF\n      being unchanged, the MTF differing, and the MTF dropping with defocus\n\n### A comparison I had to get right\n\nThe first version of the MTF test asserted the **peak** MTF drops with defocus.\nIt does not, and should not: the MTF at DC is 1.0 by definition, because\ndefocus costs no contrast at zero frequency. What defocus costs is the ability\nto carry fine detail, so the test now compares the curve at a non-zero spatial\nfrequency. The \"corrected\" assertion is the one that would otherwise have\nhidden a real regression, so it is worth stating.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "ef229d258fddd4eb7a6147a9899a7dde0ffc713e",
+ "merged_at": "2026-10-17T18:51:21Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/analysis/psf_mtf.py"
+ ],
+ "test_files": [
+  "tests/test_diffraction_defocus.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._calculate_diffraction_psf",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.calculate_mtf",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.simulate_image"
+ ],
+ "fail_to_pass": [
+  "tests/test_diffraction_defocus.py::TestDiffractionMtfRespondsToDefocus::test_the_mtf_drops_with_defocus",
+  "tests/test_diffraction_defocus.py::TestDiffractionMtfRespondsToDefocus::test_the_mtf_is_not_identical_at_two_defocus_values"
+ ],
+ "pass_to_pass": [
+  "tests/test_diffraction_defocus.py::TestDiffractionPsfRespondsToDefocus::test_a_defocused_psf_is_wider",
+  "tests/test_diffraction_defocus.py::TestDiffractionPsfRespondsToDefocus::test_the_psf_is_not_bit_identical_at_two_defocus_values",
+  "tests/test_diffraction_defocus.py::TestDiffractionPsfRespondsToDefocus::test_the_psf_stays_normalised",
+  "tests/test_diffraction_defocus.py::TestDiffractionPsfRespondsToDefocus::test_zero_defocus_leaves_the_psf_unchanged"
+ ],
+ "patch_lines": 80
+}

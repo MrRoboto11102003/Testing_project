@@ -1,0 +1,265 @@
+{
+ "id": "openlens-pr501",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 110,
+  "units_kept": 55,
+  "chars": 74844,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 13511
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 0.26,
+ "detected": false,
+ "n_tests": 27,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 10744,
+  "cache_read_input_tokens": 13065,
+  "output_tokens": 8215,
+  "output_tokens_details": {
+   "thinking_tokens": 4443
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 10744,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8215,
+    "cache_read_input_tokens": 13065,
+    "cache_creation_input_tokens": 10744,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 10744
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0638785,
+ "model_seconds": 37.0,
+ "seconds": 103.8,
+ "tests": {
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_accepts_parameters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_arrays_have_equal_length": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_empty_system": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_freq_monotonic_increasing": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_freq_starts_at_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_legacy_alias_field_angle": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_max_freq_respected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_max_freq_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_mtf_at_zero_frequency_is_unity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_mtf_values_in_valid_range": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_negative_max_freq": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_returns_dict_with_correct_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestCalculateMTF::test_calculate_mtf_unexpected_kwargs_raises_type_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_accepts_documented_parameters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "WAVELENGTH_C_LINE",
+    "WAVELENGTH_D_LINE",
+    "WAVELENGTH_F_LINE"
+   ]
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_channel_mismatch_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_empty_system_returns_zeros": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_grayscale_2d_shape_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_grayscale_channels_averaged": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_invalid_1d_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_invalid_4d_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_legacy_alias_pixel_size": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_legacy_alias_wavelengths": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_output_clipped_to_zero_one": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_output_dtype_always_float64": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_rgb_3d_shape_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_uint8_input_scaled": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr501.py::TestSimulateImage::test_simulate_image_unexpected_kwargs_raises_type_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

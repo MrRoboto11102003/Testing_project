@@ -1,0 +1,250 @@
+{
+ "id": "openlens-pr378",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 112,
+  "units_kept": 56,
+  "chars": 96880,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 29493
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 3.23,
+ "detected": true,
+ "n_tests": 16,
+ "n_catching": 5,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 15784,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 11704,
+  "output_tokens_details": {
+   "thinking_tokens": 8382
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 15784,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11704,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 15784,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 15784
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0913886,
+ "model_seconds": 67.3,
+ "seconds": 77.3,
+ "tests": {
+  "tests/_generated/test_openlens_pr378.py::TestOptimizationResultDataclass::test_construction_with_all_required_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizationResultDataclass::test_default_list_factories_are_independent": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizationResultDataclass::test_equality_of_two_identical_results": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizationResultDataclass::test_message_defaults_to_empty_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizationResultDataclass::test_missing_required_field_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OptimizationResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeGeneticBehavior::test_returns_optimization_result": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GlobalOptimizer",
+    "Lens",
+    "OpticalSystem",
+    "OptimizationResult",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeGeneticBehavior::test_seed_reproducibility": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GlobalOptimizer",
+    "Lens",
+    "OpticalSystem",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeGeneticEdgeCases::test_generations_zero_skips_ga_loop": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer",
+    "Lens",
+    "OpticalSystem",
+    "OptimizationResult",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeGeneticEdgeCases::test_population_size_zero_raises_indexerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer",
+    "Lens",
+    "OpticalSystem",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeSimplexBehavior::test_callback_invoked_during_optimization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer",
+    "OpticalSystem",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeSimplexBehavior::test_returns_optimization_result": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GlobalOptimizer",
+    "Lens",
+    "OpticalSystem",
+    "OptimizationResult",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeSimplexEdgeCases::test_wrong_start_length_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer",
+    "OpticalSystem",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeSimplexEdgeCases::test_zero_variables_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeSimulatedAnnealingBehavior::test_returns_optimization_result": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GlobalOptimizer",
+    "Lens",
+    "OpticalSystem",
+    "OptimizationResult",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeSimulatedAnnealingBehavior::test_seed_reproducibility": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "GlobalOptimizer",
+    "Lens",
+    "OpticalSystem",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr378.py::TestOptimizeSimulatedAnnealingEdgeCases::test_zero_max_iterations_produces_correct_message": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer",
+    "Lens",
+    "OpticalSystem",
+    "OptimizationResult",
+    "OptimizationVariable"
+   ]
+  }
+ }
+}

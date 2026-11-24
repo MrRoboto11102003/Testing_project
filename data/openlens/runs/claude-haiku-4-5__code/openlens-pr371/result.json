@@ -1,0 +1,207 @@
+{
+ "id": "openlens-pr371",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code",
+ "context": {
+  "mode": "code",
+  "chars": 3556
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": null,
+ "mean_arnio_calls": 1.87,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2284,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10022,
+  "output_tokens_details": {
+   "thinking_tokens": 8557
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2284,
+    "output_tokens": 10022,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.052394,
+ "model_seconds": 46.0,
+ "seconds": 50.2,
+ "tests": {
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_all_keyword_arguments": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_alternative_crown_flint_materials": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_default_materials_bk7_sf11": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_explicit_default_materials": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_fast_optics_small_fnumber": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_invalid_crown_material_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_invalid_flint_material_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_large_aperture_diameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_long_focal_length": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_mixed_positional_and_keyword_arguments": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_positional_arguments": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_returns_optical_system": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_short_focal_length": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_slow_optics_large_fnumber": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesign::test_small_aperture_diameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  }
+ }
+}

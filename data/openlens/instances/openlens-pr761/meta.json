@@ -1,0 +1,42 @@
+{
+ "id": "openlens-pr761",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 756,
+ "issue_title": "bug: STL export silently replaces conic and parabolic surfaces with spheres",
+ "issue_body": "## Summary\n\n`STLExporter.calculate_surface_profile()` only knows a spherical radius. The callers in `export_lens_stl()` pass `lens.radius_of_curvature_1/2` and `lens.diameter`, so `conic_constant_1/2`, `is_parabolic_1/2` and `parabolic_sag_1/2` are silently ignored. A conic or parabolic lens exports as a spherical solid.\n\n## Impact\n\nA user editing a conic/parabolic surface and choosing File > Export > STL gets a printable model of a different optical surface. No warning or error is emitted. The STEP exporter deliberately refuses conic surfaces (`tests/test_step_conic_surfaces.py`), so the two solid exporters disagree: STEP fails loudly, STL silently exports a sphere.\n\n## Reproduction\n\n```python\nimport os\nimport struct\nimport sys\nimport tempfile\n\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.lens import Lens\nfrom openlens.stl_export import export_lens_stl\n\n\ndef lens(**overrides):\n    data = dict(\n        name=\"L\",\n        radius_of_curvature_1=50.0,\n        radius_of_curvature_2=-50.0,\n        thickness=5.0,\n        diameter=25.0,\n        refractive_index=1.5168,\n    )\n    data.update(overrides)\n    return Lens(**data)\n\n\ndef triangles(path):\n    with open(path, \"rb\") as handle:\n        data = handle.read()\n    count = struct.unpack(\"<I\", data[80:84])[0]\n    return data[84 : 84 + count * 50]\n\n\nwith tempfile.TemporaryDirectory() as tmp:\n    sphere = os.path.join(tmp, \"sphere.stl\")\n    conic = os.path.join(tmp, \"conic.stl\")\n    parabolic = os.path.join(tmp, \"parabolic.stl\")\n    export_lens_stl(lens(), sphere, resolution=16)\n    export_lens_stl(\n        lens(conic_constant_1=-0.7, conic_constant_2=-0.3), conic, resolution=16\n    )\n    export_lens_stl(\n        lens(is_parabolic_1=True, parabolic_sag_1=1.0), parabolic, resolution=16\n    )\n    print(\"spherical vs conic STL identical:\", triangles(sphere) == triangles(conic))\n    print(\n        \"spherical vs parabolic STL identical:\",\n        triangles(sphere) == triangles(parabolic),\n    )\n```\n\nObserved:\n\n```\nspherical vs conic STL identical: True\nspherical vs parabolic STL identical: True\n```\n\n## Root cause\n\n`openlens/stl_export.py:27-45` computes `z_sag` from `radius` and `y` only; `export_lens_stl()` at `:381-401` passes only the spherical radius and diameter. The model fields are never read. The centralized `LensGeometry.surface_profile()` in `openlens/geometry.py` already handles conic, parabolic and Fresnel surfaces, but STL bypasses it.\n\n## Expected behaviour\n\nSTL should either mesh the stored conic/parabolic surface (and Fresnel, if supported) or refuse the export with a clear error, matching STEP. It must not silently substitute a sphere.\n\n## Suggested fix\n\nBuild the STL profile from `LensGeometry.surface_profile(lens, surface)` or extend `calculate_surface_profile()` to accept conic/parabolic parameters and use `lens.get_sag_1/2`. Add tests comparing conic/parabolic triangle vertices with a sphere and asserting they differ (and, if unsupported, that export raises).\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/756",
+ "pr": 761,
+ "pr_title": "fix(io): mesh conic and parabolic surfaces in STL export",
+ "pr_body": "## Description\n\nThe STL exporter built every surface from the spherical sag formula, so a conic or parabolic lens silently exported as a sphere. Model exports now use `LensGeometry.surface_profile`, the same conic/parabolic/Fresnel shape used by ray tracing. The numeric `export_lens_to_stl` API remains spherical unless a model is passed.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #756\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `python3 -m unittest tests.test_stl_export tests.test_stl_assembly_winding`\n- [x] Full suite: `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .` \u2014 2938 tests, 36 skipped, exit 0\n- [x] `black --line-length=100 --exclude 'openlens/__main__.py' openlens/stl_export.py tests/test_stl_export.py --check`\n- [x] `.venv/bin/flake8` on the changed files\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "9265b8afe9e7686b4906073ef2ee1333376072b6",
+ "merged_at": "2026-10-26T10:51:25Z",
+ "port_method": "partial_hunks:5/7",
+ "src_files": [
+  "openlens/stl_export.py"
+ ],
+ "test_files": [
+  "tests/test_stl_export.py"
+ ],
+ "target_symbols": [
+  "openlens/stl_export.py::STLExporter.export_lens_to_stl",
+  "openlens/stl_export.py::export_lens_stl"
+ ],
+ "fail_to_pass": [
+  "tests/test_stl_export.py::TestSTLExport::test_export_creates_file",
+  "tests/test_stl_export.py::TestSTLExport::test_export_flat_surfaces",
+  "tests/test_stl_export.py::TestSTLExport::test_geometry_consistency",
+  "tests/test_stl_export.py::TestSTLModelSurfaces::test_a_conic_front_surface_is_not_a_sphere",
+  "tests/test_stl_export.py::TestSTLModelSurfaces::test_a_parabolic_front_surface_is_not_a_sphere"
+ ],
+ "pass_to_pass": [
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_a_closed_edge_list_wraps_the_last_segment",
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_a_curved_surface_profile_is_still_returned",
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_a_flat_surface_profile_is_none",
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_an_edge_list_of_the_wrong_length_is_rejected",
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_an_open_edge_list_uses_the_final_value",
+  "tests/test_stl_export.py::TestSTLModelSurfaces::test_an_assembly_uses_the_element_surface_model"
+ ],
+ "patch_lines": 40
+}

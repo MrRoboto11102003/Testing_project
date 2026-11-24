@@ -1,0 +1,50 @@
+{
+ "id": "openlens-pr505",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 453,
+ "issue_title": "Tolerancing Monte Carlo / inverse sensitivity mutate the user's live assembly from a worker thread",
+ "issue_body": "**Where:** `src/gui/tabs/tolerancing_tab.py:44-58` (`_as_system`), `:102`, `:163`, `:614`; `src/tolerancing.py:606-637`, `:698-716`\n\nFor an assembly, `_as_system` returns the live `_current_assembly` rather than a copy. `MonteCarloAnalyzer.run()` applies random tolerance changes in place from a QThread on every trial while the main thread keeps drawing, refreshing and saving the same object. An edit saved during a run can write a perturbed assembly to SQLite. The restore is a plain call, not `try/finally`, so an exception from `_apply_value` or the unguarded `trace_spot` (`:691`, `:710`) leaves the design perturbed. The optimisation worker already deep-copies (`optimization_tab.py:129`).\n\n**Fix:** `copy.deepcopy(target)` in `_as_system`, pass a copy of the operand list, and wrap each trial in `try/finally: _restore_state(...)`. Prefer analysers that take a wavelength/parameters instead of mutating lenses.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/453",
+ "pr": 505,
+ "pr_title": "fix(tolerancing): a tolerance run must not touch the user's live design",
+ "pr_body": "## Description\n\nfix(tolerancing): a tolerance run must not touch the user's live design\n\n`MonteCarloAnalyzer` applies random tolerance changes **in place** on the system\nit is given, from a `QThread`, while the main thread keeps drawing, refreshing\nand saving the same object. `_as_system` handed it the **live** assembly, so an\nedit saved during a run could write a perturbed design to SQLite.\n\nThe restore was also a plain call rather than a `try/finally`, so an exception\nfrom `_apply_value` or from the unguarded `trace_spot` left the design\nperturbed \u2014 and the next save persisted that.\n\n### Changes\n\n- **`_as_system` deep-copies an assembly** as well as a bare lens. A\n  `copy.deepcopy` keeps the tree and the flat element list pointing at the\n  same lens objects, which `refresh_references` depends on.\n- **Each trial restores the nominal state in a `finally` block** \u2014 Monte Carlo\n  and inverse sensitivity \u2014 so a failing trial cannot leave the design\n  perturbed.\n- **A failing trial is now logged and skipped** rather than aborting the whole\n  run and losing every accumulated result.\n\nThe optimisation worker already deep-copied; the tolerancing workers did not.\n\n## The existing test asserted the bug\n\n`tests/test_tolerancing_assemblies.py` asserted `assertIs(_as_system(system),\nsystem)` \u2014 that the worker gets the **very same** assembly object. That *is* the\naliasing this issue is about.\n\nIts intent was that \"a bare-lens wrapper would discard elements and gaps\", so\nit now checks that **content** (element and gap counts) rather than object\nidentity, and says why the copy is deliberate.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #453\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **each half on its own**:\n      - without the `try/finally` restores \u2192 **4 of 8 fail**\n      - without the deepcopy \u2192 **2 of 8 fail**\n- [x] `python3 -m unittest tests.test_tolerancing_live_design` \u2014 8 tests, OK\n- [x] `python3 -m unittest tests.test_tolerancing_assemblies tests.test_tolerancing_live_design tests.test_tolerance_persistence` \u2014 32 tests, OK\n- [x] Full suite: `Ran 1723 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 223 files unchanged\n- [x] `flake8` \u2014 no new findings in `src/tolerancing.py` (2 pre-existing, on\n      master) or `src/gui/tabs/tolerancing_tab.py` (4 pre-existing, on master)\n- [x] Coverage includes: an assembly being copied, the copy being independent,\n      a bare lens being copied, the copy keeping the tree/flat-list identity,\n      a Monte Carlo run leaving the system unchanged, a failing trial leaving\n      it unchanged, and the same two for inverse sensitivity\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "2fd1e97428ce13c08e434581c378bafdcfd04564",
+ "merged_at": "2026-10-17T23:38:26Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tolerancing.py"
+ ],
+ "test_files": [
+  "tests/test_tolerancing_assemblies.py",
+  "tests/test_tolerancing_live_design.py"
+ ],
+ "target_symbols": [
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer.calculate_sensitivities",
+  "openlens/tolerancing.py::MonteCarloAnalyzer.run"
+ ],
+ "fail_to_pass": [
+  "tests/test_tolerancing_live_design.py::TestInverseSensitivityLeavesTheDesignAlone::test_a_failing_trial_does_not_leave_the_design_perturbed",
+  "tests/test_tolerancing_live_design.py::TestMonteCarloLeavesTheDesignAlone::test_a_failing_trial_does_not_leave_the_design_perturbed"
+ ],
+ "pass_to_pass": [
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_add_tolerance_offers_every_assembly_element",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_default_set_is_not_a_silent_no_op_for_an_assembly",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_inverse_sensitivity_runs_for_an_assembly",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_load_grade_is_not_a_silent_no_op_for_an_assembly",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_monte_carlo_runs_for_an_assembly",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_monte_carlo_still_runs_for_a_single_lens",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_nothing_selected_reports_instead_of_silently_returning",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_resolve_target_falls_back_to_the_lens",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_resolve_target_prefers_the_assembly",
+  "tests/test_tolerancing_assemblies.py::TestTolerancingAssemblies::test_worker_keeps_an_assembly_intact",
+  "tests/test_tolerancing_live_design.py::TestAsSystemCopiesTheTarget::test_a_bare_lens_is_copied",
+  "tests/test_tolerancing_live_design.py::TestAsSystemCopiesTheTarget::test_a_copy_is_independent",
+  "tests/test_tolerancing_live_design.py::TestAsSystemCopiesTheTarget::test_an_assembly_is_copied",
+  "tests/test_tolerancing_live_design.py::TestAsSystemCopiesTheTarget::test_the_copy_keeps_the_tree_and_flat_list_in_step",
+  "tests/test_tolerancing_live_design.py::TestInverseSensitivityLeavesTheDesignAlone::test_a_run_does_not_change_the_system_it_was_given",
+  "tests/test_tolerancing_live_design.py::TestMonteCarloLeavesTheDesignAlone::test_a_run_does_not_change_the_system_it_was_given"
+ ],
+ "patch_lines": 68
+}

@@ -1,0 +1,47 @@
+{
+ "id": "openlens-pr408",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 349,
+ "issue_title": "`optimize_gradient_descent` accepts every step and has no bounds or line search",
+ "issue_body": "**File:** `src/optimizer.py:553-555, 569-582`\n\n```python\n553: for iteration in range(max_iterations):\n554:     last_iteration = iteration\n555:     last_iteration = iteration        # <- dead duplicate\n...\n569: improvement = initial_merit - new_merit        # shadowed at :582\n574: current_values = new_values                    # accepted unconditionally\n```\n\nEvery step is accepted even when the merit got worse, with no backtracking and no bound handling \u2014 on\na merit with `1e8` geometry penalties the trajectory diverges. The convergence test compares against\n`merit_history[-1]`, which is not updated on the iteration that breaks.\n\n**Fix:** reject steps that increase the merit (halve the learning rate and retry), bound-check before\napplying, delete the dead lines, compare against the *current* merit.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/349",
+ "pr": 408,
+ "pr_title": "fix(optimizer): gradient descent must reject steps that worsen the merit",
+ "pr_body": "Closes #349\n\n## Problem\n\n`optimize_gradient_descent` accepted every step unconditionally:\n\n```python\nnew_values = [val - learning_rate * grad ...]\nnew_merit = self._evaluate_design(new_values)\nimprovement = initial_merit - new_merit      # shadowed, never read\nif abs(new_merit - merit_history[-1]) < tolerance:\n    break\ncurrent_values = new_values                  # accepted regardless\n```\n\nNo backtracking, no bound handling. On a merit carrying large geometry penalties the trajectory **diverges**.\n\n## Verified\n\nOn a design starting at 0.2 mm thickness, whose merit is dominated by a geometry penalty (~2e8):\n\n```\nbefore: merit 2.00e+08 -> 3.06e+30, improvement -1.5e+27 %\nafter:  merit 2.00e+08 -> 2.00e+08, improvement      0.00 %\n```\n\nTwenty-two orders of magnitude, and a reported \"improvement\" of \u22121.5\u00d710\u00b2\u2077 %.\n\n## Fix\n\nA step that does not reduce the merit is rejected: halve the step size, retry from the same point, up to `MAX_BACKTRACKING_STEPS` (12), giving up below `MIN_LEARNING_RATE`. If no smaller step helps, that is a stationary point \u2014 or a numerical gradient already below the tolerance \u2014 and the run stops rather than wandering into a worse design.\n\nBounds stay **penalties, not walls** (variables are not clamped), so an out-of-range trial simply scores badly and is rejected by the same test. `result.success` still reports final validity.\n\n## Three further corrections\n\n- **`merit_history[-1]` was the wrong reference.** The history is only appended for *accepted* steps, so on a stalled run its last entry can predate the design actually returned \u2014 both for the convergence comparison and for `final_merit`. `current_merit` is now tracked explicitly.\n- `last_iteration = iteration` appeared **twice** in the loop body.\n- `improvement = initial_merit - new_merit` was computed then overwritten at the end of the method without ever being read.\n\n## Tests\n\n16 tests, **8 fail without the change**: monotone merit history, convergence at lr = 5.0 and lr = 500.0, no divergence from a penalised start, `improvement` never absurdly negative, `final_merit` matching the returned design (including on a stalled run), history and variable history staying in step, and reflection tests pinning the three dead-code removals.\n",
+ "fix_commit": "0658813958a095813ab0227a5978651c908c6304",
+ "merged_at": "2026-10-06T20:25:47Z",
+ "port_method": "partial_hunks:1/2",
+ "src_files": [
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_optimizer_gradient_descent.py"
+ ],
+ "target_symbols": [
+  "openlens/optimizer.py::LensOptimizer._merit_range_converged",
+  "openlens/optimizer.py::LensOptimizer.optimize_gradient_descent"
+ ],
+ "fail_to_pass": [
+  "tests/test_optimizer_gradient_descent.py::TestDeadCodeRemoved::test_convergence_uses_the_current_merit_not_the_history",
+  "tests/test_optimizer_gradient_descent.py::TestDeadCodeRemoved::test_no_duplicated_last_iteration_assignment",
+  "tests/test_optimizer_gradient_descent.py::TestDeadCodeRemoved::test_no_shadowed_improvement_assignment",
+  "tests/test_optimizer_gradient_descent.py::TestMeritNeverIncreases::test_huge_learning_rate_still_converges",
+  "tests/test_optimizer_gradient_descent.py::TestMeritNeverIncreases::test_improvement_is_never_absurdly_negative",
+  "tests/test_optimizer_gradient_descent.py::TestMeritNeverIncreases::test_penalised_history_never_exceeds_the_start",
+  "tests/test_optimizer_gradient_descent.py::TestMeritNeverIncreases::test_penalised_start_does_not_diverge"
+ ],
+ "pass_to_pass": [
+  "tests/test_optimizer_gradient_descent.py::TestBacktrackingConstants::test_constants_are_sane",
+  "tests/test_optimizer_gradient_descent.py::TestBacktrackingConstants::test_zero_learning_rate_makes_no_progress_without_error",
+  "tests/test_optimizer_gradient_descent.py::TestMeritNeverIncreases::test_aggressive_learning_rate_still_converges",
+  "tests/test_optimizer_gradient_descent.py::TestMeritNeverIncreases::test_history_is_monotonically_non_increasing",
+  "tests/test_optimizer_gradient_descent.py::TestResultConsistency::test_bounds_are_still_reported_not_clamped",
+  "tests/test_optimizer_gradient_descent.py::TestResultConsistency::test_final_merit_matches_on_a_stalled_run",
+  "tests/test_optimizer_gradient_descent.py::TestResultConsistency::test_final_merit_matches_the_last_history_entry",
+  "tests/test_optimizer_gradient_descent.py::TestResultConsistency::test_history_has_one_entry_per_accepted_step",
+  "tests/test_optimizer_gradient_descent.py::TestResultConsistency::test_iterations_is_at_least_one"
+ ],
+ "patch_lines": 73
+}

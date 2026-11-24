@@ -1,0 +1,194 @@
+diff --git a/openlens/aberrations.py b/openlens/aberrations.py
+index 2b85534a68340d9448510899fac59c782fb64567..0f83021b0cc8861523fe78a5592dd3286481c06a 100644
+--- a/openlens/aberrations.py
++++ b/openlens/aberrations.py
+@@ -352,7 +352,7 @@ class AberrationsCalculator:
+         return self._calculate_field_estimators(field_angle_deg, wavelength_nm)
+ 
+     def _calculate_f_number(self, focal_length: float) -> float:
+-        """F-number |f|/D (photographic convention; sign of EFL dropped)."""
++        """Calculate the f-number (f/D)"""
+         if self.diameter <= 0:
+             return float("inf")
+         return abs(focal_length) / self.diameter
+diff --git a/openlens/analysis/diffraction_psf.py b/openlens/analysis/diffraction_psf.py
+index 449f282cf79189140d6337d2b83c5442db219d4c..5e3adec3bdeb3000572ed82ab70f3e420a34a3de 100644
+--- a/openlens/analysis/diffraction_psf.py
++++ b/openlens/analysis/diffraction_psf.py
+@@ -249,8 +249,9 @@ class WavefrontSensor:
+             )
+             return _nan_map()
+         t_q = (x_focus - chief.origin.x) / chief.direction.x
+-        # t_q may be negative (focus in front of the exit-propagation end):
+-        # extending the chief line backward to the image plane is still valid.
++        if t_q < 0:
++            logger.warning("Chief ray focus behind exit ray; cannot reference wavefront")
++            return _nan_map()
+         qx = chief.origin.x + t_q * chief.direction.x
+         qy = chief.origin.y + t_q * chief.direction.y
+         qz = chief.origin.z + t_q * chief.direction.z
+diff --git a/openlens/analysis/ghost.py b/openlens/analysis/ghost.py
+index 89b35cb595195290c2ede09d8ea1c94e870095dc..de025f7f93f2a0a21050b0ad02039812908652af 100644
+--- a/openlens/analysis/ghost.py
++++ b/openlens/analysis/ghost.py
+@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
+ import logging
+ from typing import List, Optional, Dict, Any
+ 
+-from ..ray_tracer import Ray3D, LensRayTracer3D, RefractionResult, vec3
++from ..ray_tracer import Ray3D, LensRayTracer3D, vec3
+ from ..optical_system import OpticalSystem
+ from ..constants import WAVELENGTH_GREEN, NM_TO_MM
+ 
+diff --git a/openlens/lens.py b/openlens/lens.py
+index bb4732f57ec5262153dce15e05e7982da3a94690..e6c7e813256d92b5329aca82c809deb946d4416a 100644
+--- a/openlens/lens.py
++++ b/openlens/lens.py
+@@ -1174,12 +1174,11 @@ class Lens:
+         d is the thickness, n is the refractive index, and f is the focal length.
+ 
+         Returns:
+-            Back focal length in mm, or None if undefined (afocal).
+-            None (not inf) matches OpticalSystem.calculate_back_focal_length.
++            Back focal length in mm, or inf if undefined
+         """
+         f = self.calculate_focal_length()
+         if f is None:
+-            return None
++            return float("inf")
+ 
+         n = self.refractive_index
+         r1 = self.get_effective_radius_1()
+@@ -1231,12 +1230,11 @@ class Lens:
+ 
+         Returns:
+             Front focal length in mm (signed Cartesian coordinate),
+-            or None if undefined (afocal). None (not inf) matches the
+-            system-level convention.
++            or inf if undefined
+         """
+         f = self.calculate_focal_length()
+         if f is None:
+-            return None
++            return float("inf")
+ 
+         n = self.refractive_index
+         r2 = self.get_effective_radius_2()
+@@ -1254,7 +1252,7 @@ class Lens:
+ 
+             return ffl
+         except ZeroDivisionError:
+-            return None
++            return float("inf")
+ 
+     def __str__(self) -> str:
+         focal_length = self.calculate_focal_length()
+diff --git a/openlens/polarization.py b/openlens/polarization.py
+index 8f040a83dd6454b98d55797d52a17b8ea0a45586..89d4dbf65cccae5be715fedeb811f0374e62e955 100644
+--- a/openlens/polarization.py
++++ b/openlens/polarization.py
+@@ -7,25 +7,9 @@ Implements polarization calculations including:
+ - Brewster angle calculations
+ - Birefringent materials
+ - Fresnel equations with polarization
+-
+-Conventions (fixed; do not "correct" individual signs in isolation):
+-- Jones vectors are (Ex, Ey) in the transverse plane for light
+-  propagating toward +z. This module never fixes the time dependence,
+-  so handedness is defined algebraically, not by clock face:
+-- circular_right() = [1, +i]/sqrt(2) and circular_left() = [1, -i]/sqrt(2).
+-  The two are orthogonal. Stokes S3 = 2*Im(Ex*conj(Ey)) is -1 for
+-  circular_right and +1 for circular_left. Some texts (e.g. Hecht) use
+-  the opposite R/L assignment with conjugated S3: convert by swapping
+-  the labels (equivalently, conjugating S3) when interoperating.
+-- Consistency anchor: horizontal light through a QWP at 45 deg gives
+-  circular_left up to a global phase, and degree_of_polarization() is
+-  1.0 because Jones vectors can only represent fully polarized light.
+-- rotator() uses [[c, s], [-s, c]] (clockwise-positive looking into the
+-  beam); keep the sense when comparing with other sources.
+ """
+ 
+ import numpy as np
+-import cmath
+ import logging
+ from typing import Dict, Optional
+ 
+@@ -69,12 +53,12 @@ class PolarizationState:
+ 
+     @classmethod
+     def circular_right(cls):
+-        """Right circular polarization ([1, +i]/sqrt(2); S3 = -1, see module docstring)"""
++        """Right circular polarization"""
+         return cls(np.array([1.0, 1j]) / np.sqrt(2))
+ 
+     @classmethod
+     def circular_left(cls):
+-        """Left circular polarization ([1, -i]/sqrt(2); S3 = +1, see module docstring)"""
++        """Left circular polarization"""
+         return cls(np.array([1.0, -1j]) / np.sqrt(2))
+ 
+     @classmethod
+@@ -99,12 +83,7 @@ class PolarizationState:
+         return PolarizationState(new_vector)
+ 
+     def degree_of_polarization(self) -> float:
+-        """Degree of polarization (always 1.0: Jones vectors are pure states).
+-
+-        Jones calculus cannot represent partially polarized or unpolarized
+-        light (that needs Stokes vectors / Mueller matrices or coherency
+-        matrices); this method reports that modeling limit, not a measurement.
+-        """
++        """Calculate degree of polarization (0-1)"""
+         I_total = self.intensity()
+         if I_total == 0:
+             return 0.0
+@@ -225,17 +204,10 @@ class PolarizationCalculator:
+ 
+         # Check for total internal reflection
+         if sin_theta2 > 1.0:
+-            # Total internal reflection: cos(theta2) is imaginary and the
+-            # same Fresnel formulas give complex unit-magnitude
+-            # coefficients whose relative phase is the s/p retardance
+-            # (basis of the Fresnel rhomb). Power reflectance stays 1.
+-            cos_theta2 = cmath.sqrt(1.0 - sin_theta2**2)
+-            cos_theta1 = np.cos(theta1)
+-            r_s = (n1 * cos_theta1 - n2 * cos_theta2) / (n1 * cos_theta1 + n2 * cos_theta2)
+-            r_p = (n2 * cos_theta1 - n1 * cos_theta2) / (n2 * cos_theta1 + n1 * cos_theta2)
++            # Total internal reflection
+             return {
+-                "r_s": r_s,
+-                "r_p": r_p,
++                "r_s": 1.0 + 0j,
++                "r_p": 1.0 + 0j,
+                 "t_s": 0.0 + 0j,
+                 "t_p": 0.0 + 0j,
+                 "total_internal_reflection": True,
+diff --git a/openlens/tolerancing.py b/openlens/tolerancing.py
+index 3f211a4585509d066806163a7b3c46c9df210bb0..3e75ed19b8871630bc425651c8374c7984daa906 100644
+--- a/openlens/tolerancing.py
++++ b/openlens/tolerancing.py
+@@ -14,24 +14,6 @@ from .vector3 import vec3
+ logger = logging.getLogger(__name__)
+ 
+ 
+-def _percentile(values: List[float], pct: float) -> float:
+-    """Percentile by linear interpolation (numpy 'linear' method).
+-
+-    Avoids statistics.quantiles (absent on Python 3.7) and the off-by-one
+-    of indexing int(p * N) without interpolation. pct in [0, 100].
+-    """
+-    ordered = sorted(values)
+-    if not ordered:
+-        raise ValueError("percentile of empty data")
+-    if len(ordered) == 1:
+-        return ordered[0]
+-    rank = (pct / 100.0) * (len(ordered) - 1)
+-    low = int(rank)
+-    high = min(low + 1, len(ordered) - 1)
+-    frac = rank - low
+-    return ordered[low] * (1.0 - frac) + ordered[high] * frac
+-
+-
+ class ToleranceType(enum.Enum):
+     """Toleranced parameter. Native units per type (used as-is, no conversion).
+ 

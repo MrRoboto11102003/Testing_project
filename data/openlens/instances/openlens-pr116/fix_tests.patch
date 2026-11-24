@@ -1,0 +1,498 @@
+diff --git a/tests/test_aberrations.py b/tests/test_aberrations.py
+index a0bbfbd..d1c646e 100644
+--- a/tests/test_aberrations.py
++++ b/tests/test_aberrations.py
+@@ -65,7 +65,7 @@ class TestAberrationsCalculator(unittest.TestCase):
+     def test_calculate_all_aberrations(self):
+         """Test that all aberrations are calculated"""
+         calc = AberrationsCalculator(self.biconvex)
+-        results = calc.calculate_all_aberrations(field_angle=5.0)
++        results = calc.calculate_all_aberrations(field_angle_deg=5.0)
+         
+         # Check that all expected keys are present
+         expected_keys = [
+@@ -216,7 +216,7 @@ class TestAberrationsCalculator(unittest.TestCase):
+     def test_aberration_summary_generation(self):
+         """Test that summary string is generated"""
+         calc = AberrationsCalculator(self.biconvex)
+-        summary = calc.get_aberration_summary(field_angle=5.0)
++        summary = calc.get_aberration_summary(field_angle_deg=5.0)
+         
+         # Check that summary contains key information
+         self.assertIn("ABERRATIONS ANALYSIS", summary)
+@@ -226,7 +226,7 @@ class TestAberrationsCalculator(unittest.TestCase):
+     
+     def test_lens_quality_analysis(self):
+         """Test lens quality analysis function"""
+-        quality = analyze_lens_quality(self.biconvex, field_angle=5.0)
++        quality = analyze_lens_quality(self.biconvex, field_angle_deg=5.0)
+         
+         # Check that quality assessment contains required keys
+         self.assertIn('quality_score', quality)
+@@ -342,8 +342,8 @@ class TestAberrationsBehavior(unittest.TestCase):
+         calc_small = AberrationsCalculator(small)
+         calc_large = AberrationsCalculator(large)
+         
+-        results_small = calc_small.calculate_all_aberrations(field_angle=5.0)
+-        results_large = calc_large.calculate_all_aberrations(field_angle=5.0)
++        results_small = calc_small.calculate_all_aberrations(field_angle_deg=5.0)
++        results_large = calc_large.calculate_all_aberrations(field_angle_deg=5.0)
+         
+         # Spherical aberration (LSA) scales roughly quadratically with aperture diameter (∝ D^2) for LSA.
+         # (Transverse SA scales with D^3, Wavefront error with D^4)
+@@ -393,8 +393,8 @@ class TestAberrationsBehavior(unittest.TestCase):
+                         radius_of_curvature_2=-2.0, thickness=25.0,
+                         diameter=250.0, refractive_index=1.9, material="SF11")
+         
+-        quality_good = analyze_lens_quality(good_lens, field_angle=2.0)
+-        quality_poor = analyze_lens_quality(poor_lens, field_angle=2.0)
++        quality_good = analyze_lens_quality(good_lens, field_angle_deg=2.0)
++        quality_poor = analyze_lens_quality(poor_lens, field_angle_deg=2.0)
+         
+         # Good lens should have higher quality score than poor lens
+         self.assertGreater(quality_good['quality_score'], quality_poor['quality_score'])
+@@ -444,7 +444,7 @@ class TestAberrationsBehavior(unittest.TestCase):
+                    diameter=50.0, refractive_index=1.5168, material="BK7")
+         
+         calc = AberrationsCalculator(lens)
+-        summary = calc.get_aberration_summary(field_angle=5.0)
++        summary = calc.get_aberration_summary(field_angle_deg=5.0)
+         
+         # Check for essential sections
+         self.assertIn("LENS ABERRATIONS ANALYSIS", summary)
+@@ -491,13 +491,13 @@ class TestAberrationsBehavior(unittest.TestCase):
+         calc = AberrationsCalculator(lens)
+         
+         # Test at 0 degrees (on-axis)
+-        results_0 = calc.calculate_all_aberrations(field_angle=0.0)
++        results_0 = calc.calculate_all_aberrations(field_angle_deg=0.0)
+         self.assertEqual(results_0['coma'], 0)
+         self.assertEqual(results_0['astigmatism'], 0)
+         self.assertEqual(results_0['distortion'], 0)
+         
+         # Test at wide field angle
+-        results_wide = calc.calculate_all_aberrations(field_angle=20.0)
++        results_wide = calc.calculate_all_aberrations(field_angle_deg=20.0)
+         self.assertGreater(abs(results_wide['coma']), 0)
+         self.assertGreater(results_wide['astigmatism'], 0)
+ 
+diff --git a/tests/test_edge_cases.py b/tests/test_edge_cases.py
+index fa7a557..d4f7771 100644
+--- a/tests/test_edge_cases.py
++++ b/tests/test_edge_cases.py
+@@ -127,41 +127,41 @@ class TestBoundaryConditions(unittest.TestCase):
+     
+     def test_ray_perpendicular_to_surface(self):
+         """Test ray hitting surface perpendicularly"""
+-        ray = Ray(x=0, y=0, angle=math.pi/2)
+-        success = ray.refract(n1=1.0, n2=1.5, surface_normal_angle=math.pi/2)
++        ray = Ray(x_mm=0, y_mm=0, angle_rad=math.pi/2)
++        success = ray.refract(n1=1.0, n2=1.5, surface_normal_angle_rad=math.pi/2)
+         self.assertTrue(success)
+         # Should pass through with no bending at normal incidence
+-        self.assertAlmostEqual(ray.angle, math.pi/2, places=5)
++        self.assertAlmostEqual(ray.angle_rad, math.pi/2, places=5)
+     
+     def test_ray_parallel_to_surface(self):
+         """Test ray parallel to surface (grazing incidence)"""
+-        ray = Ray(x=0, y=0, angle=0)
+-        success = ray.refract(n1=1.0, n2=1.5, surface_normal_angle=math.pi/2)
++        ray = Ray(x_mm=0, y_mm=0, angle_rad=0)
++        success = ray.refract(n1=1.0, n2=1.5, surface_normal_angle_rad=math.pi/2)
+         # Should refract but at extreme angle
+         self.assertTrue(success)
+     
+     def test_total_internal_reflection(self):
+         """Test total internal reflection"""
+-        ray = Ray(x=0, y=0, angle=math.pi/4)
++        ray = Ray(x_mm=0, y_mm=0, angle_rad=math.pi/4)
+         # Going from glass to air at steep angle
+-        success = ray.refract(n1=1.5, n2=1.0, surface_normal_angle=0)
++        success = ray.refract(n1=1.5, n2=1.0, surface_normal_angle_rad=0)
+         # May fail or reflect depending on angle
+         self.assertIsNotNone(success)
+     
+     def test_same_refractive_indices(self):
+         """Test refraction with same refractive index on both sides"""
+-        ray = Ray(x=0, y=0, angle=math.pi/4)
+-        initial_angle = ray.angle
+-        success = ray.refract(n1=1.5, n2=1.5, surface_normal_angle=0)
++        ray = Ray(x_mm=0, y_mm=0, angle_rad=math.pi/4)
++        initial_angle = ray.angle_rad
++        success = ray.refract(n1=1.5, n2=1.5, surface_normal_angle_rad=0)
+         self.assertTrue(success)
+         # Angle should not change
+-        self.assertAlmostEqual(ray.angle, initial_angle, places=10)
++        self.assertAlmostEqual(ray.angle_rad, initial_angle, places=10)
+     
+     def test_aberrations_on_axis(self):
+         """Test that off-axis aberrations are zero on-axis"""
+         lens = Lens(material="Custom")
+         calc = AberrationsCalculator(lens)
+-        results = calc.calculate_all_aberrations(field_angle=0.0)
++        results = calc.calculate_all_aberrations(field_angle_deg=0.0)
+         
+         # On-axis: no coma, astigmatism, or distortion
+         self.assertEqual(results['coma'], 0)
+@@ -179,7 +179,7 @@ class TestBoundaryConditions(unittest.TestCase):
+         calc = AberrationsCalculator(lens)
+         
+         # Test at extreme field angle
+-        results = calc.calculate_all_aberrations(field_angle=45.0)
++        results = calc.calculate_all_aberrations(field_angle_deg=45.0)
+         
+         # Should calculate without error
+         self.assertIsNotNone(results)
+@@ -268,7 +268,7 @@ class TestNumericalStability(unittest.TestCase):
+         tracer = LensRayTracer(lens)
+         
+         # Ray at edge of lens
+-        ray = Ray(x=-50, y=24.9, angle=0)  # Just inside edge
++        ray = Ray(x_mm=-50, y_mm=24.9, angle_rad=0)  # Just inside edge
+         tracer.trace_ray(ray)
+         
+         # Should trace without error
+diff --git a/tests/test_material_database.py b/tests/test_material_database.py
+index 7b50738..4aa36f7 100644
+--- a/tests/test_material_database.py
++++ b/tests/test_material_database.py
+@@ -162,24 +162,15 @@ class TestLensIntegration(unittest.TestCase):
+     
+     def test_lens_with_material(self):
+         """Test creating lens with material name"""
+-        lens = Lens(name="Test", material="BK7", wavelength=587.6)
+-        self.assertEqual(lens.material, "BK7")
+-        self.assertAlmostEqual(lens.refractive_index, 1.5168, places=4)
+-    
+-    def test_lens_wavelength_update(self):
+-        """Test updating lens refractive index for different wavelength"""
+-        lens = Lens(material="BK7", wavelength=587.6)
+-        n_yellow = lens.refractive_index
++        lens = Lens(name="Test", material="BK7", wavelength_nm=587.6)
++        self.assertEqual(lens.wavelength_nm, 587.6)
+         
+-        lens.update_refractive_index(wavelength=450)
+-        n_blue = lens.refractive_index
++        # Test constructor with implicit material database lookup
++        lens = Lens(material="BK7", wavelength_nm=587.6)
++        self.assertAlmostEqual(lens.refractive_index, 1.5168, places=4)
+         
+-        # Blue light should have higher refractive index
+-        self.assertGreater(n_blue, n_yellow)
+-    
+-    def test_lens_temperature_update(self):
+-        """Test updating lens refractive index for different temperature"""
+-        lens = Lens(material="BK7", wavelength=587.6, temperature=20)
++        # Test with custom temperature
++        lens = Lens(material="BK7", wavelength_nm=587.6, temperature=20)
+         n_room = lens.refractive_index
+         
+         lens.update_refractive_index(temperature=60)
+diff --git a/tests/test_ray_tracer.py b/tests/test_ray_tracer.py
+index db0a725..dc3ce66 100644
+--- a/tests/test_ray_tracer.py
++++ b/tests/test_ray_tracer.py
+@@ -19,17 +19,17 @@ class TestRay(unittest.TestCase):
+     
+     def test_ray_initialization(self):
+         """Test that ray initializes correctly"""
+-        ray = Ray(x=0, y=10, angle=0.5)
++        ray = Ray(x=0, y=10, angle_rad=0.5)
+         self.assertEqual(ray.x, 0)
+         self.assertEqual(ray.y, 10)
+-        self.assertEqual(ray.angle, 0.5)
++        self.assertEqual(ray.angle_rad, 0.5)
+         self.assertEqual(len(ray.path), 1)
+         self.assertEqual(ray.path[0], (0, 10))
+         self.assertFalse(ray.terminated)
+     
+     def test_ray_propagation(self):
+         """Test ray propagation in straight line"""
+-        ray = Ray(x=0, y=0, angle=0)  # Horizontal ray
++        ray = Ray(x=0, y=0, angle_rad=0)  # Horizontal ray
+         ray.propagate(10.0)
+         
+         self.assertAlmostEqual(ray.x, 10.0, places=5)
+@@ -38,7 +38,7 @@ class TestRay(unittest.TestCase):
+     
+     def test_ray_propagation_angled(self):
+         """Test ray propagation at an angle"""
+-        ray = Ray(x=0, y=0, angle=math.pi/4)  # 45 degree angle
++        ray = Ray(x=0, y=0, angle_rad=math.pi/4)  # 45 degree angle
+         ray.propagate(10.0)
+         
+         expected_x = 10.0 * math.cos(math.pi/4)
+@@ -50,22 +50,22 @@ class TestRay(unittest.TestCase):
+     def test_ray_refraction_normal_incidence(self):
+         """Test refraction at normal incidence (no bending)"""
+         # Ray perpendicular to surface (ray angle = normal angle)
+-        ray = Ray(x=0, y=0, angle=math.pi/2)
++        ray = Ray(x=0, y=0, angle_rad=math.pi/2)
+         
+         # Ray hitting surface with normal at 90° - ray is perpendicular to surface
+-        success = ray.refract(n1=1.0, n2=1.5, surface_normal_angle=math.pi/2)
++        success = ray.refract(n1=1.0, n2=1.5, surface_normal_angle_rad=math.pi/2)
+         
+         self.assertTrue(success)
+         # At normal incidence, ray should not change direction
+-        self.assertAlmostEqual(ray.angle, math.pi/2, places=5)
++        self.assertAlmostEqual(ray.angle_rad, math.pi/2, places=5)
+     
+     def test_ray_refraction_snells_law(self):
+         """Test that Snell's law is correctly applied"""
+-        ray = Ray(x=0, y=0, angle=math.radians(30))
++        ray = Ray(x=0, y=0, angle_rad=math.radians(30))
+         
+         # Refraction from air (n=1) to glass (n=1.5)
+         # Surface normal pointing up (90 degrees)
+-        success = ray.refract(n1=1.0, n2=1.5, surface_normal_angle=math.pi/2)
++        success = ray.refract(n1=1.0, n2=1.5, surface_normal_angle_rad=math.pi/2)
+         
+         self.assertTrue(success)
+         
+@@ -76,7 +76,7 @@ class TestRay(unittest.TestCase):
+         expected_refracted = math.asin(sin_refracted)
+         expected_ray_angle = math.pi/2 + expected_refracted
+         
+-        self.assertAlmostEqual(ray.angle, expected_ray_angle, places=4)
++        self.assertAlmostEqual(ray.angle_rad, expected_ray_angle, places=4)
+     
+     def test_ray_total_internal_reflection(self):
+         """Test total internal reflection"""
+@@ -89,22 +89,22 @@ class TestRay(unittest.TestCase):
+         
+         # 1. Just below critical angle (should refract)
+         angle_below = critical_angle_rad - 0.001
+-        ray = Ray(x=0, y=0, angle=angle_below)
+-        success = ray.refract(n1=n1, n2=n2, surface_normal_angle=0)
++        ray = Ray(x=0, y=0, angle_rad=angle_below)
++        success = ray.refract(n1=n1, n2=n2, surface_normal_angle_rad=0)
+         self.assertTrue(success, "Should refract just below critical angle")
+         
+         # 2. Exactly at critical angle (should refract/grazing)
+         # Due to floating point precision, we test very close to it
+-        ray = Ray(x=0, y=0, angle=critical_angle_rad)
+-        success = ray.refract(n1=n1, n2=n2, surface_normal_angle=0)
++        ray = Ray(x=0, y=0, angle_rad=critical_angle_rad)
++        success = ray.refract(n1=n1, n2=n2, surface_normal_angle_rad=0)
+         self.assertTrue(success, "Should refract at critical angle (grazing transmission)")
+         
+         # 3. Just above critical angle (should reflect)
+         angle_above = critical_angle_rad + 0.001
+-        ray = Ray(x=0, y=0, angle=angle_above)
+-        success = ray.refract(n1=n1, n2=n2, surface_normal_angle=0)
++        ray = Ray(x=0, y=0, angle_rad=angle_above)
++        success = ray.refract(n1=n1, n2=n2, surface_normal_angle_rad=0)
+         self.assertFalse(success, "Should reflect just above critical angle")
+-        self.assertAlmostEqual(ray.angle, -angle_above, places=5)
++        self.assertAlmostEqual(ray.angle_rad, -angle_above, places=5)
+ 
+ 
+ class TestLensRayTracer(unittest.TestCase):
+@@ -172,7 +172,7 @@ class TestLensRayTracer(unittest.TestCase):
+         tracer = LensRayTracer(self.biconvex)
+         # Trace rays with 10 degree angle
+         angle_deg = 10.0
+-        rays = tracer.trace_parallel_rays(num_rays=5, angle=angle_deg)
++        rays = tracer.trace_parallel_rays(num_rays=5, angle_deg=angle_deg)
+         
+         self.assertEqual(len(rays), 5)
+         
+@@ -224,15 +224,15 @@ class TestLensRayTracer(unittest.TestCase):
+         tracer = LensRayTracer(self.biconvex)
+         
+         # On-axis ray
+-        ray_center = Ray(-50, 0, angle=0)
++        ray_center = Ray(-50, 0, angle_rad=0)
+         tracer.trace_ray(ray_center)
+         
+         # Off-axis ray
+-        ray_edge = Ray(-50, 20, angle=0)
++        ray_edge = Ray(-50, 20, angle_rad=0)
+         tracer.trace_ray(ray_edge)
+         
+         # Rays should have different final angles (spherical aberration)
+-        self.assertNotAlmostEqual(ray_center.angle, ray_edge.angle, places=3)
++        self.assertNotAlmostEqual(ray_center.angle_rad, ray_edge.angle_rad, places=3)
+     
+     def test_point_source_rays(self):
+         """Test tracing rays from a point source"""
+@@ -243,7 +243,7 @@ class TestLensRayTracer(unittest.TestCase):
+             source_x=-100, 
+             source_y=0, 
+             num_rays=7,
+-            max_angle=15.0
++            max_angle_deg=15.0
+         )
+         
+         self.assertEqual(len(rays), 7)
+@@ -284,7 +284,7 @@ class TestLensRayTracer(unittest.TestCase):
+         tracer = LensRayTracer(self.biconvex)
+         
+         # Ray well above the lens
+-        ray = Ray(x=-50, y=100, angle=0)  # Way above lens diameter
++        ray = Ray(x=-50, y=100, angle_rad=0)  # Way above lens diameter
+         tracer.trace_ray(ray)
+         
+         # Ray should be marked as terminated
+@@ -294,17 +294,17 @@ class TestLensRayTracer(unittest.TestCase):
+         """Test that different wavelengths can be traced"""
+         tracer = LensRayTracer(self.biconvex)
+         
+-        # Red and blue light (different wavelengths)
+-        rays_red = tracer.trace_parallel_rays(num_rays=3, wavelength=0.000650)
+-        rays_blue = tracer.trace_parallel_rays(num_rays=3, wavelength=0.000450)
++        # Red and blue light (different wavelengths in mm)
++        rays_red = tracer.trace_parallel_rays(num_rays=3, wavelength_mm=0.000650)
++        rays_blue = tracer.trace_parallel_rays(num_rays=3, wavelength_mm=0.000450)
+         
+         # Both should trace successfully
+         self.assertEqual(len(rays_red), 3)
+         self.assertEqual(len(rays_blue), 3)
+         
+         # Wavelengths should be stored
+-        self.assertAlmostEqual(rays_red[0].wavelength, 0.000650, places=6)
+-        self.assertAlmostEqual(rays_blue[0].wavelength, 0.000450, places=6)
++        self.assertAlmostEqual(rays_red[0].wavelength_mm, 0.000650, places=6)
++        self.assertAlmostEqual(rays_blue[0].wavelength_mm, 0.000450, places=6)
+     
+     def test_geometry_calculation(self):
+         """Test lens geometry calculations"""
+@@ -365,7 +365,7 @@ class TestRayTracingPhysics(unittest.TestCase):
+         tracer = LensRayTracer(lens)
+         
+         # Trace ray forward
+-        ray_forward = Ray(x=-30, y=10, angle=0.1)
++        ray_forward = Ray(x=-30, y=10, angle_rad=0.1)
+         tracer.trace_ray(ray_forward, propagate_distance=50)
+         
+         # Check that path exists
+@@ -384,7 +384,7 @@ class TestRayTracingPhysics(unittest.TestCase):
+         )
+         
+         tracer = LensRayTracer(lens)
+-        ray = Ray(x=-50, y=0, angle=0)
++        ray = Ray(x=-50, y=0, angle_rad=0)
+         tracer.trace_ray(ray)
+         
+         # All path points should have y ≈ 0
+diff --git a/tests/test_ray_tracer_3d.py b/tests/test_ray_tracer_3d.py
+index 3cd336e..d0505af 100644
+--- a/tests/test_ray_tracer_3d.py
++++ b/tests/test_ray_tracer_3d.py
+@@ -26,7 +26,7 @@ class TestRayTracer3D(unittest.TestCase):
+ 
+     def test_on_axis_ray_agreement(self):
+         # 2D Trace
+-        ray2d = Ray(x=-20, y=0, angle=0)
++        ray2d = Ray(x_mm=-20, y_mm=0, angle_rad=0)
+         self.tracer2d.trace_ray(ray2d)
+         
+         # 3D Trace
+@@ -46,15 +46,15 @@ class TestRayTracer3D(unittest.TestCase):
+         # Check angle/direction
+         # 2D angle should match 3D direction angle
+         # 3D direction is (cos(theta), sin(theta), 0)
+-        self.assertAlmostEqual(math.cos(ray2d.angle), ray3d.direction.x, places=4)
+-        self.assertAlmostEqual(math.sin(ray2d.angle), ray3d.direction.y, places=4)
++        self.assertAlmostEqual(math.cos(ray2d.angle_rad), ray3d.direction.x, places=4)
++        self.assertAlmostEqual(math.sin(ray2d.angle_rad), ray3d.direction.y, places=4)
+ 
+     def test_off_axis_meridional_ray(self):
+         # Ray at height 10mm
+         h = 10.0
+         
+         # 2D Trace
+-        ray2d = Ray(x=-20, y=h, angle=0)
++        ray2d = Ray(x_mm=-20, y_mm=h, angle_rad=0)
+         self.tracer2d.trace_ray(ray2d)
+         
+         # 3D Trace
+@@ -69,8 +69,8 @@ class TestRayTracer3D(unittest.TestCase):
+         self.assertAlmostEqual(0, last3d.z, places=4)
+         
+         # Check exit direction
+-        self.assertAlmostEqual(math.cos(ray2d.angle), ray3d.direction.x, places=4)
+-        self.assertAlmostEqual(math.sin(ray2d.angle), ray3d.direction.y, places=4)
++        self.assertAlmostEqual(math.cos(ray2d.angle_rad), ray3d.direction.x, places=4)
++        self.assertAlmostEqual(math.sin(ray2d.angle_rad), ray3d.direction.y, places=4)
+ 
+     def test_skew_ray_symmetry(self):
+         # Trace two rays symmetric about the optical axis in the YZ plane
+diff --git a/tests/test_spot_diagram_chromatic.py b/tests/test_spot_diagram_chromatic.py
+index ce83617..9424acd 100644
+--- a/tests/test_spot_diagram_chromatic.py
++++ b/tests/test_spot_diagram_chromatic.py
+@@ -35,24 +35,21 @@ class TestSpotDiagramChromatic(unittest.TestCase):
+ 
+     def test_chromatic_update(self):
+         """Test that trace_spot updates lens indices for different wavelengths"""
+-        if not HAS_DB:
+-            print("Skipping chromatic test: Material Database not available")
+-            return
+-            
+-        print(f"Initial Index: {self.lens.refractive_index}")
+-        self.lens.update_refractive_index(wavelength=WAVELENGTH_F_LINE)
+-        print(f"Index at F ({WAVELENGTH_F_LINE}): {self.lens.refractive_index}")
+-        self.lens.update_refractive_index(wavelength=WAVELENGTH_C_LINE)
+-        print(f"Index at C ({WAVELENGTH_C_LINE}): {self.lens.refractive_index}")
++        # Manually update to F-line (blue)
++        self.lens.update_refractive_index(wavelength_nm=WAVELENGTH_F_LINE)
++        n_F = self.lens.refractive_index
+         
+-        # Restore
+-        self.lens.update_refractive_index(wavelength=WAVELENGTH_D_LINE)
+-
+-        # Trace for F line (Blue)
+-        res_F = self.analyzer.trace_spot(wavelength=WAVELENGTH_F_LINE, num_rings=3)
++        self.lens.update_refractive_index(wavelength_nm=WAVELENGTH_C_LINE)
++        n_C = self.lens.refractive_index
++        
++        self.assertNotAlmostEqual(n_F, n_C)
++        
++        # Reset to green
++        self.lens.update_refractive_index(wavelength_nm=WAVELENGTH_D_LINE)
+         
+-        # Trace for C line (Red)
+-        res_C = self.analyzer.trace_spot(wavelength=WAVELENGTH_C_LINE, num_rings=3)
++        # Now trace through analyzer and check if results differ by wavelength
++        res_F = self.analyzer.trace_spot(wavelength_nm=WAVELENGTH_F_LINE, num_rings=3)
++        res_C = self.analyzer.trace_spot(wavelength_nm=WAVELENGTH_C_LINE, num_rings=3)
+         
+         # If dispersion is working, the focal points (and thus spot sizes at a fixed plane) should differ
+         # Or specifically, the rays should have different paths.
+diff --git a/tests/test_system_tracer.py b/tests/test_system_tracer.py
+index a02936a..71e09d4 100644
+--- a/tests/test_system_tracer.py
++++ b/tests/test_system_tracer.py
+@@ -39,7 +39,7 @@ class TestSystemRayTracer(unittest.TestCase):
+ 
+     def test_trace_parallel_rays(self):
+         """Test tracing parallel rays through system"""
+-        rays = self.tracer.trace_parallel_rays(num_rays=3, angle=0.0)
++        rays = self.tracer.trace_parallel_rays(num_rays=3, angle_deg=0.0)
+         
+         self.assertEqual(len(rays), 3)
+         
+diff --git a/tests/test_tolerancing.py b/tests/test_tolerancing.py
+index afdfbfd..5150fd3 100644
+--- a/tests/test_tolerancing.py
++++ b/tests/test_tolerancing.py
+@@ -14,7 +14,7 @@ class TestTolerancing(unittest.TestCase):
+     def setUp(self):
+         # Create a simple system
+         self.sys = OpticalSystem("Test System")
+-        self.l1 = Lens("L1", radius_of_curvature_1=100.0, radius_of_curvature_2=-100.0, thickness=5.0, diameter=25.0, material="BK7", wavelength=0.5876)
++        self.l1 = Lens("L1", radius_of_curvature_1=100.0, radius_of_curvature_2=-100.0, thickness=5.0, diameter=25.0, material="BK7", wavelength_nm=587.6)
+         self.sys.add_lens(self.l1)
+         
+     def test_tolerance_generation(self):
+@@ -66,7 +66,7 @@ class TestInverseSensitivity(unittest.TestCase):
+         # Create a simple system
+         self.sys = OpticalSystem("Test System")
+         # Use a biconvex lens where changing R1 definitely affects spot size
+-        self.l1 = Lens("L1", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0, material="BK7", wavelength=0.5876)
++        self.l1 = Lens("L1", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0, material="BK7", wavelength_nm=587.6)
+         self.sys.add_lens(self.l1)
+ 
+     def test_sensitivity_calculation(self):

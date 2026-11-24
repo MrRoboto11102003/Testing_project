@@ -1,0 +1,26 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.preset_library.PresetLibrary.get_lens_copy.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.preset_library.PresetLibrary.get_lens_copy
+    def get_lens_copy(self, preset_name: str) -> Optional[Lens]:
+        """Get a copy of the lens from a preset.
+
+        Round-trips through ``Lens.to_dict``/``from_dict`` rather than
+        re-listing the fields by hand: the hand-rolled copy had drifted and
+        silently dropped coatings, model-glass settings, parabolic sags and
+        Fresnel groove parameters, so instantiating a preset produced a
+        different lens than the one described.
+        """
+        preset = self.get_preset(preset_name)
+        if preset is None:
+            return None
+
+        data = preset.lens.to_dict()
+        # A copy is a distinct object: give it its own identity.
+        data["id"] = uuid.uuid4().hex
+        return Lens.from_dict(data)

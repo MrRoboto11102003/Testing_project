@@ -1,0 +1,42 @@
+{
+ "id": "openlens-pr493",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 434,
+ "issue_title": "STL export: stray inverted triangles, inconsistent winding, not watertight",
+ "issue_body": "**Where:** `src/stl_export.py:195`, `:84-129`, `:247-274`\n\n- `generate_edge_triangles` still contains a debug leftover, `triangles.append((p1, p3, p2))  # 1-3-2?`, before the two correct triangles. It adds an extra inverted triangle to every edge segment.\n- `generate_surface_triangles` uses the same winding for the front and back surfaces, so the front surface normals point into the glass.\n- Parabolic sag, clear apertures and bevels are ignored. If |R| < D/2, the `ValueError` is caught and the sag silently becomes 0.\n\n**Repro:** R=100/-100, t=5, D=25 gives 80 bad directed edges out of 1552 (a closed manifold needs 0), signed volume 1344 (expected about 2070 mm^3), and front-surface normal z = +0.99997 (should be negative).\n\n**Fix:** delete line 195, flip the front-surface winding (or add an `outward` flag), and raise instead of using zero sag when |R| < D/2. Add a manifold/volume test.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/434",
+ "pr": 493,
+ "pr_title": "fix(export): make the STL a closed, outward-wound solid",
+ "pr_body": "## Description\n\nfix(export): make the STL a closed, outward-wound solid\n\nEvery export was unusable in a slicer or mesh checker. Four defects \u2014 the\nissue lists three, but fixing those only got halfway.\n\n### 1. Debug leftover in `generate_edge_triangles`\n\n```python\ntriangles.append((p1, p3, p2))  # 1-3-2?\n# Let's check: 1->2 is CCW around Z...\n# Correct is likely (p1, p4, p3) and (p1, p3, p2) or similar.\n```\n\nAn extra inverted triangle per edge segment, plus the scratch reasoning that\nwent with it. Deleted.\n\n### 2. Front and back surfaces wound the same way\n\n`generate_surface_triangles` wound both identically, so **every** front-surface\nnormal pointed *into* the glass \u2014 2450 of them for the test lens. It now takes\n`is_front` and reverses the winding, matching what `generate_flat_surface`\nalready did.\n\n### 3. The ring never closed on itself\n\nNot in the issue, and the reason fixing 1\u20132 stalled at 102 unpaired edges with\nno combination of winding fixes closing it:\n\n```python\nangle2 = (seg + 1) * angle_step     # last segment -> 2*pi\nmath.sin(2 * math.pi)               # 6.43e-16, not 0.0\n```\n\nThe final segment's vertex was **not** the same point as the one segment 0\nstarts from, leaving a hairline seam right around every surface \u2014 invisible to\nthe eye, fatal to any watertightness check. The angle now wraps with\n`((seg + 1) % num_segments)`, which is exact.\n\n### 4. Impossible sag silently flattened\n\n`sag` raising (`|R| < D/2`, where no sphere reaches that far) was caught and\nreplaced with `0.0`, silently exporting a flat disc where a curved surface\nbelonged. It now raises with a message naming both radii. A genuinely flat\nsurface is the `|R| ~ 0` case and still works.\n\n## Measured\n\nFor `r1=100, r2=-100, thickness=5, diameter=25`:\n\n| | before | after |\n| --- | --- | --- |\n| unshared edges | 250 | **0** |\n| unpaired directed edges | 349 | **0** |\n| signed volume | 1376 mm\u00b3 | **2070 mm\u00b3** |\n| front normals facing inward | 2450 | **0** |\n\nThe reference volume is **2069.9 mm\u00b3**, computed by numerical revolution of the\nsame analytic profile, matching the issue's \"~2070\".\n\n## Why the tests assert properties, not counts\n\nThey check that every undirected edge is shared by exactly two triangles, every\ndirected edge is paired with its reverse, the signed volume is positive and\nmatches the reference, and both caps' normals point out of the glass. Each of\nthose catches a *different* defect \u2014 counting triangles would not have\ndistinguished a correct ring from one with a stray triangle in it, and that\ndistinction is what defect 3 turned on.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #434\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      confirmed, the pre-fix run produced 5 failures including\n      `2450 != 0 : 2450 of 2450 front-surface triangles face +Z (into the glass)`\n      and `102 != 0 : 102 directed edges are not paired with their reverse`\n- [x] `python3 -m unittest tests.test_stl_manifold` \u2014 8 tests, OK\n- [x] `python3 -m unittest tests.test_stl_manifold tests.test_stl_export tests.test_export_formats tests.test_step_export tests.test_agf_import` \u2014 41 tests, OK\n- [x] Full suite: `Ran 1663 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 215 files unchanged\n- [x] `flake8 src/stl_export.py tests/test_stl_manifold.py` \u2014 clean\n- [x] A flat surface (`r=0`) is still exported successfully, so raising on an\n      impossible sag did not break the legitimate degenerate case\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "0ace9cda0c7c1c1ae0215bd4259a3485ae0391b4",
+ "merged_at": "2026-10-17T16:30:08Z",
+ "port_method": "partial_hunks:8/9",
+ "src_files": [
+  "openlens/stl_export.py"
+ ],
+ "test_files": [
+  "tests/test_stl_manifold.py"
+ ],
+ "target_symbols": [
+  "openlens/stl_export.py::STLExporter.export_lens_to_stl",
+  "openlens/stl_export.py::STLExporter.generate_edge_triangles",
+  "openlens/stl_export.py::STLExporter.generate_flat_surface",
+  "openlens/stl_export.py::STLExporter.generate_profile_triangles",
+  "openlens/stl_export.py::STLExporter.generate_surface_triangles"
+ ],
+ "fail_to_pass": [
+  "tests/test_stl_manifold.py::TestShellIsClosed::test_every_directed_edge_is_paired_with_its_reverse",
+  "tests/test_stl_manifold.py::TestShellIsClosed::test_no_boundary_edges",
+  "tests/test_stl_manifold.py::TestWindingAndVolume::test_front_surface_normals_point_away_from_the_glass",
+  "tests/test_stl_manifold.py::TestWindingAndVolume::test_signed_volume_matches_the_analytic_lens_volume"
+ ],
+ "pass_to_pass": [
+  "tests/test_stl_manifold.py::TestImpossibleSagIsNotSilentlyFlattened::test_a_flat_surface_is_still_allowed",
+  "tests/test_stl_manifold.py::TestImpossibleSagIsNotSilentlyFlattened::test_raises_when_the_diameter_exceeds_the_radius",
+  "tests/test_stl_manifold.py::TestWindingAndVolume::test_back_surface_normals_point_away_from_the_glass",
+  "tests/test_stl_manifold.py::TestWindingAndVolume::test_signed_volume_is_positive"
+ ],
+ "patch_lines": 91
+}

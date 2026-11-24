@@ -1,0 +1,247 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.lens.Lens.calculate_back_focal_length, openlens.lens.Lens.calculate_front_focal_length, openlens.polarization.JonesMatrices.linear_polarizer, openlens.polarization.PolarizationCalculator.fresnel_coefficients, openlens.polarization.PolarizationCalculator.reflectance_transmittance, openlens.polarization.PolarizationState.apply_matrix, openlens.polarization.PolarizationState.elliptical, openlens.polarization.PolarizationState.intensity, openlens.polarization.PolarizationState.stokes_parameters, openlens.tolerancing.ToleranceType.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.lens.Lens.calculate_back_focal_length
+    def calculate_back_focal_length(self) -> Optional[float]:
+        """
+        Calculate Back Focal Length (BFL).
+
+        BFL is the distance from the back vertex of the lens to the rear focal point.
+        For a thick lens: BFL = f * (1 - d * P1 / n)
+        where P1 = (n-1)/R1 is the power of the first surface,
+        d is the thickness, n is the refractive index, and f is the focal length.
+
+        Returns:
+            Back focal length in mm, or None if undefined (afocal).
+            None (not inf) matches OpticalSystem.calculate_back_focal_length.
+        """
+        f = self.calculate_focal_length()
+        if f is None:
+            return None
+
+        n = self.refractive_index
+        r1 = self.get_effective_radius_1()
+        t = self.thickness
+
+        try:
+            # Power of first surface (flat surface: r1 = inf -> P1 = 0)
+            P1 = (n - 1) / r1
+
+            # BFL = f * (1 - d * P1 / n)
+            bfl = f * (1.0 - t * P1 / n)
+
+            return bfl
+        except ZeroDivisionError:
+            return None
+
+# openlens.lens.Lens.calculate_front_focal_length
+    def calculate_front_focal_length(self) -> Optional[float]:
+        """
+        Calculate Front Focal Length (FFL).
+
+        FFL is the Cartesian x-coordinate of the front focal point measured
+        from the front vertex (+x along the light direction). For a
+        converging lens the front focus lies to the LEFT of the front
+        vertex, so FFL is negative: FFL = -f * (1 - d * P2 / n), where
+        P2 = (1-n)/R2 is the second-surface power, d the thickness, n the
+        refractive index and f the effective focal length. (From the system
+        matrix in (y, n*theta) form: the front object distance is s = -D/C,
+        hence the Cartesian coordinate is D/C = -f*(1 - d*P2/n).)
+        The mirror image of BFL = -A/C = +f * (1 - d * P1 / n).
+
+        Returns:
+            Front focal length in mm (signed Cartesian coordinate),
+            or None if undefined (afocal). None (not inf) matches the
+            system-level convention.
+        """
+        f = self.calculate_focal_length()
+        if f is None:
+            return None
+
+        n = self.refractive_index
+        r2 = self.get_effective_radius_2()
+        t = self.thickness
+
+        try:
+            # Power of second surface (note: using sign convention where P2 = (n_out - n_in)/R2)
+            # For light exiting lens: P2 = (1 - n) / R2 = -(n - 1) / R2
+            # Flat surface: r2 = inf -> P2 = 0
+            P2 = -(n - 1) / r2
+
+            # FFL = -f * (1 - d * P2 / n); the minus sign places the front
+            # focus on the object side (-x) for converging lenses.
+            ffl = -f * (1.0 - t * P2 / n)
+
+            return ffl
+        except ZeroDivisionError:
+            return None
+
+# openlens.polarization.JonesMatrices.linear_polarizer
+    @staticmethod
+    def linear_polarizer(angle_deg: float) -> np.ndarray:
+        """Linear polarizer at angle"""
+        theta = np.radians(angle_deg)
+        cos_t = np.cos(theta)
+        sin_t = np.sin(theta)
+        return np.array([[cos_t**2, cos_t * sin_t], [cos_t * sin_t, sin_t**2]])
+
+# openlens.polarization.PolarizationCalculator.fresnel_coefficients
+    def fresnel_coefficients(self, n1: float, n2: float, angle_deg: float) -> Dict[str, complex]:
+        """
+        Calculate Fresnel reflection and transmission coefficients
+
+        Args:
+            n1: Refractive index of incident medium
+            n2: Refractive index of transmitted medium
+            angle_deg: Incident angle in degrees
+
+        Returns:
+            Dictionary with r_s, r_p, t_s, t_p coefficients
+        """
+        theta1 = np.radians(angle_deg)
+
+        # Snell's law for transmission angle
+        sin_theta2 = (n1 / n2) * np.sin(theta1)
+
+        # Check for total internal reflection
+        if sin_theta2 > 1.0:
+            # Total internal reflection: cos(theta2) is imaginary and the
+            # same Fresnel formulas give complex unit-magnitude
+            # coefficients whose relative phase is the s/p retardance
+            # (basis of the Fresnel rhomb). Power reflectance stays 1.
+            cos_theta2 = cmath.sqrt(1.0 - sin_theta2**2)
+            cos_theta1 = np.cos(theta1)
+            r_s = (n1 * cos_theta1 - n2 * cos_theta2) / (n1 * cos_theta1 + n2 * cos_theta2)
+            r_p = (n2 * cos_theta1 - n1 * cos_theta2) / (n2 * cos_theta1 + n1 * cos_theta2)
+            return {
+                "r_s": r_s,
+                "r_p": r_p,
+                "t_s": 0.0 + 0j,
+                "t_p": 0.0 + 0j,
+                "total_internal_reflection": True,
+            }
+
+        theta2 = np.arcsin(sin_theta2)
+
+        cos_theta1 = np.cos(theta1)
+        cos_theta2 = np.cos(theta2)
+
+        # Fresnel coefficients for s-polarization (TE)
+        r_s = (n1 * cos_theta1 - n2 * cos_theta2) / (n1 * cos_theta1 + n2 * cos_theta2)
+        t_s = (2 * n1 * cos_theta1) / (n1 * cos_theta1 + n2 * cos_theta2)
+
+        # Fresnel coefficients for p-polarization (TM)
+        r_p = (n2 * cos_theta1 - n1 * cos_theta2) / (n2 * cos_theta1 + n1 * cos_theta2)
+        t_p = (2 * n1 * cos_theta1) / (n2 * cos_theta1 + n1 * cos_theta2)
+
+        return {
+            "r_s": r_s,
+            "r_p": r_p,
+            "t_s": t_s,
+            "t_p": t_p,
+            "theta_transmitted_deg": np.degrees(theta2),
+            "total_internal_reflection": False,
+        }
+
+# openlens.polarization.PolarizationCalculator.reflectance_transmittance
+    def reflectance_transmittance(self, n1: float, n2: float, angle_deg: float) -> Dict[str, float]:
+        """
+        Calculate reflectance and transmittance (power)
+
+        Args:
+            n1: Refractive index of incident medium
+            n2: Refractive index of transmitted medium
+            angle_deg: Incident angle in degrees
+
+        Returns:
+            Dictionary with R_s, R_p, T_s, T_p values
+        """
+        coeffs = self.fresnel_coefficients(n1, n2, angle_deg)
+
+        if coeffs["total_internal_reflection"]:
+            return {"R_s": 1.0, "R_p": 1.0, "T_s": 0.0, "T_p": 0.0}
+
+        theta1 = np.radians(angle_deg)
+        theta2 = np.radians(coeffs["theta_transmitted_deg"])
+
+        # Reflectance (power)
+        R_s = np.abs(coeffs["r_s"]) ** 2
+        R_p = np.abs(coeffs["r_p"]) ** 2
+
+        # Transmittance (power with angle correction)
+        # Avoid division by zero at grazing incidence (theta1 = 90 deg)
+        if np.abs(np.cos(theta1)) < 1e-10:
+            T_s = 0.0
+            T_p = 0.0
+        else:
+            T_s = (n2 * np.cos(theta2)) / (n1 * np.cos(theta1)) * np.abs(coeffs["t_s"]) ** 2
+            T_p = (n2 * np.cos(theta2)) / (n1 * np.cos(theta1)) * np.abs(coeffs["t_p"]) ** 2
+
+        return {"R_s": R_s, "R_p": R_p, "T_s": T_s, "T_p": T_p}
+
+# openlens.polarization.PolarizationState.apply_matrix
+    def apply_matrix(self, matrix: np.ndarray) -> "PolarizationState":
+        """Apply Jones matrix to transform polarization"""
+        new_vector = matrix @ self.jones_vector
+        return PolarizationState(new_vector)
+
+# openlens.polarization.PolarizationState.elliptical
+    @classmethod
+    def elliptical(cls, a: float, b: float, angle_deg: float = 0):
+        """Elliptical polarization"""
+        angle_rad = np.radians(angle_deg)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
+
+        # Rotation matrix
+        jones = np.array([a * cos_a - 1j * b * sin_a, a * sin_a + 1j * b * cos_a])
+        norm = np.sqrt(np.abs(jones[0]) ** 2 + np.abs(jones[1]) ** 2)
+        return cls(jones / norm)
+
+# openlens.polarization.PolarizationState.intensity
+    def intensity(self) -> float:
+        """Calculate intensity (magnitude squared)"""
+        return np.abs(self.jones_vector[0]) ** 2 + np.abs(self.jones_vector[1]) ** 2
+
+# openlens.polarization.PolarizationState.stokes_parameters
+    def stokes_parameters(self) -> np.ndarray:
+        """Convert to Stokes parameters [S0, S1, S2, S3]"""
+        Ex, Ey = self.jones_vector
+        S0 = np.abs(Ex) ** 2 + np.abs(Ey) ** 2
+        S1 = np.abs(Ex) ** 2 - np.abs(Ey) ** 2
+        S2 = 2 * np.real(Ex * np.conj(Ey))
+        S3 = 2 * np.imag(Ex * np.conj(Ey))
+        return np.array([S0, S1, S2, S3])
+
+# openlens.tolerancing.ToleranceType
+class ToleranceType(enum.Enum):
+    """Toleranced parameter. Native units per type (used as-is, no conversion).
+
+    RADIUS_1/2 (mm), THICKNESS (mm), REFRACTIVE_INDEX (absolute),
+    DECENTER_X/Y (mm; X is axial despace realized as the gap before the
+    element), TILT_X/Y (deg), AIR_GAP (mm; gap after the element),
+    ABBE_NUMBER (absolute), IRREGULARITY (fringes at 632.8 nm, power-
+    equivalent radius change at the surface semi-aperture), WEDGE (arcmin,
+    thin-element approximation as element tilt of half the wedge),
+    FOCUS (mm image-plane shift; compensator-only, never randomized).
+    """
+
+    RADIUS_1 = "Radius 1"
+    RADIUS_2 = "Radius 2"
+    THICKNESS = "Thickness"
+    REFRACTIVE_INDEX = "Refractive Index"
+    DECENTER_X = "Decenter X"
+    DECENTER_Y = "Decenter Y"
+    TILT_X = "Tilt X"
+    TILT_Y = "Tilt Y"
+    DECENTER_Z = "Decenter Z"
+    AIR_GAP = "Air Gap"
+    ABBE_NUMBER = "Abbe Number"
+    IRREGULARITY = "Surface Irregularity"
+    WEDGE = "Wedge"
+    FOCUS = "Focus"

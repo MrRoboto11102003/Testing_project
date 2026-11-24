@@ -1,0 +1,51 @@
+{
+ "id": "openlens-pr730",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 605,
+ "issue_title": "bug: diffraction PSF/MTF crash on an empty optical system",
+ "issue_body": "## Summary\n\n`ImageQualityAnalyzer.calculate_psf(use_diffraction=True)` and `calculate_mtf(use_diffraction=True)` raise `ValueError: Invalid number of FFT data points (0) specified.` for an empty `OpticalSystem`. The code already has a degenerate-spacing guard, but it runs only *after* the FFT that crashes, and its early-return dict is missing the required `captured_fraction` key.\n\n## Impact\n\n- Crash on a legitimate state: a new/empty system is what the GUI shows before the user adds a lens; any analysis auto-refresh on that state raises.\n- The MTF path has the same failure surface.\n- The unreachable fallback returns a dict that violates `PSF_KEYS`, so even if it were reached, downstream consumers expecting `captured_fraction` would fail.\n\n## Reproduction\n\n```python\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.analysis.psf_mtf import ImageQualityAnalyzer\n\na = ImageQualityAnalyzer(OpticalSystem())\nfor method in (\"calculate_psf\", \"calculate_mtf\"):\n    try:\n        getattr(a, method)(use_diffraction=True)\n        print(method, \"ok\")\n    except Exception as e:\n        print(method, type(e).__name__, e)\n```\n\nOutput:\n\n```\ncalculate_psf ValueError: Invalid number of FFT data points (0) specified.\ncalculate_mtf ValueError: Invalid number of FFT data points (0) specified.\n```\n\nTraceback ends at:\n\n- `openlens/analysis/psf_mtf.py:594` \u2192 `DiffractionPSFCalculator.calculate_psf(...)`\n- `openlens/analysis/diffraction_psf.py:392` \u2192 `np.fft.fft2(...)`\n\n## Root cause\n\n- `openlens/analysis/psf_mtf.py:570-594` \u2014 the empty system produces a zero-size pupil wavefront; the FFT is attempted before any size check.\n- `openlens/analysis/psf_mtf.py:615-640` \u2014 the `dx_psf <= 0` degenerate branch is below the FFT and therefore unreachable for this input. Its returned dict also omits `captured_fraction`, while `PSF_KEYS` at `:98` requires it.\n\n## Expected behaviour\n\nAn empty/degenerate system returns a well-formed zero PSF/MTF result (all `PSF_KEYS` present) and logs a warning, instead of raising.\n\n## Suggested fix\n\nValidate the wavefront shape / pupil sample count before calling `DiffractionPSFCalculator.calculate_psf`, and route degenerate cases through `self._psf_result(...)` with `captured_fraction=0.0` so the key contract is satisfied. Add tests for `OpticalSystem()` with both diffraction flags.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/605",
+ "pr": 730,
+ "pr_title": "fix(psf): return a well-formed zero result for an empty or degenerate system",
+ "pr_body": "## Description\n\n`ImageQualityAnalyzer.calculate_psf(use_diffraction=True)` and\n`calculate_mtf(use_diffraction=True)` passed a zero-length pupil wavefront to\n`np.fft` and raised `ValueError: Invalid number of FFT data points (0)`. The\ngeometric paths indexed `self.system.elements[0]` and raised `IndexError`.\nThe existing `dx_psf` degenerate branch sat below the FFT (unreachable for\nthis input) and its dict omitted `captured_fraction`, violating `PSF_KEYS`.\n\n## What changed\n\n- **`openlens/analysis/psf_mtf.py`**\n  - An empty system returns a well-formed zero PSF (all `PSF_KEYS`,\n    `captured_fraction=0.0`) and an empty MTF (`freq`, `mtf_tan`, `mtf_sag`)\n    for both diffraction flags, with a warning.\n  - `_wavefront_is_degenerate()` rejects a non-empty system whose pupil\n    wavefront has too few samples before the FFT.\n  - The `dx_psf` fallback now goes through `_psf_result()` and satisfies\n    `PSF_KEYS`.\n- **`tests/test_psf_empty_system.py`** (new)\n  - PSF/MTF on `OpticalSystem()` with both `use_diffraction` values.\n  - A forced empty pupil on a non-empty system is rejected before the FFT.\n- **`tests/test_psf_resample_indices.py`**\n  - The zero-wavelength test asserted the old incomplete key set; it now\n    checks `captured_fraction` too.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #605\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2827 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nThe new tests raise the reported `ValueError`/`IndexError` before the fix and\nreturn the documented zero results afterwards.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "ee05ea238a310e36d408d67617aa78f51a3230d0",
+ "merged_at": "2026-10-23T08:47:05Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/analysis/psf_mtf.py"
+ ],
+ "test_files": [
+  "tests/test_psf_empty_system.py",
+  "tests/test_psf_resample_indices.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._calculate_diffraction_psf",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._psf_result",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.calculate_mtf",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.calculate_psf",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.calculate_spot_diagram",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.simulate_image"
+ ],
+ "fail_to_pass": [
+  "tests/test_psf_empty_system.py::TestEmptySystemAnalysis::test_a_degenerate_wavefront_is_rejected_before_the_fft",
+  "tests/test_psf_empty_system.py::TestEmptySystemAnalysis::test_mtf_returns_empty_profiles_instead_of_raising",
+  "tests/test_psf_empty_system.py::TestEmptySystemAnalysis::test_psf_returns_the_full_key_set_and_a_zero_image",
+  "tests/test_psf_resample_indices.py::TestDegenerateSpacing::test_zero_wavelength_returns_a_valid_empty_psf"
+ ],
+ "pass_to_pass": [
+  "tests/test_psf_resample_indices.py::TestDegenerateSpacing::test_geometric_path_also_survives_zero_wavelength",
+  "tests/test_psf_resample_indices.py::TestDegenerateSpacing::test_normal_wavelength_is_unaffected",
+  "tests/test_psf_resample_indices.py::TestDegenerateSpacing::test_zero_wavelength_image_is_finite",
+  "tests/test_psf_resample_indices.py::TestIndexMappingIsWellFormed::test_floor_is_used_rather_than_truncation",
+  "tests/test_psf_resample_indices.py::TestIndexMappingIsWellFormed::test_index_is_monotonic_in_coordinate",
+  "tests/test_psf_resample_indices.py::TestIndexMappingIsWellFormed::test_indices_are_int64_not_platform_int",
+  "tests/test_psf_resample_indices.py::TestIndexMappingIsWellFormed::test_indices_stay_in_range",
+  "tests/test_psf_resample_indices.py::TestIndexMappingIsWellFormed::test_output_is_unchanged_by_the_floor_change",
+  "tests/test_psf_resample_indices.py::TestIndexMappingIsWellFormed::test_output_matches_the_mapping",
+  "tests/test_psf_resample_indices.py::TestTruncationIsInertWhileClipped::test_the_clip_makes_them_identical",
+  "tests/test_psf_resample_indices.py::TestTruncationIsInertWhileClipped::test_truncation_differs_from_floor_only_for_negatives"
+ ],
+ "patch_lines": 84
+}

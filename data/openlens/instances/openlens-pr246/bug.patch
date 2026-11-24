@@ -1,0 +1,105 @@
+diff --git a/openlens/constants.py b/openlens/constants.py
+index e67d0a96e4e68cf3d30f8537568bc570742a8807..4305e02488fba65d0ef763f6a780bae611d9147d 100644
+--- a/openlens/constants.py
++++ b/openlens/constants.py
+@@ -86,7 +86,7 @@ DEFAULT_RAY_HEIGHT_RANGE = (-20.0, 20.0)  # mm
+ DEFAULT_ANGLE_RANGE = (-30.0, 30.0)  # degrees
+ 
+ # Geometry of ray bundles (mm)
+-APERTURE_FILL_FACTOR = 0.95  # legacy viz-style fan: pass as fill= explicitly; traces default to 1.0
++APERTURE_FILL_FACTOR = 0.95  # rays span 95% of the lens aperture
+ RAY_START_OFFSET_MM = 100.0  # 2D collimated beams start this far before the first surface
+ RAY_START_OFFSET_3D_MM = 50.0  # same, for 3D/system traces
+ RAY_EXIT_PROPAGATION_2D_MM = 150.0  # draw length after the last element (2D)
+diff --git a/openlens/tracer_2d.py b/openlens/tracer_2d.py
+index 6ba8838761edbc17e380fab8e76814e4e5f05489..c954be6fc8a1872d4d17ad54132a559fdcf52912 100644
+--- a/openlens/tracer_2d.py
++++ b/openlens/tracer_2d.py
+@@ -15,6 +15,7 @@ from .constants import (
+     DEFAULT_ANGLE_RANGE,
+     DEFAULT_PROPAGATION_DISTANCE,
+     MESH_RESOLUTION_HIGH,
++    APERTURE_FILL_FACTOR,
+     RAY_START_OFFSET_MM,
+     RAY_EXIT_PROPAGATION_2D_MM,
+ )
+@@ -156,7 +157,7 @@ class LensRayTracer:
+         if surface_type == "front":
+             if self.front_is_flat:
+                 return 0
+-            if self.front_is_parabolic:
++            if getattr(self, "front_is_parabolic", False):
+                 r_max = self.D / 2
+                 if abs(r_max) < EPSILON:
+                     return 0
+@@ -172,7 +173,7 @@ class LensRayTracer:
+         else:
+             if self.back_is_flat:
+                 return 0
+-            if self.back_is_parabolic:
++            if getattr(self, "back_is_parabolic", False):
+                 r_max = self.D / 2
+                 if abs(r_max) < EPSILON:
+                     return 0
+@@ -188,11 +189,10 @@ class LensRayTracer:
+         self, ray: Ray, vertex_x: float, semi_aperture: Optional[float] = None
+     ) -> Optional[Tuple[float, float]]:
+         """Find intersection of ray with a flat surface at vertex_x."""
+-        cos_a = math.cos(ray.angle)
+-        if abs(cos_a) < EPSILON:
++        if abs(math.cos(ray.angle)) < EPSILON:
+             return None
+ 
+-        t = (vertex_x - ray.x) / cos_a
++        t = (vertex_x - ray.x) / math.cos(ray.angle)
+         if t < 0:
+             return None
+ 
+@@ -567,19 +567,10 @@ class LensRayTracer:
+         ray_height_range: Optional[Tuple[float, float]] = None,
+         wavelength_mm: float = WAVELENGTH_GREEN * NM_TO_MM,
+         angle_deg: float = 0.0,
+-        fill: float = 1.0,
+     ) -> List[Ray]:
+-        """Trace parallel rays (collimated beam) through the lens.
+-
+-        Args:
+-            fill: Fraction of the semi-aperture spanned by the fan when
+-                ``ray_height_range`` is omitted. Defaults to the full
+-                aperture so rim spherical aberration is traced; pass the
+-                legacy viz-style ``APERTURE_FILL_FACTOR`` (0.95) explicitly
+-                for display fans.
+-        """
++        """Trace parallel rays (collimated beam) through the lens."""
+         if ray_height_range is None:
+-            max_height = self.D / 2 * fill
++            max_height = self.D / 2 * APERTURE_FILL_FACTOR
+             ray_height_range = (-max_height, max_height)
+ 
+         rays = []
+@@ -698,23 +689,15 @@ class SystemRayTracer:
+         num_rays: int = DEFAULT_NUM_RAYS,
+         angle_deg: float = 0.0,
+         wavelength_mm: float = WAVELENGTH_GREEN * NM_TO_MM,
+-        fill: float = 1.0,
+     ) -> List[Ray]:
+-        """Trace parallel rays through the entire optical system.
+-
+-        Args:
+-            fill: Fraction of the entrance-pupil semi-aperture spanned by
+-                the fan. Defaults to the full aperture; pass the legacy
+-                viz-style ``APERTURE_FILL_FACTOR`` (0.95) explicitly for
+-                display fans.
+-        """
++        """Trace parallel rays through the entire optical system."""
+         if not self.system.elements:
+             return []
+ 
+         self._sync_tracers()
+ 
+         first_lens = self.system.elements[0].lens
+-        max_height = first_lens.diameter / 2 * fill
++        max_height = first_lens.diameter / 2 * APERTURE_FILL_FACTOR
+         min_h, max_h = -max_height, max_height
+ 
+         rays = []

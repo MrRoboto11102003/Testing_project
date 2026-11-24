@@ -1,0 +1,58 @@
+{
+ "id": "openlens-pr745",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 663,
+ "issue_title": "bug: STL helper contracts are wrong (flat profile never returns None, list input raises IndexError)",
+ "issue_body": "## Summary\n\nTwo `STLExporter` helpers contradict their own contracts:\n\n- `calculate_surface_profile()` documents \"Returns None if the surface is\n  flat\" but always returns a list, so both \"flat surface\" branches in the\n  exporters are dead code.\n- `generate_edge_triangles()` documents that the front/back z arrays may be a\n  \"float or list\", but the list form raises `IndexError` on the last segment.\n\n## Impact\n\n- The flat-surface code path (a cheaper, dedicated flat-fan generator) is\n  unreachable, so a plano lens is exported through the general surface\n  generator.\n- A caller following the documented signature gets an unhandled `IndexError`\n  on the final segment.\n\n## Reproduction\n\n```python\nfrom openlens.stl_export import STLExporter\n\nexporter = STLExporter()\nprof = exporter.calculate_surface_profile(0.0, 25.0, is_front=True, resolution=5)\nprint(\"flat front profile ->\", prof)\nprint(\"is None?\", prof is None, \" (docstring promises None for a flat surface)\")\n\ntry:\n    exporter.generate_edge_triangles(10.0, [0.0] * 4, [5.0] * 4, num_segments=4)\n    print(\"edge triangles OK\")\nexcept Exception as exc:\n    print(f\"generate_edge_triangles raised {type(exc).__name__}: {exc}\")\n```\n\nOutput:\n\n```\nflat front profile -> [(0.0, 0.0), (2.5, 0.0), (5.0, 0.0), (7.5, 0.0), (10.0, 0.0), (12.5, 0.0)]\nis None? False  (docstring promises None for a flat surface)\ngenerate_edge_triangles raised IndexError: list index out of range\n```\n\n## Root cause\n\n- `openlens/stl_export.py:34-49` (docstring) versus `:67-91`: the flat case is\n  handled inside the loop (`z_sag = 0.0`) and the function unconditionally\n  returns `half_profile`, so the `if profile is None:` branches at `:278-292`\n  and `:370-381` can never be taken.\n- `openlens/stl_export.py:221-225`:\n  ```python\n  zf1 = z_front_arr[seg] if isinstance(z_front_arr, list) else z_front_arr\n  zf2 = z_front_arr[seg + 1] if isinstance(z_front_arr, list) else z_front_arr\n  ```\n  With `seg` up to `num_segments - 1`, `seg + 1 == num_segments` is out of\n  range for a list of length `num_segments`.\n\n## Expected behaviour\n\nThe helpers do what they document: a flat surface yields `None` (so the\ndedicated flat-surface path is used), and the edge generator accepts the\nlist form it advertises.\n\n## Suggested fix\n\nReturn `None` for a flat surface and revive the existing flat-fan code, or\namend the docstring if the flat branch is deliberately not needed. Wrap the\nlist index (`(seg + 1) % len(z_front_arr)`) or require and document lists of\nlength `num_segments + 1`. Add tests for the flat surface and the list input.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/663",
+ "pr": 745,
+ "pr_title": "fix(stl): return None for a flat profile and accept closed edge lists",
+ "pr_body": "## Description\nTwo `STLExporter` helpers contradicted their own contracts:\n\n- `calculate_surface_profile()` documented \"None if the surface is flat\" but always returned a list of `z=0` points, so both dedicated flat-fan branches in the exporters were dead code.\n- `generate_edge_triangles()` advertised float-or-list front/back z arrays, but indexed `arr[seg + 1]` and raised `IndexError` on the last segment when the list held exactly `num_segments` values.\n\n## What changed\n- `openlens/stl_export.py`: a flat radius (`|R| ~ 0` or non-finite) now returns `None`, activating the existing flat-fan path. Edge arrays accept `num_segments` values (closed, wrapping the last corner back to the first) or `num_segments + 1` values (open); any other length raises `ValueError` with the expected counts.\n- Tests cover the flat contract, the curved path, both accepted list forms (including the wrapped final corner) and the wrong-length error. The surface-sign helper and flat-profile test were updated for the documented `None` contract.\n\n## Testing\n- Full suite: 2870 tests, OK (skipped=35)\n- `black --line-length=100`, `ruff`, `flake8`, `mypy`\n- Verified the new flat and closed-list tests fail against the old always-a-list/no-wrap helpers.\n\nCloses #663\n",
+ "fix_commit": "88ada5e3047bf4cf67ffec82291b85452b514062",
+ "merged_at": "2026-10-23T10:13:55Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/stl_export.py"
+ ],
+ "test_files": [
+  "tests/test_stl_export.py",
+  "tests/test_stl_surface_sign.py"
+ ],
+ "target_symbols": [
+  "openlens/stl_export.py::STLExporter.calculate_surface_profile",
+  "openlens/stl_export.py::STLExporter.generate_edge_triangles"
+ ],
+ "fail_to_pass": [
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_a_closed_edge_list_wraps_the_last_segment",
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_a_flat_surface_profile_is_none",
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_an_edge_list_of_the_wrong_length_is_rejected",
+  "tests/test_stl_surface_sign.py::TestEdgeGeometry::test_flat_radii_return_none_for_the_dedicated_flat_path"
+ ],
+ "pass_to_pass": [
+  "tests/test_stl_export.py::TestSTLExport::test_export_creates_file",
+  "tests/test_stl_export.py::TestSTLExport::test_export_flat_surfaces",
+  "tests/test_stl_export.py::TestSTLExport::test_geometry_consistency",
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_a_curved_surface_profile_is_still_returned",
+  "tests/test_stl_export.py::TestSTLHelperContracts::test_an_open_edge_list_uses_the_final_value",
+  "tests/test_stl_export.py::TestSTLModelSurfaces::test_a_conic_front_surface_is_not_a_sphere",
+  "tests/test_stl_export.py::TestSTLModelSurfaces::test_a_parabolic_front_surface_is_not_a_sphere",
+  "tests/test_stl_export.py::TestSTLModelSurfaces::test_an_assembly_uses_the_element_surface_model",
+  "tests/test_stl_surface_sign.py::TestEdgeGeometry::test_biconcave_is_thicker_at_the_edge",
+  "tests/test_stl_surface_sign.py::TestEdgeGeometry::test_biconvex_is_thinner_at_the_edge",
+  "tests/test_stl_surface_sign.py::TestEdgeGeometry::test_edge_thickness_is_positive",
+  "tests/test_stl_surface_sign.py::TestEdgeGeometry::test_plano_convex_keeps_full_thickness_at_the_axis",
+  "tests/test_stl_surface_sign.py::TestExportedSolid::test_biconvex_solid_is_not_a_cylinder",
+  "tests/test_stl_surface_sign.py::TestExportedSolid::test_solid_spans_the_lens_thickness",
+  "tests/test_stl_surface_sign.py::TestExportedSolid::test_still_writes_a_valid_triangle_count",
+  "tests/test_stl_surface_sign.py::TestIsFrontIsInert::test_is_front_makes_no_difference",
+  "tests/test_stl_surface_sign.py::TestIsFrontIsInert::test_positional_call_still_works",
+  "tests/test_stl_surface_sign.py::TestProfileSign::test_back_rim_matches_the_expected_sag",
+  "tests/test_stl_surface_sign.py::TestProfileSign::test_magnitudes_are_mirror_symmetric",
+  "tests/test_stl_surface_sign.py::TestProfileSign::test_negative_radius_gives_negative_sag",
+  "tests/test_stl_surface_sign.py::TestProfileSign::test_positive_radius_gives_positive_sag",
+  "tests/test_stl_surface_sign.py::TestProfileSign::test_profile_matches_the_closed_form_at_every_step"
+ ],
+ "patch_lines": 61
+}

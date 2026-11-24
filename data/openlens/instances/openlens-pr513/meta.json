@@ -1,0 +1,46 @@
+{
+ "id": "openlens-pr513",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 443,
+ "issue_title": "Aberrations: Strehl cache key omits trace-relevant parameters (stale results)",
+ "issue_body": "**Where:** `src/aberrations.py:555-579`, `:582-616`\n\nThe cache key covers radii, thickness, diameter and index, but not clear apertures, parabolic flags/sags, alignment or the aperture stop. Editing those returns the previous Strehl result.\n\n**Repro:** changing `lens.clear_aperture_1` to 5 leaves `_strehl_state_key(550, 32)` unchanged.\n\n**Fix:** key on a hash of the lens's full `to_dict()` (plus tracer settings), or invalidate the cache from a lens change signal.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/443",
+ "pr": 513,
+ "pr_title": "fix(analysis): key the Strehl cache on the serialized lens state",
+ "pr_body": "## Description\n\nfix(analysis): key the Strehl cache on the serialized lens state\n\n`_strehl_state_key` enumerated a hand-picked list of attributes \u2014 radii,\nthickness, diameter, index, position \u2014 and **everything not on that list was\ninvisible to the cache**. Clear apertures, parabolic flags and sags,\nper-surface alignment and the aperture stop all change the pupil trace and left\nthe key identical, so the previous Strehl result came straight back:\n\n```python\nlens.clear_aperture_1 = 5.0\ncalculator._strehl_state_key(550, 32)   # unchanged\n```\n\nThe test pins the user-visible consequence too: pinching the clear aperture\nreturned byte-identical Strehl and WFE.\n\n### The list was the actual defect\n\nThe interesting part isn't the fields that were missing \u2014 it's that the key was\n*an enumeration*. Any field added to `Lens` in future would be missing too,\nbecause nobody remembers to extend a list of attributes sitting in a different\nfile. The key is now built from the serialized lens state, so new fields are\ncovered by construction.\n\n### A key that never hits is a key that's worse than useless\n\nThe serialized state includes `id`, `name`, `created_at`, `modified_at` and\n`metadata`. None of those describe optics. Including them would mean the cache\nis invalidated on every rename and on every reload from the database \u2014 and a\ncache that always misses is pure overhead.\n\nSo those are dropped via an explicit `_STREHL_NON_OPTICAL_FIELDS` set. The set\nis the narrow part of the change; everything else is automatic.\n\nThe state is JSON-encoded because it contains lists and dicts (coating stacks)\nthat are not hashable.\n\n### System keys were missing more\n\nA system's key also now covers each element's decenter and tilt and the\naperture stop, which were absent for the same reason.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #443\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      **12 of 17 failed** on the original `aberrations.py`\n- [x] Verified by reverting **each half on its own**:\n  - the attribute-subset snapshot \u2192 **7 of 17 fail**\n  - dropping the alignment and stop coverage \u2192 **2 of 17 fail**\n- [x] `python3 -m unittest tests.test_strehl_cache_key` \u2014 17 tests, OK\n- [x] `python3 -m unittest tests.test_strehl_cache_key tests.test_aberrations` \u2014 60 tests, OK\n- [x] Full suite: `Ran 1794 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master`, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 228 files unchanged\n- [x] `flake8 src/aberrations.py` \u2014 **15 findings, identical to `master`**\n- [x] Coverage includes: clear apertures, parabolic flags and sags, Fresnel,\n      model glass, per-element alignment, and the aperture stop all changing the\n      key; plus renaming *not* changing it, identical lenses sharing an entry,\n      the key being stable across recomputation, wavelength and grid size still\n      differing, a system key never colliding with a lens key, the reported\n      Strehl actually changing when the aperture is pinched, and a repeat call\n      returning **the same object** so the cache is proven to be serving rather\n      than coincidentally re-tracing\n\n### Two tests that would have passed for the wrong reason\n\n- Asserting the key changes is not enough on its own; a key that churned on\n  *every* call would pass that and be useless. `test_the_cache_actually_serves_a_repeat_call`\n  and `test_a_cache_hit_is_the_same_object` pin the other direction.\n- `test_renaming_a_lens_does_not_invalidate` guards against the obvious way to\n  \"fix\" this \u2014 hashing all of `to_dict()` unfiltered \u2014 which would trade a\n  correctness bug for a performance one.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "170bab119f193a470a80fd32365325f10290f1c4",
+ "merged_at": "2026-10-18T09:13:54Z",
+ "port_method": "partial_hunks:1/2",
+ "src_files": [
+  "openlens/aberrations.py"
+ ],
+ "test_files": [
+  "tests/test_strehl_cache_key.py"
+ ],
+ "target_symbols": [],
+ "fail_to_pass": [
+  "tests/test_strehl_cache_key.py::TestStrehlCacheReturnsFreshResults::test_a_cache_hit_is_the_same_object",
+  "tests/test_strehl_cache_key.py::TestStrehlCacheReturnsFreshResults::test_the_cache_actually_serves_a_repeat_call",
+  "tests/test_strehl_cache_key.py::TestStrehlCacheReturnsFreshResults::test_vignetting_changes_the_reported_strehl",
+  "tests/test_strehl_cache_key.py::TestStrehlKeyIgnoresNonOpticalChanges::test_a_system_key_is_not_a_lens_key",
+  "tests/test_strehl_cache_key.py::TestStrehlKeyIgnoresNonOpticalChanges::test_different_grid_sizes_still_differ",
+  "tests/test_strehl_cache_key.py::TestStrehlKeyIgnoresNonOpticalChanges::test_different_wavelengths_still_differ",
+  "tests/test_strehl_cache_key.py::TestStrehlKeyIgnoresNonOpticalChanges::test_renaming_a_lens_does_not_invalidate",
+  "tests/test_strehl_cache_key.py::TestStrehlKeyIgnoresNonOpticalChanges::test_the_key_is_stable_across_identical_construction",
+  "tests/test_strehl_cache_key.py::TestStrehlKeyIgnoresNonOpticalChanges::test_the_key_is_stable_when_recomputed",
+  "tests/test_strehl_cache_key.py::TestStrehlKeySeesTraceRelevantChanges::test_a_clear_aperture_change_is_seen",
+  "tests/test_strehl_cache_key.py::TestStrehlKeySeesTraceRelevantChanges::test_a_fresnel_change_is_seen",
+  "tests/test_strehl_cache_key.py::TestStrehlKeySeesTraceRelevantChanges::test_a_model_glass_change_is_seen",
+  "tests/test_strehl_cache_key.py::TestStrehlKeySeesTraceRelevantChanges::test_a_parabolic_flag_change_is_seen",
+  "tests/test_strehl_cache_key.py::TestStrehlKeySeesTraceRelevantChanges::test_a_parabolic_sag_change_is_seen",
+  "tests/test_strehl_cache_key.py::TestStrehlKeySeesTraceRelevantChanges::test_a_second_clear_aperture_change_is_seen",
+  "tests/test_strehl_cache_key.py::TestStrehlKeySeesTraceRelevantChanges::test_an_alignment_change_is_seen_on_a_system",
+  "tests/test_strehl_cache_key.py::TestStrehlKeySeesTraceRelevantChanges::test_an_aperture_stop_change_is_seen"
+ ],
+ "pass_to_pass": [
+  "tests/test_strehl_cache_key.py::TestStrehlKeyFailuresAreReported::test_snapshot_failure_is_logged_and_bypasses_the_cache"
+ ],
+ "patch_lines": 1
+}

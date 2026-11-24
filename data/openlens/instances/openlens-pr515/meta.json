@@ -1,0 +1,51 @@
+{
+ "id": "openlens-pr515",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 444,
+ "issue_title": "Aberrations: summary crashes on missing metrics, spot RMS failure becomes 0, negative field angles mixed, object distance ignored",
+ "issue_body": "**Where:** `src/aberrations.py`\n\n1. **`:974-980`** `get_aberration_summary()` formats `None` values with float format specifiers. An invalid result with `coma=None` raises `TypeError: unsupported format string passed to NoneType.__format__`.\n2. **`:208-213`, `:722-762`** `_calculate_spot_rms()` returns `None` on trace failure, but `or 0.0` publishes it as a perfect zero, and `valid` does not consider it.\n3. **`:307-324`** `max(field_angle, 0.1)` turns every negative requested angle into 0.1 degrees for field curvature and distortion, while coma and astigmatism use the requested negative angle. One result mixes different fields.\n4. **`:98-179`** `calculate_all_aberrations()` accepts and forwards `object_distance_mm`, but `_calculate_all_at_wavelength()` never uses it, so finite-conjugate requests silently return infinity-object results.\n\n**Fix:** check `valid` and print \"unavailable\" for missing metrics; preserve `None` and include spot RMS in validity; use `abs(field_angle)` consistently; implement or reject finite object distances.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/444",
+ "pr": 515,
+ "pr_title": "fix(analysis): do not invent aberration metrics that cannot be measured",
+ "pr_body": "## Description\n\nfix(analysis): do not invent aberration metrics that cannot be measured\n\nFour defects, all the same family: a value that could not be measured was\nformatted as though it existed, published as a fictional zero, or taken from a\ndifferent field than the rest of the block.\n\n### 1. The summary crashed instead of showing a gap\n\n```python\nTypeError: unsupported format string passed to NoneType.__format__\n```\n\n`get_aberration_summary()` formatted `None` with float specifiers, so an invalid\nresult lost the **entire** summary rather than showing that one number is\nmissing. Metrics now render as `unavailable`, and the interpretation labels\ndegrade with them.\n\n### 2. A failed spot trace was published as a perfect one\n\n`_calculate_spot_rms()` returns `None` on trace failure, but `or 0.0` turned that\ninto a **zero** spot size \u2014 indistinguishable from a better-than-diffraction-limited\ndesign, for a lens that could not be traced at all. `None` is preserved and\n`spot_rms` now feeds the validity check.\n\n### 3. One dict, two fields\n\n```python\nmax_field_angle_deg=max(field_angle, 0.1)\n```\n\nA `-10\u00b0` request was evaluated at `+0.1\u00b0` for field curvature and distortion,\nwhile coma and astigmatism in the **same dict** used the requested `-10\u00b0`. Now\nthe magnitude is used, with the `0.1\u00b0` floor kept to avoid a degenerate\nzero-width sample on axis.\n\n### 4. A finite object distance was silently ignored \u2014 now refused\n\nEvery Seidel estimator here assumes an object at infinity (conjugate factor\n`C = -1`). `object_distance_mm` was accepted, forwarded, and then dropped, so a\nfinite-conjugate request returned infinity-conjugate numbers **labelled with the\ncaller's own distance**. That is now a `ValueError`.\n\nRefusing beats answering here: the result was wrong in a way nothing downstream\ncould detect, and actually supporting a finite conjugate means threading a\nconjugate factor through each estimator \u2014 a physics change, not a guard. Flagged\nin the PR as a deliberate behaviour change for callers to adapt to.\n\n## An existing test caught a real mistake in my own fix\n\n`test_box_alignment_matches_between_target_kinds` failed after my change. The\nnew `_metric` helper took a format spec and **ignored it**, so every value\nprinted at full float precision:\n\n```\n\u2551 Focal Length:          58.86167144396433 mm      (mine)\n\u2551 Focal Length:               58.86 mm              (master)\n```\n\nThe summary's box stopped lining up. Fixed, and the box is now byte-identical to\nmaster for a valid design \u2014 verified by diffing the rendered lines, not by\nassuming the width test was sufficient.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #444\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      **11 of 17 failed** on the original `aberrations.py`\n- [x] Verified by reverting **each of the four fixes on its own**:\n\n  | Reverted | Failures |\n  | --- | --- |\n  | `None`-safe summary formatting | 1 of 17 |\n  | `spot_rms or 0.0` | 2 of 17 |\n  | `max(field_angle, 0.1)` | 2 of 17 |\n  | the `object_distance_mm` guard | 4 of 17 |\n\n- [x] `python3 -m unittest tests.test_aberration_summary_missing` \u2014 17 tests, OK\n- [x] `python3 -m unittest tests.test_aberrations tests.test_aberration_summary_missing tests.test_strehl_cache_key` \u2014 77 tests, OK\n- [x] `python3 -m unittest tests.test_aberrations tests.test_system_tracer tests.test_ray_tracer tests.test_optical_system` \u2014 126 tests, OK\n- [x] Full suite: `Ran 1811 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 229 files unchanged\n- [x] `flake8 src/aberrations.py` \u2014 **10 findings, down from 15 on `master`**\n- [x] Coverage includes: a summary surviving all-`None` and partially-`None`\n      results, a valid design still printing numbers, an error result still\n      reporting as an error, `None` vs `0.0` spot RMS, validity reacting to a\n      missing spot, `+10\u00b0`/`-10\u00b0` agreement for curvature and distortion\n      magnitude, the positive case unchanged, and finite object distances\n      refused (including `0.0`) while `None` is still accepted\n\n### A test I rewrote after it failed for the wrong reason\n\nThe field-angle tests originally mocked `GeometricTraceAnalysis`. That mock was\nwrong in two ways \u2014 a constructor arity mismatch, and patching\n`src.aberrations` when the symbol is imported *inside* the method \u2014 and it made\nthe test fail with `IndexError` rather than for the reason it existed. Rewritten\nagainst the real sampler: the property that matters is the one a user sees, and\nthe real thing reproduces the bug directly (`field curvature: -2.688 vs\n-0.0018`).\n\n### Two assertions I had to correct\n\n- I asserted `calculate_all_aberrations(object_distance_mm=None)` returns an\n  `error` key. It does not, and should not \u2014 that is the *supported* case.\n- `test_a_zero_spot_rms_is_still_valid` asserted nothing useful. Zero is a real\n  measurement and `None` is not; keeping them distinguishable is the point, so\n  the distinction is now asserted through the main path instead.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "6db350d3af91d53b8321af469e29e2331f4c5ac8",
+ "merged_at": "2026-10-18T09:52:49Z",
+ "port_method": "partial_hunks:5/6",
+ "src_files": [
+  "openlens/aberrations.py"
+ ],
+ "test_files": [
+  "tests/test_aberration_summary_missing.py"
+ ],
+ "target_symbols": [
+  "openlens/aberrations.py::AberrationsCalculator._calculate_all_at_wavelength",
+  "openlens/aberrations.py::AberrationsCalculator._calculate_field_estimators",
+  "openlens/aberrations.py::AberrationsCalculator._calculate_field_metrics_system",
+  "openlens/aberrations.py::AberrationsCalculator._calculate_spherical_aberration_seidel",
+  "openlens/aberrations.py::AberrationsCalculator.get_aberration_summary"
+ ],
+ "fail_to_pass": [
+  "tests/test_aberration_summary_missing.py::TestFieldAngleIsConsistentAcrossTheBlock::test_distortion_magnitude_matches_for_opposite_field_angles",
+  "tests/test_aberration_summary_missing.py::TestFieldAngleIsConsistentAcrossTheBlock::test_field_curvature_matches_for_opposite_field_angles",
+  "tests/test_aberration_summary_missing.py::TestFiniteObjectDistanceIsRejected::test_a_finite_object_distance_is_refused",
+  "tests/test_aberration_summary_missing.py::TestFiniteObjectDistanceIsRejected::test_numpy_is_not_required_for_this_check",
+  "tests/test_aberration_summary_missing.py::TestFiniteObjectDistanceIsRejected::test_the_summary_agrees_with_the_calculator",
+  "tests/test_aberration_summary_missing.py::TestFiniteObjectDistanceIsRejected::test_zero_is_still_refused",
+  "tests/test_aberration_summary_missing.py::TestSpotRmsIsNotFaked::test_a_failed_spot_trace_yields_none_not_zero",
+  "tests/test_aberration_summary_missing.py::TestSpotRmsIsNotFaked::test_a_missing_spot_rms_makes_the_result_invalid",
+  "tests/test_aberration_summary_missing.py::TestSummarySurvivesMissingMetrics::test_a_missing_metric_is_labelled_not_invented",
+  "tests/test_aberration_summary_missing.py::TestSummarySurvivesMissingMetrics::test_a_summary_is_produced_when_metrics_are_missing",
+  "tests/test_aberration_summary_missing.py::TestSummarySurvivesMissingMetrics::test_a_valid_design_still_formats_numbers"
+ ],
+ "pass_to_pass": [
+  "tests/test_aberration_summary_missing.py::TestFieldAngleIsConsistentAcrossTheBlock::test_a_positive_field_is_unaffected_by_the_fix",
+  "tests/test_aberration_summary_missing.py::TestFieldAngleIsConsistentAcrossTheBlock::test_the_block_is_still_populated_for_a_negative_field",
+  "tests/test_aberration_summary_missing.py::TestFiniteObjectDistanceIsRejected::test_an_infinite_object_distance_is_accepted",
+  "tests/test_aberration_summary_missing.py::TestSpotRmsIsNotFaked::test_a_real_spot_rms_is_still_reported",
+  "tests/test_aberration_summary_missing.py::TestSpotRmsIsNotFaked::test_a_zero_spot_rms_is_still_valid",
+  "tests/test_aberration_summary_missing.py::TestSummarySurvivesMissingMetrics::test_an_error_result_is_still_reported_as_an_error"
+ ],
+ "patch_lines": 73
+}

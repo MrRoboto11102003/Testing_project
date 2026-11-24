@@ -1,0 +1,234 @@
+{
+ "id": "openlens-pr368",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 110,
+  "units_kept": 55,
+  "chars": 69766,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 13972
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.32,
+ "detected": true,
+ "n_tests": 19,
+ "n_catching": 2,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 8637,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 10333,
+  "output_tokens_details": {
+   "thinking_tokens": 6205
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 8637,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10333,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 8637,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 8637
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0702396,
+ "model_seconds": 51.6,
+ "seconds": 63.0,
+ "tests": {
+  "tests/_generated/test_openlens_pr368.py::TestInverseSensitivityAnalyzer::test_empty_tolerances_returns_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestInverseSensitivityAnalyzer::test_multiple_tolerances_returned_in_order": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestInverseSensitivityAnalyzer::test_non_finite_values_become_nan": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestInverseSensitivityAnalyzer::test_result_dict_has_exactly_seven_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestInverseSensitivityAnalyzer::test_sensitivity_equation_finite_case": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestInverseSensitivityAnalyzer::test_type_is_enum_name_not_value": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestInverseSensitivityAnalyzer::test_unsupported_criterion_raises_valueerror_first": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestInverseSensitivityAnalyzer::test_zero_max_val_gives_int_zero_sensitivity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_basic_trace_returns_valid_result_dict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_empty_system_raises_indexerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "SpotDiagram"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_explicit_image_plane_x_applied": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_failure_case_logs_warning": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_field_angle_x_affects_centroid_z": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_field_angle_y_affects_centroid_y": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_focus_shift_applied_to_image_plane": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_lens_state_restored_after_trace": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SpotDiagram"
+   ]
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_num_rings_zero_returns_failure_dict": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_on_axis_centroid_near_origin": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr368.py::TestSpotDiagramTraceSpot::test_rms_radius_less_or_equal_geo_radius": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

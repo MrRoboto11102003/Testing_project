@@ -1,0 +1,242 @@
+{
+ "id": "openlens-pr235",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 111,
+  "units_kept": 111,
+  "chars": 95812
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.37,
+ "detected": false,
+ "n_tests": 19,
+ "n_catching": 0,
+ "n_false_alarms": 2,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4568,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 8334,
+  "output_tokens_details": {
+   "thinking_tokens": 5997
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4568,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8334,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 4568,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4568
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0532852,
+ "model_seconds": 37.8,
+ "seconds": 44.2,
+ "tests": {
+  "tests/_generated/test_openlens_pr235.py::TestCheckPhysicalFeasibility::test_aperture_overhang_infeasible": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestCheckPhysicalFeasibility::test_clear_aperture_constraints": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestCheckPhysicalFeasibility::test_conic_surface_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestCheckPhysicalFeasibility::test_intersecting_surfaces_infeasible": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestCheckPhysicalFeasibility::test_parabolic_surface_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestCheckPhysicalFeasibility::test_valid_biconvex_lens": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestCheckPhysicalFeasibility::test_valid_thin_lens": {
+   "clean": "failed",
+   "buggy": "passed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestDrawSystemOutline::test_empty_system_draws_gracefully": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "draw_system_outline"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestDrawSystemOutline::test_multi_element_system_with_air_gaps": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "draw_system_outline"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestDrawSystemOutline::test_plano_convex_lens_draws": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "draw_system_outline"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestDrawSystemOutline::test_single_lens_draws_without_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "draw_system_outline"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestValidateFilePath::test_create_parent_creates_nested_directories": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_file_path"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestValidateFilePath::test_invalid_type_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_file_path"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestValidateFilePath::test_must_exist_accepts_existing_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_file_path"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestValidateFilePath::test_must_exist_raises_for_nonexistent": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_file_path"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestValidateFilePath::test_nonexistent_parent_without_create_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_file_path"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestValidateFilePath::test_path_returned_is_resolved_absolute": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_file_path"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestValidateFilePath::test_valid_path_object_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_file_path"
+   ]
+  },
+  "tests/_generated/test_openlens_pr235.py::TestValidateFilePath::test_valid_path_string_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_file_path"
+   ]
+  }
+ }
+}

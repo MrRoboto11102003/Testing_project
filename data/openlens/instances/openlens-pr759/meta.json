@@ -1,0 +1,58 @@
+{
+ "id": "openlens-pr759",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 754,
+ "issue_title": "bug: OpticStudio system export inserts a hard-coded 100 mm after every element",
+ "issue_body": "## Summary\n\n`OpticStudioExporter.export_system()` writes a hard-coded `100.0000` mm thickness on every element's back surface, even though it also writes a dummy `Infinity` surface carrying the real air gap before the next element. The exported prescription therefore disagrees with the system's own `Total Length` header and puts every element 100 mm too far from the next.\n\n## Impact\n\nA two-element system with a 12 mm gap and 21 mm total track exports as `5 + 100 + 12 + 4 + 100 = 221` mm of surface thicknesses. Anyone importing or reading the OpticStudio prescription gets wrong spacing and focus. This is not caught by `tests/test_system_export_gaps.py`, which only counts rows.\n\n## Reproduction\n\n```python\nimport os\nimport sys\nimport tempfile\n\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.export_formats import OpticStudioExporter\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\n\n\ndef lens(name):\n    return Lens(\n        name=name,\n        radius_of_curvature_1=50.0,\n        radius_of_curvature_2=-50.0,\n        thickness=5.0,\n        diameter=25.0,\n        refractive_index=1.5168,\n        material=\"BK7\",\n    )\n\n\nsystem = OpticalSystem(name=\"doublet\")\nsystem.add_lens(lens(\"L1\"))\nsystem.add_lens(lens(\"L2\"), air_gap_before=12.0)\nsystem._update_positions()\nprint(\"system total length:\", system.get_total_length())\n\npath = os.path.join(tempfile.mkdtemp(), \"system.txt\")\nOpticStudioExporter.export_system(system, path)\nprint(open(path).read())\n```\n\nObserved (abridged):\n\n```\nsystem total length: 21.0\n...\nSurface    Type         Radius         Thickness    Glass\n------------------------------------------------------------\nOBJ        STANDARD     Infinity       Infinity\n1          STANDARD     50.0000        5.0000       BK7\n2          STANDARD     -50.0000       100.0000\n3          STANDARD     Infinity       12.0000\n4          STANDARD     40.0000        4.0000       BK7\n5          STANDARD     -40.0000       100.0000\nIMA        STANDARD     Infinity\n```\n\nThe header still says `Total Length: 21.0000 mm`.\n\n## Root cause\n\n`openlens/export_formats.py:267` hard-codes the back-surface thickness (`{'100.0000':<12}`). The loop separately emits `gap_before` as an `Infinity` surface at `:240-247`, so the back surface should be `0.0000` for an element followed by that dummy gap. The final element's image distance also should not be an arbitrary 100 mm.\n\n## Expected behaviour\n\nThe thickness column must add up to the system track (or the dummy gap must be the only place the gap appears). For sequential format: back-surface DISZ should be the real gap to the next surface (or 0 when a separate gap surface follows), and the trailing image distance should reflect the chosen image plane, not a fixed 100 mm.\n\n## Suggested fix\n\nUse `system.air_gaps[i].thickness` for the back surface and drop the dummy gap row, or write `0.0000` on the back surface and keep the dummy row. Add an assertion that the sum of exported thicknesses equals `system.get_total_length()` (plus the chosen image distance).\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/754",
+ "pr": 759,
+ "pr_title": "fix(export): write real spacing in the OpticStudio table",
+ "pr_body": "## Description\n\nThe OpticStudio system table wrote `100.0000` on every element's back surface even though the dummy air-gap row already carried the spacing. Intermediate surfaces now write zero, and only the final surface carries the last-vertex-to-image distance.\n\nThat distance is the configured `image_plane_x_mm` when present, otherwise the system's back focal length, clamped at zero for virtual images.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #754\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `python3 -m unittest tests.test_system_export_gaps`\n- [x] Full suite: `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .` \u2014 2936 tests, 36 skipped, exit 0\n- [x] `black --line-length=100 --exclude 'openlens/__main__.py' openlens/export_formats.py tests/test_system_export_gaps.py --check`\n- [x] `.venv/bin/flake8` on the changed files\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "9da4e60e35c18184158bf2275412f94aa7d297b6",
+ "merged_at": "2026-10-26T10:33:12Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/export_formats.py"
+ ],
+ "test_files": [
+  "tests/test_system_export_gaps.py"
+ ],
+ "target_symbols": [
+  "openlens/export_formats.py::OpticStudioExporter.export_system",
+  "openlens/export_formats.py::SVGExporter._generate_arc_path",
+  "openlens/export_formats.py::ZemaxExporter.export_lens",
+  "openlens/export_formats.py::_gap_before"
+ ],
+ "fail_to_pass": [
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_a_configured_image_plane_sets_the_final_distance",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_an_intermediate_back_surface_carries_no_thickness",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_exported_thicknesses_add_up_to_the_total_track",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_the_final_back_surface_uses_the_back_focal_length"
+ ],
+ "pass_to_pass": [
+  "tests/test_system_export_gaps.py::TestGapBefore::test_first_element_has_no_gap",
+  "tests/test_system_export_gaps.py::TestGapBefore::test_gap_matches_element_spacing",
+  "tests/test_system_export_gaps.py::TestGapBefore::test_index_past_the_end_does_not_raise",
+  "tests/test_system_export_gaps.py::TestGapBefore::test_negative_index_does_not_raise",
+  "tests/test_system_export_gaps.py::TestGapBefore::test_second_element_sees_the_first_gap",
+  "tests/test_system_export_gaps.py::TestGapBefore::test_single_element_system",
+  "tests/test_system_export_gaps.py::TestGapBefore::test_third_element_sees_the_second_gap",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_gap_becomes_an_infinity_surface_row",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_gap_row_precedes_the_lens_it_belongs_to",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_no_element_also_exports",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_row_count_is_two_surfaces_plus_one_gap_each",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_single_element_export_succeeds",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_single_element_writes_two_surfaces",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_three_element_export_succeeds",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_two_gaps_produce_two_gap_rows",
+  "tests/test_system_export_gaps.py::TestOpticStudioSystemExport::test_zero_gap_emits_no_extra_row",
+  "tests/test_system_export_gaps.py::TestSVGSystemExport::test_empty_system_exports",
+  "tests/test_system_export_gaps.py::TestSVGSystemExport::test_gap_shifts_later_lenses_apart",
+  "tests/test_system_export_gaps.py::TestSVGSystemExport::test_one_rect_per_element",
+  "tests/test_system_export_gaps.py::TestSVGSystemExport::test_output_is_valid_xml",
+  "tests/test_system_export_gaps.py::TestSVGSystemExport::test_single_element_export_succeeds"
+ ],
+ "patch_lines": 34
+}

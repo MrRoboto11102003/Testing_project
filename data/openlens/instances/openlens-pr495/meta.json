@@ -1,0 +1,37 @@
+{
+ "id": "openlens-pr495",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 437,
+ "issue_title": "3D tracer: back parabolic surfaces intersected in the wrong local frame",
+ "issue_body": "**Where:** `src/tracer_3d.py:305-309`, `:327-357`, `:452`\n\n`_to_local_point()` returns coordinates relative to the lens transform, but `_intersect_paraboloid()` treats them as relative to the back vertex. The back surface is therefore solved at about the front vertex. The back-surface normal calculation has the same mismatch.\n\n**Repro:** for a 5 mm thick plano/parabolic lens, the 2D trace reaches the back at x=4.99 and survives. The equivalent 3D trace stops at the front: `3D back True [(-10,1,0), (0,1,0)]`.\n\n**Fix:** subtract the vertex's local coordinate when building the ray and normal coordinates, and add it back when transforming the hit to world space. Add a 2D/3D agreement test for parabolic surfaces on both sides.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/437",
+ "pr": 495,
+ "pr_title": "fix(tracer): solve the 3D paraboloid at its own vertex, not the lens origin",
+ "pr_body": "## Description\n\nfix(tracer): solve the 3D paraboloid at its own vertex, not the lens origin\n\n`_to_local_point` claims to return *\"the surface-local frame (vertex at origin)\"*, but its two branches disagree about the origin:\n\n```python\nif self._inv is not None:\n    return self._inv.multiply_point(point)   # lens-frame origin\nreturn point - vertex                        # vertex origin\n```\n\n`_intersect_paraboloid` solves `x = (y\u00b2 + z\u00b2) / (2R)`, which is only correct when the vertex really is at `x = 0`. With a transform set it is not: for the back surface of a thick lens the origin sits **a whole thickness too far forward**, so the back paraboloid was solved at the front vertex.\n\nMeasured on a 5 mm thick plano/parabolic lens, the 3D trace exited **exactly 5.0 mm early at every ray height**:\n\n```\nheight=0.5   99.834 != 104.834   (\u0394 5.0)\nheight=2.0   96.832 != 101.832   (\u0394 5.0)\nheight=5.0    3.125 !=   8.125   (\u0394 5.0)\nheight=8.0    8.000 !=  13.000   (\u0394 5.0)\n```\n\nThe 2D tracer solves the same geometry in its own frame and was correct throughout, which is why the tests compare against it rather than against hard-coded numbers.\n\n### The fix\n\nThe vertex is shifted to the origin before the quadratic and shifted back before the hit is transformed to world. In the fallback branch `_to_local_point(vertex, vertex)` is exactly zero, so the no-transform path is unchanged.\n\n### Also fixed: the aperture was on the wrong circle\n\nThe aperture check reads `local_hit.y`/`.z`, which were **lens-frame** \u2014 not vertex-relative. For a decentered lens that is simply the wrong circle: a ray that belongs inside the clear aperture can be clipped, and one that should be clipped can pass.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #437\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **only** the vertex offset (keeping the file otherwise\n      identical): **6 of 6 fail, 6 of 6 pass** with it restored. A 15-line change\n      needs that evidence more than a larger one does.\n- [x] `python3 -m unittest tests.test_paraboloid_vertex_frame` \u2014 6 tests, OK\n- [x] `python3 -m unittest tests.test_paraboloid_vertex_frame tests.test_stl_manifold tests.test_ray_tracer_3d tests.test_system_ray_tracer_3d` \u2014 31 tests, OK after rebasing onto the merged #493\n- [x] Full suite: `Ran 1668 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 216 files unchanged\n- [x] `flake8 src/tracer_3d.py tests/test_paraboloid_vertex_frame.py` \u2014 clean\n- [x] Coverage includes: thick plano/parabolic back, parabolic front, paraboloids\n      on both sides, four ray heights, a decentered lens that must *not* be\n      clipped, and a ray outside the clear aperture that must *still* be blocked \u2014\n      the last two so that \"fixing\" the frame by disabling the check would fail\n\n### A test-writing note\n\nMy first version of the decentered test set `tracer.transform` after\nconstruction and called a `_invalidate_cache` that does not exist. The tracer\ncaches its inverse transform in `__init__` and documents that it never changes,\nso the test was patching an object the code had already snapshotted. It passes\nnow via the constructor \u2014 which is also the only way a caller can legitimately\ndecenter a 3D lens.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "4cea73da84bc3ec885c6b6286e75bb83d53ceefd",
+ "merged_at": "2026-10-17T16:52:06Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/tracer_3d.py"
+ ],
+ "test_files": [
+  "tests/test_paraboloid_vertex_frame.py"
+ ],
+ "target_symbols": [
+  "openlens/tracer_3d.py::LensRayTracer3D._intersect_conic",
+  "openlens/tracer_3d.py::LensRayTracer3D._intersect_paraboloid"
+ ],
+ "fail_to_pass": [
+  "tests/test_paraboloid_vertex_frame.py::TestParaboloidVertexFrame::test_2d_and_3d_agree_on_both_parabolic_surfaces",
+  "tests/test_paraboloid_vertex_frame.py::TestParaboloidVertexFrame::test_exit_height_agrees_over_several_ray_heights",
+  "tests/test_paraboloid_vertex_frame.py::TestParaboloidVertexFrame::test_thick_lens_with_a_parabolic_back_reaches_the_back_surface"
+ ],
+ "pass_to_pass": [
+  "tests/test_paraboloid_vertex_frame.py::TestApertureIsVertexRelative::test_decentered_parabolic_back_is_not_clipped_by_the_wrong_aperture",
+  "tests/test_paraboloid_vertex_frame.py::TestApertureIsVertexRelative::test_ray_outside_the_clear_aperture_is_still_blocked",
+  "tests/test_paraboloid_vertex_frame.py::TestParaboloidVertexFrame::test_2d_and_3d_agree_on_a_parabolic_front"
+ ],
+ "patch_lines": 15
+}

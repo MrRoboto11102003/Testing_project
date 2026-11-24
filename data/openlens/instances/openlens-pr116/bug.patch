@@ -1,0 +1,13 @@
+diff --git a/openlens/analysis/geometric.py b/openlens/analysis/geometric.py
+index 312694a801674855b29beffcd779a66c95c1ebba..34d3652094c9b1d3501e21827798f1e36ab2bbc0 100644
+--- a/openlens/analysis/geometric.py
++++ b/openlens/analysis/geometric.py
+@@ -148,7 +148,7 @@ class GeometricTraceAnalysis:
+             ref_z = chief_ray.origin.z + t * chief_ray.direction.z
+ 
+         pupil_coords = self._linspace(-1.0, 1.0, num_points)
+-        ray_errors_mm = []
++        ray_errors = []
+         valid_coords = []
+ 
+         for p in pupil_coords:

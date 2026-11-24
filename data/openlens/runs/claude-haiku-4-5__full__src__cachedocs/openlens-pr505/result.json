@@ -1,0 +1,226 @@
+{
+ "id": "openlens-pr505",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 110,
+  "units_kept": 110,
+  "chars": 94057
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.0,
+ "detected": false,
+ "n_tests": 18,
+ "n_catching": 0,
+ "n_false_alarms": 6,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3485,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 13922,
+  "output_tokens_details": {
+   "thinking_tokens": 9708
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3485,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 13922,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 3485,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3485
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.07905920000000001,
+ "model_seconds": 64.9,
+ "seconds": 73.3,
+ "tests": {
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzer::test_empty_tolerances_returns_empty_list": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzer::test_exception_during_analysis_produces_inf_and_continues": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzer::test_nonfinite_values_produce_nan_sensitivity": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzer::test_result_dict_contains_required_keys": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzer::test_unsupported_criterion_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzer::test_valid_criterion_rms_spot_radius_accepted": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzer::test_vignetted_nominal_uses_inf": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_compensators_applied_to_each_trial": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_criterion_and_limit_stored_in_result": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_num_trials_negative_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_num_trials_zero_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_pass_fail_evaluation_against_limit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_return_dict_has_all_statistical_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_state_restored_after_each_trial": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_statistics_exclude_nonfinite_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_unsupported_criterion_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_vignetted_trials_converted_to_inf": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzer::test_yield_calculation_basic": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MonteCarloAnalyzer"
+   ]
+  }
+ }
+}

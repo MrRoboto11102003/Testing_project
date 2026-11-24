@@ -1,0 +1,190 @@
+{
+ "id": "openlens-pr420",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 57971,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 9849
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 0.73,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 5279,
+  "cache_read_input_tokens": 12724,
+  "output_tokens": 12259,
+  "output_tokens_details": {
+   "thinking_tokens": 10069
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 5279,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 12259,
+    "cache_read_input_tokens": 12724,
+    "cache_creation_input_tokens": 5279,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 5279
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0731344,
+ "model_seconds": 56.1,
+ "seconds": 76.0,
+ "tests": {
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_aperture_corners_produce_nan": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_different_field_angles_produce_valid_results": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "WavefrontError"
+   ]
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_different_wavelengths_produce_valid_results": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "WAVELENGTH_GREEN",
+    "WavefrontError"
+   ]
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_empty_system_returns_empty_arrays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "WavefrontSensor"
+   ]
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_grid_coordinates_span_aperture_diameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_grid_size_one_edge_case": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_lens_properties_restored_on_exception": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "WavefrontSensor"
+   ]
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_lens_refractive_index_restored": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "WavefrontSensor"
+   ]
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_lens_wavelength_restored": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "WavefrontSensor"
+   ]
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_output_grid_shape_matches_grid_size": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_plane_fit_removes_piston": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_result_has_required_attributes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_returns_wavefront_error_instance": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "WavefrontError"
+   ]
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_tracer_object_identity_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr420.py::TestWavefrontSensorGetPupilWavefront::test_wavelength_applied_to_lens_during_computation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "WavefrontError",
+    "WavefrontSensor"
+   ]
+  }
+ }
+}

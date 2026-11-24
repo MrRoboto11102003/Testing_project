@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr677",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 603,
+ "issue_title": "bug(physics): 2D tracer ignores wavelength for tilted or decentered elements",
+ "issue_body": "## Summary\n\nWhen a 2D-traced element has non-zero decenter or tilt, `SystemRayTracer._trace_aligned_element()` rebuilds a local `LensRayTracer` without forwarding the wavelength. The element is then traced at its stored design index for every wavelength, so chromatic dispersion disappears for exactly the elements where alignment is being modelled.\n\n## Impact\n\n- Wrong physics: a tilted/decentered singlet returns identical focal results at C, d and F lines.\n- 2D and 3D disagree: the 3D tracer applies the node transform but keeps the per-wavelength index.\n- Any tolerance/ Monte Carlo run that tilts or decenters elements loses chromatic sensitivity in 2D.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.tracer_2d import SystemRayTracer\nfrom openlens.constants import (WAVELENGTH_C_LINE, WAVELENGTH_D_LINE,\n                                WAVELENGTH_F_LINE, NM_TO_MM)\n\ndef spot(tilt):\n    s = OpticalSystem()\n    s.add_lens(Lens(radius_of_curvature_1=100.0, radius_of_curvature_2=-100.0,\n                    refractive_index=1.5168, thickness=5.0))\n    s.elements[0].tilt_z = tilt\n    out = []\n    for wl in (WAVELENGTH_C_LINE, WAVELENGTH_D_LINE, WAVELENGTH_F_LINE):\n        tr = SystemRayTracer(s, wavelength_nm=wl)\n        r = tr.trace_parallel_rays(num_rays=5, wavelength_mm=wl * NM_TO_MM)\n        out.append(round(r[-1].y, 6))\n    return out\n\nprint(\"tilt 0    :\", spot(0.0))\nprint(\"tilt 1e-6 :\", spot(1e-6))\n```\n\nOutput (this checkout):\n\n```\ntilt 0    : [-11.986917, -12.143562, -12.496574]\ntilt 1e-6 : [-12.143661, -12.143661, -12.143661]\ntilt 1e-3 : [-12.14369,  -12.14369,  -12.14369]\n```\n\nA 1e-6\u00b0 tilt \u2014 physically indistinguishable from aligned \u2014 flattens the chromatic spread entirely. The same happens for `decenter_y`.\n\n## Root cause\n\n`openlens/tracer_2d.py:841`:\n\n```python\nlocal = LensRayTracer(lens, x_offset=0.0)\n```\n\nThe surrounding `SystemRayTracer` has the wavelength (`self._wavelength_nm`) and the per-call ray carries `ray.wavelength_mm`, but neither is passed to the local tracer, so `LensRayTracer.__init__` falls back to `lens.refractive_index` (`openlens/tracer_2d.py:64-68`).\n\n## Expected behaviour\n\nThe aligned path must refract at the same wavelength-dependent index as the centered fast path, so results are continuous as tilt/decenter \u2192 0.\n\n## Suggested fix\n\nPass the active wavelength when constructing the local tracer (`LensRayTracer(lens, x_offset=0.0, wavelength_nm=... )`), using the tracer's wavelength or converting `ray.wavelength_mm` to nm. Add a regression test asserting that C/F results differ for a tilted element and converge to the centered result as tilt \u2192 0.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/603",
+ "pr": 677,
+ "pr_title": "fix(physics): refract a tilted or decentered element at the traced wavelength",
+ "pr_body": "## Description\n\nThe 2D tracer traces an element that has decenter or tilt in the element's\nown frame: it rebuilds a local `LensRayTracer` for that purpose. That local\ntracer was built without a wavelength, so it fell back to the lens's stored\ndesign index and the element was traced at one index for every wavelength.\n\nA 1e-6 degree tilt - physically indistinguishable from aligned - flattened the\nchromatic spread to zero:\n\n```\ntilt 0    : [-11.986917, -12.143562, -12.496574]   chromatic spread = 0.509657\ntilt 1e-6 : [-12.143661, -12.143661, -12.143661]   chromatic spread = 0.000000\n```\n\nThe same happened for a decentered element.\n\n## What changed\n\n- `openlens/tracer_2d.py::_trace_aligned_element` now builds the local tracer\n  with the tracer's wavelength, exactly like the per-element tracers the\n  centered path uses (`_sync_tracers`). The aligned path therefore refracts\n  at the same index as the centered one, and the result is continuous as\n  tilt/decenter -> 0.\n- The helper's `tracer` argument was unused (the local tracer needs\n  `x_offset=0.0`, so the element's own tracer cannot be reused); it is gone.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #603\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n\nNew tests in `tests/test_system_tracer.py`\n(`TestAlignedElementKeepsTheWavelength`), all failing before the fix:\n\n- `test_a_centered_element_has_a_chromatic_spread` (the reference)\n- `test_a_tilted_element_keeps_the_chromatic_spread`\n- `test_a_decentered_element_keeps_the_chromatic_spread`\n- `test_a_tilted_element_stays_close_to_the_centered_one`\n\nFull local suite: `Ran 2590 tests ... OK (skipped=35)`, `black` clean,\n`ruff` clean, `mypy` clean.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "84ba53bfdabcaebdc359e7c8959d0414b9cd4c0a",
+ "merged_at": "2026-10-21T23:42:07Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tracer_2d.py"
+ ],
+ "test_files": [
+  "tests/test_system_tracer.py"
+ ],
+ "target_symbols": [
+  "openlens/tracer_2d.py::SystemRayTracer._apply_stop",
+  "openlens/tracer_2d.py::SystemRayTracer._trace_aligned_element",
+  "openlens/tracer_2d.py::SystemRayTracer._trace_ray_through_system"
+ ],
+ "fail_to_pass": [
+  "tests/test_system_tracer.py::TestAlignedElementKeepsTheWavelength::test_a_decentered_element_keeps_the_chromatic_spread",
+  "tests/test_system_tracer.py::TestAlignedElementKeepsTheWavelength::test_a_tilted_element_keeps_the_chromatic_spread",
+  "tests/test_system_tracer.py::TestAlignedElementKeepsTheWavelength::test_a_tilted_element_stays_close_to_the_centered_one"
+ ],
+ "pass_to_pass": [
+  "tests/test_system_tracer.py::TestAlignedElementKeepsTheWavelength::test_a_centered_element_has_a_chromatic_spread",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_air_gap_credited_to_optical_path_length",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_cemented_doublet_flint_element_traces",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_cemented_doublet_focus_matches_analytic_bfl",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_cemented_doublet_matches_3d_tracer",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_negative_first_elements_across_air_gap",
+  "tests/test_system_tracer.py::TestSystemRayTracer::test_missed_ray_does_not_teleport",
+  "tests/test_system_tracer.py::TestSystemRayTracer::test_system_structure",
+  "tests/test_system_tracer.py::TestSystemRayTracer::test_trace_parallel_rays",
+  "tests/test_system_tracer.py::TestSystemRayTracer::test_tracers_sync_after_mutation"
+ ],
+ "patch_lines": 12
+}

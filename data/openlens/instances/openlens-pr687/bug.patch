@@ -1,0 +1,71 @@
+diff --git a/openlens/desensitization.py b/openlens/desensitization.py
+index fabb381792a5a0db1ce76d3999c99ca36f7890ab..4285f892aea8700d2b1f914520335fb84ed21341 100644
+--- a/openlens/desensitization.py
++++ b/openlens/desensitization.py
+@@ -119,26 +119,18 @@ class DesensitizationOptimizer(LensOptimizer):
+         # Preserve constraints if they exist
+         constraints = getattr(original_merit_function, "constraints", None)
+ 
+-        # The merit cache is keyed by the variable values alone, so the swap
+-        # has to drop it: otherwise every design the previous run saw is
+-        # scored with the previous run's merit function, and the new
+-        # sensitivity weight has no effect at all.
+-        self._set_merit_function(
+-            RobustMeritFunction(
+-                self.system,
+-                self.targets,
+-                tolerances,
+-                sensitivity_weight,
+-                constraints=constraints,
+-            )
++        self.merit_function = RobustMeritFunction(
++            self.system,
++            self.targets,
++            tolerances,
++            sensitivity_weight,
++            constraints=constraints,
+         )
+ 
+-        try:
+-            # Run simplex
+-            return self.optimize_simplex(max_iterations=max_iterations, callback=callback)
+-        finally:
+-            # Restore the merit function - also when the run was cancelled
+-            # (the GUI's callback raises), otherwise the next ordinary
+-            # optimization on this instance silently uses the robust merit
+-            # with the old tolerance list.
+-            self._set_merit_function(original_merit_function)
++        # Run simplex
++        result = self.optimize_simplex(max_iterations=max_iterations, callback=callback)
++
++        # Restore merit function
++        self.merit_function = original_merit_function
++
++        return result
+diff --git a/openlens/optimizer.py b/openlens/optimizer.py
+index 5aa712620b3b28b3d9b04511ba3a30217f659d0e..82f0515014bdbd702f2f649768700fbcada4ceba 100644
+--- a/openlens/optimizer.py
++++ b/openlens/optimizer.py
+@@ -491,22 +491,6 @@ class LensOptimizer:
+         self.merit_function = MeritFunction(system, targets, constraints)
+         self._merit_cache = {}
+ 
+-    def _set_merit_function(self, merit_function) -> None:
+-        """Install a merit function and drop the cached merits.
+-
+-        The cache is keyed by the variable values alone, so a merit function
+-        with a different configuration - a robust merit with another
+-        sensitivity weight, another tolerance set - must not read the values
+-        the previous one produced. Swapping the merit function without
+-        clearing the cache let a second run score every already-seen design
+-        with the first run's merit function.
+-
+-        Args:
+-            merit_function: The merit function to use from now on.
+-        """
+-        self.merit_function = merit_function
+-        self._merit_cache.clear()
+-
+     def optimize(
+         self,
+         max_iterations: int = 100,

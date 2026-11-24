@@ -1,0 +1,80 @@
+# Notes: `openlens.chromatic_analyzer.ChromaticResult.to_dict`
+
+## 1. Purpose
+- Converts a `ChromaticResult` dataclass instance into a plain `dict` with one entry per field.
+- It does no computation.
+
+## 2. Inputs
+- `self` only. `ChromaticResult` is a plain `@dataclass`: not frozen, no `__post_init__`, no validation.
+- Fields, all required and with no defaults, in this order:
+  1. `wavelengths: List[float]`
+  2. `focal_lengths: List[float]`
+  3. `focal_shift: float`
+  4. `lateral_color: float`
+  5. `spot_sizes: List[float]`
+  6. `transverse_aberration: List[float]`
+  7. `axial_chromatic_aberration: float`
+- Type hints are not enforced. Any objects (None, NaN, ints, tuples) are stored and returned unchanged.
+
+## 3. Raises
+- Nothing. The method only reads attributes.
+- Constructing `ChromaticResult` with a missing field raises the standard dataclass `TypeError`. That error comes from the constructor, not from `to_dict`.
+
+## 4. Returns and guarantees
+- Returns a new `dict` on every call (`r.to_dict() is not r.to_dict()`).
+- It has exactly 7 keys, inserted in this order:
+  `["wavelengths", "focal_lengths", "focal_shift", "lateral_color", "spot_sizes", "transverse_aberration", "axial_chromatic_aberration"]`
+- Spelling of the keys:
+  - Every key equals its attribute name.
+  - The key is `"transverse_aberration"` (singular), not `"transverse_aberrations"`.
+  - The key is `"axial_chromatic_aberration"`, not `"axial_color"`.
+- Each value is the same object as the attribute; nothing is copied:
+  - `d["wavelengths"] is r.wavelengths` is True (same for every list field).
+  - Mutating `d["spot_sizes"]` with `.append(...)` also mutates `r.spot_sizes`.
+- No rounding, type conversion or NaN handling. `float('nan')` stays NaN, `None` stays `None`.
+- `axial_chromatic_aberration` and `focal_shift` are separate keys even when equal.
+- `to_dict` does not use `dataclasses.asdict` (no deep copy).
+- The result should equal `dataclasses.asdict(r)` in keys and values for flat lists of floats.
+
+## 5. Side effects
+- None. It does not mutate `self`, touch global state, write files or log anything.
+
+## 6. Branches and edge cases
+- There is a single code path.
+- Empty lists: `ChromaticResult([], [], 0.0, 0.0, [], [], 0.0).to_dict()["wavelengths"] == []`.
+- NaN entries: compare with `math.isnan`, not `==`.
+- If an attribute is reassigned after construction (e.g. `r.lateral_color = 9.0`), the next `to_dict()` returns the new value. Values are read at call time.
+
+## 7. Rules from comments and docstrings
+- Docstring: "Convert to dictionary".
+- Field comments give units, which are not enforced:
+  - wavelengths: nm
+  - focal_lengths, focal_shift, lateral_color, spot_sizes, transverse_aberration, axial_chromatic_aberration: mm
+- `focal_shift` is described as the "difference between red and blue".
+
+## 8. Testing hints
+- Build the instance directly. This needs no material database or ray tracing, so it is fast and deterministic.
+  ```python
+  from openlens.chromatic_analyzer import ChromaticResult
+  r = ChromaticResult(wavelengths=[486.1, 587.6, 656.3], focal_lengths=[97.0, 98.0, 98.5],
+                      focal_shift=1.5, lateral_color=0.02, spot_sizes=[0.1, 0.05, 0.08],
+                      transverse_aberration=[0.2, 0.1, 0.15], axial_chromatic_aberration=1.5)
+  d = r.to_dict()
+  ```
+- Check the exact key order: `list(d.keys()) == [ ...7 keys above... ]`.
+- Check `len(d) == 7`.
+- Check each value with `d[k] == getattr(r, k)`.
+- Check identity for list fields with `is`.
+- Use distinct values per field (e.g. focal_shift=1.5 and axial=2.5, both legal here). This catches swapped mappings such as `"focal_shift": self.axial_chromatic_aberration`.
+- Use distinct lists for `spot_sizes` and `transverse_aberration`, which catches a swap between those two.
+- Round-trip check: `ChromaticResult(**d) == r` is True, because dataclass `__eq__` compares fields.
+- Optionally check `d == dataclasses.asdict(r)`.
+- Real results come from `ChromaticAnalyzer().analyze_lens({...})`. Avoid that in to_dict tests:
+  - It depends on `MaterialDatabase`, `EnvironmentalAnalyzer` and `SpotDiagram`, which are defined in other modules and are not covered here.
+  - It may produce NaN.
+  - Exact float values from it are unknown.
+- Pitfalls:
+  - Do not assert values are `float` instances; ints you pass stay ints.
+  - Do not assert that lists are copied; they are not.
+  - Do not use `==` on NaN.
+  - The dict is not JSON-sorted; only insertion order is guaranteed.

@@ -1,0 +1,48 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.material_database.MaterialDatabase.get_refractive_index, openlens.material_database.MaterialDatabase.save_database.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.material_database.MaterialDatabase.get_refractive_index
+    def get_refractive_index(
+        self, material_name: str, wavelength_nm: float, temperature_c: float = 20.0
+    ) -> float:
+        """
+        Calculate refractive index at specific wavelength and temperature
+        using Sellmeier equation and temperature coefficients.
+
+        Cached per instance (bounded at 1024 entries, cleared wholesale when
+        full). Call clear_cache() after mutating ``materials`` directly.
+
+        A name the catalog does not know returns the BK7 index. Callers that
+        can tell the user, or keep the index they have, should ask
+        ``has_material`` first.
+        """
+        key = (material_name, wavelength_nm, temperature_c)
+        cached = self._index_cache.get(key)
+        if cached is not None:
+            return cached
+
+        value = self._compute_refractive_index(material_name, wavelength_nm, temperature_c)
+
+        if len(self._index_cache) >= self.INDEX_CACHE_MAX:
+            # Wholesale reset rather than an LRU: the working set is a handful
+            # of wavelengths per material, so a precise eviction policy buys
+            # nothing here.
+            self._index_cache.clear()
+        self._alias_keys = None
+        self._index_cache[key] = value
+        return value
+
+# openlens.material_database.MaterialDatabase.save_database
+    def save_database(self) -> None:
+        """Save materials to JSON file"""
+        # The user data directory may not exist yet. ensure_parent_dir reports
+        # an unwritable directory instead of raising, which is the same contract
+        # the database path uses.
+        ensure_parent_dir(self.db_path)
+        data = {name: mat.to_dict() for name, mat in self.materials.items()}
+        atomic_write_json(self.db_path, data)

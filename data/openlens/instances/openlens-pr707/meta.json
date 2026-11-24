@@ -1,0 +1,52 @@
+{
+ "id": "openlens-pr707",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 620,
+ "issue_title": "bug(gui): performance tab's entrance-pupil and object-distance controls do not affect calculations",
+ "issue_body": "## Summary\n\nThe performance tab reads an \"Entrance Pupil\" and an \"Object Distance\" from its spin boxes, prints them in the report as calculation parameters, and never passes either to the aberration calculation. Changing them changes only the two text lines, not the aberrations, f-number, spot size, or any other metric.\n\n## Impact\n\n- Misleading UI: the report presents values as inputs when they are labels.\n- A user can believe a design was evaluated at a 1000 mm object distance or a 10 mm pupil when nothing changed.\n- `AberrationsCalculator` does expose `object_distance_mm`, but the GUI never supplies it (and the implementation rejects finite object distances), so the control cannot work as shown.\n\n## Evidence\n\n- `openlens/gui/tabs/performance_tab.py:151-156` \u2014 Entrance Pupil spin box.\n- `openlens/gui/tabs/performance_tab.py:172-177` \u2014 Object Distance spin box.\n- `openlens/gui/tabs/performance_tab.py:351-354` \u2014 both values read from the widgets.\n- `openlens/gui/tabs/performance_tab.py:404-406` \u2014 `calculate_all_aberrations()` called with only `field_angle_deg` and `wavelength_nm`.\n- `openlens/gui/tabs/performance_tab.py:455-461` \u2014 values printed as \"Calculation Parameters\".\n\nRepro with Entrance Pupil 10 mm / Object Distance 1000 mm, then 100 mm / 100 mm:\n\n```text\nfirst  parameter lines: ['Entrance Pupil: 10.00 mm', 'Object Distance: 1000.0 mm']\nsecond parameter lines: ['Entrance Pupil: 100.00 mm', 'Object Distance: 100.0 mm']\nreport identical apart from those two lines: True\nfirst f/# line: ['f-number (f/#): 2.43']\nsecond f/# line: ['f-number (f/#): 2.43']\n```\n\n## Expected behaviour\n\nEither the controls feed the calculation (pupil size for aperture-dependent metrics, object distance for finite-conjugate aberrations) or they are removed/disabled and the report stops presenting them as inputs.\n\n## Suggested fix\n\nPass the object distance into `calculate_all_aberrations(object_distance_mm=...)` once the calculator supports finite conjugates; derive the f-number and pupil-dependent metrics from the entrance-pupil value. If finite-conjugate support is out of scope, remove the two spin boxes and the report lines until it lands. Add a GUI test asserting the metric changes when the pupil/object-distance value changes.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/620",
+ "pr": 707,
+ "pr_title": "fix(gui): make the performance tab evaluate its entrance pupil",
+ "pr_body": "## Description\n\nThe Performance tab read an \"Entrance Pupil\" spin box, printed the value in its\nreport as a calculation parameter, and built the aberration calculator without\nit. Every pupil produced the same numbers:\n\n```\nEntrance Pupil: 10.00 mm      Entrance Pupil: 100.00 mm\nf-number (f/#): 3.89          f-number (f/#): 3.89\n```\n\nThe \"Object Distance\" spin box was worse. `AberrationsCalculator` raises for a\nfinite `object_distance_mm` - every Seidel estimator assumes an object at\ninfinity - so the widget's 1000 mm was never usable, yet the report presented\nit as the distance the design had been evaluated at.\n\n## What changed\n\n- **`openlens/aberrations.py`** - `AberrationsCalculator` takes an optional\n  `entrance_pupil_mm`. It is validated (positive, finite), clamped to the\n  element's physical clear aperture (the glass cannot pass more light) and\n  used for every aperture-derived quantity: f-number, numerical aperture,\n  Airy disk, the marginal-ray traces, and the field metrics. The result\n  dictionaries report the effective value as `\"entrance_pupil\"`.\n- **`openlens/gui/tabs/performance_tab.py`** - the tab passes its widget value\n  to the calculator and prints the effective (clamped) pupil, so the report\n  can no longer show one aperture and evaluate another.\n- The finite object-distance control is removed. The report states the actual\n  model condition: `Object Distance: infinity (collimated; finite conjugates\n  are not modelled)`.\n\nThe visible consequence: a 25 mm f/3.9 singlet evaluated at a 10 mm pupil now\nreports f/9.7, with the correspondingly larger Airy disk, and moving the\ncontrol changes those numbers.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #620\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_aberrations_entrance_pupil.py` - eleven tests fail on\nthe unfixed code (`TypeError: unexpected keyword argument 'entrance_pupil_mm'`):\n\n- `test_the_default_is_the_physical_clear_aperture`\n- `test_the_result_reports_the_effective_pupil`\n- `test_the_f_number_follows_the_entrance_pupil`\n- `test_the_numerical_aperture_follows_the_entrance_pupil`\n- `test_the_airy_disk_follows_the_entrance_pupil`\n- `test_the_spherical_aberration_shrinks_with_the_pupil`\n- `test_a_pupil_wider_than_the_lens_is_clamped`\n- `test_a_system_target_honours_the_entrance_pupil`\n- `test_a_pupil_as_large_as_the_lens_changes_nothing`\n- `test_a_non_positive_pupil_raises` / `test_a_non_finite_pupil_raises` /\n  `test_a_non_numeric_pupil_raises`\n\nNew module `tests/test_performance_tab_entrance_pupil.py` drives the real tab\nwith an inline worker; four of its five tests fail on the unfixed code:\n\n- `test_the_report_evaluates_the_pupil_it_shows`\n- `test_changing_the_pupil_changes_the_f_number`\n- `test_a_pupil_wider_than_the_lens_is_reported_clamped`\n- `test_the_object_distance_is_stated_as_infinity`\n- `test_the_finite_object_distance_control_is_gone`\n\nFull local suite: `Ran 2733 tests ... OK (skipped=35)`; the aberration,\nperformance-tab, image-simulation and end-to-end suites (151 tests) pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "79da4ec62e7e1f86bfc36da57ce653fe4417478f",
+ "merged_at": "2026-10-22T11:56:34Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/aberrations.py"
+ ],
+ "test_files": [
+  "tests/test_aberrations_entrance_pupil.py",
+  "tests/test_performance_tab_entrance_pupil.py"
+ ],
+ "target_symbols": [
+  "openlens/aberrations.py::AberrationsCalculator.__init__",
+  "openlens/aberrations.py::AberrationsCalculator._calculate_all_at_wavelength",
+  "openlens/aberrations.py::AberrationsCalculator._calculate_f_number",
+  "openlens/aberrations.py::AberrationsCalculator._calculate_singlet_field_estimators",
+  "openlens/aberrations.py::AberrationsCalculator.calculate_all_aberrations"
+ ],
+ "fail_to_pass": [
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_a_pupil_as_large_as_the_lens_changes_nothing",
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_a_pupil_wider_than_the_lens_is_clamped",
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_a_system_target_honours_the_entrance_pupil",
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_the_airy_disk_follows_the_entrance_pupil",
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_the_default_is_the_physical_clear_aperture",
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_the_f_number_follows_the_entrance_pupil",
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_the_numerical_aperture_follows_the_entrance_pupil",
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_the_result_reports_the_effective_pupil",
+  "tests/test_aberrations_entrance_pupil.py::TestEntrancePupilOverride::test_the_spherical_aberration_shrinks_with_the_pupil",
+  "tests/test_aberrations_entrance_pupil.py::TestInvalidEntrancePupil::test_a_non_finite_pupil_raises",
+  "tests/test_aberrations_entrance_pupil.py::TestInvalidEntrancePupil::test_a_non_numeric_pupil_raises",
+  "tests/test_aberrations_entrance_pupil.py::TestInvalidEntrancePupil::test_a_non_positive_pupil_raises",
+  "tests/test_performance_tab_entrance_pupil.py::TestPerformanceTabEntrancePupil::test_a_pupil_wider_than_the_lens_is_reported_clamped",
+  "tests/test_performance_tab_entrance_pupil.py::TestPerformanceTabEntrancePupil::test_changing_the_pupil_changes_the_f_number",
+  "tests/test_performance_tab_entrance_pupil.py::TestPerformanceTabEntrancePupil::test_the_object_distance_is_stated_as_infinity",
+  "tests/test_performance_tab_entrance_pupil.py::TestPerformanceTabEntrancePupil::test_the_report_evaluates_the_pupil_it_shows"
+ ],
+ "pass_to_pass": [
+  "tests/test_performance_tab_entrance_pupil.py::TestPerformanceTabEntrancePupil::test_the_finite_object_distance_control_is_gone"
+ ],
+ "patch_lines": 39
+}

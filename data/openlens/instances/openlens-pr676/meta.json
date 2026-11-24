@@ -1,0 +1,52 @@
+{
+ "id": "openlens-pr676",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 602,
+ "issue_title": "bug(data-loss): partial library saves reset is_library and leak assembly-only lenses into the library",
+ "issue_body": "## Summary\n\n`DatabaseManager._save_lens_row()` uses `INSERT OR REPLACE` but does not include the `is_library` column. Every save therefore rewrites the row with the column's schema default (`1`), silently promoting a lens that lived only inside an assembly into the global lens library.\n\n## Impact\n\n- Data pollution: assembly members reappear as standalone library lenses after a partial save.\n- Observed with a full save (`library_snapshot=True`) producing `['library', 'asm']`, while a subsequent partial save (`demote=False`, the default) produces `['library', 'member', 'asm']`.\n- Affects the CLI (`openlens/lens_editor.py`) and module-level `save_lenses` in `openlens/gui/storage.py:260`, both of which save with the default partial semantics.\n- A user's library slowly fills with internal assembly elements that they never saved there.\n\n## Reproduction\n\n1. Build a library lens plus an assembly whose member lens is *not* in the library.\n2. Save with `library_snapshot=True` and list library lens names.\n3. Save again through the partial path (`demote=False`) and list names again.\n\nObserved: `['library', 'asm']` \u2192 `['library', 'member', 'asm']`.\n\nThe structural proof is direct:\n\n```python\nimport inspect\nfrom openlens.database import DatabaseManager\nsrc = inspect.getsource(DatabaseManager._save_lens_row)\nassert \"INSERT OR REPLACE\" in src     # true\nassert \"is_library\" not in src        # true\n```\n\n## Root cause\n\n- `openlens/database.py:490` \u2014 `save_lens()` delegates to `_save_lens_row`.\n- `openlens/database.py:499-520` \u2014 column list omits `is_library`; `INSERT OR REPLACE` deletes the old row and inserts a new one, so the omitted column takes its default `1`.\n- `openlens/gui/storage.py:139-190` \u2014 `save_lenses(..., demote=library_snapshot or reconcile)` only passes `demote=True` for full saves; the default partial save relies on the DB layer preserving membership, which it does not.\n\n## Expected behaviour\n\nSaving a lens that is not in the library must not add it to the library. `is_library` must be preserved (or explicitly set) on every write.\n\n## Suggested fix\n\nInclude `is_library` in the insert/update, reading the current value when the caller does not supply one (or use `INSERT ... ON CONFLICT(id) DO UPDATE SET ...` and omit `is_library` from the update set). Add a regression test that saves an assembly-only lens through the partial path and asserts it is not listed by `load_all`/library queries.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/602",
+ "pr": 676,
+ "pr_title": "fix(data-loss): keep the library membership when a lens row is rewritten",
+ "pr_body": "## Description\n\nSaving a lens row replaced it wholesale with `INSERT OR REPLACE`, and the\nstatement did not mention the `is_library` column. The column therefore fell\nback to its schema default (`1`), so every write promoted the lens into the\nglobal library.\n\nA full save repaired it afterwards - the membership write that follows\ndemotes everything that is not in the library - but a *partial* save (the\ndefault for the CLI and for the per-keystroke autosave) only promotes, so the\nleak survived:\n\n```\nafter the full save : ['A', 'Library']\nafter a partial save: ['A', 'Library', 'Member']\n```\n\n## What changed\n\n- `openlens/database.py::_save_lens_row` now writes the `is_library` column:\n  - a row that was loaded from the database keeps the membership it was\n    loaded with;\n  - an existing row keeps the membership it already has;\n  - a new row takes the caller's default - a standalone lens is a library\n    item (`1`), an assembly member is not (`0`).\n- `openlens/database.py::_save_assembly_rows` passes `library_default=0` for\n  the assembly's elements, so a lens that exists only inside an assembly is\n  not a library item. The membership write that follows still has the final\n  say and promotes the ids that really are in the library.\n- `is_library` is excluded from the metadata blob: it is a column, not user\n  metadata, and storing it twice let the blob shadow the column on the way\n  back.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #602\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n\nNew tests in `tests/test_assembly_lens_library_membership.py`\n(`TestPartialSaveKeepsLibraryMembership`), all failing before the fix:\n\n- `test_a_partial_save_does_not_promote_an_assembly_member`\n- `test_a_partial_save_keeps_a_shared_lens_in_the_library`\n- `test_a_partial_save_keeps_a_standalone_lens_in_the_library`\n\nFull local suite: `Ran 2583 tests ... OK (skipped=35)`, `black` clean,\n`ruff` clean, `mypy` clean.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "f281d6903dc843854b2c1b66e5c8a539cd7cab3d",
+ "merged_at": "2026-10-21T23:30:37Z",
+ "port_method": "partial_hunks:2/6",
+ "src_files": [
+  "openlens/database.py"
+ ],
+ "test_files": [
+  "tests/test_assembly_lens_library_membership.py"
+ ],
+ "target_symbols": [
+  "openlens/database.py::DatabaseManager._save_lens_row"
+ ],
+ "fail_to_pass": [
+  "tests/test_assembly_lens_library_membership.py::TestPartialSaveKeepsLibraryMembership::test_a_partial_save_does_not_promote_an_assembly_member",
+  "tests/test_assembly_lens_library_membership.py::TestTheSavedShapeSurvivesAReload::test_a_round_trip_is_stable"
+ ],
+ "pass_to_pass": [
+  "tests/test_assembly_lens_library_membership.py::TestAllIdsStillSeesEverything::test_all_ids_still_includes_assembly_lenses",
+  "tests/test_assembly_lens_library_membership.py::TestAssemblyLensesAreNotLibraryItems::test_a_genuinely_standalone_lens_still_loads",
+  "tests/test_assembly_lens_library_membership.py::TestAssemblyLensesAreNotLibraryItems::test_a_lens_in_an_assembly_and_the_library_is_still_a_library_item",
+  "tests/test_assembly_lens_library_membership.py::TestAssemblyLensesAreNotLibraryItems::test_an_empty_library_loads_nothing",
+  "tests/test_assembly_lens_library_membership.py::TestAssemblyLensesAreNotLibraryItems::test_every_element_has_its_lens_data",
+  "tests/test_assembly_lens_library_membership.py::TestAssemblyLensesAreNotLibraryItems::test_no_phantom_lens_names_appear",
+  "tests/test_assembly_lens_library_membership.py::TestAssemblyLensesAreNotLibraryItems::test_the_assembly_still_has_its_elements",
+  "tests/test_assembly_lens_library_membership.py::TestAssemblyLensesAreNotLibraryItems::test_the_issue_repro",
+  "tests/test_assembly_lens_library_membership.py::TestAssemblyLensesAreNotLibraryItems::test_two_assemblies_sharing_a_lens",
+  "tests/test_assembly_lens_library_membership.py::TestPartialSaveKeepsLibraryMembership::test_a_partial_save_keeps_a_shared_lens_in_the_library",
+  "tests/test_assembly_lens_library_membership.py::TestPartialSaveKeepsLibraryMembership::test_a_partial_save_keeps_a_standalone_lens_in_the_library",
+  "tests/test_assembly_lens_library_membership.py::TestReconciliationDoesNotAttemptDoomedDeletes::test_reconciling_still_removes_a_genuinely_stale_lens",
+  "tests/test_assembly_lens_library_membership.py::TestReconciliationDoesNotAttemptDoomedDeletes::test_reconciling_the_whole_library_attempts_no_deletes",
+  "tests/test_assembly_lens_library_membership.py::TestReconciliationDoesNotAttemptDoomedDeletes::test_the_assembly_survives_reconciliation",
+  "tests/test_assembly_lens_library_membership.py::TestReconciliationDoesNotAttemptDoomedDeletes::test_the_helper_is_empty_without_assemblies",
+  "tests/test_assembly_lens_library_membership.py::TestReconciliationDoesNotAttemptDoomedDeletes::test_the_helper_reports_the_assembly_lens",
+  "tests/test_assembly_lens_library_membership.py::TestTheInUseGuardIsNotLoggedAsAFailure::test_a_genuine_delete_failure_is_still_logged_at_error",
+  "tests/test_assembly_lens_library_membership.py::TestTheInUseGuardIsNotLoggedAsAFailure::test_a_refusal_is_not_logged_at_error",
+  "tests/test_assembly_lens_library_membership.py::TestTheInUseGuardIsNotLoggedAsAFailure::test_refusing_the_delete_still_raises",
+  "tests/test_assembly_lens_library_membership.py::TestTheInUseGuardIsNotLoggedAsAFailure::test_the_refusal_is_explained_at_debug"
+ ],
+ "patch_lines": 7
+}

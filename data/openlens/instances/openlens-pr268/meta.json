@@ -1,0 +1,56 @@
+{
+ "id": "openlens-pr268",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 250,
+ "issue_title": "**Wrong-sign dn/dT** `material_database.py:330-334`",
+ "issue_body": "Schott TIE-19 requires `\u0394n=(n\u00b2\u22121)/2n\u00b7[D\u0394T+\u2026+(E\u0394T+\u2026)/(\u03bb\u00b2\u2212\u03bbTK\u00b2)]`.\n   Code leaves D unscaled and drops `1/(\u03bb\u00b2\u2212\u03bbTK\u00b2)`.\n   BK7 \u0394T=+10K gives \u22129.7e-6 vs correct \u2248+1.7e-6 \u2014 wrong sign.\n   Poisons all `environmental.py:108` defocus.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/250",
+ "pr": 268,
+ "pr_title": "fix(materials): use Schott TIE-19 thermal model with catalog constants",
+ "pr_body": "Replace the ad-hoc temperature correction (unscaled D terms plus a dispersion-free E term, yielding the wrong sign for BK7: -9.7e-6 for +10 K) with the exact TIE-19 absolute-index model\r\ndn=(n^2-1)/2n*[D0*dT+D1*dT^2+D2*dT^3+(E0*dT+E1*dT^2)/(wl^2-tk^2)], T0=20 C, wavelength in um. Add the lambda_tk_um field.\r\n\r\nReplace the incorrect built-in D/E values with verified Schott catalog data (N-BK7, SF11, F2, Lithosil-Q fused silica; refractiveindex.info / Schott Zemax catalog). BK7 now gives +1.45e-6/K at the d-line with blue > red thermal dispersion. Strengthen temperature tests with absolute-shift bounds.",
+ "fix_commit": "17c781370abf3cfb88c9fc0ef28ac05a84f41175",
+ "merged_at": "2026-09-11T09:16:52Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/material_database.py"
+ ],
+ "test_files": [
+  "tests/test_material_database.py"
+ ],
+ "target_symbols": [
+  "openlens/material_database.py::MaterialDatabase._load_builtin_materials",
+  "openlens/material_database.py::MaterialDatabase.clear_cache",
+  "openlens/material_database.py::MaterialDatabase.get_transmission",
+  "openlens/material_database.py::MaterialProperties"
+ ],
+ "fail_to_pass": [
+  "tests/test_material_database.py::TestRefractiveIndex::test_temperature_dependence_bk7",
+  "tests/test_material_database.py::TestRefractiveIndex::test_tie19_absolute_shift_order_of_magnitude",
+  "tests/test_material_database.py::TestRefractiveIndex::test_tie19_flint_and_silica_shifts"
+ ],
+ "pass_to_pass": [
+  "tests/test_material_database.py::TestLensIntegration::test_lens_with_material",
+  "tests/test_material_database.py::TestLensIntegration::test_material_db_available",
+  "tests/test_material_database.py::TestMaterialDatabase::test_case_insensitive_lookup",
+  "tests/test_material_database.py::TestMaterialDatabase::test_database_initialization",
+  "tests/test_material_database.py::TestMaterialDatabase::test_get_material",
+  "tests/test_material_database.py::TestMaterialDatabase::test_list_materials",
+  "tests/test_material_database.py::TestMaterialDatabase::test_list_materials_by_catalog",
+  "tests/test_material_database.py::TestMaterialDatabase::test_unknown_material",
+  "tests/test_material_database.py::TestMaterialDatabaseExtended::test_import_agf",
+  "tests/test_material_database.py::TestMaterialDatabaseExtended::test_import_csv",
+  "tests/test_material_database.py::TestMaterialDatabaseExtended::test_internal_transmission_scaling",
+  "tests/test_material_database.py::TestMaterialProperties::test_material_from_dict",
+  "tests/test_material_database.py::TestMaterialProperties::test_material_to_dict",
+  "tests/test_material_database.py::TestRefractiveIndex::test_high_dispersion_glass",
+  "tests/test_material_database.py::TestRefractiveIndex::test_no_thermal_data_means_no_correction",
+  "tests/test_material_database.py::TestRefractiveIndex::test_refractive_index_at_d_line",
+  "tests/test_material_database.py::TestRefractiveIndex::test_tie19_thermal_dispersion",
+  "tests/test_material_database.py::TestRefractiveIndex::test_wavelength_dependence",
+  "tests/test_material_database.py::TestTransmission::test_transmission_in_visible",
+  "tests/test_material_database.py::TestTransmission::test_transmission_interpolation"
+ ],
+ "patch_lines": 96
+}

@@ -1,0 +1,56 @@
+{
+ "id": "openlens-pr678",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 606,
+ "issue_title": "bug(physics): radius tolerances silently do nothing on plano surfaces",
+ "issue_body": "## Summary\n\nRadius tolerances are applied by adding the perturbation to the stored radius (`lens.radius_of_curvature_1 += value`). Plano surfaces are stored as `float(\"inf\")`, and `inf + finite == inf`, so every radius perturbation on a flat surface is silently discarded. `_apply_value` still returns `True`, so the Monte Carlo reports a successful application and underestimates the yield impact of flat-surface tolerances.\n\n## Impact\n\n- Wrong tolerance results: a \u00b10.5 mm radius tolerance on a plano surface has exactly zero effect in every Monte Carlo trial.\n- No warning or error: the caller believes the perturbation happened.\n- Same mechanism applies to any `inf`-stored parameter and to the flat-surface `IRREGULARITY` path (`_radius_for_fringes` returns `None` for flat radii and is skipped).\n- Flat surfaces are common (plano-convex, windows, prisms), so this is a routine design case.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.tolerancing import _apply_value, ToleranceType\n\ns = OpticalSystem()\ns.add_lens(Lens(radius_of_curvature_1=float(\"inf\"), radius_of_curvature_2=-50.0))\nbefore = s.elements[0].lens.radius_of_curvature_1\napplied = _apply_value(s, ToleranceType.RADIUS_1, 0, 0.5)\nafter = s.elements[0].lens.radius_of_curvature_1\nprint(applied, before, after, before != after)\n```\n\nOutput:\n\n```\napply RADIUS_1 +0.5 -> True | r1: inf -> inf | changed?: False\n```\n\n## Root cause\n\n`openlens/tolerancing.py:363-366`:\n\n```python\nif param_type == ToleranceType.RADIUS_1:\n    lens.radius_of_curvature_1 += value\nelif param_type == ToleranceType.RADIUS_2:\n    lens.radius_of_curvature_2 += value\n```\n\nInfinite arithmetic makes the update a no-op. `_apply_value` has no finiteness check and returns success.\n\n## Expected behaviour\n\nA plano surface under a radius tolerance becomes a long-radius surface (finite curvature perturbation), or the operand is reported as unsupported/inapplicable. It must not silently succeed without changing the design.\n\n## Suggested fix\n\nFor `RADIUS_1`/`RADIUS_2`, perturb curvature (`1/R`) rather than radius: convert `inf` to a finite curvature (0), add `value` in the appropriate units, and convert back. Alternatively map a radius tolerance on a plano to a curvature tolerance and document it. Return `False`/warn when a perturbation cannot be represented. Add a test asserting a plano radius actually changes and the traced spot responds.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/606",
+ "pr": 678,
+ "pr_title": "fix(physics): report a radius tolerance that cannot be applied",
+ "pr_body": "## Description\n\nA flat surface is stored as an infinite radius, and `inf + finite == inf`, so\na radius draw on a plano surface changed nothing while `_apply_value`\nreported success:\n\n```\napply RADIUS_1 +0.5 -> True | r1: inf -> inf | changed: False\n```\n\nThe Monte Carlo therefore counted a tolerance that was never applied, and the\nyield it reported was too good.\n\nA radius tolerance does not apply to a flat surface, so it is now reported as\nsuch instead of being silently swallowed.\n\n## What changed\n\n- `openlens/tolerancing.py::_apply_value` returns `False` for a radius draw on\n  a flat surface - the existing \"this operand addresses nothing\" contract,\n  already used for `FOCUS` and for out-of-range operands. A finite radius is\n  perturbed exactly as before.\n- `openlens/tolerancing.py::MonteCarloAnalyzer._apply_tolerances` collects the\n  operands it could not apply; `run()` logs them once and reports them as\n  `skipped_operands` in the statistics, so the yield is read with the\n  omission in sight.\n- `openlens/gui/tabs/tolerancing_tab.py` names the skipped operands in the\n  Monte Carlo report.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #606\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n\nNew tests:\n\n- `tests/test_tolerancing.py::TestFlatSurfaceRadiusTolerance`\n  - `test_apply_value_reports_a_flat_radius_as_not_applied`\n  - `test_apply_value_still_perturbs_a_finite_radius`\n  - `test_the_monte_carlo_reports_the_skipped_operand`\n  - `test_the_monte_carlo_reports_nothing_for_a_curved_surface`\n- `tests/test_tolerancing_tab.py::test_the_report_names_an_operand_that_could_not_be_applied`\n\nFull local suite: `Ran 2598 tests ... OK (skipped=35)`, `black` clean,\n`ruff` clean, `mypy` clean.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "088c2eb1d91fe409cef90d6dd31758bc3a0a5bb2",
+ "merged_at": "2026-10-21T23:54:25Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tolerancing.py"
+ ],
+ "test_files": [
+  "tests/test_tolerancing.py",
+  "tests/test_tolerancing_tab.py"
+ ],
+ "target_symbols": [
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer.__init__",
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer._get_system_state",
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer._set_system_state",
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer.calculate_sensitivities",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._apply_tolerances",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._optimize_compensators",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._spot_rms",
+  "openlens/tolerancing.py::_apply_value"
+ ],
+ "fail_to_pass": [
+  "tests/test_tolerancing.py::TestFlatSurfaceRadiusTolerance::test_apply_value_reports_a_flat_radius_as_not_applied",
+  "tests/test_tolerancing.py::TestFlatSurfaceRadiusTolerance::test_the_monte_carlo_reports_nothing_for_a_curved_surface",
+  "tests/test_tolerancing.py::TestFlatSurfaceRadiusTolerance::test_the_monte_carlo_reports_the_skipped_operand",
+  "tests/test_tolerancing_tab.py::TestTolerancingWorkerSlots::test_the_report_names_an_operand_that_could_not_be_applied"
+ ],
+ "pass_to_pass": [
+  "tests/test_tolerancing.py::TestFlatSurfaceRadiusTolerance::test_apply_value_still_perturbs_a_finite_radius",
+  "tests/test_tolerancing.py::TestInverseSensitivity::test_optimize_limits",
+  "tests/test_tolerancing.py::TestInverseSensitivity::test_sensitivity_calculation",
+  "tests/test_tolerancing.py::TestPercentile::test_90th_percentile_interpolates",
+  "tests/test_tolerancing.py::TestPercentile::test_percentile_edges",
+  "tests/test_tolerancing.py::TestTolerancing::test_monte_carlo_run",
+  "tests/test_tolerancing.py::TestTolerancing::test_tolerance_generation",
+  "tests/test_tolerancing_tab.py::TestTolerancingWorkerSlots::test_failed_slot_resets_busy_progress_and_shows_error",
+  "tests/test_tolerancing_tab.py::TestTolerancingWorkerSlots::test_finished_slot_resets_busy_progress_and_shows_report",
+  "tests/test_tolerancing_tab.py::TestTolerancingWorkerSlots::test_inverse_sensitivity_run_completes_and_clears_busy_state",
+  "tests/test_tolerancing_tab.py::TestTolerancingWorkerSlots::test_monte_carlo_run_completes_and_clears_busy_state",
+  "tests/test_tolerancing_tab.py::TestTolerancingWorkerSlots::test_progress_bar_is_not_left_busy",
+  "tests/test_tolerancing_tab.py::TestTolerancingWorkerSlots::test_second_run_is_rejected_while_one_is_in_flight",
+  "tests/test_tolerancing_tab.py::TestTolerancingWorkerSlots::test_slots_connected_by_both_run_handlers_exist"
+ ],
+ "patch_lines": 35
+}

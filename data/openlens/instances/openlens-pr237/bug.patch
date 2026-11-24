@@ -1,0 +1,53 @@
+diff --git a/openlens/analysis/plots.py b/openlens/analysis/plots.py
+index a5c4ec242f79dca4ec3001df599fbcb213ded3d0..aa542cfbdfb50d0749151e272c84e3b312aa2d86 100644
+--- a/openlens/analysis/plots.py
++++ b/openlens/analysis/plots.py
+@@ -33,17 +33,27 @@ except ImportError:  # pragma: no cover - environment guard
+     HAS_NUMPY = False
+     np = None  # type: ignore[assignment]
+ 
+-from ..constants import (
+-    COLOR_LENS_BAD,
+-    COLOR_LENS_FILL,
+-    COLOR_LENS_R1,
+-    COLOR_LENS_R2,
+-    COLOR_LENS_RIM,
+-)
+-from ..geometry import LensGeometry
+ from ..optical_system import OpticalSystem
+ 
+ 
++def _sag(radius: float, y: float) -> float:
++    """Sagitta of a spherical surface at aperture height ``y``."""
++    if abs(radius) < 1e-6:
++        return 0
++    r_a = abs(radius)
++    y_safe = min(abs(y), r_a)
++    sag = r_a - (r_a**2 - y_safe**2) ** 0.5
++    return sag if radius > 0 else -sag
++
++
++def _parabolic_sag(sag_at_edge: float, y: float, half_d: float) -> float:
++    """Parabolic sag at height y given sag at rim (half_d)."""
++    if abs(half_d) < 1e-9:
++        return 0
++    y_c = max(-half_d, min(y, half_d))
++    return sag_at_edge * (y_c * y_c) / (half_d * half_d)
++
++
+ def draw_system_outline(ax, system: OpticalSystem) -> None:
+     """Draw the lens element outlines of ``system`` onto ``ax`` (Z vs Y).
+ 
+diff --git a/openlens/tracer_2d.py b/openlens/tracer_2d.py
+index 6ba8838761edbc17e380fab8e76814e4e5f05489..a5825db265f52e23f280a3fec0a1514b91c00a72 100644
+--- a/openlens/tracer_2d.py
++++ b/openlens/tracer_2d.py
+@@ -711,8 +711,6 @@ class SystemRayTracer:
+         if not self.system.elements:
+             return []
+ 
+-        self._sync_tracers()
+-
+         first_lens = self.system.elements[0].lens
+         max_height = first_lens.diameter / 2 * fill
+         min_h, max_h = -max_height, max_height

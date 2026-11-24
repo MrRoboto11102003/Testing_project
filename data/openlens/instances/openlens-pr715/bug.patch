@@ -1,0 +1,97 @@
+diff --git a/openlens/analysis/environmental.py b/openlens/analysis/environmental.py
+index 8d67a66b3bd76fb54e6a10117113430cf7627b55..26f53498cae56b008ac00ca76667666f6ea315f0 100644
+--- a/openlens/analysis/environmental.py
++++ b/openlens/analysis/environmental.py
+@@ -12,24 +12,6 @@ if TYPE_CHECKING:
+     from ..lens import Lens
+ 
+ 
+-def _thermal_scale(
+-    alpha_per_k: float, state_c: float, target_c: float, reference_c: float
+-) -> float:
+-    """Expansion factor from *state_c* to *target_c*.
+-
+-    Both endpoints are relative to the unstressed reference geometry.
+-    Dividing the two linear CTE factors makes the operation reversible:
+-    20 -> 120 -> 20 applies ``(1 + e) / 1`` and then ``1 / (1 + e)`` and
+-    lands back on the original length, while a second 120 -> 120 step is a
+-    no-op.
+-    """
+-    state_factor = 1.0 + alpha_per_k * (state_c - reference_c)
+-    target_factor = 1.0 + alpha_per_k * (target_c - reference_c)
+-    if abs(state_factor) < EPSILON:
+-        return 1.0
+-    return target_factor / state_factor
+-
+-
+ class EnvironmentalAnalyzer:
+     """
+     Analyzes optical system performance under environmental changes
+@@ -90,6 +72,8 @@ class EnvironmentalAnalyzer:
+ 
+         db = get_material_database()
+ 
++        delta_T_k = temperature_c - cls.REF_TEMP
++
+         # 1. Update Elements (Glass)
+         for element in new_system.elements:
+             lens = element.lens
+@@ -102,12 +86,7 @@ class EnvironmentalAnalyzer:
+             alpha_k = mat.thermal_expansion if mat else 7.1e-6
+ 
+             # --- Apply Thermal Expansion to Geometry ---
+-            # Expand from the state the current geometry is valid at, not by
+-            # compounding a delta onto already-expanded values. That makes
+-            # conditioning idempotent (120 -> 120 is a no-op) and reversible
+-            # (120 -> 20 restores the reference geometry).
+-            state_c = float(getattr(lens, "thermal_state_temperature", cls.REF_TEMP))
+-            scaling_factor = _thermal_scale(alpha_k, state_c, temperature_c, cls.REF_TEMP)
++            scaling_factor = 1.0 + alpha_k * delta_T_k
+ 
+             # Radius
+             lens.radius_of_curvature_1 *= scaling_factor
+diff --git a/openlens/lens.py b/openlens/lens.py
+index bb4732f57ec5262153dce15e05e7982da3a94690..b012f4f2112e7b85f7ac854838815c6320f47814 100644
+--- a/openlens/lens.py
++++ b/openlens/lens.py
+@@ -20,7 +20,6 @@ from .constants import (
+     DEFAULT_THICKNESS,
+     DEFAULT_DIAMETER,
+     DEFAULT_MOUNT_TYPE,
+-    DEFAULT_TEMPERATURE,
+     REFRACTIVE_INDEX_BK7,
+     EPSILON,
+     LARGE_NUMBER,
+@@ -295,7 +294,6 @@ class Lens:
+         wavelength: Optional[float] = None,
+         temperature: float = 20.0,
+         pressure_atm: float = REFERENCE_PRESSURE_ATM,
+-        thermal_state_temperature: float = DEFAULT_TEMPERATURE,
+         is_fresnel: bool = False,
+         groove_pitch: float = DEFAULT_THICKNESS,
+         num_grooves: Optional[int] = None,
+@@ -347,12 +345,6 @@ class Lens:
+         # this pressure so a refresh at an analysis wavelength cannot discard
+         # the correction. 1 atm is the unconditioned state.
+         self.pressure_atm = pressure_atm
+-        # Temperature the *geometry* is valid at, not the temperature the
+-        # index was resolved at. The two differ: Lens.for_material(...,
+-        # temperature=120) has a 120 C index on 20 C geometry, and a custom
+-        # glass has no index model at all. Thermal conditioning expands
+-        # relative to this state, which makes it idempotent and reversible.
+-        self.thermal_state_temperature = thermal_state_temperature
+ 
+         # Model Glass Properties
+         self.model_glass_mode = model_glass_mode
+diff --git a/openlens/optical_system.py b/openlens/optical_system.py
+index 4113bb20ba36abb0b6181d613217c3f1cb18a8dd..8a4d6d2957a17cb8378a638db1e23a19d4beec32 100644
+--- a/openlens/optical_system.py
++++ b/openlens/optical_system.py
+@@ -20,7 +20,6 @@ from .constants import (
+     WAVELENGTH_C_LINE,
+     WAVELENGTH_F_LINE,
+     DEFAULT_MATERIAL_INDICES,
+-    DEFAULT_TEMPERATURE,
+ )
+ from .optical_node import (
+     OpticalElement,

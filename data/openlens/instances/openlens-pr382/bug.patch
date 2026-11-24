@@ -1,0 +1,25 @@
+diff --git a/openlens/image_simulator.py b/openlens/image_simulator.py
+index fdf62054589f134d8e257ae180669dc4b49884f5..24fb766bd8b40a38bbcb765de95f4a3916e3e534 100644
+--- a/openlens/image_simulator.py
++++ b/openlens/image_simulator.py
+@@ -383,11 +383,17 @@ class ImageSimulator:
+         from scipy.ndimage import gaussian_filter
+ 
+         # Calculate diffraction-limited spot size
+-        diameter = self._entrance_pupil_diameter()
++        if hasattr(self.optical_system, "aperture_diameter"):
++            diameter = self.optical_system.aperture_diameter
++        else:
++            diameter = 10.0  # Default 10mm
+ 
+         # Airy disk radius
+-        f = self._system_focal_length()
+-        airy_radius = 1.22 * wavelength * 1e-6 * f / diameter
++        if hasattr(self.optical_system, "effective_focal_length"):
++            f = self.optical_system.effective_focal_length(wavelength)
++            airy_radius = 1.22 * wavelength * 1e-6 * f / diameter
++        else:
++            airy_radius = wavelength * 1e-6  # Simplified
+ 
+         # Gaussian matched to the Airy FWHM, converted with the true pitch
+         # (mm per pixel) instead of an assumed 1 um pixel.

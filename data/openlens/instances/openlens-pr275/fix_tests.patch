@@ -1,0 +1,159 @@
+diff --git a/tests/test_diffraction_polarization.py b/tests/test_diffraction_polarization.py
+index 6a9b3af..243f0f2 100644
+--- a/tests/test_diffraction_polarization.py
++++ b/tests/test_diffraction_polarization.py
+@@ -291,6 +291,27 @@ class TestPolarization(unittest.TestCase):
+         self.assertAlmostEqual(np.abs(coeffs["r_s"]), 1.0)
+         self.assertAlmostEqual(np.abs(coeffs["r_p"]), 1.0)
+ 
++    def test_tir_preserves_fresnel_rhomb_phase(self):
++        """TIR coefficients must carry the complex s/p retardance."""
++        import cmath
++        import math
++
++        n1, n2, angle = 1.5, 1.0, 60.0
++        coeffs = self.calc.fresnel_coefficients(n1, n2, angle)
++
++        self.assertTrue(coeffs["total_internal_reflection"])
++        self.assertAlmostEqual(abs(coeffs["r_s"]), 1.0, places=9)
++        self.assertAlmostEqual(abs(coeffs["r_p"]), 1.0, places=9)
++        self.assertEqual(coeffs["t_s"], 0j)
++        # Analytic rhomb retardance: 2*atan(cos1*sqrt(sin1^2-n^2)/sin1^2)
++        theta1 = math.radians(angle)
++        n = n2 / n1
++        expected = 2 * math.atan(
++            math.cos(theta1) * math.sqrt(math.sin(theta1) ** 2 - n**2) / math.sin(theta1) ** 2
++        )
++        delta = cmath.phase(coeffs["r_p"]) - cmath.phase(coeffs["r_s"])
++        self.assertAlmostEqual(abs(delta), expected, places=6)
++
+     def test_energy_conservation(self):
+         """Test that R + T = 1 (energy conservation)"""
+         n1 = 1.0
+diff --git a/tests/test_environmental.py b/tests/test_environmental.py
+index 7a51e75..c7e2be8 100644
+--- a/tests/test_environmental.py
++++ b/tests/test_environmental.py
+@@ -130,6 +130,22 @@ class TestEnvironmental(unittest.TestCase):
+ 
+         self.assertAlmostEqual(new_sys.elements[1].position, expected_pos2, places=4)
+ 
++    def test_housing_cte_parameter(self):
++        """Air gaps must follow the housing CTE, not hardcoded aluminum."""
++        l2 = Lens("L2", radius_of_curvature_1=50, thickness=5, material="BK7")
++        self.sys.add_lens(l2, air_gap_before=10.0)
++
++        invar_sys = EnvironmentalAnalyzer.apply_environment(
++            self.sys, temperature_c=120.0, pressure_atm=1.0, housing_cte=1e-6
++        )
++        self.assertAlmostEqual(invar_sys.air_gaps[0].thickness, 10.0 * (1.0 + 1e-6 * 100), places=6)
++
++        # Default is still aluminum for backward compatibility.
++        al_sys = EnvironmentalAnalyzer.apply_environment(
++            self.sys, temperature_c=120.0, pressure_atm=1.0
++        )
++        self.assertAlmostEqual(al_sys.air_gaps[0].thickness, 10.0 * (1.0 + 23.6e-6 * 100), places=6)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tests/test_ghost_analysis.py b/tests/test_ghost_analysis.py
+index 9596255..51e4251 100644
+--- a/tests/test_ghost_analysis.py
++++ b/tests/test_ghost_analysis.py
+@@ -89,6 +89,15 @@ class TestGhostAnalysis(unittest.TestCase):
+         ghosts = analyzer.trace_ghosts()
+         self.assertEqual(len(ghosts), 0)
+ 
++    def test_interact_reports_miss_as_bool_false(self):
++        """Missed interactions return actual False so paths can abort."""
++        from src.vector3 import vec3
++        from src.ray_tracer import Ray3D
++
++        # Far outside the aperture, heading away: cannot hit the front.
++        ray = Ray3D(vec3(1000, 500, 0), vec3(1, 0, 0))
++        self.assertIs(self.analyzer._interact(ray, 0, "refract"), False)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tests/test_lens.py b/tests/test_lens.py
+index 7888d18..29ac6bf 100644
+--- a/tests/test_lens.py
++++ b/tests/test_lens.py
+@@ -154,6 +154,19 @@ class TestLensOptics(unittest.TestCase):
+         self.assertGreater(biconcave.calculate_front_focal_length(), 0)
+         self.assertLess(biconcave.calculate_back_focal_length(), 0)
+ 
++    def test_afocal_focal_lengths_are_none(self):
++        """Afocal (flat-flat) lens: BFL/FFL are None like the system API."""
++        window = Lens(
++            radius_of_curvature_1=float("inf"),
++            radius_of_curvature_2=float("inf"),
++            thickness=5.0,
++            diameter=40.0,
++            refractive_index=1.5168,
++        )
++        self.assertIsNone(window.calculate_focal_length())
++        self.assertIsNone(window.calculate_back_focal_length())
++        self.assertIsNone(window.calculate_front_focal_length())
++
+ 
+ class TestLensTypePresets(unittest.TestCase):
+     """Radius presets applied per lens_type"""
+diff --git a/tests/test_strehl.py b/tests/test_strehl.py
+index 9396e57..6e97972 100644
+--- a/tests/test_strehl.py
++++ b/tests/test_strehl.py
+@@ -78,6 +78,25 @@ class TestStrehlRatio(unittest.TestCase):
+         self.assertGreater(ratio, 12.0)
+         self.assertLess(ratio, 20.0)
+ 
++    def test_short_focus_lens_gets_real_strehl(self):
++        """BFL shorter than the exit propagation must still reference."""
++        short = Lens(
++            name="Short fast singlet",
++            radius_of_curvature_1=50.0,
++            radius_of_curvature_2=-50.0,
++            thickness=6.0,
++            diameter=25.0,
++            refractive_index=1.5168,
++            material="BK7",
++        )
++        results = AberrationsCalculator(short).calculate_all_aberrations()
++
++        # Fast uncorrected singlet: huge but finite wavefront error, and a
++        # defined (near-zero) Strehl rather than a computation bail-out.
++        self.assertGreater(results["wfe_rms_waves"], 1.0)
++        self.assertGreaterEqual(results["strehl"], 0.0)
++        self.assertLessEqual(results["strehl"], 1.0)
++
+     def test_marechal_consistency_for_small_aberration(self):
+         """Exact pupil average must match Marechal for sigma << 1 wave."""
+         results = AberrationsCalculator(_biconvex(5.0)).calculate_all_aberrations()
+diff --git a/tests/test_tolerancing.py b/tests/test_tolerancing.py
+index 8815cbc..bcdbb86 100644
+--- a/tests/test_tolerancing.py
++++ b/tests/test_tolerancing.py
+@@ -139,5 +139,21 @@ class TestInverseSensitivity(unittest.TestCase):
+         self.assertEqual(new_tols[0].min_val, -new_tols[0].max_val)
+ 
+ 
++class TestPercentile(unittest.TestCase):
++    def test_90th_percentile_interpolates(self):
++        """0..99 must give 89.1, not index 90 (off-by-one without interp)."""
++        from src.tolerancing import _percentile
++
++        self.assertAlmostEqual(_percentile(list(range(100)), 90.0), 89.1, places=9)
++
++    def test_percentile_edges(self):
++        """Single value and empty handling."""
++        from src.tolerancing import _percentile
++
++        self.assertEqual(_percentile([3.0], 90.0), 3.0)
++        with self.assertRaises(ValueError):
++            _percentile([], 90.0)
++
++
+ if __name__ == "__main__":
+     unittest.main()

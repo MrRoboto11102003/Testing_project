@@ -1,0 +1,155 @@
+{
+ "id": "openlens-pr493",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 113,
+  "units_kept": 56,
+  "chars": 57522
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.0,
+ "detected": true,
+ "n_tests": 13,
+ "n_catching": 5,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4819,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 8523,
+  "output_tokens_details": {
+   "thinking_tokens": 6637
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4819,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8523,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 4819,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4819
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0535536,
+ "model_seconds": 37.7,
+ "seconds": 41.8,
+ "tests": {
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_export_lens_to_stl_returns_triangle_count_and_writes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_edge_triangles_invalid_list_length_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_edge_triangles_list_z_values": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_edge_triangles_scalar_z_values": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_flat_surface_creates_correct_count": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_flat_surface_respects_z_offset": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_profile_triangles_empty_profile": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_profile_triangles_insufficient_points": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_profile_triangles_insufficient_segments": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_profile_triangles_valid_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_surface_triangles_empty_profile": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_surface_triangles_valid_profile": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr493.py::TestSTLExporterTriangleGeneration::test_generate_surface_triangles_z_offset_correctly_applied": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  }
+ }
+}

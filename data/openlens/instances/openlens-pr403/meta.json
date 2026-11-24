@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr403",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 325,
+ "issue_title": "STEP housing/solid skips are logged at `debug` only",
+ "issue_body": "**File:** `src/io/step_export.py:134-135` and `:149-150`\n\n```python\nexcept (KeyError, TypeError, ValueError) as e:\n    logger.debug(\"STEP housing part skipped: %s\", e)\n```\n\nA malformed spacer/barrel dict produces a mechanical STEP drawing with silently missing parts.\n\n**Fix:** `logger.warning` including the part name, and report a skip count from `export()`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/325",
+ "pr": 403,
+ "pr_title": "fix(io): report skipped STEP parts at WARNING with a skip count",
+ "pr_body": "Closes #325\n\n## Problem\n\nThree skip paths in `StepExporter` logged at `logger.debug` \u2014 invisible at default verbosity:\n\n```python\nlogger.debug(\"STEP housing part skipped: %s\", e)\nlogger.debug(\"STEP solid export skipped: %s\", e)\nlogger.debug(\"STEP tube export skipped (bad dims): %s\", name)\n```\n\nA malformed spacer/barrel dict produced a mechanical STEP drawing with parts **quietly absent**. For an assembly drawing that is a part you cannot assemble \u2014 and nothing said so at any normal log level.\n\n## Fix\n\nAll three now log at `WARNING` with the part name. The bad-dimension path also reports the values, since those are what the user has to fix:\n\n```\nWARNING STEP housing part 'MISSING_KEYS' skipped - malformed or missing\n       z0/z1/r_inner/r_outer: 'z0'\nWARNING STEP tube 'bad_dims' skipped - need r_outer > r_inner > 0 and z1 > z0,\n       got r_inner=10.0 r_outer=8.0 z0=5.0 z1=1.0\nWARNING STEP export wrote 3 solid(s) but skipped 2 part(s): MISSING_KEYS, bad_dims\n```\n\n`export()` now returns a summary:\n\n```\n{'shapes': 3, 'skipped': 2, 'skipped_parts': ['MISSING_KEYS', 'bad_dims']}\n```\n\nIt previously returned `None`, so every existing caller \u2014 all of which ignore the result \u2014 is unaffected.\n\n## One subtlety\n\n`_export_tube_solid` returns `None` both when it rejects the dimensions and when there is no shape to write, so a rejected part has to be counted by the caller. The caller checks for a falsy `solid_id` and records the name; the method keeps logging its own diagnostic with the values.\n\n## Tests\n\n12 tests, **10 fail without the change**. One asserts the skip is reported at `WARNING` *or above* even with the logger set to `DEBUG` \u2014 which is exactly what regressed before.\n",
+ "fix_commit": "a6ea306d97313759cff52d2bb4e612dbc39cb891",
+ "merged_at": "2026-10-06T14:59:47Z",
+ "port_method": "partial_hunks:6/7",
+ "src_files": [
+  "openlens/io/step_export.py"
+ ],
+ "test_files": [
+  "tests/test_step_export_skips.py"
+ ],
+ "target_symbols": [
+  "openlens/io/step_export.py::StepExporter.__init__",
+  "openlens/io/step_export.py::StepExporter._create_context",
+  "openlens/io/step_export.py::StepExporter._export_tube_solid",
+  "openlens/io/step_export.py::StepExporter.export"
+ ],
+ "fail_to_pass": [
+  "tests/test_step_export_skips.py::TestExportSummary::test_counts_skipped_parts",
+  "tests/test_step_export_skips.py::TestExportSummary::test_counts_written_solids",
+  "tests/test_step_export_skips.py::TestExportSummary::test_no_housing_reports_no_skips",
+  "tests/test_step_export_skips.py::TestExportSummary::test_returns_a_summary_dict",
+  "tests/test_step_export_skips.py::TestSkipLogging::test_bad_dimension_message_includes_the_values",
+  "tests/test_step_export_skips.py::TestSkipLogging::test_bad_dimensions_are_logged_at_warning",
+  "tests/test_step_export_skips.py::TestSkipLogging::test_debug_level_is_no_longer_the_only_report",
+  "tests/test_step_export_skips.py::TestSkipLogging::test_malformed_part_is_logged_at_warning",
+  "tests/test_step_export_skips.py::TestSkipLogging::test_summary_line_names_every_skipped_part",
+  "tests/test_step_export_skips.py::TestUsableObjectWithoutAttributes::test_unsupported_object_is_reported"
+ ],
+ "pass_to_pass": [
+  "tests/test_step_export_skips.py::TestExportSummary::test_file_is_still_written_when_parts_are_skipped",
+  "tests/test_step_export_skips.py::TestSkipLogging::test_nothing_is_logged_when_all_parts_are_good"
+ ],
+ "patch_lines": 46
+}

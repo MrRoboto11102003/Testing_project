@@ -1,0 +1,23 @@
+diff --git a/openlens/io/step_export.py b/openlens/io/step_export.py
+index 54f6b55d2abd6fcd4997fab82f3b85c40ee18efd..1a661d7e46a49707de5532558ce9a5288c18bfd9 100644
+--- a/openlens/io/step_export.py
++++ b/openlens/io/step_export.py
+@@ -1,5 +1,4 @@
+ import logging
+-import math
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -359,12 +358,6 @@ class StepExporter:
+             result are unaffected. A malformed part used to be logged at
+             DEBUG, which is invisible at default verbosity - the drawing came
+             out with silently missing solids and nothing said so.
+-
+-        Raises:
+-            ValueError: If a lens has a parabolic or general conic surface.
+-                A ``SPHERICAL_SURFACE`` cannot pass through the modelled rim,
+-                so the solid would not close. Refusing leaves no file: the
+-                buffer is only written once every part has been built.
+         """
+         # Start from a clean buffer and a clean id sequence.
+         self.writer = StepWriter()

@@ -1,0 +1,46 @@
+{
+ "id": "openlens-pr243",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 231,
+ "issue_title": "`optical_system.py` ABCD ignores parabolic, wrong thickness convention",
+ "issue_body": "**File:** `src/optical_system.py:424-448`\n\nUses raw `lens.radius_of_curvature_1/2`, not `get_effective_radius_*()`. Parabolic doublet paraxial `f`/`BFL` diverges from `Lens.calculate_focal_length()`. Also propagates `d/n_lens` (reduced thickness, only valid for `(y,n\u00b7theta)` vector) in a `(y,theta)` chain \u2014 EFL/BFL off by ~`n`. Guard `if R != 0` treats `R=0` as no-power (should be invalid) and `R=1e11` as powered (should be flat per `geometry.py:30`).\n\n**Fix:**\n```python\nR1 = lens.get_effective_radius_1()\nif not _is_flat(R1):\n    P1 = (n_lens - n_current) / R1\nd = lens.thickness  # NOT d/n for (y,theta)\n```\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/231",
+ "pr": 243,
+ "pr_title": "fix(system): use effective radii in ABCD matrix for parabolic surfaces",
+ "pr_body": "_calculate_system_matrix read raw radius_of_curvature_1/2, so parabolic surfaces got stale spherical power (singlet EFL 100.84 instead of 41.88). Use lens.get_effective_radius_1/2 with identical guard semantics; matrix EFL/BFL now match lens methods exactly, spherical paths unchanged.\r\n\r\n- Document (y, n\u00b7theta) convention: d/n propagation is correct for this vector, air-to-air total identical to (y, theta) chain, cemented zero-gap pair exact\r\n- Add regression test for parabolic matrix EFL/BFL vs lens methods\r\n\r\nDeliberately unchanged: d/n propagation, guard thresholds, cemented n_current handling (all verified correct). Full suite green, black clean.",
+ "fix_commit": "efccef8837551c5be1f9c03d89989ec7c89b4656",
+ "merged_at": "2026-09-10T10:47:34Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/optical_system.py"
+ ],
+ "test_files": [
+  "tests/test_optical_system.py"
+ ],
+ "target_symbols": [
+  "openlens/optical_system.py::OpticalSystem._calculate_system_matrix",
+  "openlens/optical_system.py::OpticalSystem.calculate_back_focal_length"
+ ],
+ "fail_to_pass": [
+  "tests/test_optical_system.py::TestOpticalSystem::test_system_matrix_uses_effective_radii"
+ ],
+ "pass_to_pass": [
+  "tests/test_optical_system.py::TestFlatSurfaceRoundTrip::test_both_surfaces_flat_round_trip",
+  "tests/test_optical_system.py::TestFlatSurfaceRoundTrip::test_legacy_file_with_infinity_literal_still_loads",
+  "tests/test_optical_system.py::TestFlatSurfaceRoundTrip::test_plano_first_surface_round_trips",
+  "tests/test_optical_system.py::TestFlatSurfaceRoundTrip::test_plano_second_surface_round_trips",
+  "tests/test_optical_system.py::TestFlatSurfaceRoundTrip::test_written_file_is_valid_json",
+  "tests/test_optical_system.py::TestOpticalSystem::test_achromatic_doublet_creation",
+  "tests/test_optical_system.py::TestOpticalSystem::test_add_lens",
+  "tests/test_optical_system.py::TestOpticalSystem::test_chromatic_aberration",
+  "tests/test_optical_system.py::TestOpticalSystem::test_initialization",
+  "tests/test_optical_system.py::TestOpticalSystem::test_serialization",
+  "tests/test_optical_system.py::TestOpticalSystem::test_system_f_number",
+  "tests/test_optical_system.py::TestOpticalSystem::test_system_focal_length_two_lenses",
+  "tests/test_optical_system.py::TestOpticalSystem::test_triplet_creation",
+  "tests/test_optical_system.py::TestOpticalSystem::test_update_positions"
+ ],
+ "patch_lines": 21
+}

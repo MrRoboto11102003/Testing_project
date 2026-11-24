@@ -1,0 +1,163 @@
+{
+ "id": "openlens-pr240",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code",
+ "context": {
+  "mode": "code",
+  "chars": 2018
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": null,
+ "mean_arnio_calls": 1.45,
+ "detected": true,
+ "n_tests": 11,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 1600,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11988,
+  "output_tokens_details": {
+   "thinking_tokens": 10998
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 1600,
+    "output_tokens": 11988,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.06154,
+ "model_seconds": 55.7,
+ "seconds": 60.0,
+ "tests": {
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_empty_string_returns_untitled": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_exactly_100_chars_allowed": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_non_string_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_over_100_chars_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_valid_name_returned_as_is": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_whitespace_only_returns_untitled": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_whitespace_stripped_from_valid_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_custom_param_name_and_numeric_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_diameter_enables_scaled_limit": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_legacy_100mm_absolute_cap": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_valid_sag_in_legacy_mode": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_parabolic_sag"
+   ]
+  }
+ }
+}

@@ -1,0 +1,44 @@
+{
+ "id": "openlens-pr760",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 755,
+ "issue_title": "bug(physics): BeamSynthesisPropagator ignores element decenter and tilt",
+ "issue_body": "## Summary\n\n`BeamSynthesisPropagator._trace_beamlet()` traces each beamlet through `LensRayTracer3D(element.lens, x_offset=element.position)` and never applies the element's decenter or tilt. When the caller supplies an explicit image plane, moving an element does not change the computed intensity map at all.\n\n## Impact\n\nBeam-synthesis results for tilted or decentered systems describe a different system than the rest of OpenLens (2D/3D tracers, ghost analysis, spot diagrams). With the default plane the detector can move because `_default_image_plane()` finds focus through `SystemRayTracer3D`, which can hide the bug; with a pinned detector plane the maps are bit-identical.\n\n## Reproduction\n\n```python\nimport sys\n\nimport numpy as np\n\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.analysis.beam_synthesis import BeamSynthesisPropagator\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\n\nsystem = OpticalSystem(name=\"S\")\nsystem.add_lens(\n    Lens(\n        name=\"L\",\n        radius_of_curvature_1=50.0,\n        radius_of_curvature_2=-50.0,\n        thickness=5.0,\n        diameter=25.0,\n        refractive_index=1.5168,\n    )\n)\nsystem._update_positions()\nprop = BeamSynthesisPropagator(system)\n\n_, _, aligned = prop.propagate_to_image(\n    grid_size=8, detector_pixels=16, image_plane_x=120.0\n)\nsystem.set_element_alignment(0, decenter_y=2.0, tilt_y=5.0)\n_, _, moved = prop.propagate_to_image(\n    grid_size=8, detector_pixels=16, image_plane_x=120.0\n)\n\nprint(\"aligned sum:\", aligned.sum())\nprint(\"moved sum:  \", moved.sum())\nprint(\"max difference:\", np.max(np.abs(aligned - moved)))\nprint(\"identical maps:\", np.array_equal(aligned, moved))\n```\n\nObserved:\n\n```\naligned sum: 520.4096835808818\nmoved sum:   520.4096835808818\nmax difference: 0.0\nidentical maps: True\n```\n\n## Root cause\n\n`openlens/analysis/beam_synthesis.py:358-364` (`_trace_beamlet`) constructs a fresh `LensRayTracer3D` from the lens and its axial position only. `LensElement.decenter_y/z` and `tilt_x/y/z` (or the tree node transform that `SystemRayTracer3D` uses) are never read. `element.position` is only the axial coordinate.\n\n## Expected behaviour\n\nBeamlets must be traced through the same global element transforms as `SystemRayTracer3D`; a 2 mm decenter or 5 degree tilt must move/steer the beam and change the image-plane intensity.\n\n## Suggested fix\n\nTrace with `SystemRayTracer3D(system)` (or build the element transform with `Matrix4x4` and pass it to `LensRayTracer3D`). Add a regression test that compares aligned and decentered/tilted maps at a fixed plane and asserts they differ.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/755",
+ "pr": 760,
+ "pr_title": "fix(physics): apply element alignment in beam synthesis",
+ "pr_body": "## Description\n\nThe manual beamlet trace built each `LensRayTracer3D` from `element.position` alone. Decenter and tilt live on the optical node, so beam synthesis traced the on-axis system no matter how the elements were aligned.\n\nThis builds one tracer per element from its global node transform and reuses the batch for every beamlet.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #755\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `python3 -m unittest tests.test_beam_synthesis`\n- [x] Full suite: `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .` \u2014 2938 tests, 36 skipped, exit 0\n- [x] `black --line-length=100 --exclude 'openlens/__main__.py' openlens/analysis/beam_synthesis.py tests/test_beam_synthesis.py --check`\n- [x] `.venv/bin/flake8` on the changed files\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "0b7773ae1990e3ff5342eacd9c20ea04c5d2d0cc",
+ "merged_at": "2026-10-26T10:42:31Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/analysis/beam_synthesis.py"
+ ],
+ "test_files": [
+  "tests/test_beam_synthesis.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/beam_synthesis.py::BeamSynthesisPropagator._trace_beamlet",
+  "openlens/analysis/beam_synthesis.py::BeamSynthesisPropagator.propagate_to_image"
+ ],
+ "fail_to_pass": [
+  "tests/test_beam_synthesis.py::TestBeamSynthesisAlignment::test_decenter_moves_the_focal_spot",
+  "tests/test_beam_synthesis.py::TestBeamSynthesisAlignment::test_tilt_changes_the_focal_field"
+ ],
+ "pass_to_pass": [
+  "tests/test_beam_synthesis.py::TestBeamSynthesisPropagation::test_empty_system_returns_empty_arrays",
+  "tests/test_beam_synthesis.py::TestBeamSynthesisPropagation::test_propagate_to_image_returns_finite_intensity",
+  "tests/test_beam_synthesis.py::TestBeamSynthesisPropagation::test_propagate_to_image_uses_the_passed_wavelength",
+  "tests/test_beam_synthesis.py::TestGaussianBeam::test_initialization",
+  "tests/test_beam_synthesis.py::TestGaussianBeam::test_propagation",
+  "tests/test_beam_synthesis.py::TestGaussianBeam::test_refraction_flat",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_at_waist_is_infinite",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_exists",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_is_independent_of_rx",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_matches_analytic_value",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_tracks_propagation_like_rx"
+ ],
+ "patch_lines": 33
+}

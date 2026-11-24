@@ -1,0 +1,55 @@
+{
+ "id": "openlens-pr546",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 459,
+ "issue_title": "Performance metrics: near depth-of-field limit is wrong beyond the hyperfocal distance",
+ "issue_body": "**Where:** `src/performance_metrics.py:305-310`\n\nFor s >= H the code returns `near = H/2`, which is exact only at s = H. The formula `s(H-f)/(H+s-2f)` remains valid beyond it.\n\n**Repro:** at s = 5H the code reports 40,707 mm; the exact value is 67,791 mm.\n\n**Fix:** always compute `near` with the formula, and only set `far = inf` when s >= H.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/459",
+ "pr": 546,
+ "pr_title": "fix(metrics): compute the near depth-of-field limit beyond hyperfocal",
+ "pr_body": "## Description\n\nfix(metrics): compute the near depth-of-field limit beyond hyperfocal\n\n`PerformanceMetrics.calculate_depth_of_field` returned `H / 2` for the near limit at every object distance at or beyond the hyperfocal distance `H`. `H / 2` is only what the lens equation gives at `s == H`; beyond it the true near limit keeps receding:\n\n| Object distance | Before | Exact |\n| --- | --- | --- |\n| `5H` (test lens) | 20530 mm | 34189 mm |\n\nThe far limit was already correct: infinite for `s >= H`, finite below it.\n\n### The fix\n\n- Always compute `near = s(H - f) / (H + s - 2f)` \u2014 the exact form, valid on both sides of `H`.\n- Reserve `far = inf` for `s >= H`.\n\n## Type of Change\n\n- [x] Bug fix (physics, non-breaking)\n\n## Related Issues\n\nCloses #459\n\n## How Has This Been Tested?\n\n- [x] **4 new tests** in `tests/test_performance_metrics.py`: the formula at `5H`, the formula at and on both sides of `H`, the near limit keeps receding (`10H` > `5H`), and the far limit is infinite only at or beyond `H`\n- [x] **Red before the fix**: `FAILED (failures=3)` with only the assertion kept; the old branch gave 20530 mm where the equation gives 34189 mm\n- [x] `tests.test_performance_metrics` (21 tests) and `tests.test_preset_performance_functional` (36 tests) pass\n- [x] Full suite: `Ran 2246 tests`, `FAILED (errors=6)` \u2014 master (2242) plus the four new tests; the six errors are the pre-existing `gui_flows` loader failures (they need pytest, which is not installed locally)\n- [x] `black --check` clean; `flake8` only pre-existing findings\n",
+ "fix_commit": "56444859405e023331ef43fe3dfee5bb1448d034",
+ "merged_at": "2026-10-19T18:36:37Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/performance_metrics.py"
+ ],
+ "test_files": [
+  "tests/test_performance_metrics.py"
+ ],
+ "target_symbols": [
+  "openlens/performance_metrics.py::PerformanceMetrics.calculate_depth_of_field"
+ ],
+ "fail_to_pass": [
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_near_limit_beyond_hyperfocal_uses_the_formula_not_half_h",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_near_limit_keeps_receding_beyond_the_hyperfocal_distance",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_the_formula_holds_at_and_on_both_sides_of_h"
+ ],
+ "pass_to_pass": [
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_is_measured_from_the_last_surface",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_is_not_the_efl",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_matches_optical_system",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_empty_system_returns_none",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_single_lens_bfl_uses_the_thick_lens_model",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_far_limit_is_infinite_only_at_or_beyond_hyperfocal",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_airy_radius_uses_the_overridden_pupil",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_angular_rayleigh_limit_scales_with_the_wavelength",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_bundle_describes_one_aperture",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_numerical_aperture_uses_the_overridden_pupil",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_airy_disk",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_angular_rayleigh_resolution_absolute_value",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_back_focal_length",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_depth_of_field",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_f_number_calculation",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_field_of_view",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_format_metrics_report",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_get_all_metrics",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_mtf_cutoff",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_numerical_aperture",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_resolution_estimate",
+  "tests/test_performance_metrics.py::TestPerformanceMetricsWithSystem::test_optical_system_metrics"
+ ],
+ "patch_lines": 8
+}

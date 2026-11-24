@@ -1,0 +1,255 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.analysis.plots.draw_system_outline, openlens.validation.check_physical_feasibility, openlens.validation.validate_file_path.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.analysis.plots.draw_system_outline
+def draw_system_outline(ax, system: OpticalSystem) -> None:
+    """Draw the lens element outlines of ``system`` onto ``ax`` (Z vs Y).
+
+    Canonical convention: ``lens.thickness`` is the CENTER (vertex to
+    vertex) thickness, matching the ray tracers, the ABCD matrix, the
+    lensmaker equation, and ``LensGeometry``. The rim (edge) thickness is
+    derived as ``thickness - sag1 + sag2`` at the clear aperture.
+    """
+    current_z = 0.0
+    for i, element in enumerate(system.elements):
+        lens = element.lens
+        thickness = lens.thickness
+
+        # Shared outline (same helper as every 2D view), shifted so the
+        # front vertex sits at current_z.
+        outline = LensGeometry.lens_outline(lens, num_points=50, max_points=2000)
+        bad = not outline["feasible"]
+        z1 = [current_z + x for x, _ in outline["front"]]
+        y_front = [y for _, y in outline["front"]]
+        z2 = [current_z + x for x, _ in outline["back"]]
+        y_back = [y for _, y in outline["back"]]
+        edge_z = [current_z + x for x, _ in outline["edge"]]
+        edge_y = [radius for _, radius in outline["edge"]]
+
+        # Filled lens (matches editor's translucent fill) + colored outlines
+        # Build closed polygon: front -> rim chain -> back -> mirrored chain.
+        try:
+            from matplotlib.patches import Polygon
+
+            poly_z = z1 + edge_z[1:] + z2 + list(reversed(edge_z[1:-1]))
+            poly_y = y_front + edge_y[1:] + y_back + [-r for r in reversed(edge_y[1:-1])]
+            poly = Polygon(
+                list(zip(poly_z, poly_y)),
+                closed=True,
+                facecolor=COLOR_LENS_BAD if bad else COLOR_LENS_FILL,
+                edgecolor="none",
+                alpha=0.3,
+            )
+            ax.add_patch(poly)
+        except (ImportError, TypeError, ValueError) as e:
+            # A degenerate profile (mismatched edge data, non-finite
+            # vertices) must not stop the outlines from being drawn, but a
+            # silently skipped fill hides the cause.
+            logger.debug("Skipping lens fill: %s", e)
+
+        front_color = COLOR_LENS_BAD if bad else COLOR_LENS_R1
+        back_color = COLOR_LENS_BAD if bad else COLOR_LENS_R2
+        ax.plot(z1, y_front, color=front_color, alpha=0.9, linewidth=2)
+        ax.plot(z2, y_back, color=back_color, alpha=0.9, linewidth=2)
+        # Rim chains (custom profile or the straight default edge)
+        ax.plot(
+            edge_z,
+            edge_y,
+            color=COLOR_LENS_RIM,
+            alpha=0.7,
+            linewidth=1,
+        )
+        ax.plot(
+            edge_z,
+            [-r for r in edge_y],
+            color=COLOR_LENS_RIM,
+            alpha=0.7,
+            linewidth=1,
+        )
+
+        if i < len(system.air_gaps):
+            current_z += thickness + system.air_gaps[i].thickness
+        else:
+            current_z += thickness
+
+# openlens.validation.check_physical_feasibility
+def check_physical_feasibility(
+    radius1: float,
+    radius2: float,
+    thickness: float,
+    diameter: float,
+    is_parabolic_1: bool = False,
+    parabolic_sag_1: float = 0.0,
+    is_parabolic_2: bool = False,
+    parabolic_sag_2: float = 0.0,
+    clear_aperture_1: Optional[float] = None,
+    clear_aperture_2: Optional[float] = None,
+    conic_constant_1: float = 0.0,
+    conic_constant_2: float = 0.0,
+) -> Tuple[bool, Optional[str]]:
+    """
+    Check if lens parameters are physically feasible.
+
+    Args:
+        radius1: Front surface radius (mm)
+        radius2: Back surface radius (mm)
+        thickness: Center thickness (mm)
+        diameter: Lens diameter (mm)
+        is_parabolic_1: Whether the front surface is parabolic
+        parabolic_sag_1: Front parabolic sag at D/2 (mm)
+        is_parabolic_2: Whether the back surface is parabolic
+        parabolic_sag_2: Back parabolic sag at D/2 (mm)
+        clear_aperture_1: Front clear aperture diameter (mm), or None. Judged
+            at the radius the lens is actually polished to rather than at
+            diameter/2 - see Lens.get_manufacturing_radius.
+        clear_aperture_2: Back clear aperture diameter (mm), or None
+        conic_constant_1: Front conic constant K
+        conic_constant_2: Back conic constant K
+
+    Returns:
+        Tuple[bool, Optional[str]]: (is_feasible, warning_message)
+    """
+    warnings = []
+
+    # Hard geometric check via the single source of truth: probe the spec
+    # through Lens so rim/edge math cannot drift from the tracer or views.
+    # Thickness is the CENTER (vertex to vertex) thickness, so the VERTEX-
+    # correct edge is thickness - sag1 + sag2 (a plus-sign variant would
+    # reject valid concave lenses). Edge <= 0 means the surfaces intersect
+    # within the clear aperture; edge None means the aperture overhangs a
+    # surface (|R| < D/2, sag undefined).
+    hard_error = None
+    h = diameter / 2
+    try:
+        probe = Lens(
+            radius_of_curvature_1=radius1,
+            radius_of_curvature_2=radius2,
+            thickness=thickness,
+            diameter=diameter,
+            is_parabolic_1=is_parabolic_1,
+            parabolic_sag_1=parabolic_sag_1,
+            is_parabolic_2=is_parabolic_2,
+            parabolic_sag_2=parabolic_sag_2,
+            conic_constant_1=conic_constant_1,
+            conic_constant_2=conic_constant_2,
+            clear_aperture_1=clear_aperture_1,
+            clear_aperture_2=clear_aperture_2,
+        )
+        edge = probe.calculate_edge_thickness()
+    except Exception:
+        edge = None
+    if edge is None:
+        for r in (radius1, radius2):
+            if r is not None and math.isfinite(r) and abs(r) >= EPSILON and abs(h) > abs(r):
+                hard_error = (
+                    f"Aperture overhangs a surface (|R| = {abs(r):.1f}mm < "
+                    f"D/2 = {h:.1f}mm) - no real surface exists at the rim. "
+                    "Reduce the diameter or flatten the radii."
+                )
+                break
+        if hard_error is None:
+            hard_error = (
+                "Lens geometry is undefined for these parameters. "
+                "Reduce the diameter or flatten the radii."
+            )
+    elif edge <= 0:
+        hard_error = (
+            f"Surfaces intersect within the clear aperture (edge thickness "
+            f"{edge:.2f}mm <= 0). Increase center thickness, reduce diameter, "
+            "or flatten the radii."
+        )
+
+    # Soft floor: positive yet fragile rim (parabolic-aware via the probe).
+    if hard_error is None and edge is not None and edge < MIN_EDGE_THICKNESS:
+        warnings.append(
+            f"Edge thickness ({edge:.2f}mm) is below {MIN_EDGE_THICKNESS}mm. " "May be fragile."
+        )
+
+    min_radius = min(abs(radius1), abs(radius2))
+
+    # Check if thickness is reasonable compared to radii
+    if thickness > 0.5 * min_radius:
+        warnings.append(
+            f"Thickness ({thickness:.1f}mm) is very large compared to "
+            f"minimum radius ({min_radius:.1f}mm). Lens may be impractical."
+        )
+
+    # Check if diameter is reasonable compared to radii
+    if diameter > 0.8 * min_radius:
+        warnings.append(
+            f"Diameter ({diameter:.1f}mm) is large compared to "
+            f"minimum radius ({min_radius:.1f}mm). Edge effects may be significant."
+        )
+
+    # Check for very thin lenses relative to diameter
+    if thickness < 0.02 * diameter:
+        warnings.append(
+            f"Lens is very thin ({thickness:.1f}mm) relative to "
+            f"diameter ({diameter:.1f}mm). May be fragile."
+        )
+
+    if hard_error is not None:
+        if warnings:
+            return False, hard_error + " " + " ".join(warnings)
+        return False, hard_error
+
+    if warnings:
+        return False, " ".join(warnings)
+
+    return True, None
+
+# openlens.validation.validate_file_path
+def validate_file_path(
+    file_path: Union[str, Path],
+    must_exist: bool = False,
+    create_parent: bool = False,
+    param_name: str = "file_path",
+) -> Path:
+    """
+    Validate and sanitize file path.
+
+    Args:
+        file_path: Path to validate
+        must_exist: If True, file must already exist
+        create_parent: If True, create parent directory if it doesn't exist
+        param_name: Parameter name for error messages
+
+    Returns:
+        Path: Validated and resolved Path object
+
+    Raises:
+        ValidationError: If path is invalid
+    """
+    if not isinstance(file_path, (str, Path)):
+        raise ValidationError(f"{param_name} must be a string or Path object")
+
+    try:
+        path = Path(file_path).resolve()
+    except (ValueError, RuntimeError) as e:
+        raise ValidationError(f"Invalid {param_name}: {e}")
+
+    # Check if file must exist
+    if must_exist and not path.exists():
+        raise ValidationError(f"{param_name} does not exist: {path}")
+
+    # Check parent directory
+    parent = path.parent
+    if not parent.exists():
+        if create_parent:
+            try:
+                parent.mkdir(parents=True, exist_ok=True)
+            except (OSError, PermissionError) as e:
+                raise ValidationError(f"Cannot create directory for {param_name}: {e}")
+        else:
+            raise ValidationError(f"Parent directory does not exist for {param_name}: {parent}")
+
+    # Check if parent is writable (for new files)
+    if not must_exist and not os.access(parent, os.W_OK):
+        raise ValidationError(f"Parent directory is not writable for {param_name}: {parent}")
+
+    return path

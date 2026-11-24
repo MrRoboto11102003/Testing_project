@@ -1,0 +1,39 @@
+{
+ "id": "openlens-pr743",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 658,
+ "issue_title": "bug: the seeded assembly stores every air gap at position 0.0 instead of its real axial station",
+ "issue_body": "## Summary\n\nThe seeded \"Nikon Series E\" assembly is written into the database by hand\ninstead of being produced from the reference system, and the hand-written\nversion stores **every air gap at `position: 0.0`**. The reference system\nplaces the gaps at their real axial stations (3.39, 7.845, 10.365, 20.155 and\n25.0 mm), so the seeded row and the reference assembly are not the same data.\n\n## Impact\n\n- The row stored in SQLite disagrees with the in-memory reference system that\n  the same module documents, so \"seeded\" and \"reference\" are two different\n  assemblies.\n- The defect is invisible today only because `OpticalSystem.from_dict()`\n  rebuilds the gap positions from the thicknesses on load; any consumer that\n  reads the stored `air_gaps[].position` directly (an exporter, a diff tool,\n  a future migration) sees zeros.\n- The element positions in the same seed *are* correct, so the row is\n  internally inconsistent: the elements sit at 3.485, 9.395, ... while the\n  gaps claim to start at 0.\n\n## Reproduction\n\n```python\nimport sys\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.seed_data import (\n    NIKON_SERIES_E_AIR_GAPS, build_nikon_series_e_system,\n)\n\nreference = build_nikon_series_e_system()\nprint(\"reference gaps:\", [(g.thickness, g.position) for g in reference.air_gaps])\nprint(\"seeded   gaps:\", [(g, 0.0) for g in NIKON_SERIES_E_AIR_GAPS])\n```\n\nOutput:\n\n```\nreference gaps: [(0.0950000000000002, 3.39), (1.5500000000000007, 7.8450000000000001),\n                 (8.82, 10.3650000000000002), (0.0, 20.155), (0.09499999999999886, 25.0)]\nseeded   gaps: [(0.095, 0.0), (1.55, 0.0), (8.82, 0.0), (0.0, 0.0), (0.095, 0.0)]\n```\n\n## Root cause\n\n- `openlens/seed_data.py:284-286`:\n  ```python\n  \"air_gaps\": [\n      {\"thickness\": gap, \"position\": 0.0} for gap in NIKON_SERIES_E_AIR_GAPS\n  ],\n  ```\n  The assembly dict is assembled by hand from a flat list of gap thicknesses\n  instead of being taken from `build_nikon_series_e_system().to_dict()`.\n- The element positions in the same dict *are* taken from the reference\n  (`openlens/seed_data.py:281-283`), which is why the row is internally\n  inconsistent.\n\n## Expected behaviour\n\nThe seeded assembly is the reference assembly: the same elements, the same\ngaps, at the same axial positions, so a seeded row and a built row are\nidentical.\n\n## Suggested fix\n\nBuild the seeded assembly dict from `build_nikon_series_e_system().to_dict()`\n(or compute the gap stations from the element positions) instead of\nre-deriving the layout by hand, and add a test asserting that the seeded row\nequals the reference `to_dict()`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/658",
+ "pr": 743,
+ "pr_title": "fix(seed): store the Nikon air gaps at their real axial stations",
+ "pr_body": "## Description\n`ensure_nikon_series_e_example()` hand-wrote the assembly dict and stored every air gap at `position: 0.0`, while the element positions came from the reference layout. The row in SQLite therefore disagreed with `build_nikon_series_e_system()`: the elements sat at 3.485, 9.395, ... while all gaps claimed to start at 0. The defect was invisible only because `OpticalSystem.from_dict()` rebuilds gap positions on load; any consumer reading `air_gaps[].position` directly saw zeros.\n\n## What changed\n- `openlens/seed_data.py`: each gap station is derived as `positions[i + 1] - gap`, matching `add_lens()`'s `new_pos - air_gap_before` arithmetic. The gap thicknesses remain the exact patent constants.\n- `tests/test_seed_data.py`: a regression test compares the stored gaps (thickness and position) with `build_nikon_series_e_system()` to 9 decimal places.\n\n## Testing\n- Full suite: 2858 tests, OK (skipped=35)\n- `black --line-length=100`, `ruff`, `flake8`, `mypy`\n- Verified the new test fails against the old `position: 0.0` seed.\n\nCloses #658\n",
+ "fix_commit": "5852837940d583c804256936838489c86dabb495",
+ "merged_at": "2026-10-23T09:55:50Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/seed_data.py"
+ ],
+ "test_files": [
+  "tests/test_seed_data.py"
+ ],
+ "target_symbols": [
+  "openlens/seed_data.py::ensure_nikon_series_e_example"
+ ],
+ "fail_to_pass": [
+  "tests/test_seed_data.py::TestEnsureSeedData::test_seeded_gap_positions_match_the_reference_assembly"
+ ],
+ "pass_to_pass": [
+  "tests/test_seed_data.py::TestEnsureSeedData::test_ensure_does_not_overwrite_user_edits",
+  "tests/test_seed_data.py::TestEnsureSeedData::test_ensure_inserts_lenses_and_assembly",
+  "tests/test_seed_data.py::TestEnsureSeedData::test_ensure_is_idempotent",
+  "tests/test_seed_data.py::TestEnsureSeedData::test_seeded_assembly_loads_with_correct_gaps",
+  "tests/test_seed_data.py::TestNikonSeriesEPrescription::test_all_seed_lenses_have_realizable_geometry",
+  "tests/test_seed_data.py::TestNikonSeriesEPrescription::test_build_returns_six_lenses_with_stable_ids",
+  "tests/test_seed_data.py::TestNikonSeriesEPrescription::test_cemented_doublet_has_zero_gap",
+  "tests/test_seed_data.py::TestNikonSeriesEPrescription::test_system_focal_length_matches_50mm_design"
+ ],
+ "patch_lines": 6
+}

@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr361",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 292,
+ "issue_title": "2D system tracer cannot trace any element with a concave first surface",
+ "issue_body": "**File:** `src/tracer_2d.py:621-631`\n\n```python\nif i < len(self._tracers) - 1:\n    next_pos = self.system.elements[i + 1].position\n    if next_pos > ray.x:\n        ray.propagate(next_pos - ray.x)\n    else:\n        ray.propagate(EPSILON)\n```\n\n**Problem:** the ray is advanced to element *i+1*'s **front vertex plane**, then asked for an\nintersection requiring `t > EPSILON`. For a concave first surface (`R1 < 0`) the sphere spans\n`[vertex + 2\u00b7R1, vertex]` and the surface is its right-hand cap \u2014 the ray is already past it, both\nroots are negative, and the element is silently dropped.\n\n**Repro (verified):** the app's own `create_doublet(100.0, 25.0)`. The flint element has `R1 = -62.0`.\n\n```\nEFL(analytic): 100.2297   BFL: 97.6936   -> focus should be at x = 3.75 + 97.69 = 101.44\n\n  y0=-12.144 hit=False term=True  final=(3.721, -12.1444)  path=[-100.0, 1.273, 2.494, 3.721]\n  y0= -6.110 hit=False term=True  final=(3.748,  -6.1103)  path=[-100.0, 0.316, 3.445, 3.748]\n  y0=  0.000 hit=False term=True  final=(3.750,  -0.0000)  path=[-100.0, 0.0,   3.75,  3.75]\n  y0= 12.144 hit=False term=True  final=(3.721,  12.1444)  path=[-100.0, 1.273, 2.494, 3.721]\n```\n\nEvery ray terminates inside the second element. The 2D and 3D tracers disagree completely for any\nsystem containing a negative element \u2014 which is most cemented achromats.\n\n**Fix:** propagate to the next element's front *surface*, not its vertex plane. Add a\n`_front_reference_x` to `LensRayTracer` (the leading point of the surface at the current ray height)\nand propagate there, keeping `t >= 0`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/292",
+ "pr": 361,
+ "pr_title": "fix(tracer-2d): trace elements with a concave first surface",
+ "pr_body": "The 2D system tracer advanced each ray to the next element's vertex plane before intersecting its front surface. A concave first surface has negative sag, so the whole surface sits behind that plane: landing there overshoots it, every sphere root ends up behind the ray, and the element was silently dropped. A cemented achromat therefore traced no rays at all\r\n- the flint element follows the shared cemented interface, and every ray terminated inside it, making 2D and 3D disagree completely for any system containing a negative element.\r\n\r\nIntersect each front surface from wherever the ray already is, as the 3D tracer does. The air segment is not lost: trace_ray credits it to optical_path_length from the actual start point, and the dropped vertex-plane point was collinear with the ray.\r\n\r\nA front reference evaluated at the ray's current height is not a fix. The ray bends on the way across the gap, so it meets the surface at a different height than it did at the hop; overshooting by ~0.016mm on a 6mm gap is enough to push the root negative, which regressed four existing tests.\r\n\r\nThe cap tolerance moves to -EPSILON to match 3D, because a cemented interface is exactly where one element's back surface and the next element's front surface are the same sphere: the ray correctly arrives at t = 0. The 2D defect fixed in #359 was the deleted already_exited heuristic, not this filter; a root within 1e-10 of zero is a genuine \"ray sits on the surface\" hit.\r\n\r\ncreate_doublet(100, 25) now traces 9/9 rays and agrees with the 3D tracer bit-for-bit at every surface vertex.\r\n\r\nFixes #292",
+ "fix_commit": "442d3ee056ffbe99320f4806e4f8411808f08ef0",
+ "merged_at": "2026-10-02T17:03:16Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/tracer_2d.py"
+ ],
+ "test_files": [
+  "tests/test_system_tracer.py"
+ ],
+ "target_symbols": [
+  "openlens/tracer_2d.py::LensRayTracer._intersect_sphere_surface",
+  "openlens/tracer_2d.py::SystemRayTracer._absorb_before_first_element",
+  "openlens/tracer_2d.py::SystemRayTracer._trace_ray_through_system"
+ ],
+ "fail_to_pass": [
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_air_gap_credited_to_optical_path_length",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_cemented_doublet_flint_element_traces",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_cemented_doublet_focus_matches_analytic_bfl",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_cemented_doublet_matches_3d_tracer",
+  "tests/test_system_tracer.py::TestConcaveFirstElement::test_negative_first_elements_across_air_gap"
+ ],
+ "pass_to_pass": [
+  "tests/test_system_tracer.py::TestAlignedElementKeepsTheWavelength::test_a_centered_element_has_a_chromatic_spread",
+  "tests/test_system_tracer.py::TestAlignedElementKeepsTheWavelength::test_a_decentered_element_keeps_the_chromatic_spread",
+  "tests/test_system_tracer.py::TestAlignedElementKeepsTheWavelength::test_a_tilted_element_keeps_the_chromatic_spread",
+  "tests/test_system_tracer.py::TestAlignedElementKeepsTheWavelength::test_a_tilted_element_stays_close_to_the_centered_one",
+  "tests/test_system_tracer.py::TestSystemRayTracer::test_missed_ray_does_not_teleport",
+  "tests/test_system_tracer.py::TestSystemRayTracer::test_system_structure",
+  "tests/test_system_tracer.py::TestSystemRayTracer::test_trace_parallel_rays",
+  "tests/test_system_tracer.py::TestSystemRayTracer::test_tracers_sync_after_mutation"
+ ],
+ "patch_lines": 24
+}

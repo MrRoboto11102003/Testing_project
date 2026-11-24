@@ -1,0 +1,42 @@
+{
+ "id": "openlens-pr414",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 344,
+ "issue_title": "2D parabolic normal and 2D parabolic intersection use different apertures",
+ "issue_body": "**File:** `src/tracer_2d.py:113-119 & 127-132` vs `:213`\n\n```python\n# normal\nr_max = self.D / 2                     # mechanical D\na = self.parabolic_sag_1 / (r_max * r_max)\n# intersection\nr_max = self.D / 2 if semi_aperture is None else semi_aperture   # CA1/2\na = sag / (r_max * r_max)\n```\n\n`_intersect_front_surface` passes `semi = self.CA1 / 2` (`:324, 330-332`), so the *intersection point*\nis computed on one parabola while the *surface normal* is computed from another. Any lens with\n`is_parabolic_1/2 = True` **and** `clear_aperture_N != diameter` is refracted with a normal from a\ndifferent conic than the one it hit. The 3D tracer does not have this bug (`tracer_3d.py:393, 439`).\n\n**Fix:** use `self.get_effective_radius_1() / _2()` (the vertex radius) in both places.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/344",
+ "pr": 414,
+ "pr_title": "fix(tracer2d): intersect the parabolic surface on the conic the normal uses",
+ "pr_body": "Closes #344\n\n## Problem\n\n`parabolic_sag_N` is documented as the sag at the **mechanical** radius `D/2`, and both `Lens.get_effective_radius_N` and `_surface_normal_angle` use that radius. The intersection built its conic from the *clear aperture* instead:\n\n```\nnormal:        a = sag / (D/2)^2\nintersection:  a = sag / (CA/2)^2\n```\n\n`_intersect_front_surface` passes `semi = CA1/2`, so any lens with `is_parabolic_N` **and** `clear_aperture_N != diameter` was refracted with a normal from a different conic than the one it hit.\n\nVerified \u2014 a ray aimed at `y = 3.0` on the defining conic:\n\n```\nbefore:  lands at y = 3.0973   <- not on the conic\nafter:   lands at y = 3.0000\n```\n\n## I did not use the fix the issue suggests\n\nIt proposes `get_effective_radius_N() / 2` in both places. That **does not reconcile them either**:\n\n```\nissue suggestion:  a = 0.005243\nthe normal uses:   a = 0.012800\n```\n\n`get_effective_radius` returns the vertex *radius of curvature*, not the radius the sag was quoted at. A test pins that arithmetic so the suggestion isn't silently retried later.\n\n## What I did instead\n\nThe intersection uses `D/2` for the conic and treats `semi_aperture` purely as a **vignetting limit** \u2014 which is exactly how `_intersect_sphere_surface` already treats its own `semi_aperture`. So the geometry is defined once and the clear aperture still does its actual job:\n\n```\nray aimed at y=6 on a lens with a 10mm clear aperture -> still MISS (beyond the 5.0 limit)\nray aimed at y=4.5                                    -> passes\n```\n\n## Tests\n\n11 tests, **3 fail without the change**: the hit lies on the normal's conic at y = 1, 2 and 3; the conic `a` matches; the clear aperture still vignettes and tracks its value; and the flat-sag fallback and spherical path are untouched.\n",
+ "fix_commit": "c1336e09fdfb8bc3c0724fa2b13a6c63d3afc450",
+ "merged_at": "2026-10-06T16:02:42Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tracer_2d.py"
+ ],
+ "test_files": [
+  "tests/test_parabolic_conic_consistency.py"
+ ],
+ "target_symbols": [
+  "openlens/tracer_2d.py::LensRayTracer._intersect_conic_surface",
+  "openlens/tracer_2d.py::LensRayTracer._intersect_parabolic_surface"
+ ],
+ "fail_to_pass": [
+  "tests/test_parabolic_conic_consistency.py::TestHitLiesOnTheNormalsConic::test_hit_is_on_the_defining_conic_with_a_smaller_clear_aperture"
+ ],
+ "pass_to_pass": [
+  "tests/test_parabolic_conic_consistency.py::TestClearApertureStillVignettes::test_no_clear_aperture_means_no_extra_vignetting",
+  "tests/test_parabolic_conic_consistency.py::TestClearApertureStillVignettes::test_ray_beyond_the_clear_aperture_is_blocked",
+  "tests/test_parabolic_conic_consistency.py::TestClearApertureStillVignettes::test_ray_inside_the_clear_aperture_passes",
+  "tests/test_parabolic_conic_consistency.py::TestClearApertureStillVignettes::test_the_limit_tracks_the_clear_aperture",
+  "tests/test_parabolic_conic_consistency.py::TestHitLiesOnTheNormalsConic::test_hit_is_on_the_defining_conic_without_a_clear_aperture",
+  "tests/test_parabolic_conic_consistency.py::TestHitLiesOnTheNormalsConic::test_issue_suggestion_would_not_have_fixed_it",
+  "tests/test_parabolic_conic_consistency.py::TestHitLiesOnTheNormalsConic::test_the_a_used_equals_the_a_the_normal_uses",
+  "tests/test_parabolic_conic_consistency.py::TestParabolicTracingUnaffected::test_flat_fallback_when_sag_is_zero",
+  "tests/test_parabolic_conic_consistency.py::TestParabolicTracingUnaffected::test_ray_through_the_parabolic_lens",
+  "tests/test_parabolic_conic_consistency.py::TestParabolicTracingUnaffected::test_spherical_lens_path_unchanged"
+ ],
+ "patch_lines": 34
+}

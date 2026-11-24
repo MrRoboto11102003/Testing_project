@@ -1,0 +1,138 @@
+diff --git a/openlens/export_formats.py b/openlens/export_formats.py
+index 3a771742e319faba63db4e0a624ba77e0784f077..b9217e5cc62cf4273e3ce76ff6ae9912d3a62e31 100644
+--- a/openlens/export_formats.py
++++ b/openlens/export_formats.py
+@@ -78,7 +78,7 @@ class ZemaxExporter:
+     @staticmethod
+     def export_lens(lens: Lens, filename: str):
+         """Export single lens to Zemax format"""
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             f.write("! OpenLens Export\n")
+             f.write(f"! {lens.name}\n")
+             f.write("VERS 140000\n")
+@@ -139,7 +139,7 @@ class OpticStudioExporter:
+         Export single lens to OpticStudio text prescription format.
+         This is a human-readable format that can be imported into OpticStudio.
+         """
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             # Header
+             f.write("# OpenLens Export - OpticStudio Format\n")
+             f.write(f"# Lens: {lens.name}\n")
+@@ -223,7 +223,7 @@ class OpticStudioExporter:
+     @staticmethod
+     def export_system(system: OpticalSystem, filename: str):
+         """Export optical system to OpticStudio format"""
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             # Header
+             f.write("# OpenLens Export - OpticStudio Format\n")
+             f.write(f"# System: {system.name}\n")
+@@ -427,7 +427,7 @@ class SVGExporter:
+         front_x = cx - thickness / 2
+         back_x = cx + thickness / 2
+ 
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             # SVG header
+             f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+             f.write(
+@@ -601,7 +601,7 @@ class SVGExporter:
+         """Export optical system as SVG diagram"""
+         margin = 40
+ 
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             # SVG header
+             f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+             f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">\n')
+@@ -678,7 +678,7 @@ class PrescriptionExporter:
+     @staticmethod
+     def export_prescription(lens: Lens, filename: str):
+         """Export lens prescription (industry standard format)"""
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             f.write("LENS PRESCRIPTION\n")
+             f.write("=" * 60 + "\n\n")
+             f.write(f"Lens Name: {lens.name}\n")
+@@ -793,7 +793,7 @@ class ZemaxSystemExporter:
+         stop_gap = stop["gap_index"] if stop is not None else None
+         stop_dia = stop.get("diameter") if stop is not None else None
+ 
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             f.write("! OpenLens System Export\n")
+             f.write(f"! {system.name}\n")
+             f.write("VERS 140000\n")
+diff --git a/openlens/io/export.py b/openlens/io/export.py
+index 2930c8eea57b85c12e447ad572f42435f752de31..4f1f0a164aa6dbf7b8fb498e1265137078872e65 100644
+--- a/openlens/io/export.py
++++ b/openlens/io/export.py
+@@ -9,7 +9,6 @@ from xml.sax.saxutils import escape
+ from ..optical_system import OpticalSystem
+ from ..lens import Lens
+ from ..geometry import LensGeometry
+-from ..atomic import atomic_write_text
+ 
+ 
+ class ISO10110Generator:
+@@ -21,7 +20,7 @@ class ISO10110Generator:
+     def generate_svg(self, filename: str, width: int = 800, height: int = 600):
+         """Generate SVG file."""
+         svg_content = self._render_svg(width, height)
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             f.write(svg_content)
+ 
+     def _render_svg(self, width: int, height: int) -> str:
+diff --git a/openlens/io/step_export.py b/openlens/io/step_export.py
+index 54f6b55d2abd6fcd4997fab82f3b85c40ee18efd..fbab1cd847b2e4dcb770434cc2b3073826bd758d 100644
+--- a/openlens/io/step_export.py
++++ b/openlens/io/step_export.py
+@@ -448,7 +448,7 @@ class StepExporter:
+         self._create_product_structure(shape_ids)
+ 
+         # Write file
+-        with atomic_write_text(filename) as f:
++        with open(filename, "w") as f:
+             f.write(self.writer.generate())
+ 
+         # Surface the omissions. A mechanical drawing that silently lost its
+diff --git a/openlens/material_database.py b/openlens/material_database.py
+index d08bcde2e77e93b79b3177c0ffb5debfc18e9814..bbf24eed52961e067246430da04a2bd016d18076 100644
+--- a/openlens/material_database.py
++++ b/openlens/material_database.py
+@@ -381,7 +381,8 @@ class MaterialDatabase:
+         # the database path uses.
+         ensure_parent_dir(self.db_path)
+         data = {name: mat.to_dict() for name, mat in self.materials.items()}
+-        atomic_write_json(self.db_path, data)
++        with open(self.db_path, "w") as f:
++            json.dump(data, f, indent=2)
+ 
+     def get_material(self, name: str) -> Optional[MaterialProperties]:
+         """Get material by name.
+@@ -868,7 +869,8 @@ class MaterialDatabase:
+         """Export material data to file"""
+         mat = self.get_material(material_name)
+         if mat:
+-            atomic_write_json(output_file, mat.to_dict())
++            with open(output_file, "w") as f:
++                json.dump(mat.to_dict(), f, indent=2)
+ 
+     @staticmethod
+     def calculate_model_index(nd: float, vd: float, wavelength_nm: float) -> float:
+diff --git a/openlens/stl_export.py b/openlens/stl_export.py
+index 05131227552b2862818902e10fb919b8eedf2591..b66f9112474a63f9f0fb653a5d389d7e7ab600a5 100644
+--- a/openlens/stl_export.py
++++ b/openlens/stl_export.py
+@@ -435,7 +435,7 @@ class STLExporter:
+ 
+     def write_binary_stl(self, filename: str):
+         """Write triangles to binary STL file"""
+-        with atomic_write_bytes(filename) as f:
++        with open(filename, "wb") as f:
+             # Header (80 bytes)
+             header = b"openlens STL export" + b" " * (80 - 19)
+             f.write(header)

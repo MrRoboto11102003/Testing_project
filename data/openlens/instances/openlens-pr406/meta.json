@@ -1,0 +1,50 @@
+{
+ "id": "openlens-pr406",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 312,
+ "issue_title": "`@lru_cache` on an instance method leaks every `MaterialDatabase`",
+ "issue_body": "**File:** `src/material_database.py:317-320`\n\n```python\n@lru_cache(maxsize=1024)\ndef get_refractive_index(self, material_name: str, wavelength_nm: float,\n                         temperature_c: float = 20.0) -> float:\n```\n\nThe cache key includes `self`, held strongly, class-wide.\n\n**Repro (verified):** after one lookup, `del m; gc.collect()` \u2192\n`MaterialDatabase instances alive after del+gc: 1`.\n`chromatic_analyzer.py:102` constructs a fresh `MaterialDatabase()` per analyzer, so this grows\nwithout bound.\n\nTwo related defects: `add_material` (`:304`) and `clear_cache` (`:372`) call `cache_clear()` on the\n**shared** wrapper, wiping every instance's cache; and direct mutation of `self.materials` (e.g.\n`_load_database` re-reading a changed `materials.json`, `:278-287`) never invalidates the cache.\n\n**Fix:** drop the decorator; cache on `(material_name, wavelength_nm, temperature_c)` in a\nmodule-level dict keyed by a generation counter, or use a per-instance dict.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/312",
+ "pr": 406,
+ "pr_title": "fix(materials): make the refractive index cache per-instance",
+ "pr_body": "Closes #312\n\n## Problem\n\n`get_refractive_index` carried `@lru_cache(maxsize=1024)`, so the cache key included `self` \u2014 one class-wide cache holding every `MaterialDatabase` ever used, **strongly, forever**:\n\n```\nafter one lookup, del m; gc.collect()\n-> MaterialDatabase instances alive: 1\n```\n\n`chromatic_analyzer.py` constructs a fresh `MaterialDatabase()` per analyzer, so the count grew without bound and no instance was ever collected.\n\n## Two related defects, also verified\n\n**`clear_cache()` wiped every instance.** `add_material` and `clear_cache` called `cache_clear()` on the *shared* wrapper:\n\n```\nshared cache currsize: 2\nafter a.clear_cache(): shared currsize = 0     <- b was wiped too\n```\n\n**Direct mutation never invalidated.** Mutating `self.materials` \u2014 e.g. a re-read `materials.json` \u2014 left stale indices in the cache indefinitely.\n\n## Fix\n\nThe cache is now a **per-instance dict** that dies with its owner. `get_refractive_index` became a thin caching wrapper over a new `_compute_refractive_index`, so the uncached body is directly testable and no longer needs a decorator to reach.\n\nBounded at `INDEX_CACHE_MAX` (1024, matching the old `maxsize`) and cleared wholesale when full \u2014 the working set is a handful of wavelengths per material, so a precise LRU policy buys nothing.\n\n`clear_cache()` empties only this instance, and `_load_database` invalidates on the way out (harmless during `__init__`, correct if it ever gains a `reload()`).\n\n## Tests\n\n14 new tests, **13 fail without the change**: the instance is now collectable, 25 construct-and-drop cycles leave nothing behind, the method no longer exposes `cache_info`/`cache_clear`, each instance owns its dict, clearing one leaves the other populated, `add_material` clears only its own, `_load_database` invalidates, the cache stays bounded, and cached values match `_compute_refractive_index` exactly.\n\n`tests/test_material_cache.py` asserted `cache_info()` on the method, which no longer exists; it now asserts on the per-instance dict, keeping the same three behaviours.\n",
+ "fix_commit": "c5c8f8d27c6a2944ab95e9cf658c0e7f1f179276",
+ "merged_at": "2026-10-06T15:43:40Z",
+ "port_method": "partial_hunks:3/7",
+ "src_files": [
+  "openlens/material_database.py"
+ ],
+ "test_files": [
+  "tests/test_material_cache.py",
+  "tests/test_material_cache_isolation.py"
+ ],
+ "target_symbols": [
+  "openlens/material_database.py::MaterialDatabase._load_database",
+  "openlens/material_database.py::MaterialDatabase.get_refractive_index",
+  "openlens/material_database.py::MaterialDatabase.save_database"
+ ],
+ "fail_to_pass": [
+  "tests/test_material_cache.py::TestMaterialCache::test_cache_invalidation_on_update",
+  "tests/test_material_cache_isolation.py::TestInvalidation::test_add_material_invalidates",
+  "tests/test_material_cache_isolation.py::TestInvalidation::test_clear_cache_forces_recomputation",
+  "tests/test_material_cache_isolation.py::TestInvalidation::test_loading_the_database_invalidates",
+  "tests/test_material_cache_isolation.py::TestNoInstanceLeak::test_instance_is_collectable_after_a_lookup",
+  "tests/test_material_cache_isolation.py::TestNoInstanceLeak::test_repeated_construction_leaves_nothing_behind",
+  "tests/test_material_cache_isolation.py::TestNoInstanceLeak::test_the_method_no_longer_exposes_an_lru_cache"
+ ],
+ "pass_to_pass": [
+  "tests/test_material_cache.py::TestMaterialCache::test_cache_clear_method",
+  "tests/test_material_cache.py::TestMaterialCache::test_cache_hits",
+  "tests/test_material_cache_isolation.py::TestCacheBehaviour::test_cache_is_bounded",
+  "tests/test_material_cache_isolation.py::TestCacheBehaviour::test_distinct_keys_get_distinct_entries",
+  "tests/test_material_cache_isolation.py::TestCacheBehaviour::test_repeat_lookups_are_identical",
+  "tests/test_material_cache_isolation.py::TestCacheBehaviour::test_unknown_material_falls_back",
+  "tests/test_material_cache_isolation.py::TestCacheBehaviour::test_values_match_the_uncached_computation",
+  "tests/test_material_cache_isolation.py::TestCachesAreIndependent::test_add_material_only_clears_its_own_instance",
+  "tests/test_material_cache_isolation.py::TestCachesAreIndependent::test_clearing_one_leaves_the_other_populated",
+  "tests/test_material_cache_isolation.py::TestCachesAreIndependent::test_each_instance_has_its_own_dict"
+ ],
+ "patch_lines": 7
+}

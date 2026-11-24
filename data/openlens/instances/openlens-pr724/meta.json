@@ -1,0 +1,32 @@
+{
+ "id": "openlens-pr724",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 661,
+ "issue_title": "bug(io): the STEP reader reports a lens solid extent as the distance between its curvature centres",
+ "issue_body": "## Summary\n\n`read_step_solids()` attributes **every** `CARTESIAN_POINT` in a solid's\nblock to that solid and derives the solid's axial extent from the whole set.\nThe STEP writer emits the two `SPHERICAL_SURFACE` centre points in the same\nblock, so for a lens solid the reported extent is the distance between the\ncurvature centres, not the extent of the lens: a lens that spans z = 0\u20265 mm\nis reported as z = -45\u202650 mm.\n\n## Impact\n\n- The module's documented job is to \"verify assembly structure (solid count,\n  names, axial extents)\", but the extent it reports for lens solids is\n  meaningless (it is the radius of curvature, offset by the vertex\n  position).\n- Any check that compares a lens's axial extent with its thickness, or that\n  uses the extent to place a part, gets a wrong answer.\n- Housing-tube solids (no sphere centres) are correct, which is why the\n  existing assembly test only asserts on those.\n\n## Reproduction\n\n```python\nimport os, tempfile\nfrom openlens.io.step_export import StepExporter\nfrom openlens.io.step_reader import read_step_solids\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\n\ntmp = tempfile.mkdtemp(); path = os.path.join(tmp, \"one.step\")\nlens = Lens(name=\"Front\", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0,\n            thickness=5.0, diameter=25.0)\nsystem = OpticalSystem(); system.add_lens(lens)\nStepExporter(system).export(path)\n\nfor s in read_step_solids(path):\n    print(f\"solid {s['id']} name={s['name']!r}\")\n    print(f\"  reported z_min = {s['z_min']}  z_max = {s['z_max']}\")\nprint(\"the lens spans z = 0.000 .. 5.000 mm (rim sag %.4f)\" % lens.get_sag_1(12.5))\n```\n\nOutput:\n\n```\nsolid 47 name='Front'\n  points attributed to the solid:\n    (0.0, 0.0, 0.0)\n    (0.0, 0.0, 5.0)\n    (12.5, 0.0, 1.587708)\n    (12.5, 0.0, 3.412292)\n    (0.0, 0.0, 1.587708)\n    (0.0, 0.0, 3.412292)\n    (0.0, 0.0, 50.0)      <- SPHERICAL_SURFACE centre\n    (0.0, 0.0, -45.0)     <- SPHERICAL_SURFACE centre\n  reported z_min = -45.0\n  reported z_max = 50.0\nthe lens spans z = 0.000 .. 5.000 mm (rim sag 1.5877)\n```\n\n## Root cause\n\n- `openlens/io/step_reader.py:105-118` collects every `CARTESIAN_POINT` in a\n  solid's block and computes\n  `\"z_min\": min(zs), \"z_max\": max(zs)` over that set.\n- `openlens/io/step_export.py:467-471` and `:484` write the two\n  `SPHERICAL_SURFACE` centres into the same block, at `z_offset + R1` and\n  `z_offset + thickness - |R2|`.\n\n## Expected behaviour\n\nThe reported extent of a solid describes the solid. For a lens it must be the\naxial distance the lens actually occupies, not the distance between its\ncurvature centres.\n\n## Suggested fix\n\nRestrict the extent to the points that bound the solid (the vertex and rim\npoints, or the points referenced by the solid's faces), or make the reader\naware of `SPHERICAL_SURFACE`/`PLANE` centre points and exclude them. Add a\nround-trip assertion on a lens solid's extent next to the existing\nhousing-tube assertions in `tests/test_step_assembly.py`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/661",
+ "pr": 724,
+ "pr_title": "fix(io): report a lens solid's axial extent, not its curvature centres",
+ "pr_body": "## Description\n\n`read_step_solids()` attributed every `CARTESIAN_POINT` in a solid's block to\nthat solid and derived `z_min`/`z_max` from the whole set. The STEP writer\nemits the two `SPHERICAL_SURFACE` centre points in the same block, so a lens\nspanning 0..5 mm was reported as z = -45..50 mm.\n\n## What changed\n\n- **`openlens/io/step_reader.py`**\n  - Resolve each `SPHERICAL_SURFACE` to its `AXIS2_PLACEMENT_3D` and its\n    origin `CARTESIAN_POINT`, and exclude those centre points from both the\n    point cloud and the extent.\n  - Housing solids (no sphere centres) are unchanged.\n- **`tests/test_step_reader_extent.py`** (new)\n  - A lens solid reports z_min = 0.0, z_max = 5.0.\n  - The sphere centre points are excluded from the point cloud.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #661\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2805 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "d2e48920431347ddfc61cf5db295f30aa5524989",
+ "merged_at": "2026-10-23T06:24:50Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/io/step_reader.py"
+ ],
+ "test_files": [
+  "tests/test_step_reader_extent.py"
+ ],
+ "target_symbols": [
+  "openlens/io/step_reader.py::_unescape",
+  "openlens/io/step_reader.py::read_step_solids"
+ ],
+ "fail_to_pass": [
+  "tests/test_step_reader_extent.py::TestStepReaderLensExtent::test_a_lens_solid_reports_its_axial_extent",
+  "tests/test_step_reader_extent.py::TestStepReaderLensExtent::test_sphere_centre_points_are_excluded_from_the_point_cloud"
+ ],
+ "pass_to_pass": [],
+ "patch_lines": 28
+}

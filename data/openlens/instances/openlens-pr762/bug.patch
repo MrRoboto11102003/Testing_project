@@ -1,0 +1,44 @@
+diff --git a/openlens/stl_export.py b/openlens/stl_export.py
+index 05131227552b2862818902e10fb919b8eedf2591..f14a8cc4d4a3f3dfa348e072dded795a76ca64be 100644
+--- a/openlens/stl_export.py
++++ b/openlens/stl_export.py
+@@ -12,7 +12,6 @@ from .vector3 import Vector3
+ from .atomic import atomic_write_bytes
+ from .constants import EPSILON
+ from .geometry import LensGeometry
+-from .transform import Matrix4x4
+ 
+ 
+ class STLExporter:
+@@ -330,23 +329,6 @@ class STLExporter:
+             for z, radial in LensGeometry.surface_profile(lens, surface, num_points=resolution)
+         ]
+ 
+-    @staticmethod
+-    def _transform_triangles(triangles: List[Any], transform: Matrix4x4) -> List[Any]:
+-        """Map STL-local triangles through a system node transform.
+-
+-        STL uses Z as the optical axis while the optical system uses X. The
+-        cyclic ``(x, y, z)_sys -> (y, z, x)_stl`` mapping preserves winding,
+-        so an aligned element keeps its outward normals.
+-        """
+-        transformed = []
+-        for triangle in triangles:
+-            points = []
+-            for x, y, z in triangle:
+-                point = transform.multiply_point(Vector3(z, x, y))
+-                points.append((point.y, point.z, point.x))
+-            transformed.append(tuple(points))
+-        return transformed
+-
+     def export_lens_to_stl(
+         self,
+         r1: float,
+@@ -530,7 +512,6 @@ def export_lens_stl(item: Any, filename: str, resolution: int = 50) -> int:
+                     num_segments=resolution * 2,
+                 )
+             )
+-            exporter.triangles.extend(exporter._transform_triangles(local, transform))
+ 
+         exporter.write_binary_stl(filename)
+         return len(exporter.triangles)

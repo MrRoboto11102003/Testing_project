@@ -1,0 +1,20 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.chromatic_analyzer.ChromaticResult.to_dict.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.chromatic_analyzer.ChromaticResult.to_dict
+    def to_dict(self) -> dict:
+        """Convert to dictionary"""
+        return {
+            "wavelengths": self.wavelengths,
+            "focal_lengths": self.focal_lengths,
+            "focal_shift": self.focal_shift,
+            "lateral_color": self.lateral_color,
+            "spot_sizes": self.spot_sizes,
+            "transverse_aberration": self.transverse_aberration,
+            "axial_chromatic_aberration": self.axial_chromatic_aberration,
+        }

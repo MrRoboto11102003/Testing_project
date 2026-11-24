@@ -1,0 +1,80 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.chromatic_analyzer.ChromaticAnalyzer.design_achromatic_doublet.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.chromatic_analyzer.ChromaticAnalyzer.design_achromatic_doublet
+    def design_achromatic_doublet(
+        self,
+        focal_length: float,
+        crown_material: str = "BK7",
+        flint_material: str = "F2",
+    ) -> Dict:
+        """
+        Design an achromatic doublet to correct chromatic aberration
+
+        Args:
+            focal_length: Desired focal length in mm
+            crown_material: Low dispersion glass (crown)
+            flint_material: High dispersion glass (flint)
+
+        Returns:
+            Dictionary with lens parameters for both elements
+
+        Raises:
+            ValueError: If crown and flint have the same Abbe number, which
+                makes the achromat unsolvable.
+        """
+        # Get Abbe numbers
+        V1 = self.calculate_abbe_number(crown_material)
+        V2 = self.calculate_abbe_number(flint_material)
+
+        # Get refractive indices at d-line
+        n1 = self.material_db.get_refractive_index(crown_material, self.WAVELENGTHS["d"])
+        n2 = self.material_db.get_refractive_index(flint_material, self.WAVELENGTHS["d"])
+
+        # Calculate power distribution (thin lens approximation)
+        # For achromatic doublet: φ1/V1 + φ2/V2 = 0
+        # φ1 + φ2 = 1/f
+
+        phi_total = 1.0 / focal_length
+        # Achromatism splits power by Abbe number, so the split divides by
+        # (V1 - V2). Two glasses with the same Abbe number cannot be
+        # achromatised at any focal length - the condition has no solution -
+        # and the division raised ZeroDivisionError. The sibling designer in
+        # optical_system.AchromaticDoubletDesigner guards this.
+        if abs(V1 - V2) < 1e-12:
+            raise ValueError(
+                f"Cannot design an achromat from {crown_material!r} and "
+                f"{flint_material!r}: both have Abbe number V={V1:.4f}. Two "
+                "different glasses are required to cancel chromatic "
+                "aberration."
+            )
+        phi1 = phi_total * V1 / (V1 - V2)
+        phi2 = phi_total * V2 / (V2 - V1)
+
+        # Focal lengths of individual elements
+        f1 = 1.0 / phi1 if phi1 != 0 else float("inf")
+        f2 = 1.0 / phi2 if phi2 != 0 else float("inf")
+
+        return {
+            "crown_element": {
+                "focal_length": f1,
+                "power": phi1,
+                "material": crown_material,
+                "n": n1,
+                "abbe_number": V1,
+            },
+            "flint_element": {
+                "focal_length": f2,
+                "power": phi2,
+                "material": flint_material,
+                "n": n2,
+                "abbe_number": V2,
+            },
+            "total_focal_length": focal_length,
+            "total_power": phi_total,
+        }

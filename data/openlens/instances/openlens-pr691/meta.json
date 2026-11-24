@@ -1,0 +1,38 @@
+{
+ "id": "openlens-pr691",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 637,
+ "issue_title": "bug(optimizer): optimization reports success for physically impossible designs",
+ "issue_body": "## Summary\n\n`OptimizationResult.success` only checks that the variable values are inside\ntheir bounds. It ignores the physical-constraint penalty computed by the same\nmerit function, so a design with a hard `1e8` geometry violation is returned\nas `success=True` with the message \"Converged\". The GUI then displays\n\"Optimization Successful!\" and enables applying the impossible design.\n\n## Impact\n\n- Users are told an unmanufacturable lens (here a negative edge thickness of\n  -35 mm) converged successfully.\n- Automation that trusts `success` will persist, export, or manufacture an\n  invalid design.\n- The reported `final_merit` (2.13e8) is visibly dominated by penalties, but\n  neither the result nor the GUI treats that as failure.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.optimizer import (\n    INFEASIBLE_MERIT, LensOptimizer, OptimizationTarget, OptimizationVariable,\n)\n\nsystem = OpticalSystem(\"impossible\")\nsystem.add_lens(Lens(radius_of_curvature_1=20.0, radius_of_curvature_2=-20.0,\n                     thickness=5.0, diameter=40.0, refractive_index=1.5168))\nprint(\"edge thickness:\", system.elements[0].lens.calculate_edge_thickness())\n\n# Index cannot repair the rim, so every point in the box is invalid.\nvariables = [OptimizationVariable(\"n\", 0, \"refractive_index\", 1.5168, 1.40, 1.60, 0.01)]\nopt = LensOptimizer(system, variables,\n                    [OptimizationTarget(\"focal_length\", 100.0, 1.0, \"target\")])\nprint(\"hard penalty:\", opt.merit_function._penalty_physical(system))\nresult = opt.optimize_simplex(max_iterations=60)\nprint(\"success=%s message=%r final_merit=%r\" % (\n    result.success, result.message, result.final_merit))\nprint(\"edge thickness of result:\",\n      result.optimized_system.elements[0].lens.calculate_edge_thickness())\nprint(\"hard penalty of result:\",\n      opt.merit_function._penalty_physical(result.optimized_system))\n```\n\nOutput:\n\n```\nedge thickness: -35.0\nhard penalty: 212602500.0\nsuccess=True message='Converged after 1 iterations' final_merit=212608866.3369721\nedge thickness of result: -35.0\nhard penalty of result: 212602500.0\n```\n\n`INFEASIBLE_MERIT` is `1e9`; this result is below it, so a simple\n`final_merit >= INFEASIBLE_MERIT` test would not catch it.\n\n## Root cause\n\n- `openlens/optimizer.py:501` sets `best_valid` from variable bounds only.\n- `openlens/optimizer.py:510` maps `success=best_valid` and `:518` picks the\n  \"converged\" message from the same flag.\n- `_penalty_physical()` (`openlens/optimizer.py:298-376`) has already\n  computed the hard violations, but they are folded into the scalar merit and\n  not exposed as feasibility.\n\n## Expected behaviour\n\nA result whose design has a hard physical violation reports `success=False`\nwith a message such as \"Converged, but the design violates physical\nconstraints (negative edge thickness)\", and the GUI does not claim success.\nSoft constraint penalties should still be reported separately.\n\n## Suggested fix\n\nMake feasibility explicit: split `_penalty_physical()` into soft and hard\ncomponents (or add `_has_hard_violation(system)`), then set\n`success = best_valid and not has_hard_violation(optimized_system)` and choose\nthe message accordingly. Add a regression test using a geometry that cannot be\nrepaired by the variables and assert `success is False`, plus a normal design\nthat still reports success.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/637",
+ "pr": 691,
+ "pr_title": "fix(optimizer): a design that cannot be made is not a success",
+ "pr_body": "## Description\n\n`OptimizationResult.success` only checked that the variable values were inside\ntheir bounds. A design carrying a hard geometry penalty - a negative edge\nthickness, vertices that cross, an element inside its neighbour - was returned\nas `success=True` with the message \"Converged\", and the GUI showed\n\"Optimization Successful!\" and offered to apply it:\n\n```\nsuccess    : True\nmessage    : Converged after 1 iterations\nfinal_merit: 212608866.3369721\nedge thickness of the returned design: -35.0 mm\n```\n\n## What changed\n\n- `openlens/optimizer.py::MeritFunction.has_hard_violation` reuses the\n  penalty the merit function already computes: a design that collects the\n  hard penalty (now the named constant `MeritFunction.HARD_PENALTY`) cannot be\n  made.\n- `openlens/optimizer.py::LensOptimizer._finalize` reports `success=False`\n  and says \"Converged, but the design breaks a physical constraint (it cannot\n  be made as it is)\" for such a design. The out-of-bounds message is\n  unchanged.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #637\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n\nNew test module `tests/test_optimizer_feasibility.py` (the impossible-design\ntest fails on the unfixed code):\n\n- `test_an_impossible_design_is_not_a_success`\n- `test_a_feasible_design_is_still_a_success`\n- `test_a_design_outside_the_variable_box_is_still_reported_as_such`\n\n`tests/test_optimizer_api.py` used a 50 mm lens with a 50 mm radius, whose rim\ncrosses itself; it now uses a lens that can be made, which is what the test\nwas about.\n\nFull local suite: `Ran 2629 tests ... OK (skipped=35)`, `black` clean,\n`ruff` clean, `flake8` clean, `mypy` clean.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "9ce2d64f6e98510b84dbe31f44eb770c5d6cf4d0",
+ "merged_at": "2026-10-22T07:47:13Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_optimizer_api.py",
+  "tests/test_optimizer_feasibility.py"
+ ],
+ "target_symbols": [
+  "openlens/optimizer.py::LensOptimizer.optimize_simplex",
+  "openlens/optimizer.py::MeritFunction._penalty_physical",
+  "openlens/optimizer.py::MeritFunction.evaluate"
+ ],
+ "fail_to_pass": [
+  "tests/test_optimizer_feasibility.py::TestSuccessRequiresAFeasibleDesign::test_an_impossible_design_is_not_a_success"
+ ],
+ "pass_to_pass": [
+  "tests/test_optimizer_api.py::TestLensOptimizerAPI::test_optimize_method_exists_and_runs",
+  "tests/test_optimizer_api.py::TestLensOptimizerAPI::test_spherical_aberration_calculation_in_merit",
+  "tests/test_optimizer_feasibility.py::TestSuccessRequiresAFeasibleDesign::test_a_design_outside_the_variable_box_is_still_reported_as_such",
+  "tests/test_optimizer_feasibility.py::TestSuccessRequiresAFeasibleDesign::test_a_feasible_design_is_still_a_success"
+ ],
+ "patch_lines": 54
+}

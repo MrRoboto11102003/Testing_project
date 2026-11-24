@@ -1,0 +1,38 @@
+{
+ "id": "openlens-pr708",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 623,
+ "issue_title": "bug(io): STEP export writes parabolic and conic surfaces as spheres",
+ "issue_body": "## Summary\n\n`StepExporter` computes rim/sag points from the lens model's true surface (parabolic or conic) but always emits both surfaces as `SPHERICAL_SURFACE` with the vertex radius. For a parabola or general conic, the exported sphere does not pass through the rim points, so the B-rep is not closed and the solid is geometrically wrong.\n\n## Impact\n\n- Any parabolic or conic lens exports with the wrong surface shape \u2014 a parabola with `R=100`, sag `1.25 mm` at `h=10` becomes a sphere whose sag at `h=10` is `0.50 mm`.\n- The rim vertex and surface disagree, so a conforming CAD kernel may reject the solid or stitch it incorrectly.\n- Silent: the STEP file looks valid and the repo's minimal reader ignores the geometry, so tests stay green.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.io.step_export import StepExporter\n\nlens = Lens(is_parabolic_1=True, parabolic_sag_1=1.25, diameter=20.0)\ns = OpticalSystem(); s.add_lens(lens)\nStepExporter(s).export(\"/tmp/parabola.step\")\nprint(open(\"/tmp/parabola.step\").read())\n```\n\nObserved:\n\n```\nPARABOLIC front surface (R vertex 100, sag 1.25 at h=10)\n  export: SPHERICAL_SURFACE radius = 100.0\n  export: rim point = (10.000000, 0, 1.250000)\n  sphere sag at h=10.0 = 0.501256\n  model get_sag_1(h)  = 1.250000\n  rim on the exported sphere? False\n\nCONIC front surface (R=50, K=-2)\n  export: SPHERICAL_SURFACE radius = 50.0\n  export: rim point = (10.000000, 0, 0.990195)\n  sphere sag at h=10.0 = 1.010205\n  model get_sag_1(h)  = 0.990195\n  rim on the exported sphere? False\n```\n\n## Root cause\n\n- `openlens/io/step_export.py:361-373` \u2014 rim points use `lens.get_sag_1/2`, which honours parabolic/conic terms.\n- `openlens/io/step_export.py:471`, `:488` \u2014 the surface entity is always `SPHERICAL_SURFACE` with `abs(r)`; `is_parabolic_*` and `conic_constant_*` are never read.\n\n## Expected behaviour\n\nThe exported surface matches the modelled sag at every radius, so the rim lies on the surface and the solid closes.\n\n## Suggested fix\n\nEmit a `TOROIDAL_SURFACE`, `CONICAL_SURFACE`, or a rational B-spline surface for parabolic/conic cases, or tessellate the true sag into a faceted B-rep. At minimum, reject/warn instead of silently exporting a mismatched sphere. Add a test that samples the exported surface at the rim and compares it to `get_sag_*`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/623",
+ "pr": 708,
+ "pr_title": "fix(io): refuse STEP export of conic surfaces instead of writing spheres",
+ "pr_body": "## Description\n\n`StepExporter` sampled the rim point from the lens model's true surface - a\nparabola or a general conic - but always emitted both caps as\n`SPHERICAL_SURFACE` of the stored vertex radius. For a parabola whose model\nsags 1.25 mm at the rim, the exported sphere sags 0.50 mm there:\n\n```\n#14=CARTESIAN_POINT('e1',(10.000000,0.000000,1.250000));   <- model rim\n#35=SPHERICAL_SURFACE('sphere1',#34,100.000000);           <- sags 0.501256\n```\n\nThe rim does not lie on the surface, so the B-rep does not close and a CAD\nkernel may reject or mis-stitch it. The file still looked valid, so nothing\nsurfaced the error.\n\nA sphere through both the vertex and the rim cannot carry the parabolic\nprofile either, and the writer has no analytic non-spherical surface entity.\nSTEP is CAD/manufacturing input, so the exporter now refuses the lens with a\ndiagnostic instead of emitting a plausible-looking wrong solid:\n\n```\nValueError: STEP export writes spherical and flat surfaces only; lens 'Parabola'\nhas a parabolic front surface. At the rim (h=10 mm) the model sags 1.250000 mm\nbut a sphere of radius 100 mm sags 0.501256 mm, so the exported rim would not\nlie on the exported surface.\n```\n\nThe file is only written after every part has been built, so a refused export\nleaves no partial file. Spherical and flat surfaces export exactly as before.\n\nA zero-sag parabolic surface (`is_parabolic_*` with `parabolic_sag_* = 0`) is\nnow exported as a plane. Flatness used to be decided from the radius alone, so\nthat surface silently became a sphere whose rim did not match either.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #623\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_step_conic_surfaces.py` (8 tests). Five fail on the\nunfixed code (`ValueError not raised`, or a `SPHERICAL_SURFACE` where a plane\nis expected):\n\n- `test_a_parabolic_front_surface_is_refused` - also pins the diagnostic\n  numbers (1.250000 vs 0.501256) and that no file is written\n- `test_a_conic_front_surface_is_refused`\n- `test_a_parabolic_back_surface_is_refused`\n- `test_one_conic_element_refuses_the_whole_assembly` - names the offending\n  element, not the first\n- `test_a_zero_sag_parabolic_surface_exports_as_a_plane`\n\nThree guard the supported cases:\n\n- `test_a_spherical_lens_exports_a_solid`\n- `test_the_rim_of_the_exported_sphere_lies_on_it` - checks the exported rim\n  point against the exported sphere radius\n- `test_a_conic_constant_on_a_flat_surface_is_still_flat`\n\nFull local suite: `Ran 2747 tests ... OK (skipped=35)`; the STEP, atomic-write,\nexport-service and GUI-export suites (146 tests) pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "199c5d709f61d68e829b5258384d691c48044951",
+ "merged_at": "2026-10-22T12:10:54Z",
+ "port_method": "partial_hunks:2/5",
+ "src_files": [
+  "openlens/io/step_export.py"
+ ],
+ "test_files": [
+  "tests/test_step_conic_surfaces.py"
+ ],
+ "target_symbols": [
+  "openlens/io/step_export.py::StepExporter.export"
+ ],
+ "fail_to_pass": [
+  "tests/test_step_conic_surfaces.py::TestNonSphericalSurfacesAreRefused::test_a_conic_front_surface_is_refused",
+  "tests/test_step_conic_surfaces.py::TestNonSphericalSurfacesAreRefused::test_a_parabolic_back_surface_is_refused",
+  "tests/test_step_conic_surfaces.py::TestNonSphericalSurfacesAreRefused::test_a_parabolic_front_surface_is_refused",
+  "tests/test_step_conic_surfaces.py::TestNonSphericalSurfacesAreRefused::test_one_conic_element_refuses_the_whole_assembly"
+ ],
+ "pass_to_pass": [
+  "tests/test_step_conic_surfaces.py::TestRepresentableSurfacesStillExport::test_a_conic_constant_on_a_flat_surface_is_still_flat",
+  "tests/test_step_conic_surfaces.py::TestRepresentableSurfacesStillExport::test_a_spherical_lens_exports_a_solid",
+  "tests/test_step_conic_surfaces.py::TestRepresentableSurfacesStillExport::test_a_zero_sag_parabolic_surface_exports_as_a_plane",
+  "tests/test_step_conic_surfaces.py::TestRepresentableSurfacesStillExport::test_the_rim_of_the_exported_sphere_lies_on_it"
+ ],
+ "patch_lines": 7
+}

@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr373",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 352,
+ "issue_title": "Diffraction PSF/MTF frequency scale is off by `N/(N-1)`",
+ "issue_body": "**File:** `src/analysis/psf_mtf.py:269-273` and `:458-462`\n\n```python\ngrid_size = wf.W.shape[0]              # N\ndx_pupil = L_grid / grid_size\n```\n\n`WavefrontSensor` builds the grid with `np.linspace(-max_r, max_r, grid_size)`\n(`diffraction_psf.py:72-73`), whose spacing is `ep_diam/(grid_size-1)`.\n\n**Repro (verified):** the code reports `df = 14.4317 lp/mm`; the correct value is\n`25/63/(550e-6*49.213) = 14.6610 lp/mm` \u2014 a 1.6 % error at `grid_size=64`. The same 1.6 % inflates\n`raw_extent` in `_calculate_diffraction_psf`, shifting the resample window.\n\n**Fix:** `dx_pupil = 2*max_r/(grid_size - 1)` in both places, or have `get_pupil_wavefront` return\nthe spacing.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/352",
+ "pr": 373,
+ "pr_title": "fix(psf): use the pupil sample spacing, not the sample count",
+ "pr_body": "Closes #352\n\n## Problem\n\nThe pupil grid is built as `np.linspace(-max_r, max_r, N)` \u2014 **N samples spanning `2*max_r` across `N-1` intervals**. Both frequency sites divided the pupil width by `N` instead of `N-1`:\n\n```python\n# psf_mtf.py:269\ngrid_size = wf.W.shape[0]  # N\ndx_pupil = L_grid / grid_size          # should be / (grid_size - 1)\n\n# psf_mtf.py:458\ndx_pupil = ep_diam / N_pupil           # should be / (N_pupil - 1)\n```\n\nEvery reported spatial frequency was low by a factor of `N/(N-1)` \u2014 1.6% at `grid_size=64`. Site 1 sets the MTF frequency axis; site 2 feeds `dx_psf` and therefore `raw_extent`, so the same error inflated the PSF extent and shifted the resample window.\n\n```\ncorrect  dx=0.396825 -> df=14.6608 lp/mm\ncurrent  dx=0.390625 -> df=14.4317 lp/mm\nratio N/(N-1) = 1.015873\n```\n\n## Fix\n\nBoth use `width / (N - 1)`, and both guard `N > 1` so a single-sample grid cannot divide by zero. The long comment block above site 1 (which reasoned its way to the wrong formula) now records where the spacing actually comes from.\n\n## Verified\n\n```\nefl = 90.907434\nreported df            = 7.936653\nexpected 25/(N-1)/(l*f) = 7.936653\nold      25/N/(l*f)     = 7.812642\nratio reported/expected = 1.000000000\n```\n\n## Tests\n\n4 tests in `tests/test_psf_mtf.py`; 3 fail without the change. One test pins the formula to the grid size the sensor actually builds, since `calculate_mtf` hardcodes `pupil_grid_size=64` and the sampling is not caller-tunable.",
+ "fix_commit": "373347bf7e853252bb5b937d20a9a53474a9dcda",
+ "merged_at": "2026-10-04T20:42:41Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/analysis/psf_mtf.py"
+ ],
+ "test_files": [
+  "tests/test_psf_mtf.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._calculate_diffraction_psf",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.calculate_mtf"
+ ],
+ "fail_to_pass": [
+  "tests/test_psf_mtf.py::TestDiffractionFrequencyScale::test_frequency_step_is_not_the_n_not_n_minus_1_value",
+  "tests/test_psf_mtf.py::TestDiffractionFrequencyScale::test_frequency_step_matches_sample_spacing",
+  "tests/test_psf_mtf.py::TestDiffractionFrequencyScale::test_step_matches_the_sensors_actual_grid"
+ ],
+ "pass_to_pass": [
+  "tests/test_psf_mtf.py::TestDiffractionFrequencyScale::test_frequency_axis_is_uniform_and_starts_at_zero",
+  "tests/test_psf_mtf.py::TestImageQualityAnalyzer::test_mtf_structure",
+  "tests/test_psf_mtf.py::TestImageQualityAnalyzer::test_off_axis",
+  "tests/test_psf_mtf.py::TestImageQualityAnalyzer::test_psf_structure",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_output_dtype_is_float64_whatever_the_input",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_output_is_normalized",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_two_d_input_does_not_raise",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_uint8_and_float_paths_agree",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_uint8_input_is_not_truncated_to_binary",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_wrong_channel_count_is_rejected",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_wrong_dimensionality_is_rejected"
+ ],
+ "patch_lines": 10
+}

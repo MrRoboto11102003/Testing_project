@@ -1,0 +1,188 @@
+{
+ "id": "openlens-pr373",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 62372,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 7072
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 0.12,
+ "detected": false,
+ "n_tests": 17,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 6893,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 7940,
+  "output_tokens_details": {
+   "thinking_tokens": 5810
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 6893,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7940,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 6893,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 6893
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0547866,
+ "model_seconds": 36.9,
+ "seconds": 61.4,
+ "tests": {
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_arrays_equal_length": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_dc_component_unity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_diffraction_mode": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_empty_system": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_field_angle_alias_overrides": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_field_angle_legacy_alias": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_frequency_monotonic_increasing": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_frequency_starts_at_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_max_freq_negative": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_max_freq_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_multiple_unexpected_kwargs_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_respects_max_freq_limit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_returns_dict_with_required_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_returns_numpy_arrays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_unexpected_kwargs_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_values_in_valid_range": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr373.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_with_focus_shift": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

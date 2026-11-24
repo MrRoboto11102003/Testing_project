@@ -1,0 +1,73 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.validation.validate_lens_name, openlens.validation.validate_parabolic_sag.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.validation.validate_lens_name
+def validate_lens_name(name: str) -> str:
+    """
+    Validate lens name.
+
+    Args:
+        name: Lens name to validate
+
+    Returns:
+        str: Validated name (or "Untitled" if empty)
+
+    Raises:
+        ValidationError: If name is invalid type
+    """
+    if not isinstance(name, str):
+        raise ValidationError(f"Name must be a string, got {type(name)}")
+
+    name = name.strip()
+
+    if not name:
+        return "Untitled"
+
+    if len(name) > 100:
+        raise ValidationError("Name must be 100 characters or less")
+
+    return name
+
+# openlens.validation.validate_parabolic_sag
+def validate_parabolic_sag(
+    sag: float,
+    diameter: Optional[float] = None,
+    thickness: float = 0.0,
+    param_name: str = "parabolic sag",
+) -> float:
+    """
+    Validate parabolic sag (vertex to rim distance at D/2).
+
+    Args:
+        sag: Sag value to validate (mm)
+        diameter: Clear aperture diameter (mm). When given, the bound is
+            diameter-scaled via parabolic_sag_limit(); otherwise a legacy
+            absolute cap of 100 mm applies.
+        thickness: Center thickness (mm), only used with diameter.
+        param_name: Parameter name for error messages
+
+    Returns:
+        float: Validated sag
+
+    Raises:
+        ValidationError: If sag is invalid
+    """
+    sag = _validate_number(sag, param_name)
+    if diameter is None:
+        # Legacy absolute cap (no aperture context to scale by).
+        if abs(sag) > 100:
+            raise ValidationError(f"{param_name} magnitude must be at most 100 mm")
+        return sag
+    limit = parabolic_sag_limit(diameter, thickness)
+    if abs(sag) > limit:
+        detail = f"{param_name} magnitude {abs(sag):.3f}mm exceeds the {limit:.3f}mm limit"
+        if abs(sag) > 0:
+            r = diameter / 2
+            detail += f" (implies vertex radius {abs(r * r / (2 * sag)):.3f}mm)"
+        raise ValidationError(detail + f" for D={diameter}mm")
+    return sag

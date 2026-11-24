@@ -1,0 +1,199 @@
+{
+ "id": "openlens-pr268",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 111,
+  "units_kept": 111,
+  "chars": 87828
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2277,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 12617,
+  "output_tokens_details": {
+   "thinking_tokens": 10405
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2277,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 12617,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 2277,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2277
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0701182,
+ "model_seconds": 57.7,
+ "seconds": 61.9,
+ "tests": {
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseClearCache::test_clear_cache_independent_instances": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseClearCache::test_clear_cache_no_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_beer_lambert_scaling": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_default_fallback_missing_material": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_default_thickness_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_monotonic_decrease_with_thickness": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_transmission_valid_range": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialDatabaseGetTransmission::test_zero_thickness_returns_one": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_basic_instantiation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_default_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_from_dict_and_round_trip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_sellmeier_coefficients": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_thermal_coefficients": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_to_dict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr268.py::TestMaterialProperties::test_transmission_data": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  }
+ }
+}

@@ -1,0 +1,66 @@
+{
+ "id": "openlens-pr534",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 476,
+ "issue_title": "Optional dependency rule violated: numpy imported unguarded; psf_mtf guard crashes at import",
+ "issue_body": "**Where:** `src/analysis/plots.py:12`, `src/mechanical_designer.py:6`, `src/image_simulator.py:15`, `src/analysis/psf_mtf.py:19`, `:28`; `openlens.py:40-45`, `:920-922`\n\nAGENTS.md says optional imports must be guarded with a `*_AVAILABLE` flag so the app starts without them. `openlens.py` imports `psf_mtf` and `plots` at module level, so the GUI cannot start without numpy. In `psf_mtf` the guard sets `np = None`, and the `np.ndarray` annotation at `:28` then fails at import. `mechanical_designer` uses numpy only for `np.pi`, and its `ImportError` is misreported as \"requires pythonocc-core\".\n\n**Repro** (with `sys.modules['numpy']=None`): `plots`, `mechanical_designer`, `image_simulator` raise `ModuleNotFoundError`; `psf_mtf` raises `AttributeError: 'NoneType' object has no attribute 'ndarray'`.\n\n**Fix:** use `math.pi` in `mechanical_designer`, guard numpy in `plots` and `image_simulator`, use `from __future__ import annotations` in `psf_mtf`. Alternatively make numpy a hard dependency and update AGENTS.md. Add a CI job that runs the core tests without optional deps.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/476",
+ "pr": 534,
+ "pr_title": "fix(deps): the application must start without its optional dependencies",
+ "pr_body": "## Description\n\nfix(deps): the application must start without its optional dependencies\n\nAGENTS.md requires optional imports to be guarded with a `*_AVAILABLE` flag so the app\nstarts and runs its core features without them. Four modules were not, and because\n`openlens.py` imports two of them at module level, **the whole GUI failed to launch**:\n\n```\nplots, mechanical_designer, image_simulator  -> ModuleNotFoundError\npsf_mtf                                      -> AttributeError:\n                                               'NoneType' has no attribute 'ndarray'\n```\n\n### The interesting one: a guard that was there and still failed\n\n`psf_mtf` *did* guard the import \u2014 it set `np = None`. But its annotations are written\nas `np.ndarray`, and those are evaluated when each function is **defined**. The guard\nwas in place and the module still could not be imported. `from __future__ import\nannotations` in both `psf_mtf` and `image_simulator`.\n\n### `mechanical_designer` took a hard dependency for a constant\n\nIt used numpy for exactly three `np.pi` and nothing else. It now uses `math.pi`.\n\n### \u26a0\ufe0f This reverses a decision I made in #470\n\n`numpy` was moved into `install_requires` **because** these imports were unguarded \u2014\nthat was the right call at the time, and the comment said so.\n\nWith the guards in place, requiring it made all of them **dead code** and quietly\nnarrowed what AGENTS.md means by an optional dependency. Two positions, one of them now\nfalse. The core genuinely does not need numpy:\n\n```\nfocal length: 49.21299900942747\ntraced ok, path len 4\n```\n\n`Lens`, the ray tracer and focal length all run without it \u2014 and there is now a test\nfor that. numpy stays available through the `visualization` extra, and\n`test_packaging_metadata`'s assertion that numpy *is* required is **inverted rather than\ndeleted**, with the reason recorded in both places.\n\n### New CI job: `Core without optional deps`\n\nInstalls PySide6 alone and checks the application imports and the guard tests pass.\nNothing could check this before: every other job installs the full dependency set, so\nthe modules these guards protect were importable anyway.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n- [x] CI configuration\n\n## Related Issues\n\nCloses #476\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **each part separately**:\n\n  | Reverted | Failures (of 14) |\n  | --- | --- |\n  | remove `from __future__ import annotations` | 5 |\n  | unguard `plots`' numpy import | 3 |\n  | restore `np.pi` in `mechanical_designer` | 3 |\n  | numpy back as a hard requirement | 2 |\n\n- [x] `python3 -m unittest tests.test_optional_dependency_guards` \u2014 14 tests, OK\n- [x] mechanical / image-simulator / psf-mtf / packaging / guards \u2014 128 tests, OK\n- [x] Full suite: `Ran 2096 tests`, `FAILED (errors=6, skipped=34)` \u2014 the same six\n      pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 247 files unchanged\n- [x] Coverage includes: every guarded module importing without the optional packages,\n      each named individually, **the application itself importing**, the window class\n      being reachable, each `*_AVAILABLE` flag reporting False when its package is\n      absent, annotations stored unevaluated, `mechanical_designer` not importing\n      numpy, its volume math still running, numpy absent from `install_requires`, only\n      the GUI framework required, the extras still offering numpy and matplotlib, and\n      `requirements.txt` still describing them as recommended\n\n### The tests run in subprocesses, and that matters\n\n`sys.modules['numpy'] = None` makes the next `import numpy` raise \u2014 but it also leaves\n`numpy` in `sys.modules` for the rest of the process. Doing this in-process would poison\nevery later test, and the result would look like a broken suite rather than a simulated\nenvironment. Each case gets a clean interpreter.\n\n### Four of my own test assumptions were wrong\n\nAgain, the tests caught them rather than me:\n\n- **`typing.get_type_hints` resolves the deferred annotations** \u2014 so it needs numpy to\n  exist, and the test failed for a reason unrelated to what it was about. It now asserts\n  the annotations are stored as *strings*, which is the actual mechanism.\n- **`LensMount` requires six positional arguments.**\n- **`'False' was compared as a string`** rather than a bool, so every flag read as\n  \"not false\" and the assertions were passing vacuously.\n- **`PySide6` did not match the lowercased `'pyside6'`** \u2014 a test that could only ever\n  pass by failing.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [x] I have made corresponding changes to the documentation (AGENTS.md's rule is now\n      true rather than aspirational)\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "98616aafe6d067d7189adb52cf453ef9b0b6b9c9",
+ "merged_at": "2026-10-19T08:57:22Z",
+ "port_method": "partial_hunks:5/6",
+ "src_files": [
+  "openlens/analysis/plots.py",
+  "openlens/analysis/psf_mtf.py",
+  "openlens/image_simulator.py",
+  "openlens/mechanical_designer.py"
+ ],
+ "test_files": [
+  "tests/test_optional_dependency_guards.py",
+  "tests/test_packaging_metadata.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/plots.py::draw_system_outline",
+  "openlens/mechanical_designer.py::LensCell.calculate_weight",
+  "openlens/mechanical_designer.py::MechanicalDesigner.calculate_total_weight"
+ ],
+ "fail_to_pass": [
+  "tests/test_optional_dependency_guards.py::TestTheAvailabilityFlagsAreHonest::test_annotations_are_stored_unevaluated",
+  "tests/test_optional_dependency_guards.py::TestTheAvailabilityFlagsAreHonest::test_image_simulator_reports_every_optional_as_unavailable",
+  "tests/test_optional_dependency_guards.py::TestTheAvailabilityFlagsAreHonest::test_psf_mtf_reports_numpy_as_unavailable",
+  "tests/test_optional_dependency_guards.py::TestTheGuardlessModulesImport::test_every_guarded_module_imports",
+  "tests/test_optional_dependency_guards.py::TestTheGuardlessModulesImport::test_the_window_class_is_reachable"
+ ],
+ "pass_to_pass": [
+  "tests/test_optional_dependency_guards.py::TestMechanicalDesignerNeedsNoNumpy::test_it_does_not_import_numpy",
+  "tests/test_optional_dependency_guards.py::TestMechanicalDesignerNeedsNoNumpy::test_pi_is_the_same_value",
+  "tests/test_optional_dependency_guards.py::TestMechanicalDesignerNeedsNoNumpy::test_the_volume_math_still_works",
+  "tests/test_optional_dependency_guards.py::TestTheGuardlessModulesImport::test_the_application_itself_imports",
+  "tests/test_optional_dependency_guards.py::TestTheGuardlessModulesImport::test_the_issue_repro_for_each_module",
+  "tests/test_optional_dependency_guards.py::TestTheOptionalPackagesAreGenuinelyOptional::test_numpy_is_not_a_hard_requirement",
+  "tests/test_optional_dependency_guards.py::TestTheOptionalPackagesAreGenuinelyOptional::test_only_the_gui_framework_is_required",
+  "tests/test_optional_dependency_guards.py::TestTheOptionalPackagesAreGenuinelyOptional::test_requirements_txt_describes_them_as_recommended",
+  "tests/test_optional_dependency_guards.py::TestTheOptionalPackagesAreGenuinelyOptional::test_the_optional_packages_are_still_offered",
+  "tests/test_packaging_metadata.py::TestConsoleScriptsAreShipped::test_every_console_script_target_is_in_the_distribution",
+  "tests/test_packaging_metadata.py::TestConsoleScriptsAreShipped::test_every_declared_module_exists",
+  "tests/test_packaging_metadata.py::TestConsoleScriptsAreShipped::test_every_declared_package_exists",
+  "tests/test_packaging_metadata.py::TestConsoleScriptsAreShipped::test_the_gui_entry_point_target_exists_on_disk",
+  "tests/test_packaging_metadata.py::TestConsoleScriptsAreShipped::test_the_tests_are_not_shipped",
+  "tests/test_packaging_metadata.py::TestInstallRequirementsMatchReality::test_numpy_is_not_a_hard_requirement",
+  "tests/test_packaging_metadata.py::TestInstallRequirementsMatchReality::test_numpy_is_still_offered_as_an_extra",
+  "tests/test_packaging_metadata.py::TestInstallRequirementsMatchReality::test_pyside_is_a_hard_requirement",
+  "tests/test_packaging_metadata.py::TestInstallRequirementsMatchReality::test_the_startup_import_is_unguarded",
+  "tests/test_packaging_metadata.py::TestManifestIn::test_every_included_file_exists",
+  "tests/test_packaging_metadata.py::TestProjectUrls::test_there_is_a_bug_tracker_url",
+  "tests/test_packaging_metadata.py::TestProjectUrls::test_urls_point_at_the_real_repository",
+  "tests/test_packaging_metadata.py::TestPythonVersionMetadata::test_every_declared_version_is_actually_tested",
+  "tests/test_packaging_metadata.py::TestPythonVersionMetadata::test_no_duplicate_classifiers",
+  "tests/test_packaging_metadata.py::TestPythonVersionMetadata::test_python_requires_matches_the_oldest_tested_version",
+  "tests/test_packaging_metadata.py::TestPythonVersionMetadata::test_the_development_status_is_not_overstated"
+ ],
+ "patch_lines": 51
+}

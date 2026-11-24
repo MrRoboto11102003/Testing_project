@@ -1,0 +1,1957 @@
+=== SYSTEM (appended) ===
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+## ===== README.md =====
+
+# openLens
+
+<div align="center">
+
+**An interactive optical design and simulation tool for single lenses and multi-element systems**
+
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://github.com/pmaasz/openLens/actions/workflows/ci.yml/badge.svg)](https://github.com/pmaasz/openLens/actions/workflows/ci.yml)
+
+</div>
+
+---
+
+## What is openlens?
+
+openlens is a desktop application for designing and analyzing **glass optical
+lenses and multi-element systems**. Whether you're a student learning optics, an
+engineer designing optical systems, or a hobbyist exploring lens physics,
+openlens provides an intuitive interface to:
+
+- Design single lenses or assemblies with precise physical parameters
+- Calculate first-order properties with thick-lens and paraxial models
+- Experiment with different glass materials, surface profiles, and geometries
+- Assign camera mounts and compute working flange distance
+- Store and manage lenses, assemblies, and tolerance sets in SQLite
+- Trace rays and inspect aberrations, spots, PSF/MTF, and wavefront error
+- Export mechanical and manufacturing data as STL, STEP, or ISO 10110 drawings
+
+## Installation
+
+### Standalone executables (no Python required)
+
+Every [release](https://github.com/pmaasz/openLens/releases/latest) includes
+standalone builds for the desktop platforms:
+
+| Platform | Download |
+|----------|----------|
+| Windows | `OpenLens-<version>-Windows.exe` |
+| macOS (Apple silicon) | `OpenLens-<version>-macOS-arm64.zip` |
+| macOS (Intel) | `OpenLens-<version>-macOS-x64.zip` |
+| Linux | `OpenLens-<version>-Linux` |
+
+Unzip a macOS download and drag `OpenLens.app` to Applications. The builds are
+not code-signed, so the first launch needs **right-click -> Open** (or
+**System Settings -> Privacy & Security -> Open Anyway**). On Linux, make the
+downloaded file executable with `chmod +x`.
+
+### Prerequisites
+
+**Core Requirements:**
+- **Python 3.10 or higher** (CI tests 3.10-3.12; `python_requires` in `setup.py` is the authority)
+- **PySide6 ≥ 6.2** (GUI framework - installed via pip)
+- **X11 display server** (Linux) or native display (Windows/Mac)
+
+**Recommended Dependencies:**
+
+| Package | Version | Features Enabled |
+|---------|---------|------------------|
+| numpy | ≥1.19.0 | Numerical operations, ray tracing, STL export |
+| matplotlib | ≥3.3.0 | Plots, analysis dialogs |
+
+**Optional Dependencies:**
+
+| Package | Version | Features Enabled |
+|---------|---------|------------------|
+| scipy | ≥1.5.0 | Advanced diffraction calculations, image simulation |
+| Pillow (PIL) | ≥8.0.0 | Image loading for image simulator |
+
+**Note:** The recommended/optional dependencies are gracefully handled - the application will run with reduced functionality if they are not installed.
+
+### Installing PySide6
+
+```bash
+pip install PySide6
+```
+(or simply `pip install -r requirements.txt`)
+
+### Method 1: Automated Setup (Recommended)
+
+Use the provided setup script to automatically create and configure the virtual environment:
+
+**Linux/macOS:**
+```bash
+./setup_venv.sh
+source venv/bin/activate
+
+# Install OpenLens in editable mode
+pip install -e .
+
+# Install optional dependencies for full features (recommended)
+pip install -e .[visualization]
+
+# For advanced features (diffraction, image simulation)
+pip install scipy Pillow
+```
+
+**Windows:**
+```cmd
+setup_venv.bat
+venv\Scripts\activate
+
+REM Install OpenLens in editable mode
+pip install -e .
+
+REM Install optional dependencies for full features (recommended)
+pip install -e .[visualization]
+
+REM For advanced features (diffraction, image simulation)
+pip install scipy Pillow
+```
+
+The script will:
+- Check Python installation
+- Create virtual environment
+- Display activation instructions
+
+**What works without optional dependencies:**
+- ✅ All core lens calculations (focal length, optical power)
+- ✅ Lens creation, editing, and management
+- ✅ GUI interface (PySide6)
+- ✅ Data persistence (SQLite)
+- ⚠️ Ray tracing and analysis plots need numpy/matplotlib
+- ❌ Advanced diffraction calculations with Bessel functions (requires scipy)
+- ❌ Image simulation (requires scipy + Pillow)
+
+### Method 2: Manual Setup
+
+1. **Clone or download the repository:**
+   ```bash
+   git clone <repository-url>
+   cd openLens
+   ```
+
+2. **Set up virtual environment (recommended):**
+   ```bash
+   # Create virtual environment
+   python3 -m venv venv
+
+   # Activate virtual environment
+   # On Linux/macOS:
+   source venv/bin/activate
+
+   # On Windows:
+   venv\Scripts\activate
+   ```
+
+3. **Install OpenLens and optional dependencies:**
+
+   ```bash
+   # Install the package and its required PySide6 dependency
+   pip install -e .
+
+   # Full plotting and numerical features (recommended)
+   pip install -e .[visualization]
+   ```
+
+   **For advanced features:**
+   ```bash
+   pip install scipy Pillow
+   ```
+
+   **Or install all optional dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   Note: The application works without these, with features gracefully disabled.
+
+4. **Verify Python and PySide6:**
+   ```bash
+   python3 --version
+   # Should show Python 3.10 or higher
+
+   python3 -c "import PySide6; print('PySide6 available')"
+   ```
+
+5. **Run the application:**
+   ```bash
+   # GUI version (recommended)
+   python3 -m openlens
+
+   # OR CLI version
+   python3 -m openlens.lens_editor
+   ```
+
+6. **When done, deactivate virtual environment (if used):**
+   ```bash
+   deactivate
+   ```
+
+---
+
+## Project Structure
+
+```
+openLens/
+├── openlens/__main__.py              # PySide6 GUI entry point (main window)
+├── openlens/                     # Source package
+│   ├── __init__.py
+│   ├── lens.py              # Core Lens model
+│   ├── optical_system.py    # Multi-element systems
+│   ├── lens_editor.py       # CLI application + LensManager
+│   ├── ray_tracer.py        # 2D/3D ray tracing engine
+│   ├── aberrations.py       # Seidel aberrations
+│   ├── optimizer.py         # Lens optimization engine
+│   ├── tolerancing.py       # Monte Carlo / sensitivity analysis
+│   ├── database.py          # SQLite persistence
+│   ├── validation.py        # Input validation
+│   ├── services.py          # Service layer
+│   ├── constants.py         # Constants and configuration
+│   ├── gui/                 # GUI implementation (widgets/, tabs/, dialogs/, theme.py)
+│   ├── analysis/            # Spot diagram, PSF/MTF, ghost, wavefront
+│   └── io/                  # STEP / ISO 10110 export
+├── tests/                   # unittest test suites (~56 files)
+├── openlens.db              # Data storage (SQLite, created on first run)
+├── requirements.txt         # Runtime dependencies
+└── setup.py                 # Package distribution (pip install -e .)
+```
+
+---
+
+## Troubleshooting
+
+### Issue: "No display name and no $DISPLAY environment variable" / Qt platform plugin errors
+
+This occurs when running on a headless server or via SSH without X11 forwarding.
+
+**Solutions:**
+- **If using SSH**: Connect with X11 forwarding: `ssh -X user@host`
+- **If running locally**: Ensure your display server is running (restart your desktop environment if needed)
+- **For remote headless servers**: Use a virtual display:
+  ```bash
+  sudo apt-get install xvfb
+  xvfb-run python3 -m openlens
+  ```
+  or force Qt's offscreen platform for testing:
+  ```bash
+  QT_QPA_PLATFORM=offscreen python3 -m openlens
+  ```
+- **WSL users**: Install an X server like VcXsrv or X410, then:
+  ```bash
+  export DISPLAY=:0
+  python3 -m openlens
+  ```
+
+### Issue: PySide6 not found
+
+**Error:** `ModuleNotFoundError: No module named 'PySide6'`
+
+**Solution:**
+```bash
+pip install PySide6
+# or
+pip install -r requirements.txt
+```
+
+### Issue: Lenses not saving
+
+**Solution:**
+- Check write permissions in the directory
+- Ensure `openlens.db` is not locked by another process
+- Check disk space
+
+### Issue: 3D visualization not working
+
+**Solution:**
+```bash
+# Install required dependencies
+pip install matplotlib numpy
+
+# Or if using venv:
+source venv/bin/activate
+pip install matplotlib numpy
+```
+
+---
+
+## Contributing
+
+Contributions are welcome! We appreciate bug fixes, new features, documentation improvements, and more.
+
+### How to Contribute
+
+Please read our comprehensive [Contributing Guidelines](docs/CONTRIBUTING.md) for:
+- Code of conduct
+- Development setup
+- Coding standards
+- Testing requirements
+- Pull request process
+- Issue guidelines
+
+### Quick Start for Contributors
+
+```bash
+# 1. Fork the repository
+# 2. Clone your fork
+git clone https://github.com/YOUR_USERNAME/openLens.git
+cd openLens
+
+# 3. Create a branch (branch names start with the ticket number)
+git checkout -b 223-vertex-collapse
+
+# 4. Make changes and test
+python3 -m unittest discover -s tests -t .
+
+# 5. Submit a pull request
+```
+
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for detailed instructions.
+
+---
+
+## ===== docs/README.md =====
+
+## Build and View Locally
+
+```bash
+pip install sphinx sphinx-rtd-theme
+cd sphinx
+make html
+xdg-open build/html/index.html   # Linux
+open build/html/index.html       # macOS
+```
+
+## Reference Markdown
+
+| File | Status |
+|------|--------|
+| `README.md` | This index. |
+| `CONTRIBUTING.md` | Short entry point; the authoritative guide is `sphinx/source/contributing.rst`. Kept because the root README links to it. |
+| `TESTING.md` | Short test-command reference; authoritative details are in `sphinx/source/contributing.rst`. |
+| `ARCHITECTURE.md` | Short architecture summary; authoritative page is `sphinx/source/architecture.rst`. |
+| `API_DOCUMENTATION.md` | Short library entry point; authoritative signatures are in `sphinx/source/api/`. |
+| `FEATURE_ABERRATIONS.md` | Technical reference for the aberration calculations, not yet migrated. |
+
+The feature-status and ray-tracing implementation notes that used to live here
+were duplicates of the Sphinx pages and of `CHANGELOG.md`, so they are gone.
+The Nikon prescription note moved to
+`sphinx/source/nikon_series_e_50mm.rst`.
+
+## ===== docs/API_DOCUMENTATION.md =====
+
+# OpenLens Python API
+
+> **The authoritative API reference is
+> [`docs/sphinx/source/api/index.rst`](sphinx/source/api/index.rst).**
+> It is generated from the source docstrings. This file is kept as a short
+> entry point for links to `docs/API_DOCUMENTATION.md`.
+
+## Install
+
+```bash
+pip install -e .
+pip install -e .[visualization]   # numpy + matplotlib
+```
+
+## First lens
+
+```python
+from openlens.lens import Lens
+
+lens = Lens(
+    name="Biconvex demo",
+    radius_of_curvature_1=50.0,
+    radius_of_curvature_2=-50.0,
+    thickness=5.0,
+    diameter=25.0,
+    material="BK7",
+)
+
+print(lens.calculate_focal_length())
+print(lens.calculate_back_focal_length())
+print(lens.calculate_working_flange_distance())
+```
+
+## Trace rays
+
+```python
+from openlens.ray_tracer import LensRayTracer
+
+tracer = LensRayTracer(lens)
+rays = tracer.trace_parallel_rays(num_rays=11)
+```
+
+## Analyze image quality
+
+```python
+from openlens.aberrations import AberrationsCalculator
+from openlens.performance_metrics import PerformanceMetrics
+
+aberrations = AberrationsCalculator(lens).calculate_all_aberrations(field_angle_deg=5.0)
+report = PerformanceMetrics(lens).format_metrics_report()
+```
+
+Failed traces and undefined quantities return `None`; check before formatting.
+For multi-element systems, use `OpticalSystem` from
+`openlens.optical_system`. For persistence, use `DatabaseManager` or the GUI
+`LensStorage` facade; JSON is an interchange format, not primary state.
+
+## ===== docs/FEATURE_ABERRATIONS.md =====
+
+# openlens v1.1.0 - Lens Aberrations Feature Implementation
+
+## 🎉 Feature Added: Comprehensive Lens Aberrations Calculator
+
+### Overview
+A complete optical aberrations analysis system has been implemented for openlens, enabling professional-grade optical design analysis. This feature calculates and displays the five primary (Seidel) aberrations plus chromatic aberration and diffraction limits.
+
+---
+
+## ⚙️ Modifications
+
+### `/openlens/lens_editor_gui.py`
+**Added:**
+- Import of aberrations calculator module
+- New "Aberrations Analysis" panel in Simulation tab
+- Field angle control
+- `analyze_aberrations()` method
+- Scrollable text display for aberration results
+
+---
+
+## 📊 Quality Assessment System
+
+### Automatic Quality Scoring (0-100)
+The system analyzes aberrations and assigns a quality score:
+
+**Excellent (90-100):**
+- Spherical aberration < 0.001 mm
+- Chromatic aberration < 0.1 mm
+- Distortion < 1%
+- Astigmatism < 0.1 mm
+
+**Good (75-89):**
+- Moderate aberrations
+- Suitable for general optical applications
+
+**Fair (60-74):**
+- Noticeable aberrations
+- May be acceptable for specific uses
+
+**Poor (40-59):**
+- Significant aberrations
+- Design optimization recommended
+
+**Very Poor (<40):**
+- Severe aberrations
+- Redesign necessary
+
+### Issue Detection
+Automatically identifies and reports:
+- High spherical aberration
+- Excessive chromatic aberration
+- Significant distortion
+- Problematic astigmatism
+
+---
+
+## 📚 Mathematical Foundations
+
+### Formulas Implemented
+
+1. **Spherical Aberration:**
+   Exact trace (fallback: third-order Seidel):
+   ```
+   LSA = marginal focus - paraxial focus   (paraxial ray at y = 0.001 mm)
+   LSA_Seidel = -(y²/8f)·[(n/(n-1))² + (n+2)/(n(n-1)²)·(B + 2(n²-1)/(n+2)·C)²]
+   B = (c1+c2)/(c1-c2)  [shape factor from curvatures; flat c = 0], C = -1
+   ```
+
+2. **Coma:**
+   ```
+   Coma = (err_top + err_bottom) / 2   (traced tangential fan, chief-referenced)
+   ```
+
+3. **Astigmatism:**
+   ```
+   AST = |tan_focus - sag_focus|   (traced best-focus split, longitudinal)
+   ```
+
+4. **Field Curvature:**
+   ```
+   R_petzval = n · f
+   ```
+
+5. **Distortion:**
+   ```
+   Dist = 0  (single lens, stop at lens: S5 = 0 exactly)
+   General stops: traced distortion curve (chief-ray heights)
+   ```
+
+6. **Chromatic Aberration:**
+   ```
+   LCA = f / V_d            (single thin lens)
+   LCA = BFL_C - BFL_F      (systems: traced back focal lengths)
+   V_d = Abbe number
+   ```
+
+7. **Airy Disk:**
+   ```
+   d_airy = 2.44 · λ · (f/D)
+   ```
+
+---
+
+## 📖 References
+
+### Optical Theory
+- Seidel aberration theory
+- Lensmaker's equation (thick lens form)
+- Gaussian optics
+- Diffraction theory (Airy disk)
+
+### Standards
+- Sign conventions follow ISO 10110
+- Abbe number definitions from glass catalogs
+- F-number and NA standard definitions
+
+---
+
+## ✅ Verification Checklist
+
+- [x] Aberrations calculator module created
+- [x] Comprehensive test suite written
+- [x] GUI integration completed
+- [x] Documentation added
+- [x] Quick test script created
+- [x] Mathematical formulas verified
+- [x] Quality assessment system implemented
+- [x] Material database included
+- [x] Error handling implemented
+- [x] Dark mode compatible
+
+---
+
+## 📝 Notes
+
+### Known Limitations
+1. **Single Lens Only:** Aberrations calculated for individual lenses, not systems
+2. **Paraxial Approximation:** Uses third-order (Seidel) aberrations
+3. **Monochromatic:** LCA calculated, but not full spectral analysis
+4. **Simplified Formulas:** Professional tools use more complex ray tracing
+
+### Design Decisions
+- Used Seidel aberrations (industry standard for first-order analysis)
+- Included Abbe number database for common materials
+- Provided quality scoring for quick assessment
+- Formatted output for readability
+
+---
+
+**Implementation Complete:** Lens Aberrations Calculator fully integrated into openlens v1.1.0
+
+**Next Feature:** Ray Tracing Visualization (planned for v1.2.0)
+
+## ===== docs/sphinx/source/index.rst =====
+
+Features
+--------
+
+* **Interactive lens design** with spherical, conic, parabolic, and Fresnel
+  surfaces, clear apertures, bevels, and coatings.
+* **Multi-element assemblies** with air gaps, an aperture stop, element
+  alignment, nesting, and undo/redo.
+* **Ray tracing** in 2-D and 3-D, including point sources, off-axis fields,
+  multiple wavelengths, ghosts, and total internal reflection.
+* **Image quality** through Seidel aberrations, spot diagrams, PSF, MTF,
+  wavefront error, Strehl ratio, and encircled energy.
+* **Design tools** for optimization, tolerancing, thermal/environmental
+  perturbations, and desensitization.
+* **Mechanical and manufacturing** output: camera mounts, working flange
+  distance, lens cells, spacers, STL/STEP solids, and ISO 10110-style drawings.
+* **SQLite library** for lenses, assemblies, and tolerance sets, with JSON
+  interchange and image/report export.
+* **Material catalog** with Sellmeier dispersion, thermal expansion, and
+  Schott TIE-19 temperature coefficients where available.
+* **Optional dependencies** are guarded: the core model and ray tracer start
+  without numpy, matplotlib, scipy, or Pillow.
+
+Installation
+------------
+
+.. code-block:: bash
+
+   git clone https://github.com/pmaasz/openLens.git
+   cd openLens
+   pip install -e .
+   pip install -e .[dev]     # tests, formatters, linters
+
+PySide6 is required. numpy and matplotlib are highly recommended for
+simulation and plots; scipy and Pillow enable advanced diffraction and image
+simulation features.
+
+Build Documentation
+-------------------
+
+.. code-block:: bash
+
+   cd docs/sphinx
+   make html
+
+   # View documentation
+   open build/html/index.html
+
+## ===== docs/sphinx/source/getting_started.rst =====
+
+Getting Started
+===============
+
+This guide installs OpenLens, starts the desktop application, and runs a first
+lens through the Python API.
+
+Installation
+------------
+
+From Source
+^^^^^^^^^^^
+
+.. code-block:: bash
+
+   git clone https://github.com/pmaasz/openLens.git
+   cd openLens
+   pip install -e .
+
+For plotting, optimization, and the full development toolset:
+
+.. code-block:: bash
+
+   pip install -e .[visualization]
+   pip install -e .[dev]
+
+Requirements
+^^^^^^^^^^^^
+
+- Python 3.10 or newer (CI tests 3.10, 3.11, and 3.12).
+- PySide6 for the desktop application.
+- numpy and matplotlib are strongly recommended for ray-tracing plots,
+  spot/PSF/MTF analysis, and optimization.
+- scipy and Pillow enable advanced diffraction and image-simulation features.
+
+The optional packages are guarded: the core model and command-line interface
+still start without them.
+
+Quick Start
+-----------
+
+Desktop Application
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   python3 -m openlens
+
+The main window opens on the **Lens Selection** tab. Select a library lens or
+create one, then use the **Lens Editor**, **Simulation**, **Performance**,
+**Optimization**, and **Tolerancing** tabs.
+
+Command-Line Application
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   python3 -m openlens.lens_editor
+
+The installed console scripts are equivalent:
+
+.. code-block:: bash
+
+   openlens          # desktop GUI
+   openlens-cli      # command-line editor
+
+Testing the Installation
+------------------------
+
+.. code-block:: bash
+
+   # Full unit suite
+   python3 -m unittest discover -s tests -t .
+
+   # One module
+   python3 -m unittest tests.test_lens
+
+   # GUI flow tests (pytest-qt from the dev extra)
+   QT_QPA_PLATFORM=offscreen pytest tests/gui_flows -q
+
+## ===== docs/sphinx/source/user_guide.rst =====
+
+GUI Overview
+------------
+
+The main window keeps one active target: either a single lens or an optical
+assembly. Selecting a library row loads that target into the editor tabs.
+
+Selection Tab
+^^^^^^^^^^^^^
+
+The **Selection** tab is the library browser. It supports:
+
+- browsing and filtering lenses and assemblies;
+- loading a row into the active-target tabs;
+- creating, duplicating, renaming, and deleting library records;
+- saving to the SQLite library;
+- importing/exporting JSON for interchange.
+
+The default library is a per-user SQLite database. The status bar reports save
+and load failures; a failed save is never presented as a success.
+
+Lens Editor Tab
+^^^^^^^^^^^^^^^
+
+The **Lens Editor** edits a single element and shows calculated properties as
+the prescription changes.
+
+**Surface parameters**
+
+- Radius of curvature for each surface, in millimetres.
+- Optional conic constant for each surface.
+- Legacy parabolic sag control where a measured sag is preferred.
+- Clear aperture and bevel for each surface.
+
+**Geometry and material**
+
+- Centre thickness and mechanical diameter.
+- Material from the catalog, or a model glass defined by ``nd``/``Vd``.
+- Design wavelength and operating temperature.
+- Refractive index, either resolved from the selected glass or entered for a
+  model glass.
+
+**Coatings**
+
+Each surface can carry a thin-film stack. Coating presets can be loaded from
+the coating tools; the stack modulates reflected/transmitted energy while the
+geometric ray direction continues to follow Snell's law.
+
+**Calculated properties**
+
+The panel updates focal length, optical power, back and front focal lengths,
+working flange distance, edge thickness, and feasibility warnings. Thin or
+negative edge thickness warnings mean the surfaces intersect inside the clear
+aperture and the shape is not manufacturable as drawn.
+
+Camera Mounts
+^^^^^^^^^^^^^
+
+The **Mount** group assigns a camera mount to the lens. It reports the
+**working flange distance**, measured from the rear lens vertex to the sensor
+plane:
+
+.. code-block:: text
+
+   working flange distance = back focal length + mount flange distance
+
+Built-in mounts are C, CS, M42, M39, T, Fujifilm X, Leica M, Canon EF, and
+Nikon F. Use **Manage mounts…** to add a custom mount from its flange
+distance. Custom mounts are shared by every lens and stored in ``mounts.json``
+under the per-user OpenLens data directory; ``OPENLENS_MOUNTS_PATH`` overrides
+the file location.
+
+.. code-block:: python
+
+   from openlens.lens import Lens
+
+   lens = Lens(radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0)
+   lens.mount_type = "M42"
+   print(lens.calculate_working_flange_distance())
+
+If the lens is afocal or the mount is unknown, the distance is ``None``. The
+mount is saved with the lens in the SQLite library.
+
+Assembly Tab
+^^^^^^^^^^^^
+
+The **Assembly** tab edits a multi-element ``OpticalSystem``:
+
+- add, remove, reorder, and nest lens elements;
+- set the air gap before each element;
+- place an aperture stop in a gap and set its diameter;
+- apply decenter and tilt to individual elements;
+- inspect the optical layout and element positions;
+- edit tolerances and alignment values for the assembly.
+
+Assembly edits are undoable. The window-level undo/redo controls follow the
+active lens editor or assembly stack.
+
+Simulation Tab
+^^^^^^^^^^^^^^
+
+The **Simulation** tab traces rays through a lens or assembly:
+
+- choose a parallel fan or point source;
+- set ray count, field angle, and ray height range;
+- trace at one or more wavelengths;
+- enable ghost reflections to inspect unwanted paths;
+- place the detector at an absolute image plane, or leave it on **Auto** for
+  the paraxial focus. The view marks a configured plane and reports the RMS
+  spot measured there in either mode; the Performance spot metric and the
+  optimizer's RMS-spot target use the same plane;
+- switch between 2-D and 3-D views;
+- clear the trace and reset the view without changing the optical model.
+
+Vignetted rays are dropped at clear apertures or the system stop. The status
+area reports the trace result; a failed trace is not replaced by an empty
+“perfect” image.
+
+Performance Tab
+^^^^^^^^^^^^^^^
+
+The **Performance** tab calculates the image-quality dashboard:
+
+- first-order values (EFL, BFL, f-number, numerical aperture);
+- Seidel spherical, coma, astigmatism, field curvature, and distortion;
+- axial and lateral chromatic estimates;
+- RMS spot size and AIRY disk diameter;
+- Strehl ratio and RMS wavefront error;
+- MTF cutoff;
+- spot diagram, ray fan, field curves, PSF, MTF, wavefront, and ghost views.
+
+Expensive calculations run in background workers. If a trace or wavefront
+sample fails, the affected field is reported as unavailable or invalid instead
+of zero. See :doc:`scientific/image_quality` for the definitions and limits of
+each metric.
+
+Optimization Tab
+^^^^^^^^^^^^^^^^
+
+The **Optimization** tab builds a merit function from variables and targets:
+
+- choose radii, thicknesses, air gaps, and selected system parameters as
+  variables;
+- target focal length, back focal length, aberration values, or other metrics;
+- run the default simplex optimizer, or choose another available algorithm;
+- inspect the merit value and variable values after convergence.
+
+The merit function penalizes invalid geometry such as negative edge thickness.
+Optimization runs on a copy of the model until the result is applied, so a
+cancelled run does not leave a half-mutated assembly behind.
+
+Tolerancing Tab
+^^^^^^^^^^^^^^^
+
+The **Tolerancing** tab studies manufacturing and environmental variation:
+
+- define tolerance sets for radii, thickness, gaps, decentre, tilt, and index;
+- run sensitivity or Monte Carlo analysis;
+- inspect the distribution of spot, MTF, or other image-quality metrics;
+- save tolerance sets with the lens or assembly metadata.
+
+A nominal design with a small spot but no tolerance margin is not yet a
+manufacturable design. Compensators and focus adjustment should be included
+explicitly.
+
+Startup and Updates
+-------------------
+
+The welcome screen checks the latest GitHub release in the background while the
+rest of the window stays responsive. Under the title it reports one of:
+
+- the running version is up to date;
+- a newer version is available;
+- the newer release has no build for the current operating system and
+  architecture;
+- the check could not reach GitHub.
+
+The check is advisory. A network failure never blocks startup and never opens
+an error dialog; use **Retry** on the welcome screen to check again.
+
+When a compatible newer release exists, the available action depends on how
+OpenLens was installed:
+
+Standalone Linux and Windows build
+    **Download and install** fetches the release asset, waits for the current
+    process to exit, replaces the executable, and starts the new version. If
+    the replacement cannot be written, the old executable is started again and
+    the reason is written to ``openlens-update-error.log`` beside the
+    downloaded file.
+
+Standalone macOS build
+    **Download and install** fetches the matching ``macOS-arm64`` or
+    ``macOS-x64`` archive, extracts it under ``~/Downloads``, and opens the new
+    application bundle. Drag that bundle to **Applications** to keep it, then
+    close the old copy.
+
+Source checkout or pip install
+    **Download from GitHub** opens the release page. OpenLens does not replace
+    a Python-managed installation behind the package manager's back.
+
+After a standalone update restarts, the new version opens the SQLite library
+normally. Schema migrations run as part of database initialization, so an
+update that changes the schema upgrades the existing library in place. Back up
+the database before skipping several major versions.
+
+.. note::
+
+   The update check contacts the public GitHub Releases API at startup. It
+   sends no library data, only a request for the latest release metadata. Set
+   ``OPENLENS_NO_UPDATE_CHECK=1`` to skip the request; the welcome screen then
+   shows only the running version.
+
+Ray Tracing
+-----------
+
+The UI ray tracer and the Python tracers share the same surface intersection
+and refraction code. A parallel fan is launched relative to the front vertex;
+the default fills the full aperture so rim aberration is included. Point
+sources use a position and an angular range. Off-axis analysis rotates or
+displaces the bundle instead of changing the lens model.
+
+For a first-order check, use the paraxial matrix results (EFL, BFL, FFL).
+For a real design, inspect the ray fans and spot diagrams at the intended
+field and wavelength.
+
+Mounts and Mechanical Output
+----------------------------
+
+**File → Export** provides:
+
+- **STL** for lens solids and printable models;
+- **STEP** for lenses plus suggested cells, spacers, and a barrel;
+- **ISO 10110** for a manufacturing-style drawing;
+- **Report** for a text/plot summary.
+
+The STEP housing is derived from the current assembly and mount. Threads are
+specified in the part name but are not modeled as helical solids without a CAD
+kernel. Treat the suggested housing as a mechanical starting point and verify
+it in CAD before manufacture.
+
+Persistence and Interchange
+---------------------------
+
+SQLite is the application's source of truth. **Save** updates the active
+library record; **Save As...** writes a JSON copy. JSON is also used for
+import/export and for user preferences such as custom mounts, but it is not the
+primary library.
+
+A lens stores its mount type, wavelength, temperature, conic/parabolic terms,
+clear apertures, bevels, coatings, and metadata. An assembly stores its element
+order, air gaps, stop, alignment, and tolerance metadata. Round-tripping through
+SQLite or JSON preserves those fields.
+
+## ===== docs/sphinx/source/mcp.rst =====
+
+MCP Server
+==========
+
+OpenLens can expose its lens database, preset library, and performance
+calculators through the
+`Model Context Protocol (MCP) <https://modelcontextprotocol.io/>`_, so an AI
+assistant can list, create, and analyse lenses from the same SQLite store as
+the GUI.
+
+Example request
+---------------
+
+.. code-block:: json
+
+   {
+     "name": "create_lens",
+     "arguments": {
+       "name": "MCP singlet",
+       "radius_of_curvature_1": 50.0,
+       "radius_of_curvature_2": -50.0,
+       "thickness": 5.0,
+       "diameter": 25.0
+     }
+   }
+
+## ===== docs/sphinx/source/nikon_series_e_50mm.rst =====
+
+Nikon Series E 50mm f/1.8 - Glass Prescription Reference
+========================================================
+
+This note records the best publicly available optical data for the Nikon
+Series E 50mm 1:1.8, for use as a modelling reference in OpenLens.
+
+.. note::
+
+   Nikon never published factory as-built drawings (exact radii,
+   center/edge thicknesses, diameters, melt-specific glass data) for this
+   lens. The data below comes from the design patent the lens was built
+   from. Treat it as the design prescription, not a metrology report.
+
+Prescription: Example 2 scaled to 50 mm (recommended starting point)
+--------------------------------------------------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 8 22 30 40
+
+   * - Surf
+     - Radius [mm]
+     - Thickness / air [mm]
+     - Glass
+   * - 1
+     - +45.4915
+     - L1 3.390
+     - n1 = 1.713, Vd = 53.9
+   * - 2
+     - +612.3255
+     - air 0.095
+     - -
+   * - 3
+     - +19.0930
+     - L2 4.360
+     - n2 = 1.713, Vd = 53.9
+   * - 4
+     - +32.0980
+     - air 1.550
+     - -
+   * - 5
+     - +88.0105
+     - L3 0.970
+     - n3 = 1.64831, Vd = 33.8
+   * - 6
+     - +16.0455
+     - air + stop 8.820
+     - -
+   * - 7
+     - -17.5195
+     - L4a 0.970
+     - n4 = 1.64831, Vd = 33.8
+   * - 8
+     - -65.1165 (cement)
+     - L4b 4.845
+     - n5 = 1.713, Vd = 53.9
+   * - 9
+     - -19.9610
+     - air 0.095
+     - -
+   * - 10
+     - +70.9620
+     - L5 2.520
+     - n6 = 1.713, Vd = 53.9
+   * - 11
+     - -117.6550
+     - back focal length ~37.5 to film
+     - -
+
+Unscaled patent values (``f = 100 mm``) for verification:
+
+.. code-block:: text
+
+   r1=90.983,  d1=6.78  | r2=1224.651, d2=0.19 | r3=38.186,  d3=8.72
+   r4=64.196,  d4=3.10  | r5=176.021,  d5=1.94 | r6=32.091,  d6=17.64
+   r7=-35.039, d7=1.94  | r8=-130.233, d8=9.69 | r9=-39.922, d9=0.19
+   r10=141.924, d10=5.04 | r11=-235.310, Bf=75.0, track=130.3
+
+Derived: ``f1 = 290.5 (f=100)``, ``f2 = 98.1``, ``D = 103.5``,
+``Bf ~= 37.5 mm at 50 mm`` - the long back focus required for an SLR mirror.
+
+Using this in OpenLens
+----------------------
+
+#. Build an ``OpticalSystem`` from the scaled Example 2 table above.
+#. Verify EFL ~= 50 mm and BFL ~= 37.5 mm before adding stops/baffles.
+#. Fit modern glass equivalents only after the paraxial check passes.
+#. See alternate corrections (Examples 3-4 in US4234242A) if optimizing for
+   coma / lateral color trade-offs.
+
+## ===== docs/sphinx/source/scientific/optics.rst =====
+
+Optical Model
+=============
+
+This page collects the conventions and equations that OpenLens uses for
+first-order layout, surface shape, and ray refraction. It is deliberately
+close to the implementation so a calculated number can be reproduced by hand.
+
+.. contents:: Table of Contents
+   :local:
+   :depth: 2
+
+Sign Convention
+---------------
+
+OpenLens uses the usual Cartesian optical convention:
+
+- Light propagates from left to right along the positive *x* axis.
+- Surface vertices are the reference points for surface coordinates.
+- A radius is positive when the centre of curvature lies to the right of the
+  surface vertex. For a biconvex lens in air, ``R1 > 0`` and ``R2 < 0``.
+- Distances to the right of a reference are positive.
+- A converging element has positive effective focal length (EFL).
+- Angles are measured from the optical axis; the ray tracer stores them in
+  radians internally.
+
+The Lens model uses the helium d-line, 587.6 nm, as its default design
+wavelength and for ``nd``/``Vd`` catalog data. Visualization, spot diagrams,
+PSF/MTF, and resolution defaults use the photopic green line, 550 nm.
+
+Surface Shape
+-------------
+
+Spherical sag
+^^^^^^^^^^^^^
+
+For a spherical surface of radius ``R``, the vertex-referenced sag at radial
+height ``r`` is
+
+.. math::
+
+   z(r) = \operatorname{sgn}(R)\left(|R| - \sqrt{R^2 - r^2}\right).
+
+Flat surfaces have ``z = 0``. OpenLens clamps ``|r|`` to the real domain so a
+ray outside the sphere's cap does not produce a complex sag.
+
+Conic sag
+^^^^^^^^^
+
+A conic surface is described by the vertex radius ``R`` and conic constant
+``K``:
+
+.. math::
+
+   z(r) = \frac{c r^2}{1 + \sqrt{1 - (1+K)c^2 r^2}},
+   \qquad c = \frac{1}{R}.
+
+The common special cases are:
+
+- ``K = 0``: sphere.
+- ``K = -1``: paraboloid.
+- ``-1 < K < 0``: prolate ellipsoid.
+- ``K > 0``: oblate ellipsoid.
+- ``K < -1``: hyperboloid.
+
+OpenLens also supports the older parabolic control, which stores the sag at
+the half-diameter and scales it as ``z(r) = z_{D/2}(r/(D/2))^2``. The conic
+model is preferred when an exact conic constant is known.
+
+Lensmaker's Equation
+--------------------
+
+For a thick lens in air with refractive index ``n``, centre thickness ``d``
+and surface radii ``R1`` and ``R2``:
+
+.. math::
+
+   \frac{1}{f} = (n-1)\left(
+   \frac{1}{R1} - \frac{1}{R2}
+   + \frac{(n-1)d}{n R1 R2}
+   \right).
+
+A flat surface contributes ``1/R = 0``. A plane-parallel plate therefore has
+zero power, as expected. For a thin lens (``d`` small compared with the
+radii), the last term is omitted.
+
+Back and Front Focal Lengths
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The back focal length (BFL) is measured from the rear vertex to the rear
+paraxial focus:
+
+.. math::
+
+   \mathrm{BFL} = f\left(1 - \frac{d P_1}{n}\right),
+   \qquad P_1 = \frac{n-1}{R1}.
+
+The front focal length (FFL) is a signed Cartesian coordinate measured from
+the front vertex. For a converging lens the front focus lies to the left, so
+the coordinate is negative:
+
+.. math::
+
+   \mathrm{FFL} = -f\left(1 - \frac{d P_2}{n}\right),
+   \qquad P_2 = \frac{1-n}{R2}.
+
+Both return ``None`` for an afocal element where the focal length is
+undefined.
+
+Camera Mounts and Working Flange
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A camera mount fixes the sensor plane a specified flange distance behind the
+mounting face. OpenLens models the mount as being at the lens rear vertex, so
+
+.. math::
+
+   \text{working flange distance} = \mathrm{BFL} + \text{mount flange distance}.
+
+For example, a lens with a 27.93 mm BFL and an M42 mount (45.46 mm) has a
+working flange distance of 73.39 mm. If the mount is unknown, or the lens is
+afocal, the result is ``None`` rather than an assumed value.
+
+Apertures, Bevels, and Stops
+----------------------------
+
+- The mechanical diameter is the outer lens diameter.
+- A clear aperture, when set, is the polished optical aperture of that
+  surface. Rays outside it are vignetted.
+- Bevels model the protective chamfer at the rim and reduce the usable clear
+  aperture near the edge.
+- An optical system may define an aperture stop in an air gap. The stop has a
+  diameter and is applied before the following element; rays outside it are
+  blocked and reported as vignetted.
+- Surface profiles are clamped to their real domain at the rim. A diameter
+  larger than a spherical cap can support is therefore a validation issue, not
+  a reason to invent a complex surface.
+
+Ray Fans and Field Points
+-------------------------
+
+A parallel fan at angle ``θ`` is launched from a plane in front of the first
+vertex. Its heights are chosen across a fraction of the semi-aperture; the
+default is the full aperture so rim spherical aberration is included. Point
+sources launch rays from a specified position with angles spanning a requested
+range. Off-axis field analysis uses the same tracing machinery with a rotated
+or displaced ray bundle.
+
+## ===== docs/sphinx/source/scientific/image_quality.rst =====
+
+Image Quality
+=============
+
+A lens prescription determines first-order properties, but two lenses with the
+same focal length can form very different images. OpenLens reports both
+geometric and diffraction-based measures. This page explains what each number
+means and when it is trustworthy.
+
+.. contents:: Table of Contents
+   :local:
+   :depth: 2
+
+Seidel Aberrations
+------------------
+
+OpenLens reports the five primary (third-order) aberrations. Some are
+calculator estimates from first-order parameters; field-dependent coma,
+astigmatism, field curvature, and distortion use traced off-axis rays.
+
+Spherical aberration
+    Longitudinal shift between the paraxial focus and the marginal-ray focus.
+    It is present on axis and grows rapidly with aperture. Stopping down
+    reduces it.
+
+Coma
+    An off-axis aberration that makes a point source look like a comet.
+    OpenLens estimates it from the asymmetry of the traced ray fan.
+
+Astigmatism
+    The tangential and sagittal ray fans focus at different distances. The
+    reported value is the longitudinal separation of those foci.
+
+Field curvature
+    The image surface is curved rather than flat: best focus changes with
+    field angle. A flat sensor therefore cannot be in focus everywhere.
+
+Distortion
+    The image height is not proportional to the ideal ``f tan θ`` mapping.
+    Distortion moves points but does not by itself blur a point.
+
+For a single spherical lens, third-order Seidel distortion is zero by
+construction; the traced distortion curve is the useful measure.
+
+Chromatic Aberration
+--------------------
+
+The refractive index depends on wavelength. OpenLens reports longitudinal
+chromatic aberration as the focus shift between spectral lines. The Abbe
+number is the usual first-order measure:
+
+.. math::
+
+   V_d = \frac{n_d - 1}{n_F - n_C}.
+
+A low Abbe number means high dispersion and usually more chromatic
+aberration. The calculation uses the material's catalog value where possible;
+otherwise it falls back to a coarse estimate based on refractive index. Treat
+that fallback as an estimate, not a measured glass property.
+
+Achromatic Doublets
+^^^^^^^^^^^^^^^^^^^
+
+Combining a positive crown element with a negative flint element can bring two
+wavelengths to a common focus. The cemented-doublet tools and optimizer in
+OpenLens expose the element radii and glass choice as variables. A good
+first-order achromat still needs a real ray check for spherical aberration and
+manufacturing tolerances.
+
+PSF
+---
+
+The point spread function is the image of an ideal point source. OpenLens can
+compute it in two ways:
+
+Geometric PSF
+    Bin traced ray intersections on a detector grid. This is cheap and shows
+    the geometric blur, but it ignores diffraction and can be noisy with few
+    rays. The window grows to cover the traced spot; the result reports how
+    much of the traced energy was captured. A low captured fraction means the
+    PSF is clipped by the detector, not that the lens is perfect.
+
+Diffraction PSF
+    Take the complex pupil function from the traced wavefront and propagate it
+    with an FFT. This includes diffraction and defocus, and is the appropriate
+    model near the diffraction limit. It needs ``numpy`` and a sampled pupil.
+
+The PSF is normalized so its integral represents the captured energy. When a
+metric is computed from a clipped PSF, the report should be read together with
+the captured fraction.
+
+Strehl Ratio and Wavefront Error
+--------------------------------
+
+The Strehl ratio is the ratio of the aberrated peak irradiance to the ideal
+peak. OpenLens obtains it from the traced pupil wavefront:
+
+.. math::
+
+   S = \left|\left\langle e^{i 2\pi W}\right\rangle\right|^2,
+
+where ``W`` is the wavefront error in waves after piston and tilt are removed.
+For small aberrations this is close to the Maréchal approximation
+
+.. math::
+
+   S \approx e^{-(2\pi\sigma)^2},
+
+with ``σ`` the RMS wavefront error in waves. A Strehl ratio of 0.8 or above is
+often treated as “diffraction limited”, but the threshold is a convention, not
+a hard physical boundary.
+
+Wavefront maps are sampled on a pupil grid. If too few rays reach the pupil,
+the result is reported as unavailable rather than as a good wavefront.
+
+Through-Focus and Tolerancing
+-----------------------------
+
+Image quality changes with focus. OpenLens can evaluate metrics at a requested
+focus shift instead of assuming the paraxial image plane. A lens or assembly
+can also pin an absolute detector plane with ``image_plane_x_mm``: spot-based
+analyses, the RMS spot metric, and the optimizer's RMS-spot target then
+measure at that plane. An unset plane keeps the paraxial focus as the default.
+Tolerancing extends
+this idea to manufacturing errors: element decentre, tilt, thickness, radius,
+and index perturbations are sampled, and the resulting metric distribution is
+reported. A nominal design with a good spot but no tolerance margin is not a
+manufacturable design.
+
+What the Numbers Do Not Cover
+-----------------------------
+
+- Geometric ray tracing ignores diffraction until the diffraction PSF/MTF
+  branch is selected.
+- Scalar diffraction does not model polarization or vector pupil effects;
+  those need the coating/polarization models.
+- A single-wavelength MTF does not describe a broadband image. Use the
+  chromatic tools and multiple wavelengths.
+- Ghost analysis follows unwanted reflections but does not predict sensor
+  blooming or stray light outside the modeled aperture.
+- Manufacturing tolerances are statistical inputs. The output is only as good
+  as the distributions and compensators supplied.
+
+Where to Look in the Code
+-------------------------
+
+- ``openlens/aberrations.py``: Seidel estimates, chromatic, Airy, Strehl.
+- ``openlens/analysis/spot_diagram.py``: spot and encircled energy.
+- ``openlens/analysis/geometric.py``: field curves and distortion.
+- ``openlens/analysis/psf_mtf.py``: geometric and diffraction PSF/MTF.
+- ``openlens/analysis/diffraction_psf.py``: pupil wavefront propagation.
+- ``openlens/tolerancing.py``: Monte Carlo and sensitivity analysis.
+
+## ===== docs/sphinx/source/scientific/thermal_mechanical.rst =====
+
+Thermal Scaling
+---------------
+
+For a change in temperature ``ΔT`` from the 20 °C reference, a material with
+linear coefficient of thermal expansion ``α`` changes its dimensions by
+
+.. math::
+
+   L(T) = L_0 \left(1 + \alpha \Delta T\right).
+
+OpenLens applies this factor to the lens radii, centre thickness, diameter,
+and - when a housing coefficient is supplied - to the air gaps. The radii and
+thickness scaling preserves the shape of a homogeneous element to first order.
+It is not a thermo-elastic finite-element model: it does not predict stress,
+bending, or a cemented-interface failure.
+
+The refractive index also changes. Catalog glasses can carry Schott TIE-19
+coefficients ``D0``, ``D1``, ``D2``, ``E0``, ``E1`` and a thermal resonance
+wavelength. When they are present, OpenLens evaluates
+
+.. math::
+
+   \Delta n = \frac{n^2-1}{2n}\left[
+   D_0\Delta T + D_1\Delta T^2 + D_2\Delta T^3
+   + \frac{E_0\Delta T + E_1\Delta T^2}{\lambda^2-\lambda_{tk}^2}
+   \right],
+
+with wavelength in micrometres. All-zero coefficients mean “no thermal data”,
+and no correction is applied. A model glass defined only by ``nd``/``Vd`` has
+no temperature coefficients either; its index is not invented.
+
+Housing Expansion
+-----------------
+
+The air gaps are set by the mechanical housing, not by the glass. A first-order
+estimate scales every gap by
+
+.. math::
+
+   g(T) = g_0 \left(1 + \alpha_\text{housing}\Delta T\right).
+
+The default housing coefficient is aluminium, ``23.6 × 10⁻⁶ /K``. Steel is
+roughly ``12 × 10⁻⁶ /K``, Invar ``1 × 10⁻⁶ /K``, and common plastics can be
+tens to hundreds of ``10⁻⁶ /K``. Using the wrong housing coefficient can
+change focus by more than the glass expansion does, especially in a long
+assembly.
+
+This is a uniform scaling model. A real barrel has a front and rear section,
+retainers, and possibly different materials; those require a mechanical model
+or a tolerance sensitivity study.
+
+Where to Look in the Code
+-------------------------
+
+- ``openlens/analysis/environmental.py``: CTE, dn/dT, air index, conditioning.
+- ``openlens/material_database.py``: thermal coefficients and glass data.
+- ``openlens/mechanical_designer.py``: cells, spacers, barrel, mounts.
+- ``openlens/mounts.py``: standard and custom flange distances.
+- ``openlens/tolerancing.py``: perturbation, Monte Carlo, reports.
+- ``openlens/io/step_export.py``: STEP solids for lenses and housings.
+
+=== USER ===
+## ===== Source docstrings =====
+
+# openlens.coating_designer.CoatingDesigner.calculate_reflectivity
+    def calculate_reflectivity(
+        self, layers: List[CoatingLayer], wavelength_nm: float, angle_deg: float = 0
+    ) -> float:
+        """
+        Calculate reflectivity of coating stack using transfer matrix method.
+
+        Each layer j is represented by its characteristic matrix (Macleod,
+        Thin-Film Optical Filters; Hecht, Optics):
+
+            M_j = [[cos d_j,  i*sin d_j / eta_j],
+                   [i*eta_j*sin d_j, cos d_j]],
+
+        with phase thickness d_j = 2*pi*n_j*t_j*cos(th_j)/lambda and tilted
+        admittances eta_j = n_j*cos(th_j) (s-polarization) or
+        eta_j = n_j/cos(th_j) (p-polarization). Angles inside the stack
+        follow Snell's law from the angle of incidence in air. The system
+        matrix M = prod(M_j) gives
+        [B, C]^T = M.[1, eta_substrate]^T and
+        r = (eta_inc*B - C)/(eta_inc*B + C), R = |r|^2, averaged over both
+        polarizations for unpolarized light.
+
+        Args:
+            layers: List of coating layers (substrate to air)
+            wavelength_nm: Wavelength in nanometers
+            angle_deg: Angle of incidence in degrees from the surface
+                normal, in the incident (air) medium. Must be in [0, 90).
+
+        Returns:
+            Reflectivity (0 to 1)
+
+        Raises:
+            ValueError: If wavelength is not positive or the angle is
+                outside [0, 90) degrees.
+
+        Note:
+            Layer indices are real (lossless films), so transmission is
+            reported as T = 1 - R elsewhere; absorption is neglected.
+        """
+    ...
+
+## ===== Source code of the target functions =====
+
+# openlens.coating_designer.CoatingDesigner.calculate_reflectivity
+    def calculate_reflectivity(
+        self, layers: List[CoatingLayer], wavelength_nm: float, angle_deg: float = 0
+    ) -> float:
+        """
+        Calculate reflectivity of coating stack using transfer matrix method.
+
+        Each layer j is represented by its characteristic matrix (Macleod,
+        Thin-Film Optical Filters; Hecht, Optics):
+
+            M_j = [[cos d_j,  i*sin d_j / eta_j],
+                   [i*eta_j*sin d_j, cos d_j]],
+
+        with phase thickness d_j = 2*pi*n_j*t_j*cos(th_j)/lambda and tilted
+        admittances eta_j = n_j*cos(th_j) (s-polarization) or
+        eta_j = n_j/cos(th_j) (p-polarization). Angles inside the stack
+        follow Snell's law from the angle of incidence in air. The system
+        matrix M = prod(M_j) gives
+        [B, C]^T = M.[1, eta_substrate]^T and
+        r = (eta_inc*B - C)/(eta_inc*B + C), R = |r|^2, averaged over both
+        polarizations for unpolarized light.
+
+        Args:
+            layers: List of coating layers (substrate to air)
+            wavelength_nm: Wavelength in nanometers
+            angle_deg: Angle of incidence in degrees from the surface
+                normal, in the incident (air) medium. Must be in [0, 90).
+
+        Returns:
+            Reflectivity (0 to 1)
+
+        Raises:
+            ValueError: If wavelength is not positive or the angle is
+                outside [0, 90) degrees.
+
+        Note:
+            Layer indices are real (lossless films), so transmission is
+            reported as T = 1 - R elsewhere; absorption is neglected.
+        """
+        if wavelength_nm <= 0:
+            raise ValueError(f"Wavelength must be positive, got {wavelength_nm}")
+        if not 0 <= angle_deg < 90:
+            raise ValueError(f"Angle of incidence must be in [0, 90), got {angle_deg}")
+
+        theta_0 = math.radians(angle_deg)
+        sin_0 = math.sin(theta_0)
+        cos_0 = math.cos(theta_0)
+
+        if not layers:
+            # No coating - Fresnel reflection at the bare air/substrate interface.
+            cos_s = cmath.sqrt(1 - (sin_0 / self.substrate_index) ** 2)
+            rs = (self.air_index * cos_0 - self.substrate_index * cos_s) / (
+                self.air_index * cos_0 + self.substrate_index * cos_s
+            )
+            rp = (self.substrate_index * cos_0 - self.air_index * cos_s) / (
+                self.substrate_index * cos_0 + self.air_index * cos_s
+            )
+            return float(min(max((abs(rs) ** 2 + abs(rp) ** 2) / 2.0, 0.0), 1.0))
+
+        # Light is incident from air, so traverse the stored
+        # (substrate-to-air) stack in reverse.
+        incident_order = list(reversed(layers))
+
+        r_sum = 0.0
+        # Unpolarized light: average s- and p-polarized reflectances.
+        for polarization in ("s", "p"):
+            eta_inc = _tilted_admittance(self.air_index, cos_0, polarization)
+            eta_sub = _tilted_admittance(
+                self.substrate_index,
+                cmath.sqrt(1 - (self.air_index * sin_0 / self.substrate_index) ** 2),
+                polarization,
+            )
+            # System matrix M = prod(M_j), identity to start.
+            m11, m12, m21, m22 = 1.0 + 0.0j, 0.0j, 0.0j, 1.0 + 0.0j
+            for layer in incident_order:
+                n = layer.refractive_index
+                cos_t = cmath.sqrt(1 - (self.air_index * sin_0 / n) ** 2)
+                delta = 2 * math.pi * n * layer.thickness_nm * cos_t / wavelength_nm
+                eta = _tilted_admittance(n, cos_t, polarization)
+                cos_d = cmath.cos(delta)
+                sin_d = cmath.sin(delta)
+                a11, a12 = cos_d, 1j * sin_d / eta
+                a21, a22 = 1j * eta * sin_d, cos_d
+                m11, m12, m21, m22 = (
+                    m11 * a11 + m12 * a21,
+                    m11 * a12 + m12 * a22,
+                    m21 * a11 + m22 * a21,
+                    m21 * a12 + m22 * a22,
+                )
+            b = m11 + m12 * eta_sub
+            c = m21 + m22 * eta_sub
+            r = (eta_inc * b - c) / (eta_inc * b + c)
+            r_sum += abs(r) ** 2
+
+        return float(min(max(r_sum / 2.0, 0.0), 1.0))
+
+# openlens.coating_designer.CoatingDesigner.calculate_reflectivity_curve
+    def calculate_reflectivity_curve(
+        self,
+        layers: List[CoatingLayer],
+        wavelength_range: Tuple[float, float],
+        num_points: int = 100,
+    ) -> List[Tuple[float, float]]:
+        """
+        Calculate reflectivity vs wavelength
+
+        Args:
+            layers: Coating layers
+            wavelength_range: (min_nm, max_nm)
+            num_points: Number of wavelength points
+
+        Returns:
+            List of (wavelength_nm, reflectivity) tuples
+        """
+        if num_points < 1:
+            raise ValueError("num_points must be at least 1")
+
+        min_wl, max_wl = wavelength_range
+        if num_points == 1:
+            # A single sample sits at the start of the requested range; the
+            # usual linspace would divide by num_points - 1.
+            wavelengths = [min_wl]
+        else:
+            wavelengths = [
+                min_wl + (max_wl - min_wl) * i / (num_points - 1) for i in range(num_points)
+            ]
+
+        curve = []
+        for wl in wavelengths:
+            R = self.calculate_reflectivity(layers, wl)
+            curve.append((wl, R))
+
+        return curve
+
+# openlens.coating_designer.CoatingDesigner.design_v_coating
+    def design_v_coating(self, wavelength_nm: float) -> List[CoatingLayer]:
+        """Design a broadband V-coating for the visible spectrum.
+
+        A V-coat works precisely because its layers are *not* quarter-wave:
+        the thicknesses trade a good match at the centre against a broad,
+        shallow one. The preset used to express that with unexplained
+        ``x1.2`` and ``x0.9`` factors, which are not a design but an assertion -
+        and stacked Ta2O5 again, giving 18.949% at 550 nm against 4.216%
+        uncoated. Five times worse than no coating.
+
+        The inner layer is held quarter-wave and the two outer thicknesses are
+        solved numerically here, minimising the mean reflection across
+        ``V_COATING_BAND``. Nothing is asserted about the result; the search
+        only ever returns a stack whose measured broadband reflectance beats
+        the bare substrate, because that is the candidate it starts from.
+        """
+        inner_name, n_inner = "Al2O3", self.COATING_MATERIALS["Al2O3"]
+        middle_name, n_middle = "SiO2", self.COATING_MATERIALS["SiO2"]
+        outer_name, n_outer = "MgF2", self.COATING_MATERIALS["MgF2"]
+
+        def build(t_middle: float, t_outer: float) -> List[CoatingLayer]:
+            return [
+                CoatingLayer(inner_name, n_inner, wavelength_nm / (4 * n_inner)),
+                CoatingLayer(middle_name, n_middle, t_middle),
+                CoatingLayer(outer_name, n_outer, t_outer),
+            ]
+
+        def band_cost(t_middle: float, t_outer: float) -> float:
+            layers = build(t_middle, t_outer)
+            total = 0.0
+            for probe in V_COATING_PROBE_WAVELENGTHS_NM:
+                total += self.calculate_reflectivity(layers, probe)
+            return total
+
+        # Start from the uncoated substrate's cost, so the search can only
+        # improve on doing nothing.
+        best_cost = sum(
+            self.calculate_reflectivity([], probe) for probe in V_COATING_PROBE_WAVELENGTHS_NM
+        )
+        best_t = (wavelength_nm / (4 * n_middle), wavelength_nm / (4 * n_outer))
+
+        step = wavelength_nm / (4 * n_outer) / 4.0
+        for _ in range(V_COATING_SEARCH_STEPS):
+            improved = False
+            for d_middle in (-step, 0.0, step):
+                for d_outer in (-step, 0.0, step):
+                    if d_middle == 0.0 and d_outer == 0.0:
+                        continue
+                    candidate = (
+                        max(0.0, best_t[0] + d_middle),
+                        max(0.0, best_t[1] + d_outer),
+                    )
+                    cost = band_cost(*candidate)
+                    if cost < best_cost - V_COATING_TOLERANCE:
+                        best_cost = cost
+                        best_t = candidate
+                        improved = True
+            if not improved:
+                break
+            step /= 2.0
+
+        return build(*best_t)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.coating_designer.CoatingDesigner.calculate_reflectivity
+
+# Notes: `CoatingDesigner.calculate_reflectivity(self, layers, wavelength_nm, angle_deg=0)`
+
+## 1. Purpose
+- Computes the reflectance R of a thin-film stack on a substrate with the transfer-matrix method.
+- Light is unpolarized: R is the mean of the s and p reflectances.
+- The incident medium is air (`self.air_index`, which is 1.0).
+- With no layers it returns the bare Fresnel reflectance.
+
+## 2. Inputs
+- `self.substrate_index`: set by `CoatingDesigner(substrate_index=1.5168)`. Default 1.5168 (BK7). It is not validated.
+- `self.air_index`: always 1.0 after `__init__`. It is a plain attribute that tests could reassign.
+- `layers`: a list of `CoatingLayer(material, refractive_index, thickness_nm)`.
+  - Order is **substrate to air**. Index 0 touches the substrate; the last item faces the air.
+  - Any falsy value (`[]`, `None`) takes the bare-substrate path.
+  - Only `refractive_index` and `thickness_nm` are used. `material` is ignored.
+- `wavelength_nm`: a number that must be > 0.
+- `angle_deg`: angle of incidence in air, in degrees. It must satisfy `0 <= angle_deg < 90`. Default `0` (an int).
+- Layer indices and thicknesses are not validated. A thickness of 0 is allowed.
+
+## 3. Raises (checks run in this order; the wavelength check comes first)
+- `ValueError(f"Wavelength must be positive, got {wavelength_nm}")` when `wavelength_nm <= 0`.
+  - `calculate_reflectivity([], 0)` gives the message `"Wavelength must be positive, got 0"`.
+  - `-5.0` gives `"... got -5.0"`.
+- `ValueError(f"Angle of incidence must be in [0, 90), got {angle_deg}")` when the angle is outside the range.
+  - `calculate_reflectivity([], 550, 90)` gives `"... got 90"`.
+  - `-1` gives `"... got -1"`.
+- If both values are bad, the wavelength message wins: `calculate_reflectivity([], -1, 95)` reports the wavelength.
+- Both checks run even when `layers` is empty.
+- NaN cases:
+  - A NaN wavelength passes the wavelength check, because `nan <= 0` is False.
+  - A NaN angle raises the angle error.
+- Use `pytest.raises(ValueError, match=...)`. Escape the regex characters `[`, `(` and `)` in the angle message, for example with `re.escape`.
+
+## 4. Returns and guarantees
+- Returns a Python `float`, clamped to `[0.0, 1.0]`.
+- The result never depends on `material`.
+- On the bare path (no layers) the result does not depend on `wavelength_nm`.
+- Reference values at normal incidence:
+  - Bare, `substrate_index=1.5`: `0.04` (that is (0.5/2.5)²). Compare with `pytest.approx`.
+  - Bare, default 1.5168: `((0.5168/2.5168))**2 ≈ 0.0421678`. The docstrings call this "4.216%".
+  - Bare, `substrate_index=1.0`: `0.0`.
+- Quarter-wave single layer (thickness `λ/(4 n_c)`), normal incidence:
+  - Formula: `R = ((n_s - n_c**2)/(n_s + n_c**2))**2`.
+  - MgF2 (n=1.38, thickness 550/(4·1.38)) on 1.5168 at λ=550: R ≈ 0.012836.
+  - Substrate `1.38**2 = 1.9044` with the MgF2 quarter-wave layer: R ≈ 0. Use `abs=1e-12`.
+- Layers that act as if absent (the result equals the bare value at any wavelength or angle):
+  - A half-wave layer, thickness `λ/(2n)`, at normal incidence.
+  - A zero-thickness layer (phase δ=0 gives the identity matrix), at any angle.
+  - These match because the matrix path and the bare Fresnel path agree.
+- Scale invariance: on the layered path the phase uses `thickness/λ`. Multiplying all thicknesses and the wavelength by the same k gives the same R.
+
+## 5. Side effects
+- None. `layers` is not mutated; the reversal uses `list(reversed(layers))`.
+- No state is stored on `self`.
+
+## 6. Branches and edge cases
+- **Bare path** (`not layers`):
+  - `cos_s = cmath.sqrt(1 - (sin0/n_s)**2)`.
+  - `rs = (cos0 - n_s cos_s)/(cos0 + n_s cos_s)` and `rp = (n_s cos0 - cos_s)/(n_s cos0 + cos_s)`.
+  - Returns the mean of |rs|² and |rp|².
+- **Brewster check**: `substrate_index=1.5`, `angle_deg=math.degrees(math.atan(1.5))` (≈56.31°).
+  - Here rp=0, so R = rs²/2.
+  - The value is less than both the normal-incidence R and the R at 80°.
+- **Grazing**: the bare R at 89.9° is close to 1 but ≤ 1.0. R increases with angle beyond Brewster.
+- **Layered path**:
+  - The stack is traversed in reverse (air side first).
+  - For each layer: `cos_t = sqrt(1-(sin0/n)^2)` and `δ = 2π n t cos_t / λ`.
+  - Admittance is η = n·cos (s polarization) or n/cos (p polarization).
+  - Then `B,C = M·[1, η_sub]`, `r = (η_inc B − C)/(η_inc B + C)`.
+- **Order matters**: swapping two different layers in a non-trivial stack generally changes R.
+  - Example: TiO2 then MgF2 quarter-waves at λ=550 gives a different R from the reversed order.
+  - Only assert `!=` (or compute the expected value independently); do not hard-code values you have not derived.
+- **Integer inputs**: `angle_deg=0` (int) is fine. `wavelength_nm=550` (int) is fine.
+
+## 7. Rules from docstrings and comments
+- Layers are stored substrate to air; light enters from air.
+- Films are lossless (real indices), so callers report T = 1 − R.
+- The angle must be in [0, 90).
+
+## 8. Testing hints
+- Import it as `from openlens.coating_designer import CoatingDesigner, CoatingLayer`.
+- Always use `pytest.approx(rel=1e-9)` or an `abs` tolerance; never compare floats exactly.
+- Good regression anchors, each derivable by hand:
+  - Exact bare values: 1.5 → 0.04; 1.5168 → 0.042168.
+  - The quarter-wave formula value.
+  - Zero-thickness and half-wave layers equal the bare value.
+  - Oblique incidence: compute the bare Fresnel value independently with the formulas in §6.
+  - Error messages and the order of the checks.
+  - Boundaries: angle 0 is accepted; 90 is rejected; 89.999 is accepted.
+  - Wavelength: `1e-9` is accepted; `0` is rejected.
+- Cross-check: `coated_reflectance(layers, n_s, wl, angle)` returns exactly the same value (it wraps this method).
+- Do not assume any particular `design_dual_layer_ar` or `design_v_coating` output values. Only `R(design) <= R([])` is guaranteed.
+
+### openlens.coating_designer.CoatingDesigner.calculate_reflectivity_curve
+
+# Notes: `CoatingDesigner.calculate_reflectivity_curve(layers, wavelength_range, num_points=100)`
+
+## 1. Purpose
+- Samples the reflectivity of a coating stack at evenly spaced wavelengths.
+- Returns a list of `(wavelength_nm, R)` tuples.
+- Each `R` is exactly `self.calculate_reflectivity(layers, wl)` at normal incidence (angle 0).
+
+## 2. Inputs
+- `self`: a `CoatingDesigner(substrate_index=1.5168)`. The default substrate is BK7. `self.air_index` is always `1.0`.
+- `layers`: a list of `CoatingLayer(material, refractive_index, thickness_nm)` in substrate-to-air order.
+  - `[]` is allowed and means an uncoated surface (bare Fresnel reflection).
+  - It is only read, never validated.
+- `wavelength_range`: unpacked as `min_wl, max_wl = wavelength_range`, so it must have exactly 2 items.
+  - It is not validated or sorted.
+  - `min > max` is allowed and gives descending wavelengths.
+  - `min == max` is allowed and repeats the same wavelength.
+- `num_points`: an int, default `100`.
+  - It is checked for `< 1` first.
+  - It is used in `range()`, so a non-int such as `2.5` gives a `TypeError` from `range`.
+- There is no angle parameter. The angle is always the `calculate_reflectivity` default, `0`.
+
+## 3. Raises (in this order)
+1. `ValueError("num_points must be at least 1")` when `num_points < 1`.
+   - Example: `d.calculate_reflectivity_curve([], (400, 700), 0)`; `-3` also triggers it.
+   - This check runs before the range is unpacked, so `curve([], (1, 2, 3), 0)` still gives this message.
+2. Tuple-unpacking `ValueError` when `wavelength_range` does not have 2 items.
+   - Examples: `(400,)` and `(400, 500, 600)`. This is Python's own message ("not enough / too many values to unpack").
+3. From `calculate_reflectivity`, for the first sample with `wl <= 0`: `ValueError(f"Wavelength must be positive, got {wavelength_nm}")`.
+   - `d.calculate_reflectivity_curve([], (0, 700), 3)` gives `"Wavelength must be positive, got 0.0"`. The value is a float because it was computed.
+   - `d.calculate_reflectivity_curve([], (0, 700), 1)` gives `"...got 0"`. The original int is passed through unchanged.
+   - Use `pytest.raises(ValueError, match="Wavelength must be positive")`.
+- The angle check in `calculate_reflectivity` can never fire, because the angle is 0.
+
+## 4. Returns and guarantees
+- A new `list` of length exactly `num_points`.
+- Each element is a `tuple` `(wl, R)`, not a list.
+- Wavelength formula:
+  - `num_points == 1`: `wavelengths = [min_wl]`. This is the original object, so an int stays an int.
+  - `num_points > 1`: `wl_i = min_wl + (max_wl - min_wl) * i / (num_points - 1)` for `i = 0..n-1`. The multiply happens before the divide, and every result is a float.
+  - With integer inputs the values are exact. `(400, 700), 4` gives `[400.0, 500.0, 600.0, 700.0]`. `(400, 700), 2` gives `[400.0, 700.0]`.
+  - The first point equals `min_wl`, and the last equals `min_wl + (max_wl - min_wl)`, which is exact for ints.
+- `R` is a Python `float` clamped to `[0, 1]`. It equals `d.calculate_reflectivity(layers, wl)` bit-for-bit, so `==` is safe for that comparison.
+- Order follows `i` ascending, i.e. from `min_wl` toward `max_wl`.
+
+## 5. Side effects
+- None. `layers` and the designer are not mutated, and nothing is cached.
+- Calling the method twice gives equal lists.
+
+## 6. Branches and edge cases
+- **Single point:** `num_points == 1` gives `[(min_wl, R(min_wl))]`, and `max_wl` is ignored. `curve([], (500, 900), 1) == [(500, R)]`.
+- **Uncoated (`layers == []`):** R does not depend on wavelength.
+  - It equals `((n-1)/(n+1))**2`.
+  - BK7 1.5168 gives ≈ `0.042164` (approx 4.216%). `n = 1.5` gives `0.04`; use approx.
+  - So all R values in the curve are identical.
+- **Quarter-wave MgF2 on BK7 at design λ = 550:**
+  - The layer is `CoatingLayer("MgF2", 1.38, 550/(4*1.38) ≈ 99.6377)`; `design_single_layer_ar(550)` returns exactly this.
+  - At wl = 550, R = `((1.5168-1.38**2)/(1.5168+1.38**2))**2 ≈ 0.012835`.
+  - At 400 and 700, R is larger than at 550 but still below the bare value of 0.042164.
+- **Reversed range:** `(700, 400), 4` gives wavelengths `[700.0, 600.0, 500.0, 400.0]`.
+- **Equal bounds:** `(550, 550), 3` gives three entries at `550.0` with equal R.
+
+## 7. Rules from comments and docstrings
+- The single-sample case deliberately avoids dividing by `num_points - 1` and sits at the start of the range.
+- `layers` are in substrate-to-air order. `calculate_reflectivity` reverses them internally because light enters from air.
+- Reflectivity is the unpolarized average of s and p, with lossless films.
+
+## 8. Testing hints
+- `from openlens.coating_designer import CoatingDesigner, CoatingLayer`, then `d = CoatingDesigner()`.
+- Useful oracles:
+  - `len(curve) == num_points`.
+  - `[w for w, _ in curve]` equals the expected list.
+  - `all(isinstance(p, tuple) for p in curve)`.
+  - `r == d.calculate_reflectivity(layers, w)` for every point.
+- Check the default length: `len(d.calculate_reflectivity_curve([], (400, 700))) == 100`.
+  - The second point is `400 + 300*1/99`; compare it with `pytest.approx`.
+- Use `pytest.approx` for physics values such as 0.042164 and 0.012835. Use exact `==` only for integer-friendly wavelength grids or for comparisons against `calculate_reflectivity`.
+- Pitfalls:
+  - Do not expect the range to be sorted or validated.
+  - Do not expect an error for `min > max`.
+  - Do not pass an angle; there is no such argument.
+  - The `num_points` check comes before any wavelength check.
+
+### openlens.coating_designer.CoatingDesigner.design_v_coating
+
+# Notes: `CoatingDesigner.design_v_coating(self, wavelength_nm)`
+
+## 1. Purpose
+- Builds a 3-layer broadband visible "V-coat" in substrate-to-air order: Al2O3 / SiO2 / MgF2.
+- The inner layer is always quarter-wave.
+- The middle and outer thicknesses come from a greedy, deterministic grid search. The search minimises the **sum** of reflectance at 7 fixed probe wavelengths.
+
+## 2. Inputs
+- `self.substrate_index`
+  - Set in `__init__`, default `1.5168`.
+  - Used only through `self.calculate_reflectivity`, so it changes only the searched middle/outer thicknesses.
+  - It never changes the materials or the inner thickness.
+- `self.air_index` is always `1.0`.
+- `wavelength_nm` (number, no validation) is the design wavelength. It sets:
+  - the inner thickness `wavelength_nm/(4*1.63)`;
+  - the start point `(wavelength_nm/(4*1.46), wavelength_nm/(4*1.38))`;
+  - the initial step `step = wavelength_nm/(4*1.38)/4`. This is always based on MgF2's index.
+- `wavelength_nm` is **not** passed to `calculate_reflectivity`. Reflectance is only evaluated at the module constants:
+  - `V_COATING_PROBE_WAVELENGTHS_NM = (400, 450, 500, 550, 600, 650, 700)`
+  - `V_COATING_SEARCH_STEPS = 12` (maximum number of rounds)
+  - `V_COATING_TOLERANCE = 1e-9`
+- Indices come from `COATING_MATERIALS`: Al2O3 = 1.63, SiO2 = 1.46, MgF2 = 1.38.
+
+## 3. Raises
+- No explicit raises. Because the probes are fixed and positive, `calculate_reflectivity` never raises its "Wavelength must be positive" error here.
+- `wavelength_nm=0` or negative values do **not** raise.
+  - `0`: step is 0, every neighbour equals (0, 0) and is skipped, so the result is three layers with `thickness_nm == 0.0`.
+- A non-numeric value (e.g. `"550"`) raises `TypeError` from arithmetic such as `"550"/(4*1.63)`.
+
+## 4. Returns and guarantees
+- Returns a new `list` of 3 new `CoatingLayer` objects, always in this order:
+  - `[0]`: `CoatingLayer("Al2O3", 1.63, wavelength_nm/(4*1.63))`. For 550 nm the thickness is 84.355828…
+  - `[1]`: `CoatingLayer("SiO2", 1.46, t_middle)`
+  - `[2]`: `CoatingLayer("MgF2", 1.38, t_outer)`
+- Both searched thicknesses satisfy `t_middle >= 0` and `t_outer >= 0` (each candidate is clamped with `max(0.0, …)`).
+- The result is deterministic: repeated calls, or a new instance with the same substrate, give equal lists (dataclass `==`).
+
+**Search algorithm (exact):**
+- `best_cost` starts as the **uncoated** cost: `sum(calculate_reflectivity([], p) for p in probes)`.
+- `best_t` starts at the quarter-wave pair. The start point itself is never scored.
+- Each round loops over `d_middle in (-step, 0, step)` (outer loop) and `d_outer in (-step, 0, step)` (inner loop), skipping `(0, 0)`. That is 8 candidates.
+- Each candidate is `(max(0, best_t[0]+dm), max(0, best_t[1]+do))`.
+- It is accepted only if `cost < best_cost - 1e-9`. Acceptance is greedy: `best_t` updates mid-round, and later candidates offset from the new best.
+- If a round has no acceptance, the search breaks. Otherwise `step /= 2`.
+
+**Consequence:** if nothing ever beats the uncoated cost, the result is the unscored quarter-wave start. In that case the docstring's claim "beats the bare substrate" does not hold. If anything was accepted, `band_cost(result) < uncoated_cost - 1e-9`.
+
+## 5. Side effects
+- Does not change `self.substrate_index`, `self.air_index` or `COATING_MATERIALS`.
+- No I/O.
+- Calls `self.calculate_reflectivity(layers, probe)` with 2 positional arguments. An instance-level monkeypatch therefore takes effect.
+
+## 6. Branches and edge cases (use monkeypatching for exact values)
+Set `d = CoatingDesigner()`, `wl = 550`, `qm = 550/(4*1.46) = 94.178082…`, `qo = 550/(4*1.38) = 99.637681…`, `step = qo/4 = 24.909420…`.
+
+- **No improvement ever** (`d.calculate_reflectivity = lambda L, w, a=0: 0.5`)
+  - The candidate cost 3.5 is not less than 3.5 − 1e-9, so the search breaks after round 1.
+  - Result thicknesses: `(qm, qo)`.
+  - 63 calls in total (7 uncoated + 8×7).
+- **Single improvement** (`lambda L, w, a=0: 0.0 if L else 1.0`)
+  - The first candidate `(-step, -step)` is accepted. In round 2, `0 < 0 - 1e-9` is false, so the search breaks.
+  - Result: `t_middle = qm - step ≈ 69.268662`, `t_outer = qo - step ≈ 74.728261`.
+  - 119 calls in total.
+- **Always improving** (`lambda L, w, a=0: L[1].thickness_nm + L[2].thickness_nm if L else 1e9`)
+  - All 12 rounds run, and each round accepts `(-step, -step)` first.
+  - Result: `t = start - step*(2 - 2**-11)`, i.e. `t_outer ≈ qo/2 + tiny`. Use `pytest.approx`.
+  - 7 + 12×56 = 679 calls.
+- **`wavelength_nm=0`**: all thicknesses are 0.0 and there is no exception.
+
+## 7. Rules from the docstring and comments
+- The inner layer is held quarter-wave.
+- The two outer thicknesses are solved numerically, minimising mean reflection over the 400–700 nm band.
+- The search "starts from" the uncoated cost, so an accepted stack always beats bare glass.
+- The old ×1.2/×0.9 Ta2O5 design is gone. Ta2O5 is never used.
+
+## 8. Testing hints
+- Check `[l.material for l in res] == ["Al2O3", "SiO2", "MgF2"]` and the indices `[1.63, 1.46, 1.38]`.
+- Check the inner thickness with `pytest.approx(wl/(4*1.63))`. Test several wavelengths and substrates; the inner thickness is independent of the substrate.
+- `coating_label(res) == "3L AR (Al2O3+SiO2+MgF2)"`.
+- `design_preset("V-coating", 1.5168, 550) == CoatingDesigner(1.5168).design_v_coating(550)`.
+- For the real (unpatched) result, do not hard-code `t_middle` or `t_outer`; they are not given here. Instead assert either:
+  - `cost(res) < cost([]) - 1e-9`, **or**
+  - the thicknesses equal `(qm, qo)` exactly.
+
+  Compute `cost` with `sum(d.calculate_reflectivity(L, p) for p in (400, 450, …, 700))`.
+- Use the monkeypatch scenarios in section 6 to pin the following, with `pytest.approx(rel=1e-9)`:
+  - the step size `qo/4`;
+  - the tolerance (e.g. a patch whose improvement is only 1e-10 must leave the start unchanged);
+  - the greedy order;
+  - the 12-round cap;
+  - the call counts.
+
+  Patch on the instance, e.g. `d.calculate_reflectivity = fn`, with an `fn` that takes `(layers, wl, angle=0)`.
+- Tolerance check in detail: with a patch returning `1.0` for `[]` and `1.0 - 1e-10/7` otherwise, the result is the start point.
+- Do not assert that the thicknesses differ from quarter-wave, and do not compare against reflectance at `wavelength_nm` itself; it is not what the search optimises.
+
+Write pytest tests for these functions: openlens.coating_designer.CoatingDesigner.calculate_reflectivity, openlens.coating_designer.CoatingDesigner.calculate_reflectivity_curve, openlens.coating_designer.CoatingDesigner.design_v_coating.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.

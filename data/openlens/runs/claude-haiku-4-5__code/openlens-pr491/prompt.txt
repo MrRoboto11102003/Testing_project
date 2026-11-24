@@ -1,0 +1,97 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.lens_editor.LensManager.delete_lens, openlens.lens_editor.main.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.lens_editor.LensManager.delete_lens
+    def delete_lens(self) -> None:
+        """
+        Interactive CLI method to delete a lens from the collection.
+
+        Prompts user to select a lens and confirm deletion.
+        Updates storage after deletion.
+        """
+        if not self.lenses:
+            print("\nNo lenses to delete.")
+            return
+
+        self.list_lenses()
+        try:
+            idx = int(input("\nSelect lens number to delete: "))
+            lens = self.get_lens_by_index(idx)
+
+            if not lens:
+                print("Invalid selection.")
+                return
+
+            confirm = input(f"Delete '{lens.name}'? (yes/no): ").strip().lower()
+            if confirm == "yes":
+                # Delete the row explicitly. Popping the in-memory list and
+                # re-saving does NOT delete anything: save_lenses defaults to
+                # reconcile=False and only inserts or replaces rows, so the
+                # lens came straight back on the next start while the CLI
+                # cheerfully reported success.
+                #
+                # Only drop it from memory once the row is really gone, and
+                # never print success when the database refused.
+                if not self._delete_row(lens):
+                    print("Lens kept in the library.")
+                    return
+
+                self.lenses.pop(idx - 1)
+                self.save_lenses()
+                print("✓ Lens deleted successfully!")
+            else:
+                print("Deletion cancelled.")
+
+        except (ValueError, IndexError):
+            print("Invalid input.")
+
+# openlens.lens_editor.main
+def main() -> None:
+    """Main entry point for the interactive CLI lens editor.
+
+    Passing ``mcp`` as the first argument starts the MCP stdio server instead
+    of the interactive menu, so an AI client can launch ``openlens-cli mcp``.
+    """
+    if len(sys.argv) > 1 and sys.argv[1] == "mcp":
+        from .mcp_server import main as mcp_main
+
+        raise SystemExit(mcp_main())
+
+    setup_logging(verbose=verbose_requested())
+    manager = LensManager()
+
+    print("=" * 60)
+    print("   openlens - Optical Lens Creation & Modification Tool")
+    print("=" * 60)
+
+    while True:
+        print("\n--- Menu ---")
+        print("1. Create new lens")
+        print("2. List all lenses")
+        print("3. View lens details")
+        print("4. Modify lens")
+        print("5. Delete lens")
+        print("6. Exit")
+
+        choice = input("\nSelect option: ").strip()
+
+        if choice == "1":
+            manager.create_lens()
+        elif choice == "2":
+            manager.list_lenses()
+        elif choice == "3":
+            manager.view_lens()
+        elif choice == "4":
+            manager.modify_lens()
+        elif choice == "5":
+            manager.delete_lens()
+        elif choice == "6":
+            print("\nGoodbye!")
+            break
+        else:
+            print("Invalid option. Please try again.")

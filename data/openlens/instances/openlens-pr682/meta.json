@@ -1,0 +1,36 @@
+{
+ "id": "openlens-pr682",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 622,
+ "issue_title": "bug(data-loss): Zemax round-trip drops elements or shrinks diameter when clear apertures differ",
+ "issue_body": "## Summary\n\nThe Zemax exporter writes `DIAM` as `clear_aperture / 2` for each surface, but the importer reconstructs the mechanical diameter from the **back** surface only and then rejects the element if the front clear aperture exceeds it. A lens with a larger front clear aperture is dropped entirely; a lens with a larger back clear aperture silently shrinks to that diameter.\n\n## Impact\n\n- Round-trip data loss: a valid lens (`D=40`, `CA1=38`, `CA2=30`) vanishes from the imported system with only a warning.\n- Asymmetric clear apertures are common (front element of an objective, domed windows).\n- The opposite asymmetry imports with the wrong mechanical diameter (`D=38` instead of `40`), affecting mounts, spacers, and layout.\n- A lens with only `CA2` set (`CA1=None`) is also dropped.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.export_formats import ZemaxSystemExporter, ZemaxSystemImporter\n\ndef roundtrip(**kw):\n    s = OpticalSystem()\n    s.add_lens(Lens(radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0,\n                    thickness=5.0, diameter=40.0, **kw))\n    p = \"/tmp/aperture.zmx\"\n    ZemaxSystemExporter.export_system(s, p)\n    return ZemaxSystemImporter.import_system(p)\n\nprint([e.lens.diameter for e in roundtrip(clear_aperture_1=38, clear_aperture_2=30).elements])\nprint([e.lens.diameter for e in roundtrip(clear_aperture_1=30, clear_aperture_2=38).elements])\n```\n\nObserved:\n\n```\nZemax import: element 1 dropped, front clear aperture (38.000 mm) exceeds diameter (30.000 mm)\ncase 1: D=40, CA1=38, CA2=30\n  exported: ['DIAM 19.0', 'DIAM 15.0']\n  imported elements: 0\ncase 2: D=40, CA1=30, CA2=38\n  imported diameter: 38.0 (expected 40.0)\ncase 4: D=40, CA1=None, CA2=30\n  exported: ['DIAM 20.0', 'DIAM 15.0']\n  imported elements: 0\n```\n\n## Root cause\n\n- `openlens/export_formats.py:752` / `:777` \u2014 exporter writes `DIAM = clear_aperture / 2`.\n- `openlens/export_formats.py:1029-1038` \u2014 importer sets `diameter = back_diam * 2.0` only.\n- `openlens/export_formats.py:889-895` \u2014 validation drops the element when `ca1 > diameter`.\n\n## Expected behaviour\n\n`diameter \u2265 max(CA1, CA2)` is restored, and the imported diameter equals the source mechanical diameter when both surfaces carry a clear aperture. An element is never dropped because its front aperture is larger than its back aperture.\n\n## Suggested fix\n\nReconstruct `diameter = 2 * max(front_diam, back_diam)` (or export/parse the mechanical diameter explicitly, e.g. a `DIAM` on one surface plus separate `CA1`/`CA2`). Ensure the validation sees the restored diameter, not the back-only value. Add round-trip tests for `CA1>CA2`, `CA2>CA1`, `CA1=None`, and `CA2=None`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/622",
+ "pr": 682,
+ "pr_title": "fix(data-loss): keep a lens with asymmetric clear apertures in a Zemax round trip",
+ "pr_body": "## Description\n\nThe Zemax exporter writes one semi-diameter per surface (`DIAM = clear\naperture / 2`), but the importer rebuilt the mechanical diameter from the\n**back** surface only. The validation then saw a diameter smaller than the\nfront clear aperture and dropped the whole element:\n\n```\nCA1=38, CA2=30 (D=40)  ->  imported elements: 0\nCA1=30, CA2=38 (D=40)  ->  imported diameter: 38.0 (expected 40.0)\nCA1=None, CA2=30        ->  imported elements: 0\n```\n\n## What changed\n\n- `openlens/export_formats.py::ZemaxSystemImporter` reconstructs the\n  mechanical diameter as the **larger of the two clear apertures** - the\n  smallest blank that holds both. The `.zmx` dialect has one semi-diameter\n  per surface and no field for the blank diameter, so this is the best the\n  format can carry.\n- The exporter's docstring now states that limitation.\n\nBoth clear apertures still round-trip exactly, no element is dropped, and a\nlens without clear apertures keeps its diameter.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #622\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n\nNew test module `tests/test_zemax_aperture_roundtrip.py` (four of the five\ntests fail on the unfixed code):\n\n- `test_a_larger_front_aperture_is_not_dropped`\n- `test_a_larger_back_aperture_is_not_dropped`\n- `test_only_a_back_aperture_is_not_dropped`\n- `test_the_diameter_holds_both_apertures`\n- `test_a_lens_without_clear_apertures_keeps_its_diameter`\n\nFull local suite: `Ran 2607 tests ... OK (skipped=35)`, `black` clean,\n`ruff` clean, `mypy` clean.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [x] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "d5e30cf70abd327b8a833544c61f1b18abf537cf",
+ "merged_at": "2026-10-22T00:37:27Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/export_formats.py"
+ ],
+ "test_files": [
+  "tests/test_zemax_aperture_roundtrip.py"
+ ],
+ "target_symbols": [
+  "openlens/export_formats.py::ZemaxSystemExporter.export_system",
+  "openlens/export_formats.py::ZemaxSystemImporter.import_system"
+ ],
+ "fail_to_pass": [
+  "tests/test_zemax_aperture_roundtrip.py::TestZemaxClearApertureRoundTrip::test_a_larger_front_aperture_is_not_dropped",
+  "tests/test_zemax_aperture_roundtrip.py::TestZemaxClearApertureRoundTrip::test_only_a_back_aperture_is_not_dropped",
+  "tests/test_zemax_aperture_roundtrip.py::TestZemaxClearApertureRoundTrip::test_the_diameter_holds_both_apertures"
+ ],
+ "pass_to_pass": [
+  "tests/test_zemax_aperture_roundtrip.py::TestZemaxClearApertureRoundTrip::test_a_larger_back_aperture_is_not_dropped",
+  "tests/test_zemax_aperture_roundtrip.py::TestZemaxClearApertureRoundTrip::test_a_lens_without_clear_apertures_keeps_its_diameter"
+ ],
+ "patch_lines": 25
+}

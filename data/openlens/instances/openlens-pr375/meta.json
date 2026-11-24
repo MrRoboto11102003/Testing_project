@@ -1,0 +1,66 @@
+{
+ "id": "openlens-pr375",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 357,
+ "issue_title": "`PresetLibrary.get_lens_copy` silently drops half the lens model",
+ "issue_body": "**File:** `src/preset_library.py:226-248`\n\nA hand-rolled field copy has drifted from `Lens.to_dict()`. Verified **not** copied:\n`coating_1`, `coating_2`, `model_glass_mode`, `model_nd`, `model_vd`, `is_parabolic_1/2`,\n`parabolic_sag_1/2`, `is_fresnel`, `groove_pitch`, `num_grooves`. Instantiating a preset silently\nproduces a different lens than the one described.\n\n**Fix:** `d = preset.lens.to_dict(); d[\"id\"] = uuid.uuid4().hex; ...; return Lens.from_dict(d)`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/357",
+ "pr": 375,
+ "pr_title": "fix(preset): copy the whole lens model out of a preset",
+ "pr_body": "Closes #357\n\n## Problem\n\n`get_lens_copy` re-listed the `Lens` constructor fields by hand and had drifted from `Lens.to_dict()`. Twelve fields were silently dropped:\n\n`coating_1`, `coating_2`, `model_glass_mode`, `model_nd`, `model_vd`, `is_parabolic_1/2`, `parabolic_sag_1/2`, `is_fresnel`, `groove_pitch`, `num_grooves`\n\nInstantiating a preset produced a **different lens than the one described** \u2014 a Fresnel lens came back plano, coatings vanished, and a model glass reverted to its defaults.\n\n```\nfield              original                     copy\ncoating_1          {'name': 'MgF2', ...}        None                <-- LOST\nmodel_glass_mode   True                         False               <-- LOST\nis_parabolic_1     True                         False               <-- LOST\nis_fresnel         True                         False               <-- LOST\ngroove_pitch       2.5                          5.0                 <-- LOST\nnum_grooves        8                            None                <-- LOST\n```\n\n## Fix\n\nRound-trip through `to_dict()`/`from_dict()` with a fresh `uuid` for the id, so the copy **cannot drift from the model again** when a field is added \u2014 the root cause was the hand-rolled duplicate list, not the missing fields.\n\n## Tests\n\n6 tests in `tests/test_preset_performance_functional.py`. One walks **every shipped preset** and requires an exact `to_dict()` match \u2014 all nine failed before this change, so the drift was not limited to exotic configurations.",
+ "fix_commit": "4be5aa0b35cfd0b4db468d439801d56dd9be9c4c",
+ "merged_at": "2026-10-04T20:40:39Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/preset_library.py"
+ ],
+ "test_files": [
+  "tests/test_preset_performance_functional.py"
+ ],
+ "target_symbols": [
+  "openlens/preset_library.py::PresetLibrary.get_lens_copy"
+ ],
+ "fail_to_pass": [
+  "tests/test_preset_performance_functional.py::TestPresetLensCopyFidelity::test_every_shipped_preset_round_trips",
+  "tests/test_preset_performance_functional.py::TestPresetLensCopyFidelity::test_no_field_is_dropped",
+  "tests/test_preset_performance_functional.py::TestPresetLensCopyFidelity::test_round_trips_through_to_dict"
+ ],
+ "pass_to_pass": [
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_calculate_airy_disk_radius",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_calculate_back_focal_length",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_calculate_depth_of_field",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_calculate_f_number",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_calculate_magnification",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_calculate_numerical_aperture",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_calculate_resolution_rayleigh",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_calculate_working_distance",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_create_metrics_with_lens",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_create_metrics_with_system",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_depth_of_field_ordering",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_get_all_metrics",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_metrics_for_system",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetrics::test_metrics_with_different_diameters",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetricsEdgeCases::test_metrics_with_flat_surface",
+  "tests/test_preset_performance_functional.py::TestPerformanceMetricsEdgeCases::test_metrics_with_negative_lens",
+  "tests/test_preset_performance_functional.py::TestPresetLensCopyFidelity::test_copy_gets_a_distinct_id",
+  "tests/test_preset_performance_functional.py::TestPresetLensCopyFidelity::test_original_preset_lens_is_untouched",
+  "tests/test_preset_performance_functional.py::TestPresetLensCopyFidelity::test_unknown_preset_returns_none",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_add_custom_preset",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_create_library",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_default_presets_loaded",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_get_lens_copy",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_get_nonexistent_preset",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_get_preset_by_name",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_get_preset_library_singleton",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_list_categories",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_list_presets",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_list_presets_by_category",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_preset_has_all_fields",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_preset_lens_is_valid",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_search_case_insensitive",
+  "tests/test_preset_performance_functional.py::TestPresetLibrary::test_search_presets"
+ ],
+ "patch_lines": 37
+}

@@ -1,0 +1,40 @@
+{
+ "id": "openlens-pr400",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 319,
+ "issue_title": "69 lines of unreachable duplicate code in `calculate_mtf`",
+ "issue_body": "**File:** `src/analysis/psf_mtf.py:354-422` (immediately after the `return` at `:352`)\n\n```python\n352:  return {\"freq\": ..., \"mtf_tan\": ..., \"mtf_sag\": ...}\n353:\n354:  # 1. Calculate PSF with sufficient resolution        <- UNREACHABLE\n...\n366:  psf_data = self.calculate_psf(\n367:      field_angle=field_angle,    # <- no such parameter\n368:      wavelength=wavelength,      # <- no such parameter\n369:      focus_shift=focus_shift,    # <- no such parameter\n```\n\nA verbatim stale copy of `:284-352` referencing three identifiers that do not exist in scope. It is\ndirect evidence of merge drift, and a trap: anyone \"fixing\" the kwargs shim at `:179-184` makes this\nblock reachable.\n\n**Fix:** delete `:354-422`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/319",
+ "pr": 400,
+ "pr_title": "refactor(psf): delete 70 unreachable lines from calculate_mtf",
+ "pr_body": "Closes #319\n\n## Problem\n\nImmediately after `calculate_mtf`'s live `return` sat a **verbatim copy** of the block above it, calling `calculate_psf` with three keywords that do not exist:\n\n```python\npsf_data = self.calculate_psf(\n    field_angle=field_angle,      # no such parameter\n    wavelength=wavelength,        # no such parameter\n    focus_shift=focus_shift,      # no such parameter\n```\n\n## It was a trap, not just dead code\n\nThe block was dead by accident of ordering: the `return` lives inside the `if use_diffraction:` branch, and the copy sits *after* that branch in the function body. Meanwhile the legacy-kwargs shim at the top of `calculate_mtf` exists **precisely to accept the old names** \u2014 so anyone widening that shim would have made the copy reachable, turning three `NameError`s into a silently different MTF path.\n\nNothing referenced it, so it could only ever rot.\n\n## Fix\n\nDeleted. **No behaviour change** \u2014 verified by dumping `freq`/`mtf_tan`/`mtf_sag` for the geometric and diffraction paths at on- and off-axis field, before and after: all 4 cases bit-identical.\n\n## Guard tests\n\nThree keep it out. The main one walks the function's **own body** as well as nested statement lists for statements following a `return`:\n\n```python\n# the block sat directly in calculate_mtf's body, so an AST check that only\n# scanned nested bodies misses it - my first attempt did exactly that and\n# passed on the unfixed file.\n```\n\nThe other two check on the AST that no call to `calculate_psf` uses a legacy keyword, and that the stale comment marker appears once rather than twice.\n\nSeven further tests pin the MTF behaviour itself: key sets, zero frequency, `max_freq` respected, MTF \u2264 1, and that the geometric and diffraction paths still differ (which would catch a short-circuit).\n\n## Tests\n\n10 tests, **3 fail without the change**.",
+ "fix_commit": "2c3c62c8505729b32ec4242accdab38b594fc519",
+ "merged_at": "2026-10-06T18:53:09Z",
+ "port_method": "partial_hunks:1/1",
+ "src_files": [
+  "openlens/analysis/psf_mtf.py"
+ ],
+ "test_files": [
+  "tests/test_mtf_no_dead_code.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._apply_defocus"
+ ],
+ "fail_to_pass": [
+  "tests/test_mtf_no_dead_code.py::TestNoUnreachableCode::test_no_call_uses_a_legacy_parameter_name",
+  "tests/test_mtf_no_dead_code.py::TestNoUnreachableCode::test_the_stale_comment_appears_only_once"
+ ],
+ "pass_to_pass": [
+  "tests/test_mtf_no_dead_code.py::TestCalculateMtfUnaffected::test_both_paths_start_at_zero_frequency",
+  "tests/test_mtf_no_dead_code.py::TestCalculateMtfUnaffected::test_diffraction_mtf_has_the_documented_keys",
+  "tests/test_mtf_no_dead_code.py::TestCalculateMtfUnaffected::test_frequencies_are_within_max_freq",
+  "tests/test_mtf_no_dead_code.py::TestCalculateMtfUnaffected::test_geometric_and_diffraction_differ",
+  "tests/test_mtf_no_dead_code.py::TestCalculateMtfUnaffected::test_geometric_mtf_has_the_documented_keys",
+  "tests/test_mtf_no_dead_code.py::TestCalculateMtfUnaffected::test_legacy_kwargs_are_still_rejected_or_mapped",
+  "tests/test_mtf_no_dead_code.py::TestCalculateMtfUnaffected::test_mtf_is_not_above_one",
+  "tests/test_mtf_no_dead_code.py::TestNoUnreachableCode::test_calculate_mtf_has_no_dead_trailing_block"
+ ],
+ "patch_lines": 70
+}

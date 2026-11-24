@@ -1,0 +1,216 @@
+{
+ "id": "openlens-pr504",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 53784,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6172
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.38,
+ "detected": true,
+ "n_tests": 16,
+ "n_catching": 2,
+ "n_false_alarms": 3,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3736,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 8672,
+  "output_tokens_details": {
+   "thinking_tokens": 6393
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3736,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8672,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 3736,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3736
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.052132599999999994,
+ "model_seconds": 48.1,
+ "seconds": 58.0,
+ "tests": {
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_default_constraints_in_merit_function": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MIN_EDGE_THICKNESS",
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_empty_system_raises_index_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_exactly_three_variables": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_exactly_two_targets": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_merit_function_references_same_system": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_merit_function_targets_reference_same_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_returns_lens_optimizer_instance": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_single_element_system_raises_index_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_system_is_same_object_not_copied": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_system_with_more_than_two_elements_accepted": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_target_chromatic_aberration_minimize": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_target_focal_length_custom_value": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_target_focal_length_default_100": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_variable_r1_crown_all_properties": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_variable_r2_crown_with_cemented_interface_link": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr504.py::TestCreateDoubletOptimizer::test_variable_r2_flint_all_properties": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "create_doublet_optimizer"
+   ]
+  }
+ }
+}

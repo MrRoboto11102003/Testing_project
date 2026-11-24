@@ -1,0 +1,73 @@
+{
+ "id": "openlens-pr552",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 475,
+ "issue_title": "Robustness: CLI create_lens skips validation; importers read whole files with no size limit; save is not one transaction",
+ "issue_body": "**Where:** `src/lens_editor.py:101`; `src/export_formats.py` (`ZemaxSystemImporter`); `src/io/step_export.py` (`read_step_solids`); `OpticalSystem.load`; `src/gui/storage.py:149-154`; `openlens.py:183-188`\n\n- The CLI `create_lens` does not call `validate_lens_name` (`modify_lens` does) or `check_physical_feasibility`, so it accepts lenses the GUI would reject.\n- `ZemaxSystemImporter`, `read_step_solids` and `OpticalSystem.load` read whole files with no size limit, and `OpticalSystem.load` skips `reject_non_finite_numbers`.\n- `save_lenses` writes each item in its own transaction, so a failure part-way leaves a partially saved library.\n\n**Fix:** route every entry point through the same validators, add a size cap and non-finite rejection, and wrap a full save in one transaction.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/475",
+ "pr": 552,
+ "pr_title": "fix(robustness): validate CLI input, cap imports, save the library atomically",
+ "pr_body": "## Description\n\nfix(robustness): validate CLI input, cap imports, save the library atomically\n\nFour entry-point gaps, all of which let bad input or a failed write through silently:\n\n1. **CLI accepted what the GUI rejects.** `create_lens` built a `Lens` and appended it without `validate_lens_name` or `check_physical_feasibility`. A 101-character name crashed on `Lens(...)` instead of being refused, and a lens whose surfaces intersect inside the clear aperture (edge thickness \u221299 mm) was saved happily. It now runs both validators and returns `None` without saving.\n2. **Importers read whole files with no size limit.** `ZemaxSystemImporter.import_system`, `read_step_solids` and `OpticalSystem.load` now reject files above `MAX_IMPORT_FILE_BYTES` (64 MiB) through a shared `reject_oversized_file` helper.\n3. **`OpticalSystem.load` accepted non-finite numbers.** `json.load` parses the non-standard bare `NaN` / `Infinity` literals, and a NaN compares false against every downstream sanity threshold. `reject_non_finite_numbers` now runs before `from_dict`.\n4. **A failed library save was half a save.** `LensStorage.save_lenses` called `save_lens` / `save_assembly` per item, each committing on its own, so a failure on item three left items one and two persisted. All items and the library membership now commit in one `save_library` transaction, and any failure rolls the whole snapshot back.\n\n### Refactor\n\n- `DatabaseManager._write_transaction()` is the one place `BEGIN IMMEDIATE ... COMMIT` happens for writes now; `save_lens`, `save_assembly`, `set_library_membership` and the new `save_library` all use it.\n- `save_lens` no longer duplicates the row INSERT; it uses the existing `_save_lens_row` (which grew a `flatten_metadata` flag so assembly elements keep their previous blob shape).\n\n## Type of Change\n\n- [x] Bug fix / robustness (non-breaking)\n\n## Related Issues\n\nCloses #475\n\n## How Has This Been Tested?\n\n- [x] **11 new tests** in three files:\n  - `tests/test_cli_create_lens_validation.py` \u2014 over-long name refused, infeasible lens refused, feasible lens still created\n  - `tests/test_import_limits.py` \u2014 Zemax, STEP and JSON loads reject an over-cap file, a small file still loads, `NaN` and `Infinity` rejected\n  - `tests/test_library_save_transaction.py` \u2014 a failure mid-save leaves no rows, a successful save still writes everything\n- [x] **Red before the fix**: `FAILED (failures=4, errors=5)` \u2014 both invalid lenses were created, the three importers read the oversized files, both non-finite payloads loaded, and the first lens of the failed save stayed in the database\n- [x] `tests.test_gui_save_reporting` (17 tests) updated to break the database through `save_library`, the seam the storage layer now uses\n- [x] Database, storage, membership, importers, STEP/Zemax round-trips \u2014 248 tests OK\n- [x] Full suite: `Ran 2269 tests`, `FAILED (errors=6)` \u2014 master (2258) plus the eleven new tests; the six errors are the pre-existing `gui_flows` loader failures (pytest is not installed locally)\n- [x] `black --check` clean; `flake8` only pre-existing findings\n",
+ "fix_commit": "fd8b80a1f3c2e31392c5db6127360145272ea5e4",
+ "merged_at": "2026-10-19T19:09:54Z",
+ "port_method": "partial_hunks:10/14",
+ "src_files": [
+  "openlens/database.py",
+  "openlens/export_formats.py",
+  "openlens/io/step_reader.py",
+  "openlens/lens_editor.py",
+  "openlens/optical_system.py",
+  "openlens/validation.py"
+ ],
+ "test_files": [
+  "tests/test_cli_create_lens_validation.py",
+  "tests/test_gui_save_reporting.py",
+  "tests/test_import_limits.py",
+  "tests/test_library_save_transaction.py"
+ ],
+ "target_symbols": [
+  "openlens/database.py::DatabaseManager._connection",
+  "openlens/database.py::DatabaseManager._initialize_db",
+  "openlens/export_formats.py::ZemaxSystemImporter.import_system",
+  "openlens/io/step_reader.py::read_step_solids",
+  "openlens/lens_editor.py::LensManager.create_lens",
+  "openlens/validation.py::reject_non_finite_numbers",
+  "openlens/validation.py::validate_json_file_path"
+ ],
+ "fail_to_pass": [
+  "tests/test_cli_create_lens_validation.py::TestCreateLensValidation::test_a_name_over_the_limit_is_rejected_and_not_saved",
+  "tests/test_cli_create_lens_validation.py::TestCreateLensValidation::test_an_infeasible_lens_is_rejected_and_not_saved",
+  "tests/test_gui_save_reporting.py::TestFailedSaveIsNotReportedAsSuccess::test_successful_save_still_reports_success",
+  "tests/test_import_limits.py::TestImportSizeCaps::test_a_small_file_is_still_read",
+  "tests/test_import_limits.py::TestImportSizeCaps::test_step_reader_rejects_a_file_over_the_cap",
+  "tests/test_import_limits.py::TestImportSizeCaps::test_system_load_rejects_a_file_over_the_cap",
+  "tests/test_import_limits.py::TestImportSizeCaps::test_zemax_import_rejects_a_file_over_the_cap",
+  "tests/test_library_save_transaction.py::TestLibrarySaveIsAtomic::test_a_successful_save_still_writes_every_item"
+ ],
+ "pass_to_pass": [
+  "tests/test_cli_create_lens_validation.py::TestCreateLensValidation::test_a_feasible_lens_is_still_created",
+  "tests/test_cli_create_lens_validation.py::TestCreateLensValidation::test_the_prompt_defaults_create_a_feasible_lens",
+  "tests/test_gui_save_reporting.py::TestFailedLoadIsReported::test_failed_load_does_not_claim_the_library_is_empty",
+  "tests/test_gui_save_reporting.py::TestFailedLoadIsReported::test_failed_load_tells_the_user",
+  "tests/test_gui_save_reporting.py::TestFailedSaveIsNotReportedAsSuccess::test_failure_is_reported_even_when_save_lenses_only_returns_false",
+  "tests/test_gui_save_reporting.py::TestFailedSaveIsNotReportedAsSuccess::test_failure_raises_a_problem_report",
+  "tests/test_gui_save_reporting.py::TestFailedSaveIsNotReportedAsSuccess::test_status_does_not_claim_success_after_a_real_failure",
+  "tests/test_gui_save_reporting.py::TestFailureIsNotSpammedOnAutosave::test_a_later_success_arms_the_report_again",
+  "tests/test_gui_save_reporting.py::TestFailureIsNotSpammedOnAutosave::test_repeated_failures_show_one_report",
+  "tests/test_gui_save_reporting.py::TestFailureIsNotSpammedOnAutosave::test_status_still_reports_every_failure",
+  "tests/test_gui_save_reporting.py::TestLoggingIsConfigured::test_configure_logging_is_idempotent",
+  "tests/test_gui_save_reporting.py::TestLoggingIsConfigured::test_configure_logging_makes_errors_visible",
+  "tests/test_gui_save_reporting.py::TestProblemReportsDoNotBlock::test_error_boxes_are_kept_referenced",
+  "tests/test_gui_save_reporting.py::TestProblemReportsDoNotBlock::test_notify_problem_returns_without_blocking",
+  "tests/test_gui_save_reporting.py::TestProblemReportsDoNotBlock::test_the_error_box_is_not_modal",
+  "tests/test_gui_save_reporting.py::TestStorageStatusCallbackIsWired::test_storage_retains_the_underlying_error",
+  "tests/test_gui_save_reporting.py::TestStorageStatusCallbackIsWired::test_window_storage_has_a_real_status_callback",
+  "tests/test_gui_save_reporting.py::TestStorageStatusCallbackIsWired::test_window_storage_status_reaches_the_status_bar",
+  "tests/test_import_limits.py::TestNonFiniteNumbers::test_infinity_is_rejected",
+  "tests/test_import_limits.py::TestNonFiniteNumbers::test_nan_is_rejected",
+  "tests/test_library_save_transaction.py::TestLibrarySaveIsAtomic::test_a_failure_mid_save_leaves_no_rows"
+ ],
+ "patch_lines": 69
+}

@@ -1,0 +1,828 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.export_formats.OpticStudioExporter.export_lens, openlens.export_formats.OpticStudioExporter.export_system, openlens.export_formats.PrescriptionExporter.export_prescription, openlens.export_formats.SVGExporter.export_lens, openlens.export_formats.SVGExporter.export_system, openlens.export_formats.ZemaxExporter.export_lens, openlens.export_formats.ZemaxSystemExporter.export_system, openlens.io.export.ISO10110Generator.generate_svg, openlens.io.step_export.StepExporter.export, openlens.material_database.MaterialDatabase.export_material, openlens.material_database.MaterialDatabase.get_material, openlens.material_database.MaterialDatabase.save_database, openlens.stl_export.STLExporter.write_binary_stl.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.export_formats.OpticStudioExporter.export_lens
+    @staticmethod
+    def export_lens(lens: Lens, filename: str):
+        """
+        Export single lens to OpticStudio text prescription format.
+        This is a human-readable format that can be imported into OpticStudio.
+        """
+        with atomic_write_text(filename) as f:
+            # Header
+            f.write("# OpenLens Export - OpticStudio Format\n")
+            f.write(f"# Lens: {lens.name}\n")
+            f.write("#" + "=" * 60 + "\n\n")
+
+            # System info
+            f.write("SYSTEM PRESCRIPTION DATA\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"Title: {lens.name}\n")
+            f.write("Units: Millimeters\n")
+            f.write("Type: Sequential\n")
+            f.write("\n")
+
+            # Lens data
+            f.write("LENS DATA SUMMARY\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"Material: {lens.material}\n")
+            f.write(f"Refractive Index (d-line): {lens.refractive_index:.6f}\n")
+            f.write(f"Outer Diameter: {lens.diameter:.4f} mm\n")
+            f.write(
+                f"Clear Aperture 1/2: "
+                f"{lens.get_clear_aperture_1():.4f} / {lens.get_clear_aperture_2():.4f} mm\n"
+            )
+            f.write(f"Bevel 1/2 (45 deg): {lens.bevel_1:.4f} / {lens.bevel_2:.4f} mm\n")
+            f.write(f"Coating 1/2: {lens.coating_label(1)} / {lens.coating_label(2)}\n")
+
+            focal_length = lens.calculate_focal_length()
+            if focal_length:
+                f.write(f"Effective Focal Length: {focal_length:.4f} mm\n")
+            f.write("\n")
+
+            # Surface data table
+            f.write("SURFACE DATA DETAIL\n")
+            f.write("-" * 40 + "\n")
+            f.write(
+                f"{'Surface':<10} {'Type':<12} {'Radius':<14} {'Thickness':<12} "
+                f"{'Glass':<10} {'Diameter':<10}\n"
+            )
+            f.write("-" * 70 + "\n")
+
+            # Object surface
+            f.write(
+                f"{'OBJ':<10} {'STANDARD':<12} {'Infinity':<14} {'Infinity':<12} "
+                f"{'':<10} {'':<10}\n"
+            )
+
+            # Stop surface (entrance pupil at front surface)
+            f.write(
+                f"{'STO':<10} {'STANDARD':<12} {'Infinity':<14} {'0.0000':<12} {'':<10} "
+                f"{lens.diameter:<10.4f}\n"
+            )
+
+            # Front surface
+            r1_str = (
+                f"{lens.radius_of_curvature_1:.4f}"
+                if abs(lens.radius_of_curvature_1) < 1e10
+                else "Infinity"
+            )
+            f.write(
+                f"{'1':<10} {'STANDARD':<12} {r1_str:<14} {lens.thickness:<12.4f} "
+                f"{lens.material:<10} {lens.get_clear_aperture_1():<10.4f}\n"
+            )
+
+            # Back surface
+            r2_str = (
+                f"{lens.radius_of_curvature_2:.4f}"
+                if abs(lens.radius_of_curvature_2) < 1e10
+                else "Infinity"
+            )
+            f.write(
+                f"{'2':<10} {'STANDARD':<12} {r2_str:<14} {'100.0000':<12} {'':<10} "
+                f"{lens.get_clear_aperture_2():<10.4f}\n"
+            )
+
+            # Image surface
+            f.write(f"{'IMA':<10} {'STANDARD':<12} {'Infinity':<14} {'':<12} {'':<10} {'':<10}\n")
+
+            f.write("\n")
+            f.write("# End of OpenLens Export\n")
+
+# openlens.export_formats.OpticStudioExporter.export_system
+    @staticmethod
+    def export_system(system: OpticalSystem, filename: str):
+        """Export optical system to OpticStudio format"""
+        with atomic_write_text(filename) as f:
+            # Header
+            f.write("# OpenLens Export - OpticStudio Format\n")
+            f.write(f"# System: {system.name}\n")
+            f.write("#" + "=" * 60 + "\n\n")
+
+            f.write("SYSTEM PRESCRIPTION DATA\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"Title: {system.name}\n")
+            f.write("Units: Millimeters\n")
+            f.write("Type: Sequential\n")
+            f.write(f"Number of Elements: {len(system.elements)}\n")
+
+            total_length = system.get_total_length()
+            if total_length:
+                f.write(f"Total Length: {total_length:.4f} mm\n")
+
+            system_fl = system.get_system_focal_length()
+            if system_fl:
+                f.write(f"System Focal Length: {system_fl:.4f} mm\n")
+            f.write("\n")
+
+            # Surface data
+            f.write("SURFACE DATA DETAIL\n")
+            f.write("-" * 40 + "\n")
+            f.write(
+                f"{'Surface':<10} {'Type':<12} {'Radius':<14} {'Thickness':<12} {'Glass':<10}\n"
+            )
+            f.write("-" * 60 + "\n")
+
+            # Object
+            f.write(f"{'OBJ':<10} {'STANDARD':<12} {'Infinity':<14} {'Infinity':<12} {'':<10}\n")
+
+            image_distance = _image_distance(system)
+            surf_num = 1
+            for i, elem in enumerate(system.elements):
+                lens = elem.lens
+
+                # Air gap before lens
+                gap_before = _gap_before(system, i)
+                if gap_before > 0:
+                    f.write(
+                        f"{surf_num:<10} {'STANDARD':<12} {'Infinity':<14} "
+                        f"{gap_before:<12.4f} {'':<10}\n"
+                    )
+                    surf_num += 1
+
+                # Front surface
+                r1_str = (
+                    f"{lens.radius_of_curvature_1:.4f}"
+                    if abs(lens.radius_of_curvature_1) < 1e10
+                    else "Infinity"
+                )
+                f.write(
+                    f"{surf_num:<10} {'STANDARD':<12} {r1_str:<14} "
+                    f"{lens.thickness:<12.4f} {lens.material:<10}\n"
+                )
+                surf_num += 1
+
+                # Back surface. An intermediate element ends at the next gap
+                # row, so its own thickness is zero; only the last surface
+                # carries the distance to the image.
+                back_thickness = 0.0 if i + 1 < len(system.elements) else image_distance
+                r2_str = (
+                    f"{lens.radius_of_curvature_2:.4f}"
+                    if abs(lens.radius_of_curvature_2) < 1e10
+                    else "Infinity"
+                )
+                f.write(
+                    f"{surf_num:<10} {'STANDARD':<12} {r2_str:<14} "
+                    f"{back_thickness:<12.4f} {'':<10}\n"
+                )
+                surf_num += 1
+
+            # Image
+            f.write(f"{'IMA':<10} {'STANDARD':<12} {'Infinity':<14} {'':<12} {'':<10}\n")
+
+            f.write("\n")
+            f.write("# End of OpenLens Export\n")
+
+# openlens.export_formats.PrescriptionExporter.export_prescription
+    @staticmethod
+    def export_prescription(lens: Lens, filename: str):
+        """Export lens prescription (industry standard format)"""
+        with atomic_write_text(filename) as f:
+            f.write("LENS PRESCRIPTION\n")
+            f.write("=" * 60 + "\n\n")
+            f.write(f"Lens Name: {lens.name}\n")
+            f.write(f"Lens Type: {lens.lens_type}\n\n")
+
+            f.write("OPTICAL PARAMETERS:\n")
+            f.write(f"  Radius of Curvature 1: {lens.radius_of_curvature_1:.3f} mm\n")
+            f.write(f"  Radius of Curvature 2: {lens.radius_of_curvature_2:.3f} mm\n")
+            f.write(f"  Center Thickness: {lens.thickness:.3f} mm\n")
+            f.write(f"  Clear Aperture: {lens.diameter:.3f} mm\n")
+            f.write(f"  Material: {lens.material}\n")
+            f.write(f"  Refractive Index: {lens.refractive_index:.4f}\n")
+
+            f_length = lens.calculate_focal_length()
+            if f_length:
+                f.write(f"  Focal Length: {f_length:.3f} mm\n")
+
+            f.write("\n")
+            f.write("Generated by OpenLens\n")
+
+# openlens.export_formats.SVGExporter.export_lens
+    @staticmethod
+    def export_lens(
+        lens: Lens,
+        filename: str,
+        width: int = 400,
+        height: int = 300,
+        show_rays: bool = False,
+        show_labels: bool = True,
+    ):
+        """
+        Export lens cross-section as SVG.
+
+        Args:
+            lens: Lens object to export
+            filename: Output SVG filename
+            width: SVG width in pixels
+            height: SVG height in pixels
+            show_rays: Whether to show ray paths (simplified)
+            show_labels: Whether to show dimension labels
+        """
+        # Calculate scaling
+        margin = 40
+        available_width = width - 2 * margin
+        available_height = height - 2 * margin
+
+        # Scale to fit lens
+        max_dimension = max(lens.thickness * 2, lens.diameter)
+        scale = min(available_width, available_height) / max_dimension * 0.8
+
+        # Center position
+        cx = width / 2
+        cy = height / 2
+
+        # Scaled lens dimensions
+        thickness = lens.thickness * scale
+        half_diameter = (lens.diameter / 2) * scale
+
+        # Calculate surface positions
+        front_x = cx - thickness / 2
+        back_x = cx + thickness / 2
+
+        with atomic_write_text(filename) as f:
+            # SVG header
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            f.write(
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+                f'height="{height}" viewBox="0 0 {width} {height}">\n'
+            )
+            f.write("  <defs>\n")
+            f.write("    <style>\n")
+            f.write("      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }\n")
+            f.write("      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }\n")
+            f.write("      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }\n")
+            f.write("      .ray { stroke: #ff6600; stroke-width: 1.5; fill: none; }\n")
+            f.write(
+                "      .label { font-family: Arial, sans-serif; font-size: 12px; fill: #333333; }\n"
+            )
+            f.write(
+                "      .title { font-family: Arial, sans-serif; font-size: 14px; "
+                "font-weight: bold; fill: #333333; }\n"
+            )
+            f.write("    </style>\n")
+            f.write("  </defs>\n")
+            f.write("\n")
+
+            # Background
+            f.write(f'  <rect width="{width}" height="{height}" fill="white"/>\n')
+            f.write("\n")
+
+            # Title
+            f.write(
+                f'  <text x="{width/2}" y="25" class="title" text-anchor="middle">'
+                f"{escape(str(lens.name))}</text>\n"
+            )
+            f.write("\n")
+
+            # Optical axis
+            f.write(
+                f'  <line x1="{margin}" y1="{cy}" x2="{width-margin}" y2="{cy}" class="axis"/>\n'
+            )
+            f.write("\n")
+
+            # Generate lens outline path
+            r1 = lens.radius_of_curvature_1
+            r2 = lens.radius_of_curvature_2
+
+            # Calculate sag (surface deviation from flat)
+            def calc_sag(radius, half_d):
+                if abs(radius) > 1e9:
+                    return 0
+                try:
+                    return abs(radius) - math.sqrt(radius * radius - half_d * half_d)
+                except ValueError as e:
+                    logger.debug("Sag calculation failed: %s", e)
+                    return 0
+
+            sag1 = calc_sag(r1, lens.diameter / 2) * scale
+            sag2 = calc_sag(r2, lens.diameter / 2) * scale
+
+            # Front surface edge x positions
+            if abs(r1) > 1e9:  # Flat
+                front_top_x = front_x
+                front_bot_x = front_x
+            elif r1 > 0:  # Convex front
+                front_top_x = front_x + sag1
+                front_bot_x = front_x + sag1
+            else:  # Concave front
+                front_top_x = front_x - sag1
+                front_bot_x = front_x - sag1
+
+            # Back surface edge x positions
+            if abs(r2) > 1e9:  # Flat
+                back_top_x = back_x
+                back_bot_x = back_x
+            elif r2 < 0:  # Convex back (negative radius)
+                back_top_x = back_x - sag2
+                back_bot_x = back_x - sag2
+            else:  # Concave back
+                back_top_x = back_x + sag2
+                back_bot_x = back_x + sag2
+
+            # Build path for lens outline
+            top_y = cy - half_diameter
+            bot_y = cy + half_diameter
+
+            # Start path
+            path_parts = []
+
+            # Front surface (top to bottom)
+            if abs(r1) > 1e9:  # Flat surface
+                path_parts.append(f"M {front_top_x:.2f} {top_y:.2f}")
+                path_parts.append(f"L {front_bot_x:.2f} {bot_y:.2f}")
+            else:
+                # Curved surface using quadratic bezier approximation
+                # Control point for quadratic bezier
+                if r1 > 0:  # Convex
+                    ctrl_x = front_x
+                else:  # Concave
+                    ctrl_x = front_top_x + sag1 * 2
+
+                path_parts.append(f"M {front_top_x:.2f} {top_y:.2f}")
+                path_parts.append(f"Q {ctrl_x:.2f} {cy:.2f} {front_bot_x:.2f} {bot_y:.2f}")
+
+            # Bottom edge
+            path_parts.append(f"L {back_bot_x:.2f} {bot_y:.2f}")
+
+            # Back surface (bottom to top)
+            if abs(r2) > 1e9:  # Flat surface
+                path_parts.append(f"L {back_top_x:.2f} {top_y:.2f}")
+            else:
+                if r2 < 0:  # Convex back
+                    ctrl_x = back_x
+                else:  # Concave back
+                    ctrl_x = back_bot_x - sag2 * 2
+
+                path_parts.append(f"Q {ctrl_x:.2f} {cy:.2f} {back_top_x:.2f} {top_y:.2f}")
+
+            # Close path
+            path_parts.append("Z")
+
+            path_d = " ".join(path_parts)
+
+            # Draw lens
+            f.write(f'  <path d="{path_d}" class="lens-fill"/>\n')
+            f.write(f'  <path d="{path_d}" class="lens-stroke"/>\n')
+            f.write("\n")
+
+            # Optional rays
+            if show_rays:
+                ray_y_positions = [-half_diameter * 0.7, 0, half_diameter * 0.7]
+                for ray_y in ray_y_positions:
+                    # Simplified parallel rays
+                    f.write(
+                        f'  <line x1="{margin}" y1="{cy + ray_y}" x2="{front_top_x}" '
+                        f'y2="{cy + ray_y}" class="ray"/>\n'
+                    )
+                f.write("\n")
+
+            # Labels
+            if show_labels:
+                # Diameter label
+                f.write(
+                    f'  <text x="{margin + 10}" y="{cy - half_diameter - 5}" '
+                    f'class="label">∅{lens.diameter:.1f}mm</text>\n'
+                )
+
+                # Thickness label
+                f.write(
+                    f'  <text x="{cx}" y="{cy + half_diameter + 20}" class="label" '
+                    f'text-anchor="middle">t={lens.thickness:.1f}mm</text>\n'
+                )
+
+                # Material label
+                f.write(
+                    f'  <text x="{cx}" y="{height - 15}" class="label" text-anchor="middle">'
+                    f"{escape(str(lens.material))} "
+                    f"(n={lens.refractive_index:.4f})</text>\n"
+                )
+
+                # Focal length
+                fl = lens.calculate_focal_length()
+                if fl:
+                    f.write(
+                        f'  <text x="{width - margin - 10}" y="{cy - 10}" class="label" '
+                        f'text-anchor="end">f={fl:.1f}mm</text>\n'
+                    )
+
+            f.write("\n")
+            f.write("</svg>\n")
+
+# openlens.export_formats.SVGExporter.export_system
+    @staticmethod
+    def export_system(system: OpticalSystem, filename: str, width: int = 600, height: int = 300):
+        """Export optical system as SVG diagram"""
+        margin = 40
+
+        with atomic_write_text(filename) as f:
+            # SVG header
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">\n')
+            f.write("  <defs>\n")
+            f.write("    <style>\n")
+            f.write("      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }\n")
+            f.write("      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }\n")
+            f.write("      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }\n")
+            f.write(
+                "      .title { font-family: Arial, sans-serif; font-size: 14px; "
+                "font-weight: bold; }\n"
+            )
+            f.write("    </style>\n")
+            f.write("  </defs>\n")
+
+            # Background
+            f.write(f'  <rect width="{width}" height="{height}" fill="white"/>\n')
+
+            # Title
+            f.write(
+                f'  <text x="{width/2}" y="25" class="title" text-anchor="middle">'
+                f"{escape(str(system.name))}</text>\n"
+            )
+
+            # Optical axis
+            cy = height / 2
+            f.write(
+                f'  <line x1="{margin}" y1="{cy}" x2="{width-margin}" y2="{cy}" class="axis"/>\n'
+            )
+
+            # Calculate total system length for scaling
+            total_length = system.get_total_length() or 100
+
+            # Get max diameter for vertical scaling
+            max_diameter = max((elem.lens.diameter for elem in system.elements), default=50)
+
+            available_width = width - 2 * margin
+            available_height = height - 2 * margin
+
+            scale_x = available_width / total_length * 0.8
+            scale_y = available_height / max_diameter * 0.8
+            scale = min(scale_x, scale_y)
+
+            # Draw each lens element
+            x_pos = margin + 20
+            for i, elem in enumerate(system.elements):
+                lens = elem.lens
+
+                # Add air gap
+                x_pos += _gap_before(system, i) * scale
+
+                # Lens dimensions
+                t = lens.thickness * scale
+                h = lens.diameter / 2 * scale
+
+                # Simple rectangle for each lens (simplified)
+                f.write(
+                    f'  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" '
+                    f'class="lens-fill"/>\n'
+                )
+                f.write(
+                    f'  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" '
+                    f'class="lens-stroke"/>\n'
+                )
+
+                x_pos += t
+
+            f.write("</svg>\n")
+
+# openlens.export_formats.ZemaxExporter.export_lens
+    @staticmethod
+    def export_lens(lens: Lens, filename: str):
+        """Export single lens to Zemax format"""
+        with atomic_write_text(filename) as f:
+            f.write("! OpenLens Export\n")
+            f.write(f"! {lens.name}\n")
+            f.write("VERS 140000\n")
+            f.write("MODE SEQ\n")
+            f.write("\n")
+
+            # Surface 0 (object)
+            f.write("SURF 0\n")
+            f.write("  TYPE STANDARD\n")
+            f.write("  CURV 0.0\n")
+            f.write("  DISZ INFINITY\n")
+            f.write("\n")
+
+            # Surface 1 (front)
+            f.write("SURF 1\n")
+            f.write("  TYPE STANDARD\n")
+            # A parabolic surface is CONI -1 at its vertex radius, not a
+            # standard sphere at the nominal radius.
+            f.write(f"  CURV {_zemax_curv(lens.get_effective_radius_1())}\n")
+            conic = _zemax_conic(lens.is_parabolic_1, lens.conic_constant_1)
+            if conic is not None:
+                f.write(f"  CONI {conic:g}\n")
+            f.write(f"  DISZ {lens.thickness}\n")
+            f.write(f"  DIAM {_zemax_diam(lens.get_clear_aperture_1())}\n")
+            f.write(f"  GLAS {_zemax_material(lens.material)}\n")
+            f.write(f"  WAVE {lens.wavelength:g}\n")
+            coat1 = lens.coating_label(1)
+            if coat1 != "Uncoated":
+                f.write(f"  COAT {coat1}\n")
+            f.write("\n")
+
+            # Surface 2 (back)
+            f.write("SURF 2\n")
+            f.write("  TYPE STANDARD\n")
+            f.write(f"  CURV {_zemax_curv(lens.get_effective_radius_2())}\n")
+            conic = _zemax_conic(lens.is_parabolic_2, lens.conic_constant_2)
+            if conic is not None:
+                f.write(f"  CONI {conic:g}\n")
+            f.write(f"  DIAM {_zemax_diam(lens.get_clear_aperture_2())}\n")
+            coat2 = lens.coating_label(2)
+            if coat2 != "Uncoated":
+                f.write(f"  COAT {coat2}\n")
+            f.write("  DISZ 100.0\n")
+            f.write("\n")
+
+            # Image surface
+            f.write("SURF 3\n")
+            f.write("  TYPE STANDARD\n")
+            f.write("\n")
+
+# openlens.export_formats.ZemaxSystemExporter.export_system
+    @staticmethod
+    def export_system(system: OpticalSystem, filename: str) -> None:
+        """Write the system prescription to a .zmx file."""
+        stop = system.get_aperture_stop()
+        stop_gap = stop["gap_index"] if stop is not None else None
+        stop_dia = stop.get("diameter") if stop is not None else None
+
+        with atomic_write_text(filename) as f:
+            f.write("! OpenLens System Export\n")
+            f.write(f"! {system.name}\n")
+            f.write("VERS 140000\n")
+            f.write("MODE SEQ\n")
+            f.write("\n")
+
+            f.write("SURF 0\n")
+            f.write("  TYPE STANDARD\n")
+            f.write("  CURV 0.0\n")
+            f.write("  DISZ INFINITY\n")
+            f.write("\n")
+
+            surf = 1
+            gaps = list(system.air_gaps)
+            for i, element in enumerate(system.elements):
+                lens = element.lens
+                # Front surface carries the center thickness.
+                f.write(f"SURF {surf}\n")
+                f.write("  TYPE STANDARD\n")
+                f.write(f"  CURV {_zemax_curv(lens.get_effective_radius_1())}\n")
+                conic = _zemax_conic(lens.is_parabolic_1, lens.conic_constant_1)
+                if conic is not None:
+                    f.write(f"  CONI {conic:g}\n")
+                f.write(f"  DISZ {lens.thickness}\n")
+                f.write(f"  DIAM {_zemax_diam(lens.get_clear_aperture_1())}\n")
+                f.write(f"  GLAS {_zemax_material(lens.material)}\n")
+                f.write(f"  WAVE {lens.wavelength:g}\n")
+                if any(abs(value) > EPSILON for value in (element.decenter_y, element.decenter_z)):
+                    f.write(f"  DECE {element.decenter_y:g} {element.decenter_z:g}\n")
+                if any(
+                    abs(value) > EPSILON
+                    for value in (element.tilt_x, element.tilt_y, element.tilt_z)
+                ):
+                    f.write(f"  TILT {element.tilt_x:g} {element.tilt_y:g} {element.tilt_z:g}\n")
+                coat = lens.coating_label(1)
+                if coat != "Uncoated":
+                    f.write(f"  COAT {coat}\n")
+                f.write("\n")
+                surf += 1
+
+                # Back surface carries the distance to the next surface:
+                # stop plane, next front vertex, or image.
+                if stop_gap is not None and stop_gap == i:
+                    back_disz = stop["position"] - (element.position + lens.thickness)
+                    stop_remainder = gaps[i].thickness - back_disz
+                elif i < len(gaps):
+                    back_disz = gaps[i].thickness
+                    stop_remainder = None
+                else:
+                    back_disz = 100.0
+                    stop_remainder = None
+                f.write(f"SURF {surf}\n")
+                f.write("  TYPE STANDARD\n")
+                f.write(f"  CURV {_zemax_curv(lens.get_effective_radius_2())}\n")
+                conic = _zemax_conic(lens.is_parabolic_2, lens.conic_constant_2)
+                if conic is not None:
+                    f.write(f"  CONI {conic:g}\n")
+                f.write(f"  DIAM {_zemax_diam(lens.get_clear_aperture_2())}\n")
+                coat = lens.coating_label(2)
+                if coat != "Uncoated":
+                    f.write(f"  COAT {coat}\n")
+                f.write(f"  DISZ {back_disz}\n")
+                f.write("\n")
+                surf += 1
+
+                if stop_remainder is not None:
+                    f.write(f"SURF {surf}\n")
+                    f.write("  TYPE STANDARD\n")
+                    f.write("  STOP\n")
+                    f.write("  CURV 0.0\n")
+                    if stop_dia:
+                        f.write(f"  DIAM {_zemax_diam(stop_dia)}\n")
+                    f.write(f"  DISZ {stop_remainder}\n")
+                    f.write("\n")
+                    surf += 1
+
+            f.write(f"SURF {surf}\n")
+            f.write("  TYPE STANDARD\n")
+            f.write("\n")
+
+# openlens.io.export.ISO10110Generator.generate_svg
+    def generate_svg(self, filename: str, width: int = 800, height: int = 600):
+        """Generate SVG file."""
+        svg_content = self._render_svg(width, height)
+        with atomic_write_text(filename) as f:
+            f.write(svg_content)
+
+# openlens.io.step_export.StepExporter.export
+    def export(self, filename: str, housing: Optional[list] = None) -> dict:
+        """Export the current system to a STEP file.
+
+        Safe to call repeatedly on one exporter: the entity buffer is reset
+        first. It used to be created only in __init__, so a second export
+        appended a fresh context and a second copy of every solid to the
+        first export's lines - 48 entities after one call, 96 after two, with
+        two MANIFOLD_SOLID_BREPs in one file.
+
+        Args:
+            filename: Output path.
+            housing: Optional iterable of housing-part dicts with keys
+                ``name``, ``z0``, ``z1``, ``r_inner``, ``r_outer`` (all mm)
+                describing annular tube solids (spacers, barrel, retainers).
+                See ``mechanical_designer.suggest_housing``.
+
+        Returns:
+            A summary dict: ``shapes`` (solids written), ``skipped`` (count of
+            parts that could not be exported) and ``skipped_parts`` (their
+            names). Previously this returned None, so callers ignoring the
+            result are unaffected. A malformed part used to be logged at
+            DEBUG, which is invisible at default verbosity - the drawing came
+            out with silently missing solids and nothing said so.
+
+        Raises:
+            ValueError: If a lens has a parabolic or general conic surface.
+                A ``SPHERICAL_SURFACE`` cannot pass through the modelled rim,
+                so the solid would not close. Refusing leaves no file: the
+                buffer is only written once every part has been built.
+        """
+        # Start from a clean buffer and a clean id sequence.
+        self.writer = StepWriter()
+        self.axis_id = 0
+        self.dir_z = 0
+        self.dir_x = 0
+        self.dir_y = 0
+        self.origin = 0
+        self.axis2_placement = 0
+        self.context = 0
+        self.uncertainty = 0
+        self.related_context = 0
+        self.geom_context = 0
+        self.length_unit = 0
+        self.application_context = 0
+        self._solid_index = 0
+
+        # Standard setup entities
+        self._create_context()
+
+        shape_ids = []
+        skipped: list = []
+
+        # Export each lens
+        if hasattr(self.system, "elements") and hasattr(self.system, "air_gaps"):
+            for elem, placement in zip(self.system.elements, self._element_placements()):
+                solid_id = self._export_lens_solid(elem.lens, 0.0, placement)
+                if solid_id:
+                    shape_ids.append(solid_id)
+        elif hasattr(self.system, "radius_of_curvature_1"):
+            # Single lens
+            solid_id = self._export_lens_solid(self.system, 0.0)
+            if solid_id:
+                shape_ids.append(solid_id)
+        else:
+            # Fallback for dict or other objects
+            try:
+                # Try to use it as a single lens if it has necessary attributes
+                solid_id = self._export_lens_solid(self.system, 0.0)
+                if solid_id:
+                    shape_ids.append(solid_id)
+            except (AttributeError, KeyError) as e:
+                skipped.append("system")
+                logger.warning(
+                    "STEP solid export skipped - object exposes neither a lens "
+                    "nor elements/air_gaps: %s",
+                    e,
+                )
+
+        # Export housing parts (spacers, barrel, retainers) as tube solids.
+        for part in housing or []:
+            name = str(part.get("name", "part")) if isinstance(part, dict) else "part"
+            try:
+                solid_id = self._export_tube_solid(
+                    name,
+                    float(part["z0"]),
+                    float(part["z1"]),
+                    float(part["r_inner"]),
+                    float(part["r_outer"]),
+                )
+                if solid_id:
+                    shape_ids.append(solid_id)
+                else:
+                    # _export_tube_solid rejected the dimensions; it has already
+                    # logged, but the part still has to be counted.
+                    skipped.append(name)
+            except (KeyError, TypeError, ValueError) as e:
+                skipped.append(name)
+                logger.warning(
+                    "STEP housing part %r skipped - malformed or missing "
+                    "z0/z1/r_inner/r_outer: %s",
+                    name,
+                    e,
+                )
+
+        # Create Root Product Definition if needed
+        # For simplicity, we just leave the geometric entities in the file.
+        # Most viewers will find the MANIFOLD_SOLID_BREP entities.
+        # But properly we should link them to a PRODUCT.
+
+        self._create_product_structure(shape_ids)
+
+        # Write file
+        with atomic_write_text(filename) as f:
+            f.write(self.writer.generate())
+
+        # Surface the omissions. A mechanical drawing that silently lost its
+        # barrel and spacers is worse than one that says so.
+        if skipped:
+            logger.warning(
+                "STEP export wrote %d solid(s) but skipped %d part(s): %s",
+                len(shape_ids),
+                len(skipped),
+                ", ".join(skipped),
+            )
+        return {"shapes": len(shape_ids), "skipped": len(skipped), "skipped_parts": skipped}
+
+# openlens.material_database.MaterialDatabase.export_material
+    def export_material(self, material_name: str, output_file: str):
+        """Export material data to file"""
+        mat = self.get_material(material_name)
+        if mat:
+            atomic_write_json(output_file, mat.to_dict())
+
+# openlens.material_database.MaterialDatabase.get_material
+    def get_material(self, name: str) -> Optional[MaterialProperties]:
+        """Get material by name.
+
+        The exact uppercased key wins, then any spacing/punctuation variant:
+        "Fused Silica", "fused-silica" and "FUSEDSILICA" all name the same
+        glass. Without the second step a display name missed the catalog
+        entirely, which was silent - ``refractive_index_at`` fell back to the
+        stored index (no dispersion) and ``update_refractive_index`` stored
+        the BK7 fallback (a lens that was not BK7 became 1.5168).
+        """
+        material = self.materials.get(name.upper())
+        if material is not None:
+            return material
+        key = self._normalised_keys().get(_material_key(name))
+        if key is None:
+            return None
+        return self.materials.get(key)
+
+# openlens.material_database.MaterialDatabase.save_database
+    def save_database(self) -> None:
+        """Save materials to JSON file"""
+        # The user data directory may not exist yet. ensure_parent_dir reports
+        # an unwritable directory instead of raising, which is the same contract
+        # the database path uses.
+        ensure_parent_dir(self.db_path)
+        data = {name: mat.to_dict() for name, mat in self.materials.items()}
+        atomic_write_json(self.db_path, data)
+
+# openlens.stl_export.STLExporter.write_binary_stl
+    def write_binary_stl(self, filename: str):
+        """Write triangles to binary STL file"""
+        with atomic_write_bytes(filename) as f:
+            # Header (80 bytes)
+            header = b"openlens STL export" + b" " * (80 - 19)
+            f.write(header)
+
+            # Number of triangles
+            f.write(struct.pack("<I", len(self.triangles)))
+
+            # Write each triangle
+            for triangle in self.triangles:
+                p1, p2, p3 = triangle
+
+                normal = self.calculate_normal(p1, p2, p3)
+
+                f.write(struct.pack("<fff", normal[0], normal[1], normal[2]))
+                f.write(struct.pack("<fff", p1[0], p1[1], p1[2]))
+                f.write(struct.pack("<fff", p2[0], p2[1], p2[2]))
+                f.write(struct.pack("<fff", p3[0], p3[1], p3[2]))
+                f.write(struct.pack("<H", 0))

@@ -1,0 +1,28 @@
+diff --git a/openlens/analysis/psf_mtf.py b/openlens/analysis/psf_mtf.py
+index bdfd94aec535a0c2745d29888e6ffd86459fdf14..b698a4b7f253014734697385dce3afb4b88b6831 100644
+--- a/openlens/analysis/psf_mtf.py
++++ b/openlens/analysis/psf_mtf.py
+@@ -452,11 +452,7 @@ class ImageQualityAnalyzer:
+             # This is consistent.
+ 
+             grid_size = wf.W.shape[0]  # N
+-            # The pupil grid is np.linspace(-max_r, max_r, N): N samples
+-            # spanning 2*max_r in N-1 intervals, so the sample spacing is
+-            # L_grid/(N-1). Dividing by N understated it by N/(N-1) and
+-            # reported every frequency low by that factor.
+-            dx_pupil = L_grid / (grid_size - 1) if grid_size > 1 else L_grid
++            dx_pupil = L_grid / grid_size
+             df = dx_pupil / (wavelength_nm * 1e-6 * efl)
+ 
+             freqs = np.arange(len(mtf_tan)) * df
+@@ -669,9 +665,7 @@ class ImageQualityAnalyzer:
+         # defocus term and the resampling use the same approximations.
+ 
+         N_pupil = wf.W.shape[0]
+-        # Same N-1 interval spacing as above; the error inflated dx_psf and
+-        # therefore raw_extent, shifting the resample window as well.
+-        dx_pupil = ep_diam / (N_pupil - 1) if N_pupil > 1 else ep_diam
++        dx_pupil = ep_diam / N_pupil
+         padded_N = psf_raw.shape[0]
+ 
+         dx_psf = (wavelength_nm * 1e-6 * efl) / (padded_N * dx_pupil)

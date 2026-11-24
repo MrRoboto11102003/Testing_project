@@ -1,0 +1,60 @@
+{
+ "id": "openlens-pr720",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 652,
+ "issue_title": "bug(physics): four shipped lens presets describe lenses that cannot physically exist",
+ "issue_body": "## Summary\n\nFour of the nine shipped lens presets describe lenses that cannot physically\nexist: their surfaces intersect inside the clear aperture, or the aperture\noverhangs a surface so that no real surface exists at the rim. The preset\ntable is literal data with no cross-parameter check, and the module's own\ntests only assert `thickness > 0`, `diameter > 0` and a non-zero focal\nlength.\n\n## Impact\n\n- Every consumer of `get_preset_library()` receives unbuildable designs: the\n  tracers and the geometry views see crossed or non-existent surfaces, and the\n  aberration and spot results are meaningless.\n- The \"Kellner Eyepiece\" preset has the rear surface *in front of* the front\n  surface at the rim, which is a sign error in the prescription, not a\n  rounding issue.\n- \"Microscope 10x Objective\" has D/2 = 9 mm > |R1| = 8 mm, so the surface\n  simply does not exist at the rim.\n\n## Reproduction\n\n```python\nimport sys\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.preset_library import get_preset_library\nfrom openlens.validation import check_physical_feasibility\n\nlib = get_preset_library()\nfor p in lib.list_presets():\n    L = p.lens\n    ok, msg = check_physical_feasibility(\n        L.radius_of_curvature_1, L.radius_of_curvature_2, L.thickness, L.diameter,\n        is_parabolic_1=L.is_parabolic_1, parabolic_sag_1=L.parabolic_sag_1,\n        is_parabolic_2=L.is_parabolic_2, parabolic_sag_2=L.parabolic_sag_2,\n        clear_aperture_1=L.clear_aperture_1, clear_aperture_2=L.clear_aperture_2,\n        conic_constant_1=L.conic_constant_1, conic_constant_2=L.conic_constant_2)\n    if not ok:\n        print(f\"  {p.name!r} (R1={L.radius_of_curvature_1}, R2={L.radius_of_curvature_2},\"\n              f\" t={L.thickness}, D={L.diameter})\")\n        print(f\"      edge thickness = {L.calculate_edge_thickness()}\")\n        print(f\"      {msg.split(' - ')[0]}\")\n\nL = lib.get_preset(\"Kellner Eyepiece\").lens\nh = L.diameter / 2\nprint(\"  front surface z at rim:\", L.get_sag_1(h))\nprint(\"  rear  surface z at rim:\", L.get_sag_2(h))\n```\n\nOutput:\n\n```\n  'Microscope 10x Objective' (R1=8.0, R2=-12.0, t=6.0, D=18.0)\n      edge thickness = None\n      Aperture overhangs a surface (|R| = 8.0mm < D/2 = 9.0mm)\n  'Abbe Condenser' (R1=20.0, R2=-20.0, t=12.0, D=30.0)\n      edge thickness = -1.5424868893540946\n      Surfaces intersect within the clear aperture (edge thickness -1.54mm <= 0)\n  '50mm Camera Lens Element' (R1=45.0, R2=-55.0, t=6.0, D=40.0)\n      edge thickness = -2.453957428709259\n      Surfaces intersect within the clear aperture (edge thickness -2.45mm <= 0)\n  'Kellner Eyepiece' (R1=15.0, R2=-30.0, t=4.0, D=20.0)\n      edge thickness = -1.535388865039149\n      Surfaces intersect within the clear aperture (edge thickness -1.54mm <= 0)\n  front surface z at rim: 3.819660112501051\n  rear  surface z at rim: -1.715728752538098\n```\n\nFor the Kellner eyepiece the rim-to-rim distance is\n`4 - 3.82 - 1.72 = -1.54 mm`: the rear surface is in front of the front\nsurface.\n\n## Root cause\n\n- `openlens/preset_library.py:80-89` (\"Kellner Eyepiece\"),\n  `:277-290` (\"Microscope 10x Objective\"), `:295-308` (\"Abbe Condenser\") and\n  `:332-345` (\"50mm Camera Lens Element\") are literal prescriptions.\n- `openlens/validation.py:730-...` (`check_physical_feasibility`) is the\n  application's own feasibility rule; the preset table never calls it.\n- `tests/test_preset_catalogue.py` checks only `thickness > 0`,\n  `diameter > 0`, `focal_length != 0` and `radius1 != 0`.\n\n## Expected behaviour\n\nEvery shipped preset is a manufacturable lens: positive edge thickness\ninside the clear aperture and a rim height that does not exceed the surface\nradius.\n\n## Suggested fix\n\nRun `check_physical_feasibility()` over every entry when the preset library is\nbuilt (and fail loudly in a test), then correct the four prescriptions - by\nthickening them or reducing the diameter - so the rim geometry is real. The\nsame self-check would catch a future bad entry.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/652",
+ "pr": 720,
+ "pr_title": "fix(presets): correct the four lenses that could not be manufactured",
+ "pr_body": "## Description\n\nFour of the shipped lens presets describe lenses that cannot physically exist.\nThe preset table is literal data with no cross-parameter check, so the library\nhanded the tracers and geometry views designs whose surfaces cross inside the\nclear aperture - or whose aperture is wider than the surface:\n\n```text\nKellner Eyepiece           t=4,  D=20   edge -1.54 mm\nAbbe Condenser             t=12, D=30   edge -1.54 mm\n50mm Camera Lens Element   t=6,  D=40   edge -2.45 mm\nMicroscope 10x Objective   D=18, R1=8   D/2 = 9 > |R1| (no surface at the rim)\n```\n\n## What changed\n\n- **`openlens/preset_library.py`**\n  - Kellner Eyepiece centre thickness 4.0 -> 7.0 mm (rim +1.46 mm).\n  - Abbe Condenser centre thickness 12.0 -> 16.0 mm (rim +2.46 mm); keeps the\n    30 mm condenser aperture.\n  - 50mm Camera Lens Element centre thickness 6.0 -> 10.0 mm (rim +1.55 mm);\n    focal length stays close to 50 mm.\n  - Microscope 10x Objective diameter 18.0 -> 12.0 mm (rim +1.68 mm), the only\n    way to remove the rim overhang since D/2 must be below |R1| = 8 mm.\n- **`tests/test_preset_physical_feasibility.py`** (new)\n  - Every preset must return a real `calculate_edge_thickness()` that clears\n    `MIN_EDGE_THICKNESS` (0.5 mm) - the same hard geometry the create path\n    enforces. The four entries fail this test before the change.\n- **`tests/test_preset_catalogue.py`**\n  - The pinned migrated Kellner thickness is updated to the corrected 7.0 mm.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #652\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2802 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nThe all-preset test fails on exactly the four entries before the fix and\npasses afterwards (rims 1.46, 2.46, 1.55 and 1.68 mm). Presets that trip only\nthe advisory \"large diameter/thickness relative to radius\" heuristics - the\n1-inch beam expander and the stock Edmund 25 mm PCX among them - are physically\nbuildable and are not silently redesigned.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "24dd60c59effee449fccb26a6faade06baad704e",
+ "merged_at": "2026-10-22T18:49:54Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/preset_library.py"
+ ],
+ "test_files": [
+  "tests/test_preset_catalogue.py",
+  "tests/test_preset_physical_feasibility.py"
+ ],
+ "target_symbols": [
+  "openlens/preset_library.py::PresetLibrary._load_common_presets"
+ ],
+ "fail_to_pass": [
+  "tests/test_preset_catalogue.py::TestMigratedContentSurvived::test_optical_data_is_unchanged",
+  "tests/test_preset_physical_feasibility.py::TestShippedPresetsAreManufacturable::test_every_preset_has_a_positive_edge_thickness"
+ ],
+ "pass_to_pass": [
+  "tests/test_preset_catalogue.py::TestCategoriesAreCoherent::test_every_category_has_at_least_one_preset",
+  "tests/test_preset_catalogue.py::TestCategoriesAreCoherent::test_no_near_duplicate_category_names",
+  "tests/test_preset_catalogue.py::TestCategoriesAreCoherent::test_unknown_category_returns_empty",
+  "tests/test_preset_catalogue.py::TestFlatSurfaceConvention::test_every_flat_preset_uses_the_named_constant",
+  "tests/test_preset_catalogue.py::TestFlatSurfaceConvention::test_flat_presets_exist_and_are_recognised",
+  "tests/test_preset_catalogue.py::TestFlatSurfaceConvention::test_is_flat_uses_a_strict_inequality",
+  "tests/test_preset_catalogue.py::TestFlatSurfaceConvention::test_no_bare_large_literal_remains",
+  "tests/test_preset_catalogue.py::TestFlatSurfaceConvention::test_validate_radius_cannot_express_flat",
+  "tests/test_preset_catalogue.py::TestMigratedContentSurvived::test_applications_became_typical_use",
+  "tests/test_preset_catalogue.py::TestMigratedContentSurvived::test_catalogue_table_matches_what_was_migrated",
+  "tests/test_preset_catalogue.py::TestMigratedContentSurvived::test_every_migrated_preset_is_present",
+  "tests/test_preset_catalogue.py::TestMigratedContentSurvived::test_every_preset_is_typed",
+  "tests/test_preset_catalogue.py::TestMigratedContentSurvived::test_industry_standard_entries_keep_vendor_and_part_number",
+  "tests/test_preset_catalogue.py::TestPhysicalValidity::test_diameter_is_positive",
+  "tests/test_preset_catalogue.py::TestPhysicalValidity::test_focal_length_is_never_zero",
+  "tests/test_preset_catalogue.py::TestPhysicalValidity::test_lens_copy_is_a_distinct_object",
+  "tests/test_preset_catalogue.py::TestPhysicalValidity::test_lens_copy_of_unknown_preset_is_none",
+  "tests/test_preset_catalogue.py::TestPhysicalValidity::test_lens_copy_round_trips_through_to_dict",
+  "tests/test_preset_catalogue.py::TestPhysicalValidity::test_radius_one_is_never_zero",
+  "tests/test_preset_catalogue.py::TestPhysicalValidity::test_sweep_finds_presets",
+  "tests/test_preset_catalogue.py::TestPhysicalValidity::test_thickness_is_positive",
+  "tests/test_preset_catalogue.py::TestRetiredModuleIsGone::test_only_one_module_defines_get_preset_library",
+  "tests/test_preset_catalogue.py::TestRetiredModuleIsGone::test_preset_lenses_no_longer_imports",
+  "tests/test_preset_catalogue.py::TestSingletonContract::test_instance_is_a_preset_library",
+  "tests/test_preset_catalogue.py::TestSingletonContract::test_returns_the_same_instance",
+  "tests/test_preset_catalogue.py::TestSingletonContract::test_search_matches_name_and_description",
+  "tests/test_preset_catalogue.py::TestSingletonContract::test_search_returns_preset_objects"
+ ],
+ "patch_lines": 16
+}

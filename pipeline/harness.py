@@ -23,6 +23,8 @@ GENERATED_DIR = "tests/_generated"
 
 def install_extension(path: Path) -> None:
     """Drop the prebuilt C++ extension into a checkout (Python-only bugs share it)."""
+    if not config.HAS_EXTENSION:
+        return
     pyds = list(config.EXT_DIR.glob("_arnio_cpp*"))
     if not pyds:
         raise RuntimeError(f"No compiled extension in {config.EXT_DIR}; run `python -m pipeline.setup_ext`.")
@@ -77,7 +79,7 @@ def run_pytest(path: Path, targets: list[str], label: str = "run") -> dict:
     ]
     # Subprocesses the tests start (e.g. `python -m arnio.cli` with cwd=tmp_path) must import
     # this checkout's arnio too, not whatever their own cwd would give them.
-    env = dict(os.environ, PYTHONPATH=str(path) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    env = dict(os.environ, **config.TEST_ENV, PYTHONPATH=str(path) + os.pathsep + os.environ.get("PYTHONPATH", ""))
     try:
         proc = subprocess.run(cmd, cwd=path, capture_output=True, text=True, env=env,
                               encoding="utf-8", errors="replace", timeout=config.TEST_TIMEOUT_S)

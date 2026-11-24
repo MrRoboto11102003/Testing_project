@@ -1,0 +1,230 @@
+{
+ "id": "openlens-pr117",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code",
+ "context": {
+  "mode": "code",
+  "chars": 20408
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": null,
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 19,
+ "n_catching": 1,
+ "n_false_alarms": 15,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 10640,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11523,
+  "output_tokens_details": {
+   "thinking_tokens": 8653
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 10640,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11523,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 10640,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 10640
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.078904,
+ "model_seconds": 54.0,
+ "seconds": 61.7,
+ "tests": {
+  "tests/_generated/test_openlens_pr117.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_empty_system_returns_empty_arrays": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "BeamSynthesisPropagator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_returns_three_arrays": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "BeamSynthesisPropagator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_empty_system": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_legacy_kwargs": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerCalculateMTF::test_calculate_mtf_rejects_unexpected_kwargs": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_channel_count_mismatch": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_grayscale_2d": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_legacy_pixel_size_kwarg": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_legacy_wavelengths_kwarg": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_output_clipped_0_to_1": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_rejects_1d_input": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_rejects_4d_input": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_rejects_unexpected_kwargs": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_rgb_3d": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_simulate_image_uint8_input_scaling": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_normalize_known_magnitude": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_normalize_result_magnitude_is_one": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_normalize_very_small_vector_threshold": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_normalize_zero_vector_returns_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  }
+ }
+}

@@ -1,0 +1,104 @@
+diff --git a/openlens/updater.py b/openlens/updater.py
+index 19dc1051a0f3e22432c65a8082fe619e1a0a5f8e..871b864d399dbf4409898307b72c6a0689898645 100644
+--- a/openlens/updater.py
++++ b/openlens/updater.py
+@@ -10,7 +10,6 @@ this module owns the network request, version comparison, asset selection, and
+ the small helper script that replaces a running executable once it exits.
+ """
+ 
+-import hashlib
+ import json
+ import logging
+ import os
+@@ -50,23 +49,6 @@ _DOWNLOAD_CHUNK = 256 * 1024
+ #: decide whether they own (and may remove) the directory.
+ _UPDATE_TEMP_PREFIX = "openlens-update-"
+ 
+-#: Magic bytes that identify a downloadable executable or archive. A payload
+-#: that does not start with one of these is not an installer (for example an
+-#: HTML error page) and must never be executed.
+-_EXECUTABLE_MAGICS = (
+-    b"\x7fELF",  # ELF (Linux)
+-    b"MZ",  # PE (Windows)
+-    b"PK\x03\x04",  # ZIP (macOS bundle)
+-    b"\xcf\xfa\xed\xfe",  # Mach-O 64-bit
+-    b"\xca\xfe\xba\xbe",  # Mach-O universal / Java class
+-    b"\xfe\xed\xfa\xce",  # Mach-O 32-bit (big endian)
+-    b"\xfe\xed\xfa\xcf",  # Mach-O 64-bit (big endian)
+-)
+-
+-#: A release digest is published as ``sha256:<hex>`` (GitHub's ``digest``
+-#: field) or as a bare hex string.
+-_DIGEST_RE = re.compile(r"^(?:sha256:)?([0-9a-fA-F]{64})$")
+-
+ #: Network operations get a bound so a dead connection cannot leave the
+ #: startup check spinning forever. The work happens on a worker thread.
+ _DEFAULT_TIMEOUT = 8.0
+@@ -106,16 +88,6 @@ class ReleaseAsset:
+     name: str
+     url: str
+     size: int = 0
+-    digest: str = ""
+-    sha256: str = ""
+-    checksum: str = ""
+-
+-    def __post_init__(self) -> None:
+-        # Accept any of the common spellings so callers (and the GitHub API,
+-        # which uses ``digest``) all populate the same field.
+-        chosen = self.digest or self.sha256 or self.checksum
+-        if chosen and chosen != self.digest:
+-            object.__setattr__(self, "digest", chosen)
+ 
+ 
+ @dataclass(frozen=True)
+@@ -263,14 +235,10 @@ def asset_for_platform(
+             continue
+         if name.endswith(suffix):
+             size = asset.get("size", 0)
+-            digest = asset.get("digest") or asset.get("sha256") or asset.get("checksum") or ""
+-            if not isinstance(digest, str):
+-                digest = ""
+             return ReleaseAsset(
+                 name=name,
+                 url=url,
+                 size=size if isinstance(size, int) and size > 0 else 0,
+-                digest=digest,
+             )
+     return None
+ 
+@@ -426,10 +394,6 @@ class UpdateChecker:
+         asset = result.asset
+         if asset is None:
+             raise ValueError("No release asset to download")
+-        if not asset.size or asset.size <= 0:
+-            raise ValueError(
+-                f"Release asset {asset.name!r} has no known size; refusing to download"
+-            )
+ 
+         created_temp_dir = destination is None
+         target_dir = (
+@@ -535,8 +499,6 @@ pid={pid}
+ while kill -0 "$pid" 2>/dev/null; do
+     sleep 0.2
+ done
+-# Keep the previous binary so a failed update can be rolled back.
+-cp -p -- {target} {backup_file} 2>/dev/null || true
+ if cp -- {downloaded} {new_file} && chmod +x {new_file} && mv -f -- {new_file} {target}; then
+     nohup {target} >/dev/null 2>&1 &
+ else
+@@ -551,7 +513,6 @@ rm -f -- "$0"
+         downloaded=shlex.quote(str(downloaded)),
+         new_file=shlex.quote(str(new_file)),
+         target=shlex.quote(str(target)),
+-        backup_file=shlex.quote(str(backup_file)),
+         log=shlex.quote(str(log)),
+         cleanup=cleanup,
+     )
+@@ -576,7 +537,6 @@ if not errorlevel 1 (
+     timeout /t 1 /nobreak >NUL
+     goto wait
+ )
+-copy /Y "{target}" "{target}.old" >NUL
+ copy /Y "{downloaded}" "{target}" >NUL
+ if errorlevel 1 (
+     echo Could not replace "{target}" > "{log}"

@@ -1,0 +1,44 @@
+{
+ "id": "openlens-pr507",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 455,
+ "issue_title": "Global optimizers: Stop is ignored during local refinement; GA only checks cancel once per generation",
+ "issue_body": "**Where:** `src/global_optimizer.py:155`, `:223`, `:272`\n\nAfter SA or GA, `optimize_simplex(max_iterations=50, start=...)` is called without the callback, so the GUI's cooperative cancel (`optimization_tab.py:106-113`) cannot interrupt up to 50 more iterations. GA checks the callback once per generation (30 evaluations); with the MTF merit at about 2.4 s per evaluation that is minutes between checks. Also, with the default T0=100 and cooling 0.95, SA stops at about 360 iterations, so the GUI's `max_iterations=500` is never reached.\n\n**Fix:** pass the callback into `optimize_simplex`, check it inside the GA population loop, and make the SA schedule honour `max_iterations`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/455",
+ "pr": 507,
+ "pr_title": "fix(optimizer): make the global optimisers honour cancellation",
+ "pr_body": "## Description\n\nfix(optimizer): make the global optimisers honour cancellation\n\nThe GUI drives simulated annealing and the genetic algorithm with a\ncooperative callback that raises `OptimizationCancelled` when Stop is pressed.\nThree separate things stopped that from working.\n\n### 1. The local refinement dropped the callback\n\n```python\nlocal_result = self.optimize_simplex(max_iterations=50, start=best_values)\n```\n\nNo callback, so up to 50 local iterations ran **uninterruptibly** after\nannealing had finished. `optimize_simplex` takes the identical callback\nsignature, so there was no reason.\n\n### 2. The GA checked the callback once per generation\n\nWith the MTF merit at roughly 2.4 s per evaluation, a population of 30 is over\na minute during which Stop does nothing. The callback is now also checked inside\nthe population loop.\n\n### 3. Annealing stopped before `max_iterations`\n\nWith the default `T0=100` and cooling `0.95`, the temperature hit its `1e-6` floor\nat about **360 iterations**, so the GUI's `max_iterations=500` was unreachable and\nevery run silently stopped early.\n\n`cooling_rate` now defaults to `None` and is **derived from `max_iterations`** by\nsolving `T0 \u00b7 rate\u207f = FLOOR`, so the schedule reaches the floor at exactly the\nrequested length. Passing `cooling_rate` explicitly still imposes the caller's\nown schedule, which may legitimately end earlier \u2014 that path is covered by a\ntest.\n\n## Three of my tests passed for the wrong reason\n\nWorth recording, because each one had to be rewritten:\n\n- **The callback fires from two phases** \u2014 annealing, then the local refinement\n  \u2014 each with its own `iteration` numbering. A naive visit count is inflated by\n  the polish, which made my iteration-count assertions meaningless. The callback\n  helper now tracks the first phase separately, freezing when the numbering goes\n  backwards.\n- **GA promptness cannot be shown by visit count** either, for the same reason.\n  That test now counts the merit evaluations that run *after* the cancel is\n  requested, which is the property that actually matters.\n- **My first refinement test never reached the refinement.** It raised during\n  the annealing loop, so it passed whether or not the polish called back at all.\n  It now uses `max_iterations=2`, so the loop calls back exactly twice and the\n  third visit can only come from the polish.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #455\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **each of the three fixes on its own**:\n  - derived cooling schedule \u2192 **1 of 11 fail**\n  - dropped polish callback \u2192 **1 of 11 fail**\n  - per-evaluation GA callback \u2192 **2 of 11 fail**\n- [x] `python3 -m unittest tests.test_global_optimizer_cancel` \u2014 11 tests, OK\n- [x] `python3 -m unittest tests.test_global_optimizer tests.test_global_optimizer_cancel tests.test_global_optimizer_degenerate_configs tests.test_global_optimizer_no_mutation` \u2014 52 tests, OK\n- [x] Full suite: `Ran 1749 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 225 files unchanged\n- [x] `flake8 src/global_optimizer.py tests/test_global_optimizer_cancel.py` \u2014 no\n      new findings. The `F841` in `global_optimizer.py` is pre-existing (verified\n      against `git show master:src/global_optimizer.py`)\n- [x] Coverage includes: the run reaching the requested iteration count, the\n      callback firing once per iteration, a short run staying short, an explicit\n      cooling rate still being honoured, cancellation landing in every phase, GA\n      promptness measured in evaluations, and callback exceptions propagating\n      rather than being swallowed\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "8398247cbc581a38a6080b158444858811632a38",
+ "merged_at": "2026-10-18T00:36:27Z",
+ "port_method": "partial_hunks:5/5",
+ "src_files": [
+  "openlens/global_optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_global_optimizer_cancel.py"
+ ],
+ "target_symbols": [
+  "openlens/global_optimizer.py::GlobalOptimizer.__init__",
+  "openlens/global_optimizer.py::GlobalOptimizer._tournament_select",
+  "openlens/global_optimizer.py::GlobalOptimizer.optimize_genetic",
+  "openlens/global_optimizer.py::GlobalOptimizer.optimize_simulated_annealing"
+ ],
+ "fail_to_pass": [
+  "tests/test_global_optimizer_cancel.py::TestAnnealingHonoursMaxIterations::test_the_run_is_not_cut_short_by_the_temperature_floor",
+  "tests/test_global_optimizer_cancel.py::TestCancellationReachesEveryPhase::test_cancelling_reaches_the_final_local_refinement",
+  "tests/test_global_optimizer_cancel.py::TestGeneticCallbackIsFrequentEnough::test_a_cancel_lands_within_a_few_evaluations",
+  "tests/test_global_optimizer_cancel.py::TestGeneticCallbackIsFrequentEnough::test_the_callback_runs_inside_the_population_loop"
+ ],
+ "pass_to_pass": [
+  "tests/test_global_optimizer_cancel.py::TestAnnealingHonoursMaxIterations::test_a_short_run_is_still_short",
+  "tests/test_global_optimizer_cancel.py::TestAnnealingHonoursMaxIterations::test_an_explicit_cooling_rate_is_still_honoured",
+  "tests/test_global_optimizer_cancel.py::TestAnnealingHonoursMaxIterations::test_the_callback_is_consulted_once_per_iteration",
+  "tests/test_global_optimizer_cancel.py::TestCancellationIsNotSwallowed::test_the_annealing_callback_exception_propagates",
+  "tests/test_global_optimizer_cancel.py::TestCancellationIsNotSwallowed::test_the_genetic_callback_exception_propagates",
+  "tests/test_global_optimizer_cancel.py::TestCancellationReachesEveryPhase::test_cancelling_during_the_annealing_loop_stops_the_run",
+  "tests/test_global_optimizer_cancel.py::TestCancellationReachesEveryPhase::test_cancelling_during_the_genetic_population_stops_the_run"
+ ],
+ "patch_lines": 76
+}

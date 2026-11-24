@@ -1,0 +1,257 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.analysis.psf_mtf.ImageQualityAnalyzer.calculate_mtf.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.analysis.psf_mtf.ImageQualityAnalyzer.calculate_mtf
+    def calculate_mtf(
+        self,
+        field_angle_deg: float = 0.0,
+        wavelength_nm: float = WAVELENGTH_GREEN,
+        focus_shift_mm: float = 0.0,
+        max_freq: float = 100.0,
+        use_diffraction: bool = False,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Calculate the Modulation Transfer Function (MTF).
+
+        Args:
+            field_angle_deg: Field angle in degrees
+            wavelength_nm: Wavelength in nm
+            focus_shift_mm: Defocus in mm
+            max_freq: Maximum spatial frequency to return (lp/mm)
+            use_diffraction: If True, uses FFT of Pupil Function.
+
+        Returns:
+            Dictionary containing:
+                - freq: Array of spatial frequencies (lp/mm)
+                - mtf_tan: Tangential MTF values
+                - mtf_sag: Sagittal MTF values
+        """
+        # Handle legacy aliases
+        if "field_angle" in kwargs:
+            field_angle_deg = kwargs.pop("field_angle")
+        if "max_freq" in kwargs:
+            max_freq = kwargs.pop("max_freq")
+        if kwargs:
+            raise TypeError(f"Unexpected kwargs: {list(kwargs.keys())}")
+        if not self.system.elements:
+            logger.warning("MTF: system has no elements; returning an empty MTF")
+            empty = np.array([])
+            return {
+                "freq": empty,
+                "mtf_tan": empty.copy(),
+                "mtf_sag": empty.copy(),
+            }
+        if use_diffraction:
+            # For diffraction MTF, we calculate the autocorrelation of the pupil function
+            # OR take the FFT of the Diffraction PSF.
+            # DiffractionPSFCalculator has a helper for this.
+
+            # 1. Get Wavefront
+            pupil_grid_size = 64
+            wf = self.wavefront_sensor.get_pupil_wavefront(
+                field_angle_deg=field_angle_deg,
+                wavelength_nm=wavelength_nm,
+                grid_size=pupil_grid_size,
+            )
+            if self._wavefront_is_degenerate(wf):
+                logger.warning(
+                    "MTF: empty pupil wavefront for %s; returning an empty MTF",
+                    self.system.name,
+                )
+                empty = np.array([])
+                return {
+                    "freq": empty,
+                    "mtf_tan": empty.copy(),
+                    "mtf_sag": empty.copy(),
+                }
+
+            # 1b. Apply the defocus. This branch had its own copy of the
+            # wavefront->PSF chain and dropped focus_shift_mm on the floor, so
+            # the diffraction MTF was the same at every defocus.
+            _, _, na = self._pupil_geometry()
+            self._apply_defocus(wf, focus_shift_mm, wavelength_nm, na)
+
+            # 2. Calculate PSF (high res)
+            pad_factor = 4
+            psf_raw = DiffractionPSFCalculator.calculate_psf(wf, pad_factor=pad_factor)
+
+            # 3. Calculate MTF from PSF
+            mtf_2d = DiffractionPSFCalculator.calculate_mtf(psf_raw)
+
+            # 4. Extract Profiles
+            center_y, center_x = mtf_2d.shape[0] // 2, mtf_2d.shape[1] // 2
+
+            # Tangential (along Y axis in frequency domain) -> Corresponds to spatial Y modulation?
+            # Wait. MTF(fy, fz).
+            # Tangential MTF is usually defined for modulation along the tangential direction (Y).
+            # This corresponds to frequency fy? Yes.
+            # Sagittal MTF -> fz.
+
+            # Extract slices from 2D MTF
+            # Positive frequencies only
+            n_half = mtf_2d.shape[0] // 2
+
+            # Slice along axes
+            mtf_tan_full = mtf_2d[:, center_x]
+            mtf_sag_full = mtf_2d[center_y, :]
+
+            mtf_tan = mtf_tan_full[center_y:]  # From DC to max freq
+            mtf_sag = mtf_sag_full[center_x:]
+
+            # 5. Frequency Scale
+            # Max frequency (cutoff) = 1 / (lambda * F/#)
+            # The FFT frequency scale is determined by the spatial sampling.
+            # dx (spatial sampling of PSF) = (lambda * f) / (N_pupil * dx_pupil) * (something)
+            # Actually, simpler:
+            # Max Frequency in MTF corresponds to the cutoff frequency of the system.
+            # Cutoff = D / (lambda * f).
+            # The MTF array spans from -Cutoff to +Cutoff?
+            # No. The MTF array spans -Fs/2 to Fs/2 where Fs = 1/dx_psf.
+            # dx_psf = (lambda * f) / L_pupil_grid.
+            # So Fs = L_pupil_grid / (lambda * f).
+            # This makes sense. The max frequency we can resolve is limited by the pupil size.
+            # The MTF array has size M (padded size).
+            # So frequency step df = Fs / M = L_pupil_grid / (lambda * f * M).
+            # The cutoff frequency is D / (lambda * f).
+            # D is approx L_pupil_grid.
+            # So the cutoff is at index M * (D/L) ?
+            # If L_pupil_grid is exactly D (which we try to set), then Fs = Cutoff * (something).
+
+            # Let's use physical parameters.
+            ep_diam = self.system.elements[0].lens.diameter if self.system.elements else 1.0
+            efl = self.system.get_system_focal_length() or 100.0
+
+            # Pupil Grid physical size L = ep_diam (approx, based on get_pupil_wavefront range)
+            L_grid = ep_diam  # We used +/- max_r = ep_diam/2
+
+            # Sampling frequency in MTF domain
+            # Fs = L_grid / (wavelength_nm * 1e-6 * efl)
+            # This assumes the PSF calculation uses the standard FFT scaling.
+            # Yes, if we pad to M, the spatial extent of PSF is lambda*f/dx_pupil.
+            # dx_pupil = L_grid / N.
+            # So Extent = lambda*f*N/L_grid.
+            # Fs = 1 / (Extent/M) = M / Extent = M * L_grid / (lambda*f*N).
+            # Wait, frequency resolution df = 1/Extent.
+            # df = L_grid / (lambda * f * N) ? No. 1/Extent = (dx_pupil) / (lambda * f).
+
+            # Let's re-verify:
+            # df = 1 / (Total Spatial Range).
+            # Total Spatial Range (FOV of PSF) = M * dx_psf.
+            # dx_psf = (lambda * f) / (M * dx_pupil).
+            # FOV = (lambda * f) / dx_pupil.
+            # So df = 1 / ( (lambda*f)/dx_pupil ) = dx_pupil / (lambda * f).
+            # This is consistent.
+
+            grid_size = wf.W.shape[0]  # N
+            # The pupil grid is np.linspace(-max_r, max_r, N): N samples
+            # spanning 2*max_r in N-1 intervals, so the sample spacing is
+            # L_grid/(N-1). Dividing by N understated it by N/(N-1) and
+            # reported every frequency low by that factor.
+            dx_pupil = L_grid / (grid_size - 1) if grid_size > 1 else L_grid
+            df = dx_pupil / (wavelength_nm * 1e-6 * efl)
+
+            freqs = np.arange(len(mtf_tan)) * df
+
+            # Filter
+            mask = freqs <= max_freq
+
+            return {
+                "freq": freqs[mask],
+                "mtf_tan": mtf_tan[mask],
+                "mtf_sag": mtf_sag[mask],
+            }
+
+        # 1. Calculate PSF with sufficient resolution.
+        # The window used to be a fixed 0.256 mm with a fixed 128 pixels, so
+        # a spot wider than about 0.1 mm radius had most of its light
+        # discarded by the histogram - and the MTF was then computed from the
+        # clipped core, describing a better lens than the one being tested.
+        #
+        # The window is now sized from the spot the tracer produces (the same
+        # 2.2 RMS radii calculate_psf uses), and the pixel count is derived
+        # from it so the sampling stays at ~2 microns. Fixing the window while
+        # leaving the pixel count alone would have kept the clipping away but
+        # coarsened the sampling, trading one wrong answer for another.
+        target_pixel_mm = 0.002  # 2 microns
+        window_floor_mm = 0.256  # ~128 pixels at 2 microns
+
+        spot_res = self.spot_analyzer.trace_spot(
+            field_angle_y_deg=field_angle_deg,
+            wavelength_nm=wavelength_nm,
+            focus_shift_mm=focus_shift_mm,
+            num_rings=25,
+        )
+        spot_rms = spot_res.get("rms_radius")
+        if spot_rms is not None and math.isfinite(spot_rms) and spot_rms > 0:
+            window_size_mm = max(
+                window_floor_mm,
+                2.0 * GEOMETRIC_WINDOW_SPOT_FACTOR * spot_rms,
+            )
+        else:
+            window_size_mm = window_floor_mm
+
+        num_pixels = max(128, int(math.ceil(window_size_mm / target_pixel_mm)))
+        num_pixels = min(num_pixels, GEOMETRIC_MTF_MAX_PIXELS)
+
+        psf_data = self.calculate_psf(
+            field_angle_deg=field_angle_deg,
+            wavelength_nm=wavelength_nm,
+            focus_shift_mm=focus_shift_mm,
+            sensor_size_mm=window_size_mm,
+            pixels=num_pixels,
+        )
+
+        psf = psf_data["image"]  # shape (128, 128)
+
+        # 2. Compute LSF
+        # Y is axis 0 (Tangential), Z is axis 1 (Sagittal)
+
+        # Tangential MTF: modulation along Y.
+        # LSF_tan(y) = sum(PSF(y, z), axis=z)
+        lsf_tan = np.sum(psf, axis=1)  # Sum over Z (cols) -> profile along Y
+
+        # Sagittal MTF: modulation along Z.
+        # LSF_sag(z) = sum(PSF(y, z), axis=y)
+        lsf_sag = np.sum(psf, axis=0)  # Sum over Y (rows) -> profile along Z
+
+        # 3. Compute MTF (Magnitude of FFT of LSF)
+        # Use rfft for efficiency as LSF is real
+        mtf_tan_raw = np.abs(np.fft.fft(lsf_tan))
+        mtf_sag_raw = np.abs(np.fft.fft(lsf_sag))
+
+        # Normalize DC to 1.0
+        if mtf_tan_raw[0] > 0:
+            mtf_tan_raw /= mtf_tan_raw[0]
+        if mtf_sag_raw[0] > 0:
+            mtf_sag_raw /= mtf_sag_raw[0]
+
+        # 4. Frequency Scaling
+        # Sampling freq Fs = 1 / pixel_size
+        # Freq resolution df = Fs / N
+        # Freqs = k * df
+
+        freqs = np.fft.fftfreq(num_pixels, d=psf_data["step_size"])
+
+        # Take only positive frequencies up to max_freq
+        # fftfreq returns [0, 1, ..., n/2-1, -n/2, ..., -1]
+        # We only want the first half
+
+        n_half = num_pixels // 2
+        pos_freqs = freqs[:n_half]
+        pos_mtf_tan = mtf_tan_raw[:n_half]
+        pos_mtf_sag = mtf_sag_raw[:n_half]
+
+        # Filter to max_freq
+        mask = (pos_freqs <= max_freq) & (pos_freqs >= 0)
+
+        return {
+            "freq": pos_freqs[mask],
+            "mtf_tan": pos_mtf_tan[mask],
+            "mtf_sag": pos_mtf_sag[mask],
+        }

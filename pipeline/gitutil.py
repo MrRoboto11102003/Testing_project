@@ -73,5 +73,7 @@ def worktree(name: str, ref: str) -> Path:
         git("worktree", "add", "--force", "--detach", str(path), ref)
     git("checkout", "--quiet", "--force", "--detach", ref, cwd=path)
     git("reset", "--quiet", "--hard", ref, cwd=path)
-    git("clean", "-fdxq", "-e", "arnio/_arnio_cpp*", cwd=path)
+    # Non-fatal: a straggling test subprocess can hold a __pycache__ dir open on Windows,
+    # and leftover bytecode does no harm (the reset above restored every tracked file).
+    git("clean", "-fdxq", "-e", "arnio/_arnio_cpp*", cwd=path, check=False)
     return path

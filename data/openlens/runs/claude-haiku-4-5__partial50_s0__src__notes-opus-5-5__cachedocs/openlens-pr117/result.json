@@ -1,0 +1,224 @@
+{
+ "id": "openlens-pr117",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 112,
+  "units_kept": 56,
+  "chars": 92760,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 26277
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.88,
+ "detected": true,
+ "n_tests": 16,
+ "n_catching": 5,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 30217,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9344,
+  "output_tokens_details": {
+   "thinking_tokens": 6668
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 30217,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9344,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 30217,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 30217
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.10716300000000001,
+ "model_seconds": 43.1,
+ "seconds": 77.6,
+ "tests": {
+  "tests/_generated/test_openlens_pr117.py::TestBeamSynthesisPropagatorPropagateToImage::test_detector_grid_spans_correct_range": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestBeamSynthesisPropagatorPropagateToImage::test_empty_system_returns_empty_arrays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestBeamSynthesisPropagatorPropagateToImage::test_single_lens_returns_valid_shaped_arrays": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerCalculateMTF::test_empty_system_returns_empty_mtf": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerCalculateMTF::test_lens_mtf_has_correct_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerCalculateMTF::test_unexpected_kwargs_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_channel_count_mismatch_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_dimension_validation_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_grayscale_image_simulation": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestImageQualityAnalyzerSimulateImage::test_rgb_image_simulation": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ImageQualityAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_negative_component_direction_preservation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_normalized_vector_has_unit_magnitude": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_pythagorean_triple_normalization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_single_axis_vector_normalization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_very_small_vector_becomes_zero": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr117.py::TestVector3Normalize::test_zero_vector_normalization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Vector3"
+   ]
+  }
+ }
+}

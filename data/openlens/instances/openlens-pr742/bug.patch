@@ -1,0 +1,83 @@
+diff --git a/openlens/atomic.py b/openlens/atomic.py
+index 3b911b9aa2e379267b1ef69b3b4fd77ae54b37fa..81f7ec8b21704bed612a15447734dabfbc03ecd8 100644
+--- a/openlens/atomic.py
++++ b/openlens/atomic.py
+@@ -18,7 +18,7 @@ import os
+ import uuid
+ from contextlib import contextmanager
+ from pathlib import Path
+-from typing import Any, Iterator, Optional, TextIO
++from typing import Any, Iterator, TextIO
+ 
+ 
+ def _temp_path(path: Path) -> Path:
+@@ -39,16 +39,12 @@ def _discard(path: Path) -> None:
+ 
+ 
+ @contextmanager
+-def atomic_write_text(
+-    path: Any, encoding: str = "utf-8", newline: Optional[str] = None
+-) -> Iterator[TextIO]:
++def atomic_write_text(path: Any, encoding: str = "utf-8") -> Iterator[TextIO]:
+     """Yield a text handle whose contents replace ``path`` only on success.
+ 
+     Args:
+         path: Destination file path.
+         encoding: Text encoding for the temporary file.
+-        newline: Newline translation passed to :func:`open`. Use ``""`` for
+-            writers such as :mod:`csv` that emit their own line endings.
+ 
+     Yields:
+         An open write-mode text handle.
+@@ -61,7 +57,7 @@ def atomic_write_text(
+     # save()'s documented failure behaviour on a bad path. "x" keeps the
+     # unique name exclusive; a collision must not truncate another writer.
+     tmp = _temp_path(target)
+-    handle = open(tmp, "x", encoding=encoding, newline=newline)
++    handle = open(tmp, "x", encoding=encoding)
+     try:
+         with handle:
+             yield handle
+diff --git a/openlens/lens_comparator.py b/openlens/lens_comparator.py
+index 328a0bf37256369ce2f3cf7cf3b5c2cf284aaead..4b2055df535c830a0bb1858f556652357ee67b38 100644
+--- a/openlens/lens_comparator.py
++++ b/openlens/lens_comparator.py
+@@ -4,11 +4,9 @@ Lens Comparison Tool
+ Side-by-side comparison of multiple lens designs
+ """
+ 
+-import csv
+-from typing import List, Dict, Any, Optional
++from typing import List, Dict, Any
+ from dataclasses import dataclass
+ 
+-from .atomic import atomic_write_text
+ from .lens import Lens
+ from .performance_metrics import PerformanceMetrics
+ from .aberrations import AberrationsCalculator
+@@ -225,20 +223,12 @@ class LensComparator:
+ 
+         return "\n".join(lines)
+ 
+-    def export_to_csv(self, filename: str) -> Optional[str]:
+-        """Export comparison to CSV file.
++    def export_to_csv(self, filename: str):
++        """Export comparison to CSV file"""
++        import csv
+ 
+-        Returns:
+-            ``"No lenses to compare"`` when no comparison has run, otherwise
+-            ``None``.
+-        """
+-        if not self.results:
+-            return "No lenses to compare"
+-
+-        fieldnames = self.results[0].to_dict().keys()
+-        with atomic_write_text(filename, newline="") as handle:
+-            writer = csv.DictWriter(handle, fieldnames=fieldnames)
++        with open(filename, "w", newline="") as f:
++            writer = csv.DictWriter(f, fieldnames=self.results[0].to_dict().keys())
+             writer.writeheader()
+             for result in self.results:
+                 writer.writerow(result.to_dict())
+-        return None

@@ -1,0 +1,38 @@
+{
+ "id": "openlens-pr491",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 432,
+ "issue_title": "Deleting from the CLI or the startup dialog does not delete the DB row; the item comes back",
+ "issue_body": "**Where:** `src/lens_editor.py:320-323`, `src/gui/dialogs/startup.py:406-414`, `src/gui/storage.py:106-157`\n\nBoth call `save_lenses(remaining)` with the default `reconcile=False`. That path only inserts or replaces rows and never deletes (the docstring says so). The CLI prints \"Lens deleted successfully!\" and the lens is back on the next start. The startup dialog also bypasses the \"lens is used by an assembly\" check that `delete_item` enforces, and hard-codes `\"openlens.db\"`. `save_lenses` returns `False` instead of raising, so the dialog's `except` at `:413` never fires.\n\n**Fix:** call `storage.delete_item(item.id)` in both places and handle `LensInUseError`. Inject the storage object into the startup dialog instead of letting it open its own.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/432",
+ "pr": 491,
+ "pr_title": "fix(storage): deleting must actually remove the row",
+ "pr_body": "## Description\n\nfix(storage): deleting must actually remove the row\n\nBoth delete paths dropped the item from an in-memory list and then called\n`save_lenses(remaining)`. That method defaults to `reconcile=False`, and its own\ndocstring says it *only inserts or replaces rows and never reconciles\ndeletions* \u2014 so nothing was ever deleted. The CLI printed **\"\u2713 Lens deleted\nsuccessfully!\"** and the lens reappeared on the next start:\n\n```\n=== All Optical Lenses (2) ===\n1. Alpha - BK7 (Biconvex) - f=97.58mm\n2. Beta  - BK7 (Biconvex) - f=97.58mm\n\u2713 Lens deleted successfully!\nAssertionError: Lists differ: ['Alpha', 'Beta'] != ['Beta']\n```\n\n`save_lenses` also returns `False` rather than raising, so the dialog's\n`except` branch never fired.\n\nBoth paths now call `storage.delete_item(id)`, the only thing that actually\nremoves a row. The CLI keeps the lens in memory and reports honestly when the\nrow cannot be deleted, instead of printing success and dropping it from the list.\n\n### The startup dialog had two more problems\n\n- it built its own `LensStorage(\"openlens.db\")`, so it deleted from a\n  **different file** than the rest of the app was using. It now takes an\n  optional `storage` argument and defaults to the previous behaviour, so\n  `main()` is unaffected.\n- it bypassed `delete_item`, which is the only thing enforcing the *\"lens is\n  still used by an assembly\"* guard \u2014 so an assembly could be left pointing at a\n  deleted lens. `LensInUseError` is now caught and shown as a warning, and the\n  row survives.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #432\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      confirmed, the pre-fix run produced 2 failures + 4 errors, including the\n      quoted CLI output above\n- [x] `python3 -m unittest tests.test_delete_row_removal` \u2014 7 tests, OK\n- [x] `python3 -m unittest tests.test_delete_row_removal tests.test_deletion_persistence tests.test_database tests.test_gui tests.test_metadata_persistence tests.test_startup_persistence` \u2014 103 tests, OK\n- [x] Full suite: `Ran 1606 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 213 files unchanged\n- [x] `flake8 src/lens_editor.py src/gui/dialogs/startup.py` \u2014 no new findings;\n      the 5 `E402`/`F541` in `lens_editor.py` are pre-existing (verified against\n      `git show master:<file>`)\n- [x] Tests go through a real SQLite file: delete, close, reopen, assert. Covers\n      both entry points, a declined confirmation, the untouched neighbour, the\n      injected-database path, and the in-use guard\n\n### A detail worth flagging\n\nOne test selects its row **by id** rather than by position. `load_lenses` does\nnot return insertion order: `save_assembly` re-inserts every lens it references,\nand SQLite's `INSERT OR REPLACE` deletes the old row, so a referenced lens moves\nto the end of the scan. My first version assumed row 0 and was asserting about\nthe wrong lens \u2014 it failed to notice the guard working.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "f5a10abbed698cb1418b38cf807f575ce18d186f",
+ "merged_at": "2026-10-17T16:07:54Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/lens_editor.py"
+ ],
+ "test_files": [
+  "tests/test_delete_row_removal.py"
+ ],
+ "target_symbols": [
+  "openlens/lens_editor.py::LensManager.delete_lens",
+  "openlens/lens_editor.py::main"
+ ],
+ "fail_to_pass": [
+  "tests/test_delete_row_removal.py::TestCliDeleteRemovesTheRow::test_deleted_lens_does_not_come_back",
+  "tests/test_delete_row_removal.py::TestCliDeleteRemovesTheRow::test_the_other_lens_is_untouched"
+ ],
+ "pass_to_pass": [
+  "tests/test_delete_row_removal.py::TestCliDeleteRemovesTheRow::test_declining_leaves_the_row_alone",
+  "tests/test_delete_row_removal.py::TestStartupDialogDeleteRemovesTheRow::test_declining_leaves_the_row_alone",
+  "tests/test_delete_row_removal.py::TestStartupDialogDeleteRemovesTheRow::test_deleted_item_does_not_come_back",
+  "tests/test_delete_row_removal.py::TestStartupDialogDeleteRemovesTheRow::test_uses_the_injected_database_not_the_hard_coded_one",
+  "tests/test_delete_row_removal.py::TestStartupDialogRespectsTheInUseGuard::test_a_used_lens_is_not_deleted"
+ ],
+ "patch_lines": 39
+}

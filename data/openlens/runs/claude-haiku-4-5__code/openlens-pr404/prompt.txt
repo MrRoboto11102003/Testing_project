@@ -1,0 +1,185 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.diffraction.DiffractionCalculator.plot_airy_disk, openlens.diffraction.DiffractionCalculator.plot_encircled_energy, openlens.diffraction.DiffractionCalculator.plot_psf_2d.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.diffraction.DiffractionCalculator.plot_airy_disk
+    def plot_airy_disk(
+        self,
+        focal_length: float,
+        aperture_diameter: float,
+        save_path: Optional[str] = None,
+    ):
+        """
+        Plot Airy disk intensity pattern
+
+        Args:
+            focal_length: Focal length in mm
+            aperture_diameter: Aperture diameter in mm
+            save_path: Optional path to save the plot
+        """
+        airy_r = self.airy_disk_radius(focal_length, aperture_diameter)
+        max_radius = 5 * airy_r
+        if not MATPLOTLIB_AVAILABLE:
+            logger.warning("plot_airy_disk unavailable: matplotlib is not installed. Skipping.")
+            return
+
+        r, intensity = self.airy_pattern(max_radius, focal_length, aperture_diameter)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(r, np.real(intensity), "b-", linewidth=2)
+        plt.axvline(
+            x=airy_r,
+            color="r",
+            linestyle="--",
+            label=f"Airy disk radius = {airy_r:.2f} μm",
+        )
+        plt.axhline(y=0.5, color="g", linestyle=":", alpha=0.5)
+
+        plt.xlabel("Radius (μm)")
+        plt.ylabel("Normalized Intensity")
+        plt.title(
+            f"Airy Diffraction Pattern\n(f={focal_length}mm, D={aperture_diameter}mm, "
+            f"λ={self.wavelength*1e9:.0f}nm)"
+        )
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        else:
+            plt.show()
+
+        plt.close()
+
+# openlens.diffraction.DiffractionCalculator.plot_encircled_energy
+    def plot_encircled_energy(
+        self,
+        focal_length: float,
+        aperture_diameter: float,
+        save_path: Optional[str] = None,
+    ):
+        """
+        Plot encircled energy curve
+
+        Args:
+            focal_length: Focal length in mm
+            aperture_diameter: Aperture diameter in mm
+            save_path: Optional path to save the plot
+        """
+        r, encircled = self.encircled_energy(focal_length, aperture_diameter)
+        if not MATPLOTLIB_AVAILABLE:
+            logger.warning(
+                "plot_encircled_energy unavailable: matplotlib is not installed. Skipping."
+            )
+            return
+
+        airy_r = self.airy_disk_radius(focal_length, aperture_diameter)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(r, np.real(encircled) * 100, "b-", linewidth=2)
+        plt.axvline(
+            x=airy_r,
+            color="r",
+            linestyle="--",
+            label=f"Airy disk radius = {airy_r:.2f} μm",
+        )
+
+        # Mark 50% and 80% energy
+        idx_50 = np.argmin(np.abs(encircled - 0.5))
+        idx_80 = np.argmin(np.abs(encircled - 0.8))
+        plt.axhline(y=50, color="g", linestyle=":", alpha=0.5)
+        plt.axhline(y=80, color="orange", linestyle=":", alpha=0.5)
+        plt.plot(r[idx_50], 50, "go", markersize=8, label=f"50% @ {r[idx_50]:.2f} μm")
+        plt.plot(
+            r[idx_80],
+            80,
+            "o",
+            color="orange",
+            markersize=8,
+            label=f"80% @ {r[idx_80]:.2f} μm",
+        )
+
+        plt.xlabel("Radius (μm)")
+        plt.ylabel("Encircled Energy (%)")
+        plt.title(
+            f"Encircled Energy Curve\n(f={focal_length}mm, D={aperture_diameter}mm, "
+            f"λ={self.wavelength*1e9:.0f}nm)"
+        )
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.ylim(0, 105)
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        else:
+            plt.show()
+
+        plt.close()
+
+# openlens.diffraction.DiffractionCalculator.plot_psf_2d
+    def plot_psf_2d(
+        self,
+        focal_length: float,
+        aperture_diameter: float,
+        save_path: Optional[str] = None,
+    ):
+        """
+        Plot 2D point spread function
+
+        Args:
+            focal_length: Focal length in mm
+            aperture_diameter: Aperture diameter in mm
+            save_path: Optional path to save the plot
+        """
+        airy_r = self.airy_disk_radius(focal_length, aperture_diameter)
+        size = 10 * airy_r
+        if not MATPLOTLIB_AVAILABLE:
+            logger.warning("plot_psf_2d unavailable: matplotlib is not installed. Skipping.")
+            return
+
+        psf = self.point_spread_function_2d(size, focal_length, aperture_diameter)
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+        # 2D PSF
+        extent = [-size / 2, size / 2, -size / 2, size / 2]
+        im = ax1.imshow(psf, extent=extent, cmap="hot", origin="lower")
+        ax1.set_xlabel("X (μm)")
+        ax1.set_ylabel("Y (μm)")
+        ax1.set_title("2D Point Spread Function")
+        plt.colorbar(im, ax=ax1, label="Normalized Intensity")
+
+        # Cross-section
+        center = psf.shape[0] // 2
+        profile = psf[center, :]
+        x_coords = np.linspace(-size / 2, size / 2, len(profile))
+        ax2.plot(x_coords, np.real(profile), "b-", linewidth=2)
+        ax2.axvline(
+            x=airy_r,
+            color="r",
+            linestyle="--",
+            label=f"Airy disk radius = {airy_r:.2f} μm",
+        )
+        ax2.axvline(x=-airy_r, color="r", linestyle="--")
+        ax2.set_xlabel("Position (μm)")
+        ax2.set_ylabel("Normalized Intensity")
+        ax2.set_title("PSF Cross-Section")
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+
+        plt.suptitle(
+            f"Point Spread Function Analysis\n(f={focal_length}mm, "
+            f"D={aperture_diameter}mm, λ={self.wavelength*1e9:.0f}nm)"
+        )
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        else:
+            plt.show()
+
+        plt.close()

@@ -1,0 +1,72 @@
+{
+ "id": "openlens-pr736",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 644,
+ "issue_title": "bug: axial chromatic aberration depends on the order of the wavelength list",
+ "issue_body": "## Summary\n\n`ChromaticAnalyzer.analyze_lens()` computes `focal_shift` as\n`max(focal_lengths) - min(focal_lengths)`, but `axial_chromatic` as\n`abs(focal_lengths[0] - focal_lengths[-1])`, i.e. it depends on the order in\nwhich the caller happened to list the wavelengths. The `wavelengths` argument\nis documented as an arbitrary list with no ordering requirement, so the same\nthree wavelengths produce different axial chromatic aberrations depending on\ntheir order: `[F, d, C]` gives 0.754 mm, `[d, F, C]` gives 0.234 mm, while\n`focal_shift` stays at 0.754 mm in both cases.\n\n## Impact\n\n- A physical quantity silently depends on an argument's ordering, which makes\n  the metric untrustworthy and hard to compare between runs or tools.\n- `axial_chromatic` and `focal_shift` are reported side by side in the result\n  and disagree for the same data, which is confusing at best.\n- The value is used for chromatic correction decisions and tolerances.\n\n## Reproduction\n\n```python\nfrom openlens.chromatic_analyzer import ChromaticAnalyzer\n\nPARAMS = dict(radius1=50.0, radius2=-50.0, thickness=5.0, diameter=25.0, material=\"BK7\")\nanalyzer = ChromaticAnalyzer()\n\nfor label, wavelengths in ((\"[F, d, C]\", [486.1, 587.6, 656.3]),\n                           (\"[d, F, C]\", [587.6, 486.1, 656.3])):\n    result = analyzer.analyze_lens(PARAMS, wavelengths=wavelengths, num_rays=11)\n    print(\"%s -> axial_chromatic=%.6f mm  focal_shift=%.6f mm\" % (\n        label, result.axial_chromatic_aberration, result.focal_shift))\n```\n\nOutput:\n\n```\n[F, d, C] -> axial_chromatic=0.754021 mm  focal_shift=0.754021 mm\n[d, F, C] -> axial_chromatic=0.234296 mm  focal_shift=0.754021 mm\n```\n\n## Root cause\n\n- `openlens/chromatic_analyzer.py:200` uses the order-independent\n  `max(...) - min(...)` for `focal_shift`.\n- `openlens/chromatic_analyzer.py:201` uses\n  `abs(focal_lengths[0] - focal_lengths[-1])` for `axial_chromatic`, i.e. the\n  first and last entries of the caller-supplied list.\n- The lateral-colour helper (`openlens/chromatic_analyzer.py:206-215`) has the\n  same dependency: it uses `wavelengths[0]`, `wavelengths[-1]` and the middle\n  element as the reference.\n\n## Expected behaviour\n\nThe reported axial chromatic aberration does not depend on the order of the\nwavelength list, and the extremes used for the lateral colour are the\nshortest and longest wavelengths regardless of the input order.\n\n## Suggested fix\n\nSort (or select the min/max of) the wavelengths internally and use\n`max(focal_lengths) - min(focal_lengths)` for the axial colour as well, and\nselect the extreme wavelengths by value rather than by position. Add a\nregression test that the result is identical for permuted wavelength lists.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/644",
+ "pr": 736,
+ "pr_title": "fix(chromatic): select the wavelength extremes by value, not list position",
+ "pr_body": "## Description\n\n`analyze_lens()` documents `wavelengths` as an arbitrary list, but computed\naxial colour from `focal_lengths[0] - focal_lengths[-1]` and passed\n`wavelengths[0]`, `wavelengths[-1]` and the positionally middle image plane to\nthe lateral-colour trace. Permuting the same three wavelengths changed axial\ncolour from 0.754021 mm to 0.234296 mm while `focal_shift` stayed at\n0.754021 mm.\n\n## What changed\n\n- **`openlens/chromatic_analyzer.py`**\n  - Sort the wavelength indices once and use the shortest/longest values for\n    the lateral-colour trace and the middle **sorted** wavelength's image\n    plane.\n  - `axial_chromatic` is now the order-independent `max - min`, i.e. the same\n    value as `focal_shift`.\n- **`tests/test_chromatic_analyzer.py`**\n  - All six permutations of `[F, d, C]` produce identical axial colour, focal\n    shift and lateral colour.\n  - `axial_chromatic_aberration` equals `focal_shift` for a permuted list.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #644\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n  - Before: `[d, F, C]` reports 0.234296 mm axial colour vs 0.754021 mm for\n    `[F, d, C]`, and lateral colour changes with the middle entry.\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2845 tests ... OK (skipped=35)`\n- [x] `black --line-length=100`, `ruff check`, `flake8`, `mypy`\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "cc27157717c9135d6a1107d1a10907ef7eaca3bf",
+ "merged_at": "2026-10-23T09:05:06Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/chromatic_analyzer.py"
+ ],
+ "test_files": [
+  "tests/test_chromatic_analyzer.py"
+ ],
+ "target_symbols": [
+  "openlens/chromatic_analyzer.py::ChromaticAnalyzer.analyze_lens"
+ ],
+ "fail_to_pass": [
+  "tests/test_chromatic_analyzer.py::TestWavelengthOrderIndependence::test_axial_colour_agrees_with_the_focal_shift",
+  "tests/test_chromatic_analyzer.py::TestWavelengthOrderIndependence::test_permuted_wavelengths_give_the_same_scalar_metrics"
+ ],
+ "pass_to_pass": [
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_abbe_number_rejects_zero_dispersion",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_alias_glasses_with_identical_abbe_are_rejected",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_different_glasses_still_design_normally",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_message_names_the_glasses_and_explains",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_near_equal_abbe_numbers_are_not_rejected",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_same_glass_raises_for_each_catalog_pair",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_same_glass_raises_value_error",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_abbe_number_calculation",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_abbe_number_flint_vs_crown",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_achromatic_condition",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_achromatic_doublet_design",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_afocal_raises",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_chromatic_metrics",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_spot_scales_with_aperture",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_thick_focal_lengths",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_chromatic_focal_shift",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_chromatic_result_structure",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_extreme_wavelengths",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_high_index_material",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_multiple_materials",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_partial_dispersion",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_refractive_index_temperature_dependence",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_refractive_index_wavelength_dependence",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_transmission_data",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_transmission_interpolation",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_uv_material_fused_silica",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_wavelength_constants",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_partial_dispersion_of_a_flat_material_raises_value_error",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_partial_dispersion_of_an_unknown_material_raises_value_error",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_plot_chromatic_focal_shift_requires_at_least_two_points",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_plot_chromatic_focal_shift_still_accepts_two_points",
+  "tests/test_chromatic_analyzer.py::TestLateralColorIsTheChiefRay::test_lateral_color_does_not_depend_on_the_aperture",
+  "tests/test_chromatic_analyzer.py::TestLateralColorIsTheChiefRay::test_lateral_color_matches_a_hand_traced_chief_ray",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_case_insensitive_lookup",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_get_material",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_list_by_catalog",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_load_builtin_materials",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_physical_properties",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_sellmeier_coefficients",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_temperature_coefficients"
+ ],
+ "patch_lines": 19
+}

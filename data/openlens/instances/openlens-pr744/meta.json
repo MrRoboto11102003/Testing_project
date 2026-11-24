@@ -1,0 +1,61 @@
+{
+ "id": "openlens-pr744",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 662,
+ "issue_title": "bug: sampling-count parameters are ignored by encircled_energy and crash the reflectivity curve",
+ "issue_body": "## Summary\n\nTwo sampling helpers in the analysis layer mishandle their sample-count\nparameter:\n\n- `DiffractionCalculator.encircled_energy(num_points=...)` documents a\n  configurable sample count but always computes 1000 samples.\n- `CoatingDesigner.calculate_reflectivity_curve(num_points=1)` divides by\n  `num_points - 1` and raises `ZeroDivisionError`.\n\n## Impact\n\n- A caller asking for 10 samples silently pays for 1000 - 100x the work in a\n  redraw loop.\n- A single-point query on the reflectivity curve crashes with an unhandled\n  `ZeroDivisionError` instead of returning one sample.\n\n## Reproduction\n\n```python\nfrom openlens.diffraction import DiffractionCalculator\nfrom openlens.coating_designer import CoatingDesigner\n\ncalc = DiffractionCalculator(wavelength_m=550e-9)\nfor n in (10, 100, 1000):\n    r, ee = calc.encircled_energy(50.0, 25.0, num_points=n)\n    print(f\"  encircled_energy requested num_points={n:5d} -> {len(r)} samples\")\n\ndesigner = CoatingDesigner(substrate_index=1.5168)\ntry:\n    designer.calculate_reflectivity_curve([], (400.0, 700.0), num_points=1)\n    print(\"  reflectivity curve OK\")\nexcept Exception as exc:\n    print(f\"  reflectivity curve raised {type(exc).__name__}: {exc}\")\n```\n\nOutput:\n\n```\n  encircled_energy requested num_points=   10 -> 1000 samples\n  encircled_energy requested num_points=  100 -> 1000 samples\n  encircled_energy requested num_points= 1000 -> 1000 samples\n  reflectivity curve raised ZeroDivisionError: float division by zero\n```\n\n## Root cause\n\n- `openlens/diffraction.py:424-426`:\n  ```python\n  r, _ = self.airy_pattern(max_radius_um, focal_length_mm,\n                            aperture_diameter_mm, num_points=1000)\n  ```\n  The caller's `num_points` is dropped.\n- `openlens/coating_designer.py:332`:\n  ```python\n  wavelengths = [min_wl + (max_wl - min_wl) * i / (num_points - 1)\n                 for i in range(num_points)]\n  ```\n  `num_points == 1` divides by zero.\n\n## Expected behaviour\n\n`num_points` controls the number of samples, and the helpers accept the\ndegenerate counts without crashing.\n\n## Suggested fix\n\nForward `num_points` to `airy_pattern` in `encircled_energy` (or remove the\nparameter), and special-case `num_points == 1` (and reject `< 1`) in\n`calculate_reflectivity_curve`. Add tests for both.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/662",
+ "pr": 744,
+ "pr_title": "fix(analysis): honour the sampling count in encircled energy and reflectivity",
+ "pr_body": "## Description\nTwo sampling helpers ignored or mishandled `num_points`:\n\n- `DiffractionCalculator.encircled_energy(num_points=...)` documented a configurable sample count but passed a hard-coded `1000` to `airy_pattern()`, so a caller asking for 10 samples paid for 1000.\n- `CoatingDesigner.calculate_reflectivity_curve(num_points=1)` divided by `num_points - 1` and raised `ZeroDivisionError`; counts below 1 returned an empty curve instead of an error.\n\n## What changed\n- `openlens/diffraction.py`: `encircled_energy()` forwards `num_points` to `airy_pattern()`.\n- `openlens/coating_designer.py`: `calculate_reflectivity_curve()` rejects `num_points < 1` with `ValueError` and returns a single sample at the start of the range for `num_points == 1`.\n- Tests: encircled energy returns exactly the requested number of samples; the reflectivity curve honours 1/2/10/100 points and rejects 0/-1. Two existing encircled-energy tests that encoded the old always-1000 behaviour now pass an explicit count or assert the documented default of 100.\n\n## Testing\n- Full suite: 2861 tests, OK (skipped=35)\n- `black --line-length=100`, `ruff`, `flake8`, `mypy`\n- Verified the new sampling tests fail against the old hard-coded/unguarded code.\n\nCloses #662\n",
+ "fix_commit": "5b3fce28adf238decafc091e42a5a71468b0542e",
+ "merged_at": "2026-10-23T10:04:36Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/coating_designer.py",
+  "openlens/diffraction.py"
+ ],
+ "test_files": [
+  "tests/test_coating_presets.py",
+  "tests/test_encircled_energy.py"
+ ],
+ "target_symbols": [
+  "openlens/coating_designer.py::CoatingDesigner.calculate_reflectivity_curve",
+  "openlens/coating_designer.py::CoatingDesigner.design_v_coating",
+  "openlens/diffraction.py::DiffractionCalculator.encircled_energy"
+ ],
+ "fail_to_pass": [
+  "tests/test_coating_presets.py::TestReflectivityCurveSampling::test_one_point_returns_one_sample_at_the_start",
+  "tests/test_coating_presets.py::TestReflectivityCurveSampling::test_zero_or_negative_points_are_rejected",
+  "tests/test_encircled_energy.py::TestEncircledEnergyIsAnalytic::test_the_default_extent_still_returns_a_usable_curve",
+  "tests/test_encircled_energy.py::TestEncircledEnergySampling::test_num_points_controls_the_number_of_samples"
+ ],
+ "pass_to_pass": [
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_both_layers_are_quarter_wave_at_the_design_wavelength",
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_it_does_not_use_ta2o5_as_the_inner_layer",
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_it_is_a_two_layer_stack",
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_the_inner_index_is_near_the_cancelling_value",
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_the_outer_layer_is_the_lower_index",
+  "tests/test_coating_presets.py::TestEveryArPresetBeatsTheBareSubstrate::test_every_preset_is_a_non_empty_stack",
+  "tests/test_coating_presets.py::TestEveryArPresetBeatsTheBareSubstrate::test_no_preset_reflects_more_than_uncoated",
+  "tests/test_coating_presets.py::TestEveryArPresetBeatsTheBareSubstrate::test_the_issue_repro_values",
+  "tests/test_coating_presets.py::TestPresetsTrackTheSubstrate::test_a_different_substrate_still_improves_on_bare",
+  "tests/test_coating_presets.py::TestPresetsTrackTheSubstrate::test_the_inner_index_follows_the_substrate",
+  "tests/test_coating_presets.py::TestPresetsTrackTheSubstrate::test_the_preset_never_beats_the_bare_substrate",
+  "tests/test_coating_presets.py::TestReflectivityCurveSampling::test_num_points_controls_the_number_of_samples",
+  "tests/test_coating_presets.py::TestVCoatingIsDerivedNotAsserted::test_it_beats_a_bare_single_layer_across_the_band",
+  "tests/test_coating_presets.py::TestVCoatingIsDerivedNotAsserted::test_it_helps_across_the_visible_band",
+  "tests/test_coating_presets.py::TestVCoatingIsDerivedNotAsserted::test_thicknesses_are_positive_and_finite",
+  "tests/test_encircled_energy.py::TestEncircledEnergyIsAnalytic::test_it_approaches_one_far_out",
+  "tests/test_encircled_energy.py::TestEncircledEnergyIsAnalytic::test_it_starts_at_zero",
+  "tests/test_encircled_energy.py::TestEncircledEnergyIsAnalytic::test_the_curve_does_not_depend_on_the_plotting_extent",
+  "tests/test_encircled_energy.py::TestEncircledEnergyIsAnalytic::test_the_curve_is_monotonic",
+  "tests/test_encircled_energy.py::TestEncircledEnergyIsAnalytic::test_the_last_sample_is_not_forced_to_one",
+  "tests/test_encircled_energy.py::TestEncircledEnergyIsAnalytic::test_the_value_at_the_first_zero_is_analytic",
+  "tests/test_encircled_energy.py::TestEncircledEnergyTracksAperture::test_a_larger_aperture_has_a_smaller_airy_disk",
+  "tests/test_encircled_energy.py::TestEncircledEnergyTracksAperture::test_the_analytic_form_matches_the_airy_disk_convention"
+ ],
+ "patch_lines": 14
+}

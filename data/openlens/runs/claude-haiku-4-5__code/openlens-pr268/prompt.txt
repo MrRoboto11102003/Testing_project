@@ -1,0 +1,100 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.material_database.MaterialDatabase.clear_cache, openlens.material_database.MaterialDatabase.get_transmission, openlens.material_database.MaterialProperties.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.material_database.MaterialDatabase.clear_cache
+    def clear_cache(self):
+        """Clear this instance's refractive index cache.
+
+        Previously this called cache_clear() on the class-wide lru_cache
+        wrapper, so one instance adding a material wiped every other
+        instance's cache.
+        """
+        self._index_cache.clear()
+        self._alias_keys = None
+
+# openlens.material_database.MaterialDatabase.get_transmission
+    def get_transmission(
+        self, material_name: str, wavelength_nm: float, thickness_mm: float = 10.0
+    ) -> float:
+        """
+        Get internal transmission for a specific thickness.
+        Normalizes from the catalog reference thickness using Beer-Lambert law:
+        T2 = T1^(thickness2 / thickness1)
+        """
+        mat = self.get_material(material_name)
+        if not mat or not mat.transmission_data:
+            # Default fallback: 99% per 10mm
+            return 0.99 ** (thickness_mm / 10.0)
+
+        # Get base transmission from catalog data
+        t_base = self._interpolate_transmission(mat.transmission_data, wavelength_nm)
+
+        if t_base <= 0:
+            return 0.0
+
+        # Scale for thickness
+        exponent = thickness_mm / mat.transmission_thickness
+        return t_base**exponent
+
+# openlens.material_database.MaterialProperties
+@dataclass
+class MaterialProperties:
+    """Optical material properties"""
+
+    name: str
+    catalog: str  # Schott, Ohara, Hoya, Custom
+    nd: float  # Refractive index at d-line (587.6 nm)
+    vd: float  # Abbe number
+
+    # Sellmeier coefficients for wavelength-dependent refractive index
+    # n^2 = 1 + B1*λ^2/(λ^2-C1) + B2*λ^2/(λ^2-C2) + B3*λ^2/(λ^2-C3)
+    B1: float = 0.0
+    B2: float = 0.0
+    B3: float = 0.0
+    C1: float = 0.0
+    C2: float = 0.0
+    C3: float = 0.0
+
+    # Temperature coefficients for the Schott TIE-19 model of the
+    # ABSOLUTE refractive index (vs. vacuum, reference T0 = 20 C):
+    #   dn/dT = (n^2-1)/(2n) * [D0 + 2*D1*dT + 3*D2*dT^2
+    #                           + (E0 + 2*E1*dT)/(wl_um^2 - tk_um^2)]
+    #   dn    = (n^2-1)/(2n) * [D0*dT + D1*dT^2 + D2*dT^3
+    #                           + (E0*dT + E1*dT^2)/(wl_um^2 - tk_um^2)]
+    # with dT = T - 20 C and wavelength in micrometers. All-zero
+    # coefficients mean "no thermal data": no correction is applied.
+    D0: float = 0.0
+    D1: float = 0.0
+    D2: float = 0.0
+    E0: float = 0.0
+    E1: float = 0.0
+    lambda_tk_um: float = 0.0  # TIE-19 thermal resonance wavelength (um)
+
+    # Thermal properties
+    thermal_expansion: float = 7.1e-6  # α (1/K)
+
+    # Transmission data (wavelength in nm, transmission 0-1)
+    transmission_data: List[Tuple[float, float]] = field(default_factory=list)
+    transmission_thickness: float = 10.0  # Thickness for transmission data (mm)
+
+    # Physical properties
+    density: float = 2.51  # g/cm³
+
+    # Chemical properties
+    climate_resistance: int = 1  # 0-4 scale
+    acid_resistance: int = 1
+    alkali_resistance: int = 1
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary"""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Create from dictionary"""
+        return cls(**data)

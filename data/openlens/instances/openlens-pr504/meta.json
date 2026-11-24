@@ -1,0 +1,57 @@
+{
+ "id": "openlens-pr504",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 450,
+ "issue_title": "Optimizer: create_doublet_optimizer breaks the cemented interface and starts outside its own bounds",
+ "issue_body": "**Where:** `src/optimizer.py:980-1007`\n\n\"R2 Crown\" is linked to element 1's `radius_of_curvature_1`, but the next variable, \"R1 Flint\", writes the same parameter and wins, so the cemented surfaces are no longer tied. \"R2 Flint\" has bounds `[20, 500]`, but `create_doublet()` produces -131, so the optimizer starts with a bound penalty of about 2.3e10 and is pushed to flip the sign of the surface.\n\n**Repro:** `_apply_variables([60,-45,-70,200])` gives crown R2 = -45.0 but flint R1 = -70.0. Starting `_bound_penalty` = 22,831,665,888.\n\n**Fix:** drop the separate \"R1 Flint\" variable (the link already covers it) or remove the link, and derive R2 Flint's bounds from its sign (e.g. `[-500, -20]`). Add a test that cemented radii stay equal after optimisation.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/450",
+ "pr": 504,
+ "pr_title": "fix(optimizer): keep the cemented interface tied, and start inside the bounds",
+ "pr_body": "## Description\n\nfix(optimizer): keep the cemented interface tied, and start inside the bounds\n\n`create_doublet_optimizer` had two defects that fought each other.\n\n### The cemented interface was driven by two numbers\n\n`\"R2 Crown\"` was linked to the flint's front surface, which is right \u2014 the\ncrown's back surface and the flint's front surface are **one physical surface**\nof a cemented doublet. But a separate `\"R1 Flint\"` variable wrote the *same*\nparameter. They were applied in order and the later one won:\n\n```python\noptimizer._apply_variables([60, -45, -70, 200])\n# crown R2 = -45.0, flint R1 = -70.0\n```\n\nOne surface, two unrelated numbers, and the optimiser had no way to hold them\ntogether. The duplicate variable is gone; the link does that job.\n\n### The optimiser started outside its own bounds\n\n`\"R2 Flint\"` had positive bounds, `[20, 500]`, while the doublet it is built\nfrom starts at about **\u2212131.1 mm**:\n\n```\nelement 0: BK7   R1= 61.997  R2= -61.997\nelement 1: SF11  R1=-61.997  R2=-131.102\n```\n\nThe flint's rear surface is concave, so its bounds are now `[-500, -20]`. The\noptimiser was starting outside its own box with a bound penalty of about\n**2.3e10**, which dwarfs the real merit function and pushed it to flip the\nsign of the surface.\n\n### The existing test asserted the defect\n\n`tests/test_optimizer_functional.py` asserted four variables and the presence of\n`\"R1 Flint\"` \u2014 it was pinning the bug in place. It is updated to the three\nvariables that are actually right, and says why.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #450\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      confirmed by reverting only the source change: **4 of 7 fail, 7 of 7 pass**\n      with it restored\n- [x] `python3 -m unittest tests.test_doublet_optimizer_cemented` \u2014 7 tests, OK\n- [x] `python3 -m unittest tests.test_doublet_optimizer_cemented tests.test_optimizer_functional` \u2014 26 tests, OK\n- [x] The 12 other optimizer suites (advanced, api, convergence, convergence-scale,\n      gradient-descent, gradient-parallel, merit-cache-bound, merit-logging,\n      rng-isolation, optimization-variable-selection, assembly-optimization,\n      optimization-apply) \u2014 **107 tests, OK**\n- [x] Full suite: `Ran 1715 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 222 files unchanged\n- [x] `flake8 src/optimizer.py tests/test_doublet_optimizer_cemented.py` \u2014 no new\n      findings. The `F401` in `optimizer.py` is pre-existing (verified against\n      `git show master:src/optimizer.py`, 2 findings, unchanged)\n- [x] Coverage includes: the interface staying equal after applying variables\n      **and** after a short optimisation, the absence of a duplicate variable,\n      the link itself, the sign of the flint's back-surface bounds, the starting\n      bound penalty, every variable starting inside its bounds, and the surface\n      signs surviving an optimisation\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "8c40e2aff3968b89fee413964fc13aebcc469416",
+ "merged_at": "2026-10-17T19:49:18Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_doublet_optimizer_cemented.py",
+  "tests/test_optimizer_functional.py"
+ ],
+ "target_symbols": [
+  "openlens/optimizer.py::create_doublet_optimizer"
+ ],
+ "fail_to_pass": [
+  "tests/test_doublet_optimizer_cemented.py::TestDoubletOptimizerCementedInterface::test_no_variable_duplicates_the_cemented_interface",
+  "tests/test_doublet_optimizer_cemented.py::TestDoubletOptimizerStartsInsideItsBounds::test_every_variable_starts_within_its_bounds",
+  "tests/test_doublet_optimizer_cemented.py::TestDoubletOptimizerStartsInsideItsBounds::test_the_flint_back_surface_bounds_match_its_sign",
+  "tests/test_doublet_optimizer_cemented.py::TestDoubletOptimizerStartsInsideItsBounds::test_the_starting_point_has_no_bound_penalty",
+  "tests/test_optimizer_functional.py::TestDoubletOptimizer::test_create_doublet_optimizer",
+  "tests/test_optimizer_functional.py::TestDoubletOptimizer::test_doublet_optimizer_variables"
+ ],
+ "pass_to_pass": [
+  "tests/test_doublet_optimizer_cemented.py::TestDoubletOptimizerCementedInterface::test_the_cemented_surfaces_stay_equal_after_applying_variables",
+  "tests/test_doublet_optimizer_cemented.py::TestDoubletOptimizerCementedInterface::test_the_interface_is_driven_by_one_linked_variable",
+  "tests/test_doublet_optimizer_cemented.py::TestDoubletOptimizerStartsInsideItsBounds::test_the_back_focal_length_survives_a_short_optimisation",
+  "tests/test_optimizer_functional.py::TestDoubletOptimizer::test_doublet_optimization_runs",
+  "tests/test_optimizer_functional.py::TestDoubletOptimizer::test_doublet_optimizer_targets",
+  "tests/test_optimizer_functional.py::TestLensOptimizer::test_create_optimizer",
+  "tests/test_optimizer_functional.py::TestLensOptimizer::test_gradient_descent_runs",
+  "tests/test_optimizer_functional.py::TestLensOptimizer::test_history_tracking",
+  "tests/test_optimizer_functional.py::TestLensOptimizer::test_optimization_improves_merit",
+  "tests/test_optimizer_functional.py::TestLensOptimizer::test_optimization_result_structure",
+  "tests/test_optimizer_functional.py::TestLensOptimizer::test_simplex_optimization_runs",
+  "tests/test_optimizer_functional.py::TestMeritFunction::test_chromatic_aberration_target",
+  "tests/test_optimizer_functional.py::TestMeritFunction::test_evaluate_simple_lens",
+  "tests/test_optimizer_functional.py::TestOptimizationConvergence::test_convergence_tolerance",
+  "tests/test_optimizer_functional.py::TestOptimizationConvergence::test_max_iterations_limit",
+  "tests/test_optimizer_functional.py::TestOptimizationTarget::test_create_target",
+  "tests/test_optimizer_functional.py::TestOptimizationTarget::test_target_types",
+  "tests/test_optimizer_functional.py::TestOptimizationVariable::test_clamp",
+  "tests/test_optimizer_functional.py::TestOptimizationVariable::test_create_variable",
+  "tests/test_optimizer_functional.py::TestOptimizationVariable::test_is_valid"
+ ],
+ "patch_lines": 31
+}

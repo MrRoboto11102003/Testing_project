@@ -1,0 +1,93 @@
+diff --git a/tests/test_stl_export.py b/tests/test_stl_export.py
+index 6370945..4dddf9b 100644
+--- a/tests/test_stl_export.py
++++ b/tests/test_stl_export.py
+@@ -64,3 +64,54 @@ class TestSTLExport(unittest.TestCase):
+ 
+ if __name__ == "__main__":
+     unittest.main()
++
++
++class TestSTLHelperContracts(unittest.TestCase):
++    """#663: the helpers do what their docstrings say."""
++
++    def setUp(self):
++        self.exporter = STLExporter()
++
++    def test_a_flat_surface_profile_is_none(self):
++        for radius in (0.0, float("inf"), -float("inf")):
++            with self.subTest(radius=radius):
++                self.assertIsNone(
++                    self.exporter.calculate_surface_profile(
++                        radius, 25.0, is_front=True, resolution=5
++                    )
++                )
++
++    def test_a_curved_surface_profile_is_still_returned(self):
++        profile = self.exporter.calculate_surface_profile(50.0, 25.0, resolution=5)
++
++        self.assertIsNotNone(profile)
++        self.assertEqual(len(profile), 6)
++
++    def test_a_closed_edge_list_wraps_the_last_segment(self):
++        triangles = self.exporter.generate_edge_triangles(
++            10.0, [0.0, 1.0, 2.0, 3.0], [5.0, 6.0, 7.0, 8.0], num_segments=4
++        )
++
++        self.assertEqual(len(triangles), 8)
++        # Last segment: p1 = index 3, p2 wraps to index 0.
++        self.assertEqual(triangles[-2][0][2], 3.0)
++        self.assertEqual(triangles[-2][1][2], 0.0)
++        self.assertEqual(triangles[-1][1][2], 5.0)
++
++    def test_an_open_edge_list_uses_the_final_value(self):
++        triangles = self.exporter.generate_edge_triangles(
++            10.0,
++            [0.0, 1.0, 2.0, 3.0, 4.0],
++            [5.0, 6.0, 7.0, 8.0, 9.0],
++            num_segments=4,
++        )
++
++        self.assertEqual(len(triangles), 8)
++        # Last segment: p1 = index 3, p2 = index 4 (no wrap).
++        self.assertEqual(triangles[-2][0][2], 3.0)
++        self.assertEqual(triangles[-2][1][2], 4.0)
++        self.assertEqual(triangles[-1][1][2], 9.0)
++
++    def test_an_edge_list_of_the_wrong_length_is_rejected(self):
++        with self.assertRaisesRegex(ValueError, "must have 4 or 5 values"):
++            self.exporter.generate_edge_triangles(10.0, [0.0, 1.0], [5.0, 6.0], num_segments=4)
+diff --git a/tests/test_stl_surface_sign.py b/tests/test_stl_surface_sign.py
+index a8dad4b..b5714e9 100644
+--- a/tests/test_stl_surface_sign.py
++++ b/tests/test_stl_surface_sign.py
+@@ -93,9 +93,11 @@ class TestEdgeGeometry(unittest.TestCase):
+         self.exporter = STLExporter()
+ 
+     def _rims(self, r1, r2, thickness, diameter=25.0):
+-        front = self.exporter.calculate_surface_profile(r1, diameter)[-1][1]
+-        back = self.exporter.calculate_surface_profile(r2, diameter)[-1][1] + thickness
+-        return front, back
++        front_profile = self.exporter.calculate_surface_profile(r1, diameter)
++        back_profile = self.exporter.calculate_surface_profile(r2, diameter)
++        front = 0.0 if front_profile is None else front_profile[-1][1]
++        back = 0.0 if back_profile is None else back_profile[-1][1]
++        return front, back + thickness
+ 
+     def test_biconvex_is_thinner_at_the_edge(self):
+         front, back = self._rims(50.0, -50.0, 5.0)
+@@ -116,11 +118,10 @@ class TestEdgeGeometry(unittest.TestCase):
+         self.assertAlmostEqual(front, 0.0)
+         self.assertLess(back - front, 5.0)
+ 
+-    def test_flat_radii_produce_zero_sag(self):
+-        for radius in (0.0, 1e-12):
++    def test_flat_radii_return_none_for_the_dedicated_flat_path(self):
++        for radius in (0.0, 1e-12, float("inf")):
+             with self.subTest(radius=radius):
+-                profile = self.exporter.calculate_surface_profile(radius, 25.0)
+-                self.assertTrue(all(z == 0.0 for _, z in profile))
++                self.assertIsNone(self.exporter.calculate_surface_profile(radius, 25.0))
+ 
+ 
+ class TestExportedSolid(unittest.TestCase):

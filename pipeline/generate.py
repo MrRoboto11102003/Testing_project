@@ -82,14 +82,14 @@ types and messages, exit codes. Include documented failure cases and edge cases.
 Use only the public API, pandas/numpy and the standard library. Keep it to at most 15 tests.""",
 }
 
-PROMPT = """Library: arnio (import arnio as ar), a pandas data-preparation library.
+PROMPT = config.LIBRARY_LINE + """
 
 {instructions}
 
 {context}
 """
 
-LIBRARY_LINE = "Library: arnio (import arnio as ar), a pandas data-preparation library."
+LIBRARY_LINE = config.LIBRARY_LINE
 
 # In full/partial context, the per-bug part (target docstrings, signatures) follows the shared doc files.
 SOURCE_HEADER = "## ===== Source code of the target functions ====="
@@ -133,11 +133,11 @@ def arnio_calls_per_test(code: str) -> dict[str, list[str]]:
         tree = ast.parse(code)
     except SyntaxError:
         return {}
-    aliases, imported = {"arnio"}, set()
+    aliases, imported = set(config.IMPORT_ALIASES), set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            aliases |= {a.asname or a.name for a in node.names if a.name == "arnio"}
-        elif isinstance(node, ast.ImportFrom) and (node.module or "").startswith("arnio"):
+            aliases |= {a.asname or a.name for a in node.names if a.name == config.PACKAGE}
+        elif isinstance(node, ast.ImportFrom) and (node.module or "").startswith(config.PACKAGE):
             imported |= {a.asname or a.name for a in node.names}
     out = {}
     for fn in ast.walk(tree):
@@ -188,7 +188,9 @@ def symbol_context(symbol: str, docstring: bool = True, body: bool = False) -> s
 def api_reference_sections(names: set[str]) -> str:
     """Sections of API_REFERENCE.md whose heading names one of ``names``."""
     try:
-        text = git("show", f"{config.BASE_REF}:API_REFERENCE.md")
+        if not config.API_REFERENCE:
+            return ""
+        text = git("show", f"{config.BASE_REF}:{config.API_REFERENCE}")
     except RuntimeError:
         return ""
     sections = re.split(r"^(?=#{2,4} )", text, flags=re.M)
@@ -207,10 +209,20 @@ def api_index() -> str:
     global _API_INDEX
     if _API_INDEX is not None:
         return _API_INDEX
-    init = git("show", f"{config.BASE_REF}:arnio/__init__.py")
+    init = git("show", f"{config.BASE_REF}:{config.PACKAGE}/__init__.py")
     m = re.search(r"__all__\s*=\s*\[(.*?)\]", init, re.S)
-    public = set(re.findall(r"['\"](\w+)['\"]", m.group(1))) if m else set()
-    files = [f for f in git("ls-tree", "-r", "--name-only", config.BASE_REF, "arnio").split() if f.endswith(".py")]
+    public = set(re.findall(r"['\"](\w+)['\"]", m.group(1))) if m else None
+    files = [f for f in git("ls-tree", "-r", "--name-only", config.BASE_REF, config.PACKAGE).split()
+             if f.endswith(".py") and not f.startswith(config.EXCLUDED_SRC_PREFIXES)]
+    if public is None:  # no __all__ (e.g. openlens): every top-level public def/class of the package
+        public = set()
+        for f in files:
+            try:
+                tree = ast.parse(git("show", f"{config.BASE_REF}:{f}"))
+            except SyntaxError:
+                continue
+            public |= {n.name for n in tree.body
+                       if isinstance(n, (ast.FunctionDef, ast.ClassDef)) and not n.name.startswith("_")}
 
     def sig(fn: ast.FunctionDef, indent: str = "") -> str:
         decos = "".join(f"{indent}@{ast.unparse(d)}\n" for d in fn.decorator_list)
@@ -263,11 +275,7 @@ CONTEXT_MODES = ("signatures", "code", "codeapi", "targeted", "source", "full", 
 
 # User-facing docs at BASE_REF. Left out: CHANGELOG (it narrates the bug fixes),
 # contributor/process files and internal design notes.
-DOC_FILES = (
-    "README.md", "API_REFERENCE.md", "AUTO_CLEAN_GUIDE.md", "CLI_REFERENCE.md",
-    "DATA_CONTRACT_CI.md", "docs/TROUBLESHOOTING.md", "docs/chunked_workflows.md",
-    "docs/custom_pipeline_steps.md", "docs/nullable_dtype_compat.md", "docs/remote.md",
-)
+DOC_FILES = config.DOC_FILES  # per project, see config.PROJECTS
 
 
 def public_symbols(meta: dict) -> list[str]:
@@ -279,6 +287,21 @@ def target_names(meta: dict) -> str:
                      for s in public_symbols(meta))
 
 
+_RST_UNDERLINE = re.compile(r"^([=\-])\1{2,}\s*$")
+
+
+def rst_sections(text: str) -> list[str]:
+    """Split reStructuredText at its top two heading levels (a title line underlined with
+    ``=`` or ``-``, the same depth as markdown's # and ##). Code blocks are indented in
+    RST, so an unindented title + underline pair is always a real heading."""
+    lines = text.splitlines()
+    starts = [i for i in range(len(lines) - 1)
+              if lines[i].strip() and not lines[i][0].isspace()
+              and _RST_UNDERLINE.match(lines[i + 1]) and len(lines[i + 1].strip()) >= len(lines[i].strip())]
+    cuts = [0] + [s for s in starts if s > 0] + [len(lines)]
+    return [sec for a, b in zip(cuts, cuts[1:]) if (sec := "\n".join(lines[a:b]).strip())]
+
+
 def doc_sections() -> list[tuple[str, str]]:
     """Every DOC_FILES section (split at #/## headings outside code fences) as (file, text)."""
     out = []
@@ -286,6 +309,9 @@ def doc_sections() -> list[tuple[str, str]]:
         try:
             text = git("show", f"{config.BASE_REF}:{rel}")
         except RuntimeError:
+            continue
+        if rel.endswith(".rst"):
+            out += [(rel, s) for s in rst_sections(text)]
             continue
         current, in_fence = [], False
         for line in text.splitlines():

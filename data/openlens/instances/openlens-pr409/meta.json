@@ -1,0 +1,43 @@
+{
+ "id": "openlens-pr409",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 350,
+ "issue_title": "`optimize_gradient_descent` / SA write state into caller-owned dataclasses",
+ "issue_body": "**File:** `src/global_optimizer.py:123, 231`\n\n```python\nself._apply_variables(best_values)        # return value dropped \u2014 pure no-op\nfor i, val in enumerate(best_values):\n    self.variables[i].current_value = val  # <- this is what actually works\n```\n\n`_apply_variables` (`optimizer.py:656-673`) returns a deepcopy and never mutates `self.system`, so\nlines 123/231 are dead code. The state transfer happens **only** through mutation of the caller's\n`OptimizationVariable` objects \u2014 which `gui/tabs/optimization_tab.py:125` then also reads and\napplies, so the GUI's saved variable values silently become the SA/GA result rather than the user's\ninputs.\n\n**Fix:** delete the dead calls; pass `best_values` explicitly into `optimize_simplex(start=best_values)`;\n`copy.deepcopy(self.variables)` before mutating.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/350",
+ "pr": 409,
+ "pr_title": "fix(optimizer): pass the refinement start explicitly instead of mutating caller state",
+ "pr_body": "Closes #350\n\n## Problem\n\nBoth global optimizers finished their search with:\n\n```python\nself._apply_variables(best_values)          # return value dropped\nfor i, val in enumerate(best_values):\n    self.variables[i].current_value = val    # this is what actually worked\nlocal_result = self.optimize_simplex(max_iterations=50)\n```\n\n`_apply_variables` returns a **deepcopy** and never mutates `self.system`, so those calls were **dead code**.\n\nThe state transfer happened *only* through mutation of the **caller's** `OptimizationVariable` objects \u2014 which `optimization_tab.py` also reads and saves. So running simulated annealing or the genetic algorithm silently replaced the user's inputs with the search result.\n\n## Verified\n\n```\nsimulated annealing caller vars [50.0] -> [52.01002132572631]  mutated\ngenetic             caller vars [50.0] -> [59.466763858241826]  mutated\n```\n\nAfter, with **identical** optimization results (merit 0.8392 either way \u2014 the search itself was never the problem):\n\n```\nsimulated annealing caller vars [50.0] -> [50.0]  not mutated\ngenetic             caller vars [50.0] -> [50.0]  not mutated\n```\n\n## Fix\n\n`optimize_simplex` gained an explicit `start` parameter \u2014 validated against the variable count, and **copied rather than aliased** so a later caller-side edit cannot corrupt a running simplex. Both call sites use it; the two dead `_apply_variables` calls are gone.\n\n## Tests\n\n12 tests, **7 fail without the change**. One pins the *premise* of the dead-code claim \u2014 that `_apply_variables` really is a pure function of its argument \u2014 so those two calls cannot be reintroduced as if they worked. Others assert the caller's variables and every other variable attribute survive untouched, that optimization still improves the merit, and reflection tests confirm no `_apply_variables` call or `current_value = val` assignment remains in `global_optimizer.py`.\n",
+ "fix_commit": "32ae37810f16bddd523232b5bfe698b05b09328f",
+ "merged_at": "2026-10-06T21:51:50Z",
+ "port_method": "partial_hunks:2/4",
+ "src_files": [
+  "openlens/global_optimizer.py",
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_global_optimizer_no_mutation.py"
+ ],
+ "target_symbols": [
+  "openlens/optimizer.py::LensOptimizer.optimize_simplex"
+ ],
+ "fail_to_pass": [
+  "tests/test_global_optimizer_no_mutation.py::TestCallerVariablesAreNotMutated::test_genetic_leaves_variables_alone",
+  "tests/test_global_optimizer_no_mutation.py::TestCallerVariablesAreNotMutated::test_optimization_still_works",
+  "tests/test_global_optimizer_no_mutation.py::TestCallerVariablesAreNotMutated::test_other_variable_attributes_are_untouched",
+  "tests/test_global_optimizer_no_mutation.py::TestCallerVariablesAreNotMutated::test_simulated_annealing_leaves_variables_alone",
+  "tests/test_global_optimizer_no_mutation.py::TestSimplexStartParameter::test_explicit_start_is_used",
+  "tests/test_global_optimizer_no_mutation.py::TestSimplexStartParameter::test_start_does_not_mutate_the_variables",
+  "tests/test_global_optimizer_no_mutation.py::TestSimplexStartParameter::test_start_list_is_not_aliased",
+  "tests/test_global_optimizer_no_mutation.py::TestSimplexStartParameter::test_start_with_wrong_length_is_rejected"
+ ],
+ "pass_to_pass": [
+  "tests/test_global_optimizer_no_mutation.py::TestDeadApplyVariablesCallsRemoved::test_apply_variables_really_is_a_pure_function",
+  "tests/test_global_optimizer_no_mutation.py::TestDeadApplyVariablesCallsRemoved::test_no_apply_variables_call_remains_in_global_optimizer",
+  "tests/test_global_optimizer_no_mutation.py::TestDeadApplyVariablesCallsRemoved::test_no_current_value_assignment_remains",
+  "tests/test_global_optimizer_no_mutation.py::TestSimplexStartParameter::test_default_start_is_the_current_values"
+ ],
+ "patch_lines": 18
+}

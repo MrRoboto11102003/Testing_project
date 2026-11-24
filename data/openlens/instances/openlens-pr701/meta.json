@@ -1,0 +1,35 @@
+{
+ "id": "openlens-pr701",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 611,
+ "issue_title": "bug(physics): BeamSynthesisPropagator defaults to total_length+50 instead of paraxial focus",
+ "issue_body": "## Summary\n\n`BeamSynthesisPropagator.propagate_to_image(image_plane_x=None)` documents/assumes a paraxial image plane but hard-codes `system.get_total_length() + 50`. For a typical system this is far from focus, so the synthesized image is evaluated in a defocused plane.\n\n## Impact\n\n- Beam-synthesis PSF/spot results are computed at an arbitrary plane 50 mm past the last surface, not at focus.\n- For the default biconvex singlet, BFL \u2248 95.9 mm while the chosen plane is 55 mm \u2014 a ~40 mm defocus.\n- Any comparison with diffraction PSF/MTF (which use the Gaussian focus) is invalid unless the caller explicitly passes `image_plane_x`.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\n\ns = OpticalSystem()\ns.add_lens(Lens(radius_of_curvature_1=100.0, radius_of_curvature_2=-100.0,\n                refractive_index=1.5168, thickness=5.0, diameter=25.0))\nprint(\"total_length:\", s.get_total_length())          # 5.0\nprint(\"BFL:\", s.calculate_back_focal_length())        # 95.918...\nprint(\"default plane:\", s.get_total_length() + 50)    # 55.0\n```\n\nThe source confirms the default:\n\n```\nopenlens/analysis/beam_synthesis.py:260-262\n    if image_plane_x is None:\n        # Default to paraxial focus (approx)\n        image_plane_x = self.system.get_total_length() + 50\n```\n\n## Root cause\n\n`openlens/analysis/beam_synthesis.py:260-262` \u2014 the comment claims paraxial focus, but the value is a fixed offset past the last vertex. The system exposes `calculate_back_focal_length()` (`openlens/optical_system.py:771`), which is the observable focus.\n\n## Expected behaviour\n\nWith `image_plane_x=None`, the detector is placed at the system's paraxial focus (back focal length from the last surface), falling back to a documented finite plane only for afocal systems.\n\n## Suggested fix\n\nUse `system.calculate_back_focal_length()` (plus the last element's position/thickness as needed) and handle `None`/non-finite values explicitly. Add a test that the default plane equals the paraxial focus for a singlet and a doublet.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/611",
+ "pr": 701,
+ "pr_title": "fix(physics): place the beam-synthesis detector at the paraxial focus",
+ "pr_body": "## Description\n\n`BeamSynthesisPropagator.propagate_to_image(image_plane_x=None)` documented a\nparaxial image plane and then placed the detector at `get_total_length() + 50`\n- an arbitrary plane 50 mm past the last vertex.\n\nFor the default biconvex singlet (BFL \u2248 95.9 mm, last vertex at 5 mm) that is\n55 mm instead of \u2248 101 mm: a \u2248 46 mm defocus, so the synthesized PSF was\nevaluated far from focus and could not be compared with the diffraction\nPSF/MTF, which use the Gaussian focus.\n\n```\ntotal_length: 5.0\nBFL:          95.918...\nold plane:    55.0\nnew plane:    \u2248101.0  (paraxial focus)\n```\n\n## What changed\n\n- `openlens/analysis/beam_synthesis.py`: the default plane now comes from\n  `find_paraxial_focus()` - the same shared focus search `diffraction_psf.py`\n  uses - so both analyses of one system are measured at the same plane.\n- A system with no focus to find (an afocal plate, an untraceable exit ray)\n  falls back to `get_total_length() +\n  BeamSynthesisPropagator.DEFAULT_IMAGE_PLANE_PAST_LAST_SURFACE` (50 mm, the\n  old behaviour) and logs a warning saying so.\n- An explicit `image_plane_x` is still used verbatim.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #611\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_beam_synthesis_focus.py` (four of its five tests fail on\nthe unfixed code; the fifth pins the afocal fallback, which the old code made\nfor every system):\n\n- `test_the_default_is_the_paraxial_focus`\n- `test_the_default_is_not_fifty_millimetres_past_the_last_vertex`\n- `test_the_default_agrees_with_the_paraxial_back_focal_length`\n- `test_an_afocal_system_uses_the_documented_fallback`\n- `test_the_default_map_equals_the_map_at_the_focus` - the public API: the\n  default intensity map equals the one at an explicitly passed focus\n\nFull local suite: `Ran 2686 tests ... OK (skipped=35)`; the existing beam\nsynthesis and PSF suites (65 tests) pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "8a8438a94f87e3c6910db34fa533bfca0407c03d",
+ "merged_at": "2026-10-22T10:38:07Z",
+ "port_method": "partial_hunks:2/3",
+ "src_files": [
+  "openlens/analysis/beam_synthesis.py"
+ ],
+ "test_files": [
+  "tests/test_beam_synthesis_focus.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/beam_synthesis.py::BeamSynthesisPropagator.propagate_to_image",
+  "openlens/analysis/beam_synthesis.py::GaussianBeam"
+ ],
+ "fail_to_pass": [
+  "tests/test_beam_synthesis_focus.py::TestDefaultImagePlane::test_an_afocal_system_uses_the_documented_fallback",
+  "tests/test_beam_synthesis_focus.py::TestDefaultImagePlane::test_the_default_agrees_with_the_paraxial_back_focal_length",
+  "tests/test_beam_synthesis_focus.py::TestDefaultImagePlane::test_the_default_is_not_fifty_millimetres_past_the_last_vertex",
+  "tests/test_beam_synthesis_focus.py::TestDefaultImagePlane::test_the_default_is_the_paraxial_focus",
+  "tests/test_beam_synthesis_focus.py::TestDefaultPlaneIsUsed::test_the_default_map_equals_the_map_at_the_focus"
+ ],
+ "pass_to_pass": [],
+ "patch_lines": 4
+}

@@ -1,0 +1,216 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.tolerancing.InverseSensitivityAnalyzer.calculate_sensitivities, openlens.tolerancing.MonteCarloAnalyzer.run.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.tolerancing.InverseSensitivityAnalyzer.calculate_sensitivities
+    def calculate_sensitivities(self, criterion: str = "rms_spot_radius") -> List[Dict[str, Any]]:
+        """
+        Calculate sensitivity of each operand.
+
+        Args:
+            criterion: Performance metric. Only ``"rms_spot_radius"`` is
+                implemented, the same set MonteCarloAnalyzer accepts.
+
+        Returns:
+            List of dicts with 'operand', 'sensitivity', 'change'.
+
+        Raises:
+            ValueError: If *criterion* is unsupported. The argument used to be
+                ignored, so a caller asking for another metric silently got
+                RMS-spot sensitivities and budgeted tolerances against the
+                wrong performance measure.
+        """
+        if criterion != self.SUPPORTED_CRITERIA:
+            raise ValueError(
+                f"Unsupported criterion {criterion!r}; " f"supported: {self.SUPPORTED_CRITERIA!r}"
+            )
+
+        results = []
+
+        # Nominal performance
+        spot_nom = SpotDiagram(self.system)
+        res_nom = spot_nom.trace_spot()
+        # A vignetted nominal reports None; inf keeps the sensitivity
+        # arithmetic below well-defined instead of raising on None.
+        nominal_val = res_nom["rms_radius"]
+        if nominal_val is None:
+            nominal_val = float("inf")
+
+        for i, tol in enumerate(self.tolerances):
+            # Test at max value
+            # Apply single tolerance at max value
+            delta = tol.max_val
+
+            # Save state
+            original_state = self._get_system_state(self.system)
+
+            # The perturbation is applied in place, so the restore has to
+            # happen even if the apply or the trace raises - otherwise the
+            # design is left perturbed and the next save writes that to the
+            # database.
+            try:
+                self._apply_single_tolerance(self.system, tol, delta)
+
+                # Analyze
+                spot = SpotDiagram(self.system)
+                res = spot.trace_spot()
+                val = res["rms_radius"]
+                if val is None:
+                    val = float("inf")
+            except Exception as e:
+                logger.warning("Inverse sensitivity for tolerance %d failed: %s", i, e)
+                val = float("inf")
+            finally:
+                # Restore state
+                self._set_system_state(self.system, original_state)
+
+            change = val - nominal_val
+            # Sensitivity = change / tolerance_value. When either end is a
+            # vignetted inf this is inf - inf, i.e. undefined: the operand
+            # never moved the design between two unmanufacturable states, so
+            # there is no sensitivity to report. NaN says "undefined" without
+            # pretending the operand is infinitely sensitive.
+            sensitivity = change / delta if delta != 0 else 0
+            if not (math.isfinite(change) and math.isfinite(sensitivity)):
+                change = float("nan")
+                sensitivity = float("nan")
+
+            results.append(
+                {
+                    "operand_index": i,
+                    "type": tol.param_type.name,
+                    "element": tol.element_index,
+                    "test_value": delta,
+                    "result_value": val,
+                    "change": change,
+                    "sensitivity": sensitivity,
+                }
+            )
+
+        return results
+
+# openlens.tolerancing.MonteCarloAnalyzer.run
+    def run(
+        self,
+        num_trials: int = 100,
+        criterion: str = "rms_spot_radius",
+        criterion_limit: float = 0.05,
+    ) -> Dict[str, Any]:
+        """
+        Run Monte Carlo simulation.
+
+        Args:
+            num_trials: Number of systems to simulate.
+            criterion: Metric to evaluate. Only ``rms_spot_radius`` is
+                implemented; anything else raises ValueError rather than being
+                echoed back into the results while the RMS statistics were
+                computed regardless.
+            criterion_limit: Pass/Fail threshold.
+
+        Returns:
+            Dictionary with statistics and yield.
+
+        Raises:
+            ValueError: If num_trials is not positive, or criterion is not a
+                supported metric.
+        """
+        if num_trials <= 0:
+            raise ValueError(f"num_trials must be positive, got {num_trials}")
+        if criterion != self.SUPPORTED_CRITERIA:
+            # Silently accepting an unimplemented name meant the caller got
+            # results labelled with a metric that was never evaluated.
+            raise ValueError(
+                f"Unsupported criterion {criterion!r}; " f"supported: {self.SUPPORTED_CRITERIA!r}"
+            )
+
+        self.results = []
+        pass_count = 0
+
+        # Analyze nominal system first. Guarded for the same reason as the
+        # trials: a tracer error here used to propagate straight out of run().
+        nominal_val = self._spot_rms()
+
+        # Save nominal state for restoration instead of deepcopying
+        nominal_state = self._get_system_state(self.nominal_system)
+
+        for i in range(num_trials):
+            # Every trial perturbs the system in place, so the restore has to
+            # happen even when the trial raises: an exception from
+            # _apply_tolerances, the compensator sweep or the trace used to
+            # leave the design perturbed, and the next save would write that
+            # perturbed design to the database.
+            try:
+                # Apply tolerances directly to the system
+                perturbations = self._apply_tolerances(self.nominal_system)
+
+                # Re-optimize compensators (focus and/or mechanical adjusts).
+                comp_values = self._optimize_compensators()
+
+                # Analyze. Goes through _spot_rms, which already wraps the trace
+                # and maps a vignetted result (rms_radius None) or any exception to
+                # inf. Calling trace_spot directly here meant one TIR or tracer
+                # error aborted the whole run and every accumulated self.results
+                # entry was lost with it.
+                val = self._spot_rms(focus_shift_mm=comp_values.get("focus_shift_mm", 0.0))
+            except Exception as e:
+                logger.warning("Monte Carlo trial %d failed: %s", i, e)
+                continue
+            finally:
+                # Restore nominal state
+                self._set_system_state(self.nominal_system, nominal_state)
+
+            passed = val <= criterion_limit
+            if passed:
+                pass_count += 1
+
+            self.results.append(
+                {
+                    "trial": i,
+                    "perturbations": perturbations,
+                    "compensators": comp_values,
+                    "value": val,
+                    "passed": passed,
+                }
+            )
+
+        # Statistics. A vignetted trial contributes inf (an unbounded, and
+        # unmanufacturable, spot radius), which statistics.mean/stdev cannot
+        # reduce - inf - inf is nan. Summarise the finite trials and let max
+        # keep the inf so the failure stays visible instead of being averaged
+        # away or crashing the report.
+        values = [r["value"] for r in self.results]
+        finite = [v for v in values if math.isfinite(v)]
+        yield_pct = (pass_count / num_trials) * 100
+
+        # Operands that could not be applied. The yield above does not include
+        # them, so the report has to say so: a silently ignored tolerance
+        # makes the yield look better than it is.
+        skipped = list(getattr(self, "_skipped_operands", []))
+        if skipped:
+            logger.warning(
+                "Monte Carlo: %d tolerance operand(s) could not be applied and "
+                "were left out of the statistics: %s",
+                len(skipped),
+                ", ".join(skipped),
+            )
+
+        stats = {
+            "nominal": nominal_val,
+            "mean": statistics.mean(finite) if finite else float("inf"),
+            "std_dev": statistics.stdev(finite) if len(finite) > 1 else 0,
+            "min": min(finite) if finite else float("inf"),
+            "max": max(values) if values else 0,
+            "yield": yield_pct,
+            "trials": num_trials,
+            "criterion": criterion,
+            "limit": criterion_limit,
+            "90th_percentile": _percentile(finite, 90.0) if finite else float("inf"),
+            "vignetted_trials": len(values) - len(finite),
+            "skipped_operands": skipped,
+        }
+
+        return stats

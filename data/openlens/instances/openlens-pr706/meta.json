@@ -1,0 +1,41 @@
+{
+ "id": "openlens-pr706",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 616,
+ "issue_title": "bug: mechanical designer ignores lens thickness and air gaps",
+ "issue_body": "## Summary\n\n`MechanicalDesigner` ignores the real optical geometry when sizing lens cells and spacers:\n\n- `design_lens_cells()` estimates cell length from `lens.center_thickness`, but `Lens` only exposes `thickness`. The attribute never exists, so **every** cell gets the 10.0 mm fallback.\n- `calculate_spacers()` looks for a non-existent `optical_system.element_spacing`; for a real `OpticalSystem` it falls back to `[10.0] * (n-1)` and never reads `system.air_gaps`.\n\nThe generated mechanical stack therefore has no relation to the optical stack length, air gaps, or lens thicknesses.\n\n## Impact\n\n- A 30 mm-thick element gets a 10 mm cell; a 20 mm air gap gets a 10 mm spacer.\n- `calculate_total_length()`, `generate_bom()`, `suggest_housing()`, and the STEP housing export inherit the wrong dimensions.\n- Clearance and assembly checks run against a mechanical model that cannot contain the actual lenses.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.mechanical_designer import MechanicalDesigner\n\ns = OpticalSystem()\ns.add_lens(Lens(thickness=30.0, diameter=25.0))\ns.add_lens(Lens(thickness=5.0, diameter=25.0), air_gap_before=20.0)\nprint(\"Lens has thickness:\", hasattr(s.elements[0].lens, \"thickness\"))\nprint(\"Lens has center_thickness:\", hasattr(s.elements[0].lens, \"center_thickness\"))\nprint(\"air gaps:\", [(g.position, g.thickness) for g in s.air_gaps])\n\nd = MechanicalDesigner(s)\nprint(\"cell lengths:\", [c.length for c in d.design_lens_cells()])\nprint(\"spacers:\", [sp.thickness for sp in d.calculate_spacers()])\nprint(\"mechanical length:\", d.calculate_total_length())\nprint(\"optical length:\", s.get_total_length())\n```\n\nObserved:\n\n```\nLens has thickness: True | has center_thickness: False\nair gaps: [(30.0, 20.0)]\ncell lengths: [10.0, 10.0]\nspacers: [10.0]\ntotal mechanical length: 30.0\noptical total length: 55.0\n```\n\nExpected: cell lengths reflecting 30 mm and 5 mm elements (plus a documented margin), a spacer of the actual 20 mm air gap, and a mechanical length consistent with the 55 mm optical stack.\n\n## Root cause\n\n- `openlens/mechanical_designer.py:161-164` \u2014 `if hasattr(lens, \"center_thickness\")` is always false for `Lens`, so `length = 10.0`.\n- `openlens/mechanical_designer.py:194-199` \u2014 `hasattr(self.optical_system, \"element_spacing\")` is false for `OpticalSystem`; the fallback ignores `self.optical_system.air_gaps`.\n- `openlens/mechanical_designer.py:248-258` \u2014 totals sum the fabricated cell/spacer values.\n\n## Expected behaviour\n\nCell length derives from the actual `lens.thickness` (or edge thickness where appropriate, with an explicit margin), and each spacer thickness equals the corresponding `air_gaps[i].thickness` unless the caller supplies `target_spacing`. The mechanical total should reconcile with the optical total within the documented margins.\n\n## Suggested fix\n\nUse `lens.thickness` for cell length (and subtract the surface sags if edge thickness is wanted). Default `target_spacing` from `[gap.thickness for gap in system.air_gaps]`. Add a test with two different-thickness lenses and a non-default air gap asserting the generated cells/spacers match.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/616",
+ "pr": 706,
+ "pr_title": "fix(mechanical): size cells and spacers from the optical geometry",
+ "pr_body": "## Description\n\n`MechanicalDesigner` sized the housing from attributes the model had never\nexposed:\n\n- `design_lens_cells()` looked for `lens.center_thickness`, which `Lens`\n  does not have, so **every** cell got the 10 mm fallback.\n- `calculate_spacers()` looked for `system.element_spacing`, which\n  `OpticalSystem` does not have, so every spacer was a fabricated 10 mm.\n\nThe mechanical stack therefore had no relation to the optical one:\n\n```\nair gaps: [(30.0, 20.0)]\ncell lengths: [10.0, 10.0]\nspacers: [10.0]\ntotal mechanical length: 30.0\noptical total length: 55.0\n```\n\n`calculate_total_length()`, `generate_bom()`, `suggest_housing()` and the\nSTEP housing export all inherited the wrong dimensions.\n\n## What changed\n\n- **`openlens/mechanical_designer.py`** - cell length comes from the\n  element's own thickness (`Lens.thickness`; a duck-typed `center_thickness`\n  is still honoured) plus the documented `CELL_MARGIN_MM = 5.0`. A lens-like\n  object exposing neither warns and keeps the 10 mm fallback.\n- Spacers default to the system's `air_gaps` in axial order. An explicit\n  `target_spacing` still wins, and the old `element_spacing` / 10 mm\n  fallbacks remain for duck-typed targets that expose them.\n- `calculate_total_length()` documents that the mechanical total exceeds the\n  optical stack by one margin per element.\n\nWith the report's system the cells are now 35 mm and 10 mm, the spacer is the\nactual 20 mm, and the total reconciles: 55 mm optical + 2 \u00d7 5 mm margins.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #616\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_mechanical_designer_geometry.py` - four of its six\ntests fail on the unfixed code (the other two pin that an explicit\n`target_spacing` and a duck-typed `element_spacing` still behave):\n\n- `test_cell_length_follows_the_element_thickness`\n- `test_spacers_follow_the_air_gaps`\n- `test_the_total_reconciles_with_the_optical_stack`\n- `test_the_reported_reproduction`\n\nFull local suite: `Ran 2713 tests ... OK (skipped=35)`; the mechanical and\nadvanced-feature suites (73 tests) pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "9828140150d04d703acdefa8576749245c3b9228",
+ "merged_at": "2026-10-22T11:41:27Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/mechanical_designer.py"
+ ],
+ "test_files": [
+  "tests/test_mechanical_designer_geometry.py"
+ ],
+ "target_symbols": [
+  "openlens/mechanical_designer.py::LensMount",
+  "openlens/mechanical_designer.py::MechanicalDesigner.__init__",
+  "openlens/mechanical_designer.py::MechanicalDesigner.calculate_spacers",
+  "openlens/mechanical_designer.py::MechanicalDesigner.design_lens_cells",
+  "openlens/mechanical_designer.py::MechanicalDesigner.design_mount",
+  "openlens/mechanical_designer.py::MechanicalDesigner.suggest_housing._ca"
+ ],
+ "fail_to_pass": [
+  "tests/test_mechanical_designer_geometry.py::TestMechanicalGeometry::test_cell_length_follows_the_element_thickness",
+  "tests/test_mechanical_designer_geometry.py::TestMechanicalGeometry::test_spacers_follow_the_air_gaps",
+  "tests/test_mechanical_designer_geometry.py::TestMechanicalGeometry::test_the_reported_reproduction",
+  "tests/test_mechanical_designer_geometry.py::TestMechanicalGeometry::test_the_total_reconciles_with_the_optical_stack"
+ ],
+ "pass_to_pass": [
+  "tests/test_mechanical_designer_geometry.py::TestMechanicalGeometry::test_a_duck_typed_spacing_list_is_still_used",
+  "tests/test_mechanical_designer_geometry.py::TestMechanicalGeometry::test_an_explicit_target_spacing_still_wins"
+ ],
+ "patch_lines": 68
+}

@@ -1,0 +1,143 @@
+diff --git a/openlens/aberrations.py b/openlens/aberrations.py
+index 2b85534a68340d9448510899fac59c782fb64567..6eaf14f17e3d28152a62e575384a97cdbbd75fca 100644
+--- a/openlens/aberrations.py
++++ b/openlens/aberrations.py
+@@ -226,7 +226,6 @@ class AberrationsCalculator:
+                 "airy_disk_diameter": 0.0,
+                 "spot_rms": 0.0,
+                 "strehl": 0.0,
+-                "wfe_rms_waves": 0.0,
+                 "mtf_cutoff": 0.0,
+                 # Every value above is a placeholder, not a measurement.
+                 "valid": False,
+@@ -242,11 +241,9 @@ class AberrationsCalculator:
+         spherical = self._calculate_spherical_aberration(focal_length)
+         chromatic = self._calculate_chromatic_aberration(focal_length)
+         f_number = self._calculate_f_number(focal_length)
+-        airy = self._calculate_airy_disk(focal_length, wavelength_nm * 1e-6)
+-        strehl, wfe_rms_waves = self._calculate_strehl_ratio(
+-            focal_length, wavelength_nm=wavelength_nm
+-        )
+-        mtf_cutoff = self._calculate_mtf_cutoff(focal_length, wavelength_nm=wavelength_nm)
++        airy = self._calculate_airy_disk(focal_length)
++        strehl = self._calculate_strehl_ratio(focal_length)
++        mtf_cutoff = self._calculate_mtf_cutoff(focal_length)
+ 
+         # None means the trace failed, which is not the same as a zero spot.
+         # Published as 0.0 it read as a perfect design - better than
+@@ -283,7 +280,6 @@ class AberrationsCalculator:
+                 "airy_disk_diameter": airy,
+                 "spot_rms": spot_rms,
+                 "strehl": strehl,
+-                "wfe_rms_waves": wfe_rms_waves,
+                 "mtf_cutoff": mtf_cutoff,
+                 "valid": _all_valid(field_data, spherical, chromatic, airy, strehl, spot_rms),
+             }
+@@ -324,7 +320,6 @@ class AberrationsCalculator:
+             "chromatic_aberration": chromatic,
+             "airy_disk_diameter": airy,
+             "strehl": strehl,
+-            "wfe_rms_waves": wfe_rms_waves,
+             "mtf_cutoff": mtf_cutoff,
+             "valid": _all_valid(
+                 coma_val,
+diff --git a/openlens/analysis/diffraction_psf.py b/openlens/analysis/diffraction_psf.py
+index 449f282cf79189140d6337d2b83c5442db219d4c..3ff72a9743abcfb1aef8871b46ec743e876523ff 100644
+--- a/openlens/analysis/diffraction_psf.py
++++ b/openlens/analysis/diffraction_psf.py
+@@ -279,66 +279,45 @@ class WavefrontSensor:
+                     W[i, j] = float("nan")
+                     continue
+ 
+-                # Ray through (pupil_x, py, pz), back-projected to start plane.
++                # Calculate start point
++                # Ray should hit (pupil_x, py, pz)
+                 origin = vec3(pupil_x, py, pz) - direction * (dist / dx)
+ 
+                 ray = Ray3D(origin, direction, wavelength=wavelength_mm)
+                 self.tracer.trace_ray(ray)
+ 
+-                if ray.terminated:
+-                    # Vignetted / blocked / TIR: exclude from the OPD map.
++                if ray.terminated and len(ray.path) < len(self.system.elements):
++                    # Vignetted
+                     W[i, j] = float("nan")
+-                    continue
+-
+-                t = _forward_sphere_intersection(ray.origin, ray.direction, Q, R_ref)
+-                if t is None:
+-                    W[i, j] = float("nan")
+-                    continue
+-
+-                opl_ref = ray.optical_path_length + ray.n * t
+-                W[i, j] = (opl_ref - ref_opl) / wavelength_mm
+-                valid_mask[i, j] = True
+-
+-        # Remove piston + tilt (least-squares plane fit over normalized
+-        # pupil coords) so the map is referenced to the chief ray.
+-        valid_count = int(np.count_nonzero(valid_mask))
+-        if valid_count > 0:
+-            w_valid = W[valid_mask]
+-            mean_w = float(np.mean(w_valid))
+-            yn = Y[valid_mask] / max_r
+-            zn = Z[valid_mask] / max_r
+-            try:
+-                design = np.column_stack([np.ones_like(w_valid), yn, zn])
+-                coeffs, _, _, _ = np.linalg.lstsq(design, w_valid, rcond=None)
+-                W[valid_mask] = w_valid - design @ coeffs
+-            except Exception:
+-                W[valid_mask] = w_valid - mean_w
++                else:
++                    # Calculate OPD
++                    if not ref_ray.path:
++                        continue
++                    ref_end = ref_ray.path[-1]
++
++                    # Extend ray to plane X = ref_end.x (exit pupil reference sphere approximation)
++                    # Ideally, we trace to the reference sphere centered at the image point.
++                    # For now, using planar exit pupil approximation for infinite conjugate or paraxial.
++
++                    if abs(ray.direction.x) > 1e-6:
++                        t = (ref_end.x - ray.origin.x) / ray.direction.x
++                        ray.propagate(t)  # Updates OPL
++
++                        # OPD = OPL_ray - OPL_ref
++                        # W = OPD / wavelength
++                        W[i, j] = (ray.optical_path_length - ref_opl) / wavelength_mm
++                        valid_mask[i, j] = True
++
++        # Remove Piston (mean) and Tilt (linear terms) if desired
++        # For now just Piston
++        valid_W = W[valid_mask]
++        if valid_W.size > 0:
++            mean_w = np.mean(valid_W)
++            W[valid_mask] -= mean_w
+ 
+         return WavefrontError(Y, Z, W)
+ 
+ 
+-def _forward_sphere_intersection(
+-    origin: "vec3", direction: "vec3", center: "vec3", radius: float
+-) -> Optional[float]:
+-    """Smallest positive ray parameter t with |origin + t*d - center| = radius.
+-
+-    Returns None if the forward ray never meets the sphere.
+-    """
+-    w = origin - center
+-    # Ray3D directions are unit length, but normalize defensively.
+-    d = direction.normalize()
+-    b = w.dot(d)
+-    c = w.magnitude_sq() - radius**2
+-    disc = b * b - c
+-    if disc < 0:
+-        return None
+-    sq = math.sqrt(max(disc, 0.0))
+-    for t in (-b - sq, -b + sq):
+-        if t > 1e-9:
+-            return t
+-    return None
+-
+-
+ class DiffractionPSFCalculator:
+     """Calculates PSF using FFT of Pupil Function."""
+ 

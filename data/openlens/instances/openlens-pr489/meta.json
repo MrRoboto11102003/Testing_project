@@ -1,0 +1,59 @@
+{
+ "id": "openlens-pr489",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 431,
+ "issue_title": "Tolerance sets (and any `metadata`) are never persisted to the database",
+ "issue_body": "**Where:** `openlens.py:209-211` (`_sync_tolerances_to_metadata`), `src/optical_system.py:434-458`, `Lens.to_dict` in `src/lens.py`\n\n`_sync_tolerances_to_metadata` writes `target.metadata['tolerances']`. Neither `Lens.to_dict()` nor `OpticalSystem.to_dict()` includes `metadata`, and neither `from_dict` restores it. `tests/test_tolerance_persistence.py` only checks in-memory state.\n\n**Repro:**\n```\na.metadata={'tolerances':[{'x':1}]}; save; reload -> meta: None\nLens has no `metadata` attribute at all after reload\nDB lenses.metadata = {\"type\":\"Biconvex\",\"wavelength\":587.6,...}  # no tolerances\n```\n\n**Fix:** make `metadata` a real attribute on both models, include it in `to_dict`, and restore it in `from_dict`. Add a save-reload-compare test that goes through SQLite.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/431",
+ "pr": 489,
+ "pr_title": "fix(analysis): give Lens and OpticalSystem a real, persisted metadata attribute",
+ "pr_body": "## Description\n\nfix(analysis): give `Lens` and `OpticalSystem` a real, persisted `metadata`\n\nThe GUI keeps a target's tolerance set on `target.metadata['tolerances']`\n(`OpenLensWindow._sync_tolerances_to_metadata`), but **neither model had a\n`metadata` attribute at all** \u2014 the window conjured one up on demand. The save\npath therefore worked in memory and then lost everything:\n\n- `Lens.to_dict()` and `OpticalSystem.to_dict()` omitted `metadata`, so the\n  tolerance set never reached the database;\n- `load_all` flattened the metadata blob into the row dict and then `del`-ed the\n  key, so a reloaded `Lens` had no `metadata` attribute to read.\n\nThe tolerance table came back empty on reopen with nothing to say why.\n`tests/test_tolerance_persistence.py` only asserted in-memory state \u2014 the half\nthat worked.\n\n### The blob stays flat\n\nThe model's own `metadata` is folded in **beside** the keys that have never had\na column (that is already how `lens_type`, `wavelength` and the model-glass\nnumbers are persisted), not nested under a `metadata` key. Nesting would write\n`{\"metadata\": {\"metadata\": ...}}` and break every existing reader, which expects\nthe blob to be flat. `_metadata_merge` now *returns* the parsed blob so the\nloader can hand it to the model instead of discarding it.\n\n### `metadata` holds only what has no home on the model\n\n`from_dict` subtracts the keys `to_dict` emits. Without this, `metadata` came\nback holding `type`, `wavelength`, `temperature`, `model_nd`, \u2026 \u2014 a duplicate\nof every attribute, and the reason `metadata[\"type\"]` collided with the row\nmarker. `_LENS_SERIALIZED_KEYS` and `_SYSTEM_SERIALIZED_KEYS` live beside\n`to_dict` and are **asserted against it**, so the two cannot drift apart and\nstart leaking fields into `metadata` on every reload.\n\nPre-existing flat blobs still resolve: `lens_type`, `wavelength` and `material`\nkeep reaching the model, covered by a dedicated test.\n\n`to_dict` returns a **copy** of `metadata`; handing out the live dict would let\nan exported dict edit the model.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #431\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      confirmed, the pre-fix run produced 17 errors + 1 failure, including\n      `AttributeError: 'Lens' object has no attribute 'metadata'`\n- [x] `python3 -m unittest tests.test_metadata_persistence` \u2014 20 tests, OK\n- [x] `python3 -m unittest tests.test_metadata_persistence tests.test_database tests.test_database_migrations tests.test_gui_save_reporting tests.test_coating tests.test_tolerance_persistence` \u2014 118 tests, OK\n- [x] Full suite: `Ran 1605 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`, which cannot be installed in this dev\n      container because of PEP 668), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 212 files unchanged\n- [x] `flake8 src/lens.py src/optical_system.py` \u2014 no new findings. The `E402` /\n      `F401` / `F841` there are pre-existing; verified by running flake8 against\n      `git show master:<file>` (1 and 3 findings respectively, unchanged)\n- [x] Coverage includes: a full save/close/reopen round trip through SQLite for\n      both `Lens` and `OpticalSystem`, the GUI `LensStorage` path, the blob\n      staying flat, column-backed keys keeping their own columns, legacy flat\n      blobs still reaching the model, absent metadata staying empty, defaults on\n      models being unshared (no mutable-default leak), and the serialized-key\n      sets matching `to_dict`\n\n## Notes\n\n- **Found while working on this, not fixed here:** `load_all` returns\n  `type='Biconvex'` for a lens, because the blob's `type` overwrites the row's\n  `'Lens'` marker. Harmless in production \u2014 `LensStorage.load_lenses` dispatches\n  on `!= \"OpticalSystem\"` \u2014 but any filter written as `== \"Lens\"` matches\n  nothing, including `tests/test_database.py::_load_lenses`. Verified\n  pre-existing on `master`; filed as #488 rather than widening this PR.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "683b30c50a1293956d56a836353879da2cb25f5b",
+ "merged_at": "2026-10-17T15:47:57Z",
+ "port_method": "partial_hunks:6/16",
+ "src_files": [
+  "openlens/database.py",
+  "openlens/lens.py",
+  "openlens/optical_system.py"
+ ],
+ "test_files": [
+  "tests/test_metadata_persistence.py"
+ ],
+ "target_symbols": [
+  "openlens/database.py::DatabaseManager.load_all",
+  "openlens/database.py::LensInUseError.__init__",
+  "openlens/database.py::UnsupportedSchemaVersionError",
+  "openlens/database.py::_coating_parse",
+  "openlens/database.py::_metadata_merge",
+  "openlens/lens.py::Lens._clamp_groove_pitch",
+  "openlens/lens.py::Lens.to_dict",
+  "openlens/optical_system.py::OpticalSystem.from_dict"
+ ],
+ "fail_to_pass": [
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_lens_to_dict_includes_metadata",
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_lens_to_dict_returns_a_copy",
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_system_from_dict_restores_metadata",
+  "tests/test_metadata_persistence.py::TestMetadataSurvivesSqlite::test_legacy_flat_keys_still_reach_the_model",
+  "tests/test_metadata_persistence.py::TestMetadataSurvivesSqlite::test_metadata_is_not_nested_under_a_metadata_key",
+  "tests/test_metadata_persistence.py::TestMetadataSurvivesSqlite::test_pre_existing_flat_blob_still_loads",
+  "tests/test_metadata_persistence.py::TestMetadataSurvivesSqlite::test_reloaded_lens_has_a_metadata_attribute",
+  "tests/test_metadata_persistence.py::TestMetadataSurvivesSqlite::test_system_metadata_survives_a_save_and_reload",
+  "tests/test_metadata_persistence.py::TestMetadataSurvivesSqlite::test_tolerances_survive_a_save_and_reload",
+  "tests/test_metadata_persistence.py::TestMetadataThroughLensStorage::test_tolerances_survive_storage_round_trip",
+  "tests/test_metadata_persistence.py::TestSerializedKeySetsDoNotDrift::test_lens_key_set_matches_to_dict"
+ ],
+ "pass_to_pass": [
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_lens_from_dict_restores_metadata",
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_metadata_can_be_seeded_from_the_constructor",
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_new_lens_has_an_empty_metadata_dict",
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_new_system_has_an_empty_metadata_dict",
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_system_to_dict_includes_metadata",
+  "tests/test_metadata_persistence.py::TestMetadataIsARealAttribute::test_two_lenses_do_not_share_one_metadata_dict",
+  "tests/test_metadata_persistence.py::TestMetadataSurvivesSqlite::test_absent_metadata_stays_empty",
+  "tests/test_metadata_persistence.py::TestMetadataSurvivesSqlite::test_column_backed_keys_still_have_their_own_columns",
+  "tests/test_metadata_persistence.py::TestSerializedKeySetsDoNotDrift::test_system_key_set_matches_to_dict"
+ ],
+ "patch_lines": 47
+}

@@ -1,0 +1,216 @@
+{
+ "id": "openlens-pr409",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 61346,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 7935
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 0.58,
+ "detected": false,
+ "n_tests": 19,
+ "n_catching": 0,
+ "n_false_alarms": 18,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 5660,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 10732,
+  "output_tokens_details": {
+   "thinking_tokens": 7613
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 5660,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10732,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 5660,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 5660
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0662806,
+ "model_seconds": 62.7,
+ "seconds": 72.9,
+ "tests": {
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_abort_when_majority_vertices_stuck_out_of_bounds": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_callback_called_with_correct_arguments": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_converge_at_iteration_zero": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_empty_start_with_variables_raises_valueerror": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_improvement_calculated_correctly": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_improvement_is_zero_when_initial_merit_zero": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_max_iterations_zero_callback_not_called": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_max_iterations_zero_evaluates_simplex_only": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_merit_history_non_increasing": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_no_variables_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_optimized_system_is_separate_copy": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_original_system_not_mutated": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_out_of_bounds_variables_incur_penalty": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_result_has_all_required_fields": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_simple_quadratic_function_optimization": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_variable_and_merit_history_same_length": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_variable_current_values_not_mutated": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_variable_history_contains_all_variable_names": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensOptimizer",
+    "OptimizationVariable"
+   ]
+  },
+  "tests/_generated/test_openlens_pr409.py::TestLensOptimizerSimplexOptimize::test_wrong_start_length_raises_valueerror": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

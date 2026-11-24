@@ -1,0 +1,66 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.analysis.diffraction_psf.DiffractionPSFCalculator.calculate_psf.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.analysis.diffraction_psf.DiffractionPSFCalculator.calculate_psf
+    @staticmethod
+    def calculate_psf(
+        wavefront: WavefrontError,
+        intensity_map: Optional[np.ndarray] = None,
+        pad_factor: int = 4,
+    ) -> np.ndarray:
+        """
+        Calculate PSF via FFT.
+
+        Args:
+            wavefront: WavefrontError object.
+            intensity_map: Pupil apodization (default uniform).
+            pad_factor: Zero padding factor (higher = smoother PSF).
+
+        Returns:
+            2D PSF array (normalized intensity).
+        """
+        if not NUMPY_AVAILABLE:
+            # The beam_synthesis copy this replaced had this guard; without
+            # it the FFT path raises "type object 'np' has no attribute
+            # 'fft'" on a numpy-less install, breaking the optional-dependency
+            # contract in AGENTS.md.
+            return []
+        wavefront_map = wavefront.W
+        N = wavefront_map.shape[0]
+
+        if intensity_map is None:
+            amplitude = np.ones_like(wavefront_map)
+        else:
+            amplitude = np.sqrt(intensity_map)
+
+        # Handle NaNs (outside aperture)
+        mask = np.isnan(wavefront_map)
+        phase = np.nan_to_num(wavefront_map)
+        amplitude[mask] = 0.0
+
+        pupil_function = amplitude * np.exp(1j * 2 * np.pi * phase)
+
+        # Zero padding for better sampling in PSF domain
+        padded_N = N * pad_factor
+        padded_pupil = np.zeros((padded_N, padded_N), dtype=complex)
+
+        start = (padded_N - N) // 2
+        padded_pupil[start : start + N, start : start + N] = pupil_function
+
+        # FFT
+        # fftshift moves zero freq to center
+        psf_complex = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(padded_pupil)))
+
+        # Intensity
+        psf = np.real(psf_complex * np.conj(psf_complex))
+
+        # Normalize
+        if np.max(psf) > 0:
+            psf /= np.max(psf)
+
+        return psf

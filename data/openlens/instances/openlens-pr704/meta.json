@@ -1,0 +1,37 @@
+{
+ "id": "openlens-pr704",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 613,
+ "issue_title": "bug(physics): ghost analysis ignores element decenter and tilt",
+ "issue_body": "## Summary\n\n`GhostAnalyzer._interact()` constructs each surface tracer as `LensRayTracer3D(surf[\"lens\"], x_offset=surf[\"element\"].position)`, discarding the element's decenter and tilt. Ghost paths for any decentered/tilted system are traced as if the element were on-axis, even though the rest of the 3D tracer honours the node transform.\n\n## Impact\n\n- Ghost positions and intensities are wrong (often identical to the centered system) whenever an element is decentered or tilted.\n- Misleading stray-light/flare estimates exactly for the tilted/decentered configurations where ghosts matter most.\n- The analyzer's own 3D tracer supports full transforms, so the omission is accidental, not a documented limitation.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.analysis.ghost import GhostAnalyzer\n\ndef signature(decenter, tilt=0.0):\n    s = OpticalSystem()\n    s.add_lens(Lens(radius_of_curvature_1=100.0, radius_of_curvature_2=-100.0,\n                    refractive_index=1.5168, thickness=5.0, diameter=25.0))\n    s.elements[0].decenter_y = decenter\n    s.elements[0].tilt_z = tilt\n    return [(p.reflection_1_index, p.reflection_2_index, round(p.intensity, 8),\n             [(round(r.path[-1].x, 4), round(r.path[-1].y, 4)) for r in p.rays])\n            for p in GhostAnalyzer(s).trace_ghosts(num_rays=3)]\n\nprint(\"centered == decentered 10mm:\", signature(0.0) == signature(10.0))\nprint(\"centered == tilted 2deg   :\", signature(0.0) == signature(0.0, 2.0))\n```\n\nOutput:\n\n```\ncentered == decentered 10mm: True\ncentered == tilted 2deg   : True\n```\n\n## Root cause\n\n`openlens/analysis/ghost.py:188-199`:\n\n```python\ntracer = LensRayTracer3D(surf[\"lens\"], x_offset=surf[\"element\"].position)\n```\n\nOnly the axial position is forwarded; `decenter_y`/`decenter_z` and `tilt_x`/`tilt_y`/`tilt_z` are ignored.\n\n## Expected behaviour\n\nGhost rays use the element's full global transform, matching `SystemRayTracer3D` (which builds tracers from `node.get_global_transform()`).\n\n## Suggested fix\n\nBuild the tracer from the element's node global transform (like `SystemRayTracer3D._prepare`), or construct a transform from `position` + decenter/tilt. Add a test asserting a decentered system produces different ghost paths than the centered one.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/613",
+ "pr": 704,
+ "pr_title": "fix(physics): trace ghost paths through the element's real transform",
+ "pr_body": "## Description\n\n`GhostAnalyzer._interact()` constructed each surface tracer as\n\n```python\nLensRayTracer3D(surf[\"lens\"], x_offset=surf[\"element\"].position)\n```\n\nforwarding only the axial position and discarding the element's decenter and\ntilt. Ghost paths for a decentered or tilted system were therefore traced as\nif every element were on-axis - and the analyzer's own 3D tracer already\nsupports full transforms, so the omission was accidental.\n\n```\ncentered == decentered 10mm: True\ncentered == tilted 2deg   : True\n```\n\n## What changed\n\n- **`openlens/analysis/ghost.py`** - the surface list now carries the\n  element node's global transform, the same value `SystemRayTracer3D` builds\n  its tracers from, and `_interact` constructs `LensRayTracer3D` with it.\n- The node walk is the one that produced `system.elements`; if the counts\n  ever disagree (a hand-edited flat list), the analyzer logs a warning and\n  falls back to the old axial-position behaviour rather than pairing\n  elements with the wrong nodes.\n- Centered systems trace exactly as before: the transform for an on-axis\n  element is the same pure X translation that `x_offset` produced.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #613\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_ghost_alignment.py` - three of its four tests fail on\nthe unfixed code (the fourth pins the unchanged centered result):\n\n- `test_decentring_the_element_moves_the_ghost_paths`\n- `test_tilting_the_element_moves_the_ghost_paths`\n- `test_a_decentred_element_reflects_at_its_own_height`\n- `test_a_centered_system_is_still_traced_symmetrically`\n\nThe tests use `OpticalSystem.set_element_alignment()`, which updates the node\ntree and the flat record together - the path the GUI's alignment controls\ntake. The centered ghost signature is unchanged to the last printed digit.\n\nFull local suite: `Ran 2695 tests ... OK (skipped=35)`; the ghost analysis\nsuites (13 tests) pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "9ab5abf261206dcb7d9f0dafcf79d757595f030e",
+ "merged_at": "2026-10-22T11:18:13Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/analysis/ghost.py"
+ ],
+ "test_files": [
+  "tests/test_ghost_alignment.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/ghost.py::GhostAnalyzer._build_surface_list",
+  "openlens/analysis/ghost.py::GhostAnalyzer._trace_ghost_path",
+  "openlens/analysis/ghost.py::GhostAnalyzer.trace_ghosts",
+  "openlens/analysis/ghost.py::GhostPath"
+ ],
+ "fail_to_pass": [
+  "tests/test_ghost_alignment.py::TestGhostAlignment::test_a_decentred_element_reflects_at_its_own_height",
+  "tests/test_ghost_alignment.py::TestGhostAlignment::test_decentring_the_element_moves_the_ghost_paths",
+  "tests/test_ghost_alignment.py::TestGhostAlignment::test_tilting_the_element_moves_the_ghost_paths"
+ ],
+ "pass_to_pass": [
+  "tests/test_ghost_alignment.py::TestGhostAlignment::test_a_centered_system_is_still_traced_symmetrically"
+ ],
+ "patch_lines": 38
+}

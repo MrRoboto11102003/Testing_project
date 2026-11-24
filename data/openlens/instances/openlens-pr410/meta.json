@@ -1,0 +1,48 @@
+{
+ "id": "openlens-pr410",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 345,
+ "issue_title": "Optimum checks in `optimize_simulated_annealing` and `optimize_genetic` are unguarded",
+ "issue_body": "**File:** `src/global_optimizer.py:71, 142, 254`\n\n```python\n71:  scale_factor = max(0.01, min(1.0, temperature / initial_temperature))\n142: iterations=iteration + 1 + local_result.iterations\n254: selected_indices = random.sample(range(len(population)), k)   # k=3 default\n```\n\nVerified: `initial_temperature <= 0` \u2192 `ZeroDivisionError`; `max_iterations <= 0` \u2192\n`UnboundLocalError: iteration`; `population_size < 3` \u2192 `ValueError: Sample larger than population`\n(the GUI is one config change away from the last one).\n\n**Fix:** clamp `initial_temperature > 0`; initialise `iteration = -1`; clamp `k = min(k, len(population))`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/345",
+ "pr": 410,
+ "pr_title": "fix(optimizer): guard degenerate global-optimizer configurations",
+ "pr_body": "Closes #345\n\n## Problem \u2014 three degenerate configurations, all reproduced\n\n```\ninitial_temperature = 0  ->  ZeroDivisionError: float division by zero\nmax_iterations = 0       ->  UnboundLocalError: cannot access local variable\n                              'iteration' where it is not associated with a value\npopulation_size < 3      ->  ValueError: Sample larger than population\n```\n\nThe third needs **no bad input at all**: `k=3` is the default tournament size, so `population_size=2` \u2014 a perfectly ordinary configuration, one GUI spin-box change away \u2014 raised. All three were one config change away.\n\n## Fix\n\n- **`initial_temperature <= 0`** is clamped to a small positive value with a warning rather than rejected. `temperature / initial_temperature` is evaluated *every* iteration, and a near-zero starting temperature is a reasonable thing for a caller to mean.\n- **`iteration` is seeded to `-1`** so the post-loop iteration count reads 0 instead of raising when `max_iterations <= 0` leaves the loop body unentered.\n- **`_tournament_select` clamps `k`** to the population size, and raises a clear `ValueError` on an empty population rather than `random.sample`'s message.\n\n## Verified\n\nAll four degenerate configurations now run, and the search still reaches the same optimum:\n\n```\ninitial_temperature=0 -> ok, iterations=21\nmax_iterations=0      -> ok, iterations=20\npopulation_size=2     -> ok, merit 0.9234 -> 0.8392\npopulation_size=1     -> ok, merit 0.8392\n```\n\n## Tests\n\n16 tests, **10 fail without the change**. They cover zero/negative/tiny temperature, zero/negative iterations, populations of 1 and 2, the `k` clamp against an empty population, and that the guard does not degrade search quality \u2014 a 2-member population must still improve the merit.\n\nOne of my own assertions was wrong and I corrected the test rather than the code: with `max_iterations=0` I expected the final merit to equal the initial one, but the *local simplex refinement* still runs and improves it. That's correct behaviour, so the test now asserts the result is well-formed instead.\n",
+ "fix_commit": "8c4897815751271f8f95ff320fc3cb46a140d3dd",
+ "merged_at": "2026-10-06T22:20:18Z",
+ "port_method": "partial_hunks:2/4",
+ "src_files": [
+  "openlens/global_optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_global_optimizer_degenerate_configs.py"
+ ],
+ "target_symbols": [
+  "openlens/global_optimizer.py::GlobalOptimizer"
+ ],
+ "fail_to_pass": [
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_negative_initial_temperature_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_negative_initial_temperature_runs_the_full_schedule",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_zero_initial_temperature_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_zero_initial_temperature_runs_the_full_schedule"
+ ],
+ "pass_to_pass": [
+  "tests/test_global_optimizer_degenerate_configs.py::TestSearchQualityUnaffected::test_annealing_with_zero_iterations_leaves_variables_alone",
+  "tests/test_global_optimizer_degenerate_configs.py::TestSearchQualityUnaffected::test_small_population_still_finds_the_optimum",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_normal_temperature_is_unchanged",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_tiny_initial_temperature_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_normal_population_still_optimises",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_population_of_one_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_population_of_two_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_tournament_clamps_k",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_tournament_on_empty_population_raises_clearly",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_tournament_picks_the_best_of_the_sample",
+  "tests/test_global_optimizer_degenerate_configs.py::TestZeroIterationsGuard::test_negative_iterations_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestZeroIterationsGuard::test_result_is_still_well_formed",
+  "tests/test_global_optimizer_degenerate_configs.py::TestZeroIterationsGuard::test_zero_iterations_leaves_the_result_well_formed",
+  "tests/test_global_optimizer_degenerate_configs.py::TestZeroIterationsGuard::test_zero_iterations_runs"
+ ],
+ "patch_lines": 3
+}

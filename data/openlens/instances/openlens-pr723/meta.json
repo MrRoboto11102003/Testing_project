@@ -1,0 +1,66 @@
+{
+ "id": "openlens-pr723",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 653,
+ "issue_title": "bug: the updater installs the downloaded release asset without any digest or signature check",
+ "issue_body": "## Summary\n\n`UpdateChecker.download()` validates the downloaded release asset with a\nsingle byte-count comparison against the size reported by the same GitHub API\nresponse that provided the URL. There is no SHA-256 digest, no signature, no\nchecksum file, and no check that the payload is even a binary. The payload is\nthen copied over the running executable and relaunched.\n\n## Impact\n\n- The updater's only trust anchor is TLS to `github.com`. A release asset is\n  mutable by anyone with write access to the repository (or through a\n  compromised account), and a same-length replacement is accepted silently and\n  installed as the application binary, which is then executed.\n- When the API omits the size (`asset.size == 0`) the check is skipped\n  entirely, so a truncated body is installed without complaint.\n- The old binary is overwritten with no backup, so a bad update is not\n  recoverable by the user.\n\n## Reproduction\n\n```python\nimport io, json, sys\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.updater import UpdateChecker\n\nGARBAGE = b\"this is not a program, it is 60 bytes of text\\n\" + b\".\" * 20\n\nclass FakeResponse(io.BytesIO):\n    def close(self): pass\n\ndef fake_opener(request, timeout):\n    if \"api.github.com\" in request.full_url:\n        return FakeResponse(json.dumps({\n            \"tag_name\": \"v99.0.0\",\n            \"html_url\": \"https://github.com/pmaasz/openLens/releases/tag/v99.0.0\",\n            \"assets\": [{\"name\": \"openlens-v99.0.0-Linux\",\n                        \"browser_download_url\": \"https://example.invalid/openlens-v99.0.0-Linux\",\n                        \"size\": len(GARBAGE)}]}).encode())\n    return FakeResponse(GARBAGE)\n\nchecker = UpdateChecker(current_version=\"0.1.0\", system=\"Linux\", machine=\"x86_64\",\n                        opener=fake_opener)\nresult = checker.check()\nprint(\"check status        :\", result.status)\nprint(\"asset size reported :\", result.asset.size)\ndownloaded = checker.download(result)\nbody = downloaded.read_bytes()\nprint(\"download accepted    :\", downloaded)\nprint(\"bytes on disk       :\", len(body))\nprint(\"starts with ELF hdr :\", body[:4] == b\"\\x7fELF\")\nprint(\"content is text     :\", body[:5] == b\"this \")\n```\n\nOutput:\n\n```\ncheck status        : update_available\nasset size reported : 66\ndownload accepted    : /tmp/openlens-update-xxxx/openlens-v99.0.0-Linux\nbytes on disk       : 66\nstarts with ELF hdr : False\ncontent is text     : True\n```\n\nThe payload is accepted with no digest or signature check at all.\n\n## Root cause\n\n- `openlens/updater.py:400-403` is the only validation:\n  `if asset.size and received != asset.size: raise ValueError(...)`.\n- `openlens/updater.py:418-443` (`_linux_update_script`) copies the payload\n  over the running executable (`cp -- <payload> <target>.new && mv -f -- ...`)\n  and relaunches it.\n\n## Expected behaviour\n\nThe updater verifies the payload against a digest published with the release\nbefore it is installed, and refuses to install something that is not the\nexpected kind of file.\n\n## Suggested fix\n\nPublish a SHA-256 checksum (or a signed manifest) with each release, fetch it\nfrom the same release, and verify the digest of the downloaded file before\ninstalling. Also sanity-check the payload (ELF/Mach-O/PE magic, or at least\n\"is it a file, not an HTML error page\") and refuse to install when the size is\nunknown. Keep the previous binary as `<target>.old` so a failed update can be\nrolled back.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/653",
+ "pr": 723,
+ "pr_title": "fix(updater): verify the downloaded payload before installing it",
+ "pr_body": "## Description\n\n`UpdateChecker.download()` validated the downloaded release asset with a single\nbyte-count comparison against the size reported by the same GitHub API\nresponse that provided the URL. There was no SHA-256 digest, no signature,\nno checksum file and no check that the payload was even a binary. The payload\nwas then copied over the running executable and relaunched, and the old binary\nwas overwritten with no backup.\n\n## What changed\n\n- **`openlens/updater.py`**\n  - `ReleaseAsset` gained optional `digest`/`sha256`/`checksum` fields, all\n    normalised into `digest`; `asset_for_platform()` reads GitHub's `digest`\n    field (and the aliases).\n  - `download()` now refuses an asset with no known size, verifies the\n    published SHA-256 digest when one is provided (both `sha256:<hex>` and\n    bare-hex forms), and rejects payloads that do not start with a recognised\n    executable/archive magic (ELF, PE, Mach-O, ZIP), so an HTML error page or\n    text file can never be installed and executed.\n  - `_linux_update_script()` and `_windows_update_script()` keep the previous\n    binary as `<target>.old` before swapping.\n- **`.github/workflows/release.yaml`**\n  - Each release artifact gets a `.sha256` sidecar, attached alongside it.\n- **`tests/test_updater.py`**\n  - The size-checked download test now uses an ELF body.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #653\n\n## How Has This Been Tested?\n\n- [x] Updated the existing download test to the new contract\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2803 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "fb531c4d20973b51f1d82fc07038830af9827fef",
+ "merged_at": "2026-10-22T19:42:14Z",
+ "port_method": "partial_hunks:8/10",
+ "src_files": [
+  "openlens/updater.py"
+ ],
+ "test_files": [
+  "tests/test_updater.py"
+ ],
+ "target_symbols": [
+  "openlens/updater.py::InstallPlan",
+  "openlens/updater.py::UpdateCheckResult",
+  "openlens/updater.py::UpdateChecker.__init__",
+  "openlens/updater.py::UpdateChecker.download",
+  "openlens/updater.py::_safe_extract",
+  "openlens/updater.py::_windows_update_script",
+  "openlens/updater.py::cleanup_download"
+ ],
+ "fail_to_pass": [
+  "tests/test_updater.py::TestDownload::test_asset_is_written_and_size_checked"
+ ],
+ "pass_to_pass": [
+  "tests/test_updater.py::TestAssetSelection::test_linux_x64_gets_the_linux_binary",
+  "tests/test_updater.py::TestAssetSelection::test_macos_arm64_gets_the_arm_bundle",
+  "tests/test_updater.py::TestAssetSelection::test_macos_intel_gets_the_x64_bundle",
+  "tests/test_updater.py::TestAssetSelection::test_unsupported_architecture_has_no_asset",
+  "tests/test_updater.py::TestAssetSelection::test_wheels_are_not_mistaken_for_platform_builds",
+  "tests/test_updater.py::TestAssetSelection::test_windows_x64_gets_the_exe",
+  "tests/test_updater.py::TestDownload::test_failed_download_removes_its_temporary_directory",
+  "tests/test_updater.py::TestDownload::test_read_failure_removes_the_partial_file",
+  "tests/test_updater.py::TestDownload::test_size_mismatch_removes_the_partial_file",
+  "tests/test_updater.py::TestDownloadCleanup::test_cleanup_download_keeps_a_caller_supplied_directory",
+  "tests/test_updater.py::TestDownloadCleanup::test_cleanup_download_removes_the_updater_temporary_directory",
+  "tests/test_updater.py::TestInstallLaunch::test_release_page_plan_cannot_be_launched",
+  "tests/test_updater.py::TestInstallLaunch::test_windows_replace_starts_a_hidden_batch_helper",
+  "tests/test_updater.py::TestInstallPlanning::test_frozen_linux_build_prepares_a_replace_script",
+  "tests/test_updater.py::TestInstallPlanning::test_frozen_macos_build_extracts_and_hands_off_the_app",
+  "tests/test_updater.py::TestInstallPlanning::test_frozen_windows_build_prepares_a_batch_script",
+  "tests/test_updater.py::TestInstallPlanning::test_macos_archive_cannot_escape_the_destination",
+  "tests/test_updater.py::TestInstallPlanning::test_pip_or_dev_install_falls_back_to_release_page",
+  "tests/test_updater.py::TestUpdateCheck::test_api_request_has_a_user_agent",
+  "tests/test_updater.py::TestUpdateCheck::test_current_release_reports_up_to_date",
+  "tests/test_updater.py::TestUpdateCheck::test_malformed_release_is_reported_without_raising",
+  "tests/test_updater.py::TestUpdateCheck::test_network_error_is_reported_without_raising",
+  "tests/test_updater.py::TestUpdateCheck::test_newer_release_with_asset_reports_update_available",
+  "tests/test_updater.py::TestUpdateCheck::test_platform_without_asset_reports_no_asset",
+  "tests/test_updater.py::TestVersionComparison::test_build_metadata_does_not_change_order",
+  "tests/test_updater.py::TestVersionComparison::test_garbage_version_is_rejected",
+  "tests/test_updater.py::TestVersionComparison::test_newer_patch_is_newer",
+  "tests/test_updater.py::TestVersionComparison::test_release_beats_its_prerelease",
+  "tests/test_updater.py::TestVersionComparison::test_release_prefixes_are_accepted"
+ ],
+ "patch_lines": 40
+}

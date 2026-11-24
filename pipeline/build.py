@@ -32,7 +32,7 @@ def load_jsonl(path: Path) -> list[dict]:
 
 
 def instance_id(row: dict) -> str:
-    return f"arnio-pr{row['pr']}"
+    return f"{config.PACKAGE}-pr{row['pr']}"
 
 
 def port(path: Path, fix_commit: str, src_files: list[str]) -> tuple[str | None, str]:
@@ -42,7 +42,10 @@ def port(path: Path, fix_commit: str, src_files: list[str]) -> tuple[str | None,
     merge, so later edits around the fix don't block it). Only changes to
     ``src_files`` are kept; tests and everything else stay at BASE_REF.
     """
-    diff = git("diff", "--full-index", "--binary", f"{fix_commit}^1", fix_commit, "--", *src_files)
+    diff = git("diff", "--full-index", "--binary", f"{fix_commit}^1", fix_commit, "--",
+               *src_files, *config.unalias_paths(src_files))
+    for old, new in config.PATH_ALIASES.items():  # renamed since the fix: patch the BASE_REF names
+        diff = diff.replace(f" a/{old}", f" a/{new}").replace(f" b/{old}", f" b/{new}")                    .replace(f"--- a/{old}", f"--- a/{new}").replace(f"+++ b/{old}", f"+++ b/{new}")
     ok, msg = git_ok("apply", "-R", "--whitespace=nowarn", "-", cwd=path, input=diff)
     if ok:
         return "reverse_apply", ""
@@ -148,7 +151,8 @@ def build_one(row: dict, slot: str, clean_results: dict, issues_by_num: dict) ->
 
     issue = issues_by_num[row["issue"]]
     pr = next(p for p in issue["closedByPullRequestsReferences"]["nodes"] if p["number"] == row["pr"])
-    fix_tests = git("diff", f"{row['fix_commit']}^1", row["fix_commit"], "--", *row["test_files"])
+    fix_tests = git("diff", f"{row['fix_commit']}^1", row["fix_commit"], "--", *row["test_files"],
+                    *config.unalias_paths(row["test_files"]))
     meta = {
         "id": iid,
         "repo": config.REPO_SLUG,

@@ -1,0 +1,144 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.material_database.MaterialDatabase.import_agf_catalog.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.material_database.MaterialDatabase.import_agf_catalog
+    def import_agf_catalog(self, catalog_file: str) -> int:
+        """
+        Import materials from AGF catalog file.
+        Returns number of materials imported.
+        """
+        if not os.path.exists(catalog_file):
+            logger.error("Catalog file not found: %s", catalog_file)
+            return 0
+
+        count = 0
+        current_glass: Optional[Dict] = None
+        catalog_name = "AGF_Import"
+
+        try:
+            with open(catalog_file, "r", encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()
+
+            for line in lines:
+                parts = line.strip().split()
+                if not parts:
+                    continue
+
+                key = parts[0].upper()
+
+                if key == "NM":
+                    # Save previous glass if exists
+                    if current_glass and self._process_agf_glass(
+                        current_glass, catalog_name, save=False
+                    ):
+                        count += 1
+
+                    # Start new glass.
+                    # Real AGF layout:
+                    #   NM <name> <formula> <MIL#> <Nd> <Vd> <TCE> <DP> <ignore...>
+                    # The MIL number used to be read as Nd, so an imported
+                    # N-BK7 came out with nd = 517642 and vd = 1.5168.
+                    name_raw = parts[1]
+                    name = name_raw.strip('"')
+
+                    try:
+                        formula = int(parts[2])
+                        nd = float(parts[4])
+                        vd = float(parts[5])
+                        tce = float(parts[6]) if len(parts) > 6 else 0.0
+                        density = float(parts[7]) if len(parts) > 7 else 0.0
+                    except (IndexError, ValueError):
+                        logger.warning("Error parsing NM line for %s", name)
+                        current_glass = None
+                        continue
+
+                    current_glass = {
+                        "name": name,
+                        "formula": formula,
+                        # AGF states TCE in units of 1e-6/K; store it in K^-1 so
+                        # nothing downstream has to remember the factor.
+                        "tce": tce * 1e-6,
+                        "nd": nd,
+                        "vd": vd,
+                        "density": density,
+                        "dispersion": [],
+                        "transmission": [],
+                        "transmission_thickness": 10.0,
+                    }
+
+                elif key == "CD" and current_glass:
+                    # Real AGF layout:
+                    #   CD <K1> <L1> <K2> <L2> <K3> <L3>
+                    # The pairs are interleaved. Reading them as B1 B2 B3 C1 C2
+                    # C3 gave every glass the wrong dispersion.
+                    try:
+                        coeffs = [float(x) for x in parts[1:]]
+                        current_glass["dispersion"] = coeffs
+                    except ValueError as e:
+                        logger.debug("AGF dispersion parse failed: %s", e)
+
+                elif key == "ED" and current_glass:
+                    # Real AGF layout:
+                    #   ED <TCE> <dT/dP> <dPg/dT> <DP> <ignore...>
+                    # The NM line often carries a placeholder TCE of 0.0, so
+                    # this is the authoritative value when it is present.
+                    try:
+                        if float(parts[1]):
+                            current_glass["tce"] = float(parts[1]) * 1e-6
+                        if len(parts) > 3 and float(parts[3]):
+                            current_glass["density"] = float(parts[3])
+                    except (IndexError, ValueError) as e:
+                        logger.debug("AGF ED line parse failed: %s", e)
+
+                elif key == "IT" and current_glass:
+                    # Real AGF layout - one wavelength per line:
+                    #   IT <lambda_nm> <T> <thickness_mm>
+                    # The old code read a single packed line
+                    # (IT thickness w1 t1 w2 t2 ...), so every subsequent IT
+                    # line overwrote the previous one and only the last
+                    # wavelength survived.
+                    try:
+                        wavelength_nm = float(parts[1])
+                        transmission = float(parts[2])
+                        thickness = float(parts[3]) if len(parts) > 3 else None
+                    except (IndexError, ValueError) as e:
+                        logger.debug("AGF transmission parse failed: %s", e)
+                        continue
+
+                    # Transmission is a fraction. A catalog carrying a stray
+                    # value (a mis-parsed field, a scaled quantity) must not
+                    # poison the index of refraction: n = 1 - k*ln(T) turns an
+                    # absurd T into an absurd k.
+                    if not 0.0 <= transmission <= 1.0:
+                        logger.warning(
+                            "Ignoring AGF transmission T=%s at %s nm for %s: " "not in [0, 1]",
+                            transmission,
+                            wavelength_nm,
+                            current_glass["name"],
+                        )
+                    else:
+                        current_glass.setdefault("transmission", []).append(
+                            (wavelength_nm, transmission)
+                        )
+                        if thickness is not None:
+                            current_glass["transmission_thickness"] = thickness
+
+            # Save last glass
+            if current_glass and self._process_agf_glass(current_glass, catalog_name, save=False):
+                count += 1
+
+        except Exception as e:
+            logger.error("Error importing AGF catalog: %s", e)
+
+        # One write for the whole batch. Outside the parse guard on purpose:
+        # a read-only catalog path must reach the caller instead of coming
+        # back as an under-counted, silently unsaved import (#474).
+        if count:
+            self.save_database()
+
+        return count

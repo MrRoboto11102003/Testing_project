@@ -1,0 +1,141 @@
+diff --git a/openlens/geometry.py b/openlens/geometry.py
+index eff8f6cab4b5d2e3353a0f87592b656013c34f13..7a9973344ebaebac0440afd400577f0e74672a0a 100644
+--- a/openlens/geometry.py
++++ b/openlens/geometry.py
+@@ -5,7 +5,6 @@ Used by exporters (SVG, STL, STEP) and visualization modules.
+ 
+ from bisect import bisect_left
+ from dataclasses import dataclass
+-import logging
+ import math
+ from typing import Any, Dict, List, Optional, Tuple
+ 
+@@ -42,11 +41,6 @@ class FresnelFacet:
+         return self.z_start + fraction * (self.z_end - self.z_start)
+ 
+ 
+-MAX_FRESNEL_ZONES = 10000
+-
+-logger = logging.getLogger(__name__)
+-
+-
+ class LensGeometry:
+     """Centralized logic for lens profiles, polylines, and 3D meshes."""
+ 
+@@ -99,13 +93,6 @@ class LensGeometry:
+         full_zones = int(math.floor(half_d / pitch + 1e-9))
+         if full_zones < 1:
+             return []
+-        if full_zones > MAX_FRESNEL_ZONES:
+-            logger.warning(
+-                "Fresnel facet count %d exceeds the cap of %d; clamping.",
+-                full_zones,
+-                MAX_FRESNEL_ZONES,
+-            )
+-            full_zones = MAX_FRESNEL_ZONES
+ 
+         facets = []
+         for index in range(full_zones):
+@@ -120,7 +107,7 @@ class LensGeometry:
+             facets.append(FresnelFacet(r_start, r_end, z_start, z_end))
+ 
+         last_radius = facets[-1].r_end if facets else 0.0
+-        if half_d - last_radius > EPSILON and len(facets) < MAX_FRESNEL_ZONES:
++        if half_d - last_radius > EPSILON:
+             z_end = LensGeometry._parent_sag(lens, surface, half_d) - LensGeometry._parent_sag(
+                 lens, surface, last_radius
+             )
+diff --git a/openlens/lens.py b/openlens/lens.py
+index bb4732f57ec5262153dce15e05e7982da3a94690..7802ff5103da81aa0f42b790e93398ce106bcf32 100644
+--- a/openlens/lens.py
++++ b/openlens/lens.py
+@@ -879,12 +879,6 @@ class Lens:
+             "metadata": dict(self.metadata),
+         }
+ 
+-    @staticmethod
+-    def _clamp_groove_pitch(value):
+-        from .validation import validate_groove_pitch
+-
+-        return validate_groove_pitch(value)
+-
+     @classmethod
+     def from_dict(cls, data: Dict[str, Any]) -> "Lens":
+         """Create lens from dictionary representation."""
+@@ -925,7 +919,7 @@ class Lens:
+             thermal_state_temperature=data.get("thermal_state_temperature", DEFAULT_TEMPERATURE),
+             image_plane_x_mm=data.get("image_plane_x_mm"),
+             is_fresnel=data.get("is_fresnel", False),
+-            groove_pitch=cls._clamp_groove_pitch(data.get("groove_pitch", DEFAULT_THICKNESS)),
++            groove_pitch=data.get("groove_pitch", DEFAULT_THICKNESS),
+             num_grooves=data.get("num_grooves", None),
+             model_glass_mode=data.get("model_glass_mode", False),
+             model_nd=data.get("model_nd", 1.5168),
+diff --git a/openlens/validation.py b/openlens/validation.py
+index 1afebdc4a1fd18a6f4199d8afb72af8f4f088477..dd7dab601adc6cc33674a3ba79ca4391942024d5 100644
+--- a/openlens/validation.py
++++ b/openlens/validation.py
+@@ -9,7 +9,6 @@ bool, NaN and Inf checks. Domain-specific validators add their range
+ semantics on top of it.
+ """
+ 
+-import logging
+ import math
+ import numbers
+ import os
+@@ -31,8 +30,6 @@ from .constants import (
+ )
+ from .lens import Lens
+ 
+-logger = logging.getLogger(__name__)
+-
+ 
+ class ValidationError(Exception):
+     """Raised when validation fails"""
+@@ -1197,46 +1194,3 @@ def validate_lenses_json_schema(data: list) -> list:
+         validate_lens_data_schema(lens_data, lens_index=i)
+ 
+     return data
+-
+-
+-#: Sensible range for a Fresnel groove pitch, matching the GUI spin box.
+-FRESNEL_GROOVE_PITCH_MIN = 0.01
+-FRESNEL_GROOVE_PITCH_MAX = 10.0
+-
+-
+-def validate_groove_pitch(value: Any, param_name: str = "groove pitch") -> float:
+-    """Validate and clamp a Fresnel groove pitch.
+-
+-    Values outside ``[FRESNEL_GROOVE_PITCH_MIN, FRESNEL_GROOVE_PITCH_MAX]`` are
+-    clamped rather than rejected, with a warning, so an imported lens cannot
+-    materialise millions of facets.
+-
+-    Args:
+-        value: Groove pitch in mm.
+-        param_name: Parameter name for error messages.
+-
+-    Returns:
+-        The validated (clamped) groove pitch.
+-
+-    Raises:
+-        ValidationError: If ``value`` is not a finite number.
+-    """
+-    try:
+-        pitch = float(value)
+-    except (TypeError, ValueError) as exc:
+-        raise ValidationError(f"{param_name} must be a number, got {value!r}") from exc
+-
+-    if not math.isfinite(pitch):
+-        raise ValidationError(f"{param_name} must be finite, got {pitch}")
+-
+-    if pitch < FRESNEL_GROOVE_PITCH_MIN or pitch > FRESNEL_GROOVE_PITCH_MAX:
+-        logger.warning(
+-            "%s %.6g mm is outside [%.2f, %.2f]; clamping.",
+-            param_name,
+-            pitch,
+-            FRESNEL_GROOVE_PITCH_MIN,
+-            FRESNEL_GROOVE_PITCH_MAX,
+-        )
+-        pitch = max(FRESNEL_GROOVE_PITCH_MIN, min(FRESNEL_GROOVE_PITCH_MAX, pitch))
+-
+-    return pitch

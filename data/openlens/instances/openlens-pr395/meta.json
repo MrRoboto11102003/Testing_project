@@ -1,0 +1,51 @@
+{
+ "id": "openlens-pr395",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 309,
+ "issue_title": "Lens names are interpolated into SVG with no XML escaping",
+ "issue_body": "**File:** `src/export_formats.py:378, 499, 537`; `src/io/export.py:44, 164, 186, 318, 350`\n\n```python\nf'  <text x=\"{width/2}\" y=\"25\" class=\"title\" text-anchor=\"middle\">{lens.name}</text>\\n'\n```\n\n`validate_lens_name` (`validation.py:491-515`) accepts any string \u2264100 chars, and names arrive from\nuntrusted JSON. There is **no** `escape`/`html.escape` call anywhere in `src/`.\n\n**Repro (verified):** `Lens(name='</text><script>alert(1)</script>')` exported to SVG:\n```\nraw <script> in SVG: True\nSVG parses as XML: False -> mismatched tag: line 16, column 94\n```\n\nThe file is both **script-bearing** when opened in a browser and structurally invalid XML \u2014 a plain\n`&` in a name is enough to break the latter.\n\n**Fix:** `from xml.sax.saxutils import escape` and wrap every interpolated name/material.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/309",
+ "pr": 395,
+ "pr_title": "fix(export): escape names and materials interpolated into SVG",
+ "pr_body": "Closes #309\n\n## Problem\n\nLens and system names come from **untrusted JSON** \u2014 `validate_lens_name` accepts any string up to 100 chars \u2014 and were interpolated straight into SVG text nodes. There was no `escape`/`html.escape` call anywhere in `src/`.\n\nA name of `'</text><script>alert(1)</script>'` produced a file that was **both** script-bearing when opened in a browser **and** structurally invalid XML:\n\n```\nraw <script> in SVG: True\nSVG parses as XML: False -> mismatched tag: line 16, column 94\n```\n\nA plain `&` in a name was enough to break the XML on its own, with no injection at all.\n\n## Fix\n\nEight sites now pass through `xml.sax.saxutils.escape`:\n\n- **`SVGExporter`** \u2014 lens title, system title, material label\n- **`ISO10110Generator`** \u2014 drawing title, title-block row values, material column, both coating labels\n\nThe title-block case escapes the whole row value, so future rows are covered by construction rather than by remembering.\n\nThe non-SVG writers (STL comments, prescription text) are deliberately left alone: they are not XML, so escaping there would corrupt the output.\n\n## Verified\n\nAcross script, ampersand and unicode payloads on both generators:\n\n```\n'</text><script>  export_lens  script:False parses:True\n'</text><script>  ISO10110    script:False parses:True\n'R&D x <b> & '   export_lens  script:False parses:True\n'R&D x <b> & '   ISO10110    script:False parses:True\n'\u00d8 25mm \u00fcn\u00efcode'   export_lens  script:False parses:True\n```\n\nThe escaped text also **round-trips to the original string** through the parser \u2014 this is lossless escaping, not lossy sanitisation.\n\n## Tests\n\n16 tests, **10 fail without the change**: script injection, well-formedness, lossless round-tripping, and that an ordinary name is not mangled (no double-escaping).\n\n## Note\n\n`SVGExporter.export_system` crashes on `LensElement.air_gap_before`, which does not exist. That is a separate defect \u2014 tracked as #295.",
+ "fix_commit": "9fd5080abe38556fbf752953e9fb1e5e75b7ba61",
+ "merged_at": "2026-10-06T17:23:24Z",
+ "port_method": "partial_hunks:9/10",
+ "src_files": [
+  "openlens/export_formats.py",
+  "openlens/io/export.py"
+ ],
+ "test_files": [
+  "tests/test_svg_escaping.py"
+ ],
+ "target_symbols": [
+  "openlens/export_formats.py::SVGExporter.export_lens",
+  "openlens/export_formats.py::SVGExporter.export_system",
+  "openlens/io/export.py::ISO10110Generator._generate_iso_notes",
+  "openlens/io/export.py::ISO10110Generator._generate_iso_table",
+  "openlens/io/export.py::ISO10110Generator._generate_title_block"
+ ],
+ "fail_to_pass": [
+  "tests/test_svg_escaping.py::TestEscapingRoundTrips::test_ampersand_name_round_trips",
+  "tests/test_svg_escaping.py::TestEscapingRoundTrips::test_material_round_trips",
+  "tests/test_svg_escaping.py::TestEscapingRoundTrips::test_name_round_trips_through_the_parser",
+  "tests/test_svg_escaping.py::TestNoScriptInjection::test_escaped_entities_are_present_instead",
+  "tests/test_svg_escaping.py::TestNoScriptInjection::test_script_in_lens_name_is_neutralised",
+  "tests/test_svg_escaping.py::TestNoScriptInjection::test_script_in_material_is_neutralised",
+  "tests/test_svg_escaping.py::TestNoScriptInjection::test_script_in_system_name_is_neutralised",
+  "tests/test_svg_escaping.py::TestOrdinaryOutputUnchanged::test_iso_simple_name_is_not_mangled",
+  "tests/test_svg_escaping.py::TestOutputIsWellFormedXML::test_ampersand_material_parses",
+  "tests/test_svg_escaping.py::TestOutputIsWellFormedXML::test_ampersand_name_parses",
+  "tests/test_svg_escaping.py::TestOutputIsWellFormedXML::test_iso_title_block_parses"
+ ],
+ "pass_to_pass": [
+  "tests/test_svg_escaping.py::TestEscapingRoundTrips::test_no_text_node_is_empty",
+  "tests/test_svg_escaping.py::TestEscapingRoundTrips::test_unicode_name_round_trips",
+  "tests/test_svg_escaping.py::TestOrdinaryOutputUnchanged::test_simple_name_is_not_mangled",
+  "tests/test_svg_escaping.py::TestOutputIsWellFormedXML::test_ordinary_name_still_parses",
+  "tests/test_svg_escaping.py::TestOutputIsWellFormedXML::test_unicode_name_parses"
+ ],
+ "patch_lines": 27
+}

@@ -1,0 +1,185 @@
+{
+ "id": "openlens-pr370",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code",
+ "context": {
+  "mode": "code",
+  "chars": 994
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": null,
+ "mean_arnio_calls": 1.0,
+ "detected": false,
+ "n_tests": 14,
+ "n_catching": 0,
+ "n_false_alarms": 14,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 1230,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6470,
+  "output_tokens_details": {
+   "thinking_tokens": 4579
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 1230,
+    "output_tokens": 6470,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.033580000000000006,
+ "model_seconds": 27.3,
+ "seconds": 32.4,
+ "tests": {
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_bfl_large_positive_value": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_bfl_negative_value": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_bfl_small_positive_value": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_bfl_zero_value": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_delegates_to_lens_when_lens_exists": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_delegates_to_system_when_system_exists_no_lens": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_does_not_modify_state": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_lens_takes_precedence_over_system": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_multiple_calls_consistent": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_return_type_is_optional_float": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_return_value_is_float_from_lens": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_return_value_is_float_from_system": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_returns_none_when_no_lens_or_system": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  },
+  "tests/_generated/test_openlens_pr370.py::TestCalculateBackFocalLength::test_very_small_negative_bfl": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PerformanceMetrics"
+   ]
+  }
+ }
+}

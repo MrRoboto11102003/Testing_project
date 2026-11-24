@@ -1,0 +1,426 @@
+diff --git a/openlens/analysis/__init__.py b/openlens/analysis/__init__.py
+index 8854054ab7867d8de4d34d805f5cccd563fa51fe..0157bc78df2afdcf683fb500b223c98e37012415 100644
+--- a/openlens/analysis/__init__.py
++++ b/openlens/analysis/__init__.py
+@@ -1,15 +1,10 @@
+ """Analysis subpackage: spot diagrams, PSF/MTF, wavefront and ghost analysis."""
+ 
+ from .spot_diagram import SpotDiagram
+-
+-# One wavefront/PSF implementation. beam_synthesis carried a second,
+-# physically different pair (piston-only reference, flat reference plane);
+-# diffraction_psf supersedes it with piston+tilt removal, a real reference
+-# sphere, pad_factor and NaN masking.
+-from .diffraction_psf import DiffractionPSFCalculator, WavefrontSensor
++from .beam_synthesis import PSFCalculator, WavefrontSensor
+ 
+ __all__ = [
+     "SpotDiagram",
+-    "DiffractionPSFCalculator",
++    "PSFCalculator",
+     "WavefrontSensor",
+ ]
+diff --git a/openlens/analysis/beam_synthesis.py b/openlens/analysis/beam_synthesis.py
+index 9542df6a5c4133f6601cec30f1eaacf24276aa3b..f4d5511308453878ee08e4b2411779c98de5351d 100644
+--- a/openlens/analysis/beam_synthesis.py
++++ b/openlens/analysis/beam_synthesis.py
+@@ -176,6 +176,240 @@ class GaussianBeam:
+         # This method only updates the q parameter.
+ 
+ 
++class WavefrontSensor:
++    """
++    Reconstructs wavefront from ray trace data (OPL).
++    """
++
++    def __init__(self, system: OpticalSystem):
++        self.system = system
++        self.tracer = SystemRayTracer3D(system)
++
++    def get_pupil_wavefront(
++        self,
++        field_angle: float = 0.0,
++        wavelength: float = WAVELENGTH_GREEN * NM_TO_MM,
++        grid_size: int = 64,
++    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
++        """
++        Calculate wavefront error map at the exit pupil.
++
++        Returns:
++            Y, Z grids (pupil coords) and W (wavefront error in waves)
++        """
++        # 1. Define Pupil Grid
++        # Get entrance pupil diameter (approx first lens D)
++        if not self.system.elements:
++            return np.array([]), np.array([]), np.array([])
++
++        ep_diam = self.system.elements[0].lens.diameter
++        max_r = ep_diam / 2.0
++
++        y = np.linspace(-max_r, max_r, grid_size)
++        z = np.linspace(-max_r, max_r, grid_size)
++        Y, Z = np.meshgrid(y, z)
++
++        # 2. Trace Reference Ray (Chief Ray)
++        # Through center of pupil
++        ref_ray = Ray3D(
++            origin=vec3(self.system.elements[0].position - 20, 0, 0),
++            direction=vec3(
++                math.cos(math.radians(field_angle)),
++                math.sin(math.radians(field_angle)),
++                0,
++            ),
++            wavelength=wavelength,
++        )
++        self.tracer.trace_ray(ref_ray)
++        ref_opl = ref_ray.optical_path_length
++
++        # Is the chief ray usable as the OPD reference? The old check was
++        # `if not ref_ray.path`, which is never true: Ray3D.__init__ seeds
++        # path with [origin] and nothing clears it. So a chief ray that was
++        # blocked, or that traced nothing beyond its start, was accepted as the
++        # reference - and ref_end became the ray's own origin, giving a
++        # reference plane at the wrong x for every grid point.
++        ref_usable = len(ref_ray.path) >= 2 and not ref_ray.terminated
++        if not ref_usable:
++            logger.warning(
++                "Chief ray is unusable as an OPD reference (path=%d point(s), "
++                "terminated=%s); marking the whole in-aperture wavefront invalid",
++                len(ref_ray.path),
++                ref_ray.terminated,
++            )
++
++        # 3. Trace Grid
++        W = np.zeros_like(Y)
++        valid_mask = np.zeros_like(Y, dtype=bool)
++
++        start_x = self.system.elements[0].position - 20
++
++        # Direction vector
++        angle_rad = math.radians(field_angle)
++        dx = math.cos(angle_rad)
++        dy = math.sin(angle_rad)
++        dz = 0
++        direction = vec3(dx, dy, dz)
++
++        # Back-project grid points to start plane
++        pupil_x = self.system.elements[0].position
++        dist = pupil_x - start_x
++
++        for i in range(grid_size):
++            for j in range(grid_size):
++                py, pz = Y[i, j], Z[i, j]
++
++                # Check aperture
++                if py**2 + pz**2 > max_r**2:
++                    W[i, j] = float("nan")
++                    continue
++
++                if not ref_usable:
++                    # Every in-aperture sample depends on the reference plane.
++                    # Leaving them at 0.0 would hand PSFCalculator a perfect
++                    # zero-phase pupil over the whole clear aperture, whose PSF
++                    # is the ideal Airy pattern and whose MTF merit is the
++                    # textbook maximum - so the optimizer would drive toward
++                    # exactly the vignetted designs that produced the failure.
++                    W[i, j] = float("nan")
++                    continue
++
++                # Calculate start point
++                # Ray should hit (pupil_x, py, pz)
++                origin = vec3(pupil_x, py, pz) - direction * (dist / dx)
++
++                ray = Ray3D(origin, direction, wavelength=wavelength)
++                self.tracer.trace_ray(ray)
++
++                if ray.terminated:
++                    # Vignetted / blocked / TIR: exclude from the OPD map.
++                    # (Ray3D.path holds origin + hits + exit propagation, so
++                    # comparing its length to the element count is almost
++                    # always false and would leak terminated rays into W.)
++                    W[i, j] = float("nan")
++                elif abs(ray.direction.x) <= 1e-6:
++                    # The ray is too steep to be projected onto the reference
++                    # plane, so no OPD can be formed. This used to fall through
++                    # with W left at its np.zeros initialisation - a zero OPD,
++                    # which PSFCalculator reads as a perfect phase and so admits
++                    # at full pupil amplitude.
++                    W[i, j] = float("nan")
++                else:
++                    # Calculate OPD
++                    ref_end = ref_ray.path[-1]
++
++                    # Extend ray to plane X = ref_end.x
++                    t = (ref_end.x - ray.origin.x) / ray.direction.x
++                    ray.propagate(t)  # Updates OPL
++
++                    W[i, j] = (ray.optical_path_length - ref_opl) / wavelength
++                    valid_mask[i, j] = True
++
++        # Every sample that is not valid must read as NaN, because
++        # PSFCalculator builds its pupil amplitude from np.isnan(W). Enforce it
++        # rather than trusting each branch above to have remembered.
++        W[~valid_mask] = np.where(np.isnan(W[~valid_mask]), W[~valid_mask], np.nan)
++
++        # Remove Piston (mean)
++        valid_W = W[valid_mask]
++        if valid_W.size > 0:
++            mean_w = np.mean(valid_W)
++            W[valid_mask] -= mean_w
++
++        return Y, Z, W
++
++
++class PSFCalculator:
++    """Calculates PSF using FFT of Pupil Function."""
++
++    @staticmethod
++    def calculate_psf(
++        pupil_grid_Y: np.ndarray,
++        pupil_grid_Z: np.ndarray,
++        wavefront_map: np.ndarray,
++        intensity_map: Optional[np.ndarray] = None,
++    ) -> np.ndarray:
++        """
++        Calculate PSF via FFT.
++
++        Args:
++            pupil_grid_Y, Z: Coordinates at pupil.
++            wavefront_map: Wavefront error in waves.
++            intensity_map: Pupil apodization (default uniform).
++
++        Returns:
++            2D PSF array (normalized intensity).
++        """
++        # Create complex pupil function
++        # P(y, z) = A(y, z) * exp(i * 2 * pi * W(y, z))
++
++        N = wavefront_map.shape[0]
++
++        if intensity_map is None:
++            amplitude = np.ones_like(wavefront_map)
++        else:
++            amplitude = np.sqrt(intensity_map)
++
++        # Handle NaNs (outside aperture)
++        mask = np.isnan(wavefront_map)
++        phase = np.nan_to_num(wavefront_map)
++        amplitude[mask] = 0.0
++
++        pupil_function = amplitude * np.exp(1j * 2 * np.pi * phase)
++
++        # Zero padding for better sampling in PSF domain
++        pad_factor = 2  # or 4 for smoother PSF
++        padded_N = N * pad_factor
++        padded_pupil = np.zeros((padded_N, padded_N), dtype=complex)
++
++        start = (padded_N - N) // 2
++        padded_pupil[start : start + N, start : start + N] = pupil_function
++
++        # FFT
++        # fftshift moves zero freq to center
++        psf_complex = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(padded_pupil)))
++
++        # Intensity
++        psf = np.abs(psf_complex) ** 2
++
++        # Normalize
++        if np.max(psf) > 0:
++            psf /= np.max(psf)
++
++        return psf
++
++    @staticmethod
++    def calculate_mtf(psf: np.ndarray) -> np.ndarray:
++        """
++        Calculate 2D MTF from PSF.
++
++        Args:
++            psf: 2D Point Spread Function (intensity).
++
++        Returns:
++            2D Modulation Transfer Function (normalized magnitude of OTF).
++        """
++        if not NUMPY_AVAILABLE:
++            return np.array([])
++
++        # OTF is FFT of PSF
++        # psf is real, so OTF is Hermitian (but we just want magnitude)
++        otf = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(psf)))
++
++        # MTF is magnitude of OTF
++        mtf = np.abs(otf)
++
++        # Normalize DC component to 1.0
++        # DC component is at the center after fftshift
++        center_y, center_x = mtf.shape[0] // 2, mtf.shape[1] // 2
++        dc_val = mtf[center_y, center_x]
++
++        if dc_val > 0:
++            mtf /= dc_val
++
++        return mtf
++
++
+ class BeamSynthesisPropagator:
+     """
+     Propagates a wavefront by decomposing it into Gaussian beamlets.
+diff --git a/openlens/analysis/diffraction_psf.py b/openlens/analysis/diffraction_psf.py
+index 449f282cf79189140d6337d2b83c5442db219d4c..a1b1be69fb4bd8ac9b3e74532ef4db7aa501e318 100644
+--- a/openlens/analysis/diffraction_psf.py
++++ b/openlens/analysis/diffraction_psf.py
+@@ -1,79 +1,8 @@
+ from ..constants import PARAXIAL_LAUNCH_OFFSET_MM, WAVELENGTH_GREEN
+ import math
+ import logging
+-from typing import Any, Optional
+-
+-try:
+-    import numpy as np
+-
+-    NUMPY_AVAILABLE = True
+-except ImportError:  # pragma: no cover - depends on the environment
+-    NUMPY_AVAILABLE = False
+-
+-    # Minimal stand-in so the module still imports and its degraded paths
+-    # return something, rather than the whole application failing at startup.
+-    # openlens.py imports WavefrontSensor from here at module scope, so an
+-    # unguarded `import numpy` above meant the GUI could not start without it -
+-    # contradicting AGENTS.md, which classes numpy as optional.
+-    class np:  # noqa: N801 - deliberately mirrors the numpy name
+-        ndarray = Any
+-        float64 = float
+-        inf = float("inf")
+-
+-        @staticmethod
+-        def array(values, dtype=None):
+-            return list(values)
+-
+-        @staticmethod
+-        def zeros(shape, dtype=None):
+-            if isinstance(shape, int):
+-                return [0.0] * shape
+-            rows, cols = shape
+-            return [[0.0] * cols for _ in range(rows)]
+-
+-        @staticmethod
+-        def ones_like(arr, dtype=None):
+-            return arr
+-
+-        @staticmethod
+-        def full_like(arr, value, dtype=None):
+-            return arr
+-
+-        @staticmethod
+-        def empty(shape, dtype=None):
+-            return np.zeros(shape)
+-
+-        @staticmethod
+-        def count_nonzero(arr):
+-            return sum(1 for v in arr if v)
+-
+-        @staticmethod
+-        def mean(values):
+-            values = list(values)
+-            return sum(values) / len(values) if values else 0.0
+-
+-        @staticmethod
+-        def isnan(arr):
+-            def _isnan(v):
+-                return v != v
+-
+-            return [_isnan(v) for v in arr]
+-
+-        @staticmethod
+-        def allnan(arr):
+-            return all(v != v for v in arr)
+-
+-        @staticmethod
+-        def linspace(start, stop, num=50, dtype=None):
+-            if num <= 1:
+-                return [float(start)]
+-            step = (stop - start) / (num - 1)
+-            return [start + step * i for i in range(num)]
+-
+-        @staticmethod
+-        def meshgrid(x, y):
+-            return [[value for value in x] for _ in y], [[value for _ in x] for value in y]
+-
++from typing import Optional
++import numpy as np
+ 
+ # Import internal dependencies
+ from ..vector3 import vec3
+@@ -185,10 +114,6 @@ class WavefrontSensor:
+             WavefrontError object containing Y, Z grids (pupil coords) and W
+             (wavefront error in waves)
+         """
+-        if not NUMPY_AVAILABLE:
+-            empty = []
+-            return WavefrontError(empty, empty, empty)
+-
+         # Convert wavelength from nm to mm for OPD scaling
+         wavelength_mm = wavelength_nm * 1e-6
+ 
+@@ -233,20 +158,8 @@ class WavefrontSensor:
+         chief_origin = vec3(pupil_x, 0.0, 0.0) - direction * (dist / dx)
+         chief = Ray3D(chief_origin, direction, wavelength=wavelength_mm)
+         self.tracer.trace_ray(chief)
+-        # An untraced chief ray must invalidate the whole map. Without the
+-        # path check, a ray that was blocked but never flagged terminated (or
+-        # one whose path was cleared) still contributes its origin as the
+-        # reference-sphere centre, and every in-aperture sample is then measured
+-        # against a reference plane that was never traced - the exact failure
+-        # #314 fixed in the implementation this replaced.
+-        chief_traced = len(chief.path) >= 2 and not chief.terminated
+-        if not chief_traced or abs(chief.direction.x) < 1e-9:
+-            logger.warning(
+-                "Chief ray trace failed (path=%d point(s), terminated=%s); "
+-                "cannot reference wavefront",
+-                len(chief.path),
+-                chief.terminated,
+-            )
++        if chief.terminated or abs(chief.direction.x) < 1e-9:
++            logger.warning("Chief ray trace failed; cannot reference wavefront")
+             return _nan_map()
+         t_q = (x_focus - chief.origin.x) / chief.direction.x
+         # t_q may be negative (focus in front of the exit-propagation end):
+@@ -359,12 +272,6 @@ class DiffractionPSFCalculator:
+         Returns:
+             2D PSF array (normalized intensity).
+         """
+-        if not NUMPY_AVAILABLE:
+-            # The beam_synthesis copy this replaced had this guard; without
+-            # it the FFT path raises "type object 'np' has no attribute
+-            # 'fft'" on a numpy-less install, breaking the optional-dependency
+-            # contract in AGENTS.md.
+-            return []
+         wavefront_map = wavefront.W
+         N = wavefront_map.shape[0]
+ 
+@@ -411,8 +318,6 @@ class DiffractionPSFCalculator:
+         Returns:
+             2D Modulation Transfer Function (normalized magnitude of OTF).
+         """
+-        if not NUMPY_AVAILABLE:
+-            return []
+         # OTF is FFT of PSF
+         # psf is real, so OTF is Hermitian (but we just want magnitude)
+         otf = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(psf)))
+diff --git a/openlens/optimizer.py b/openlens/optimizer.py
+index 5aa712620b3b28b3d9b04511ba3a30217f659d0e..11afba85f50c1a5227851332e7da5d9d299187b2 100644
+--- a/openlens/optimizer.py
++++ b/openlens/optimizer.py
+@@ -18,11 +18,7 @@ from .lens import ensure_model_glass
+ from .optical_system import OpticalSystem
+ from .aberrations import AberrationsCalculator
+ from .analysis import SpotDiagram
+-from .analysis.diffraction_psf import (
+-    NUMPY_AVAILABLE,
+-    DiffractionPSFCalculator,
+-    WavefrontSensor,
+-)
++from .analysis.beam_synthesis import PSFCalculator, WavefrontSensor, NUMPY_AVAILABLE
+ 
+ logger = logging.getLogger(__name__)
+ 

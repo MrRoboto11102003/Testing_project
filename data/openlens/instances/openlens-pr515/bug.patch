@@ -1,0 +1,116 @@
+diff --git a/openlens/aberrations.py b/openlens/aberrations.py
+index 2b85534a68340d9448510899fac59c782fb64567..ea66fcae5b1b9f9be4d1d1be0a408c23161e1b38 100644
+--- a/openlens/aberrations.py
++++ b/openlens/aberrations.py
+@@ -185,26 +185,7 @@ class AberrationsCalculator:
+         field_angle_deg: float,
+         wavelength_nm: float,
+     ) -> Dict[str, Any]:
+-        """Body of calculate_all_aberrations at one consistent wavelength.
+-
+-        Raises:
+-            ValueError: If a finite ``object_distance_mm`` is requested. Every
+-                Seidel estimator here assumes the object at infinity
+-                (conjugate factor C = -1), so a finite conjugate was accepted,
+-                forwarded and then ignored - the caller got
+-                infinity-conjugate numbers labelled with their own distance.
+-                Refusing is better than that: the answer would be wrong, and
+-                wrong in a way nothing downstream could detect. Supporting it
+-                needs a conjugate factor threaded through each estimator,
+-                which is a physics change rather than a guard.
+-        """
+-        if object_distance_mm is not None:
+-            raise ValueError(
+-                f"object distance is not supported: got {object_distance_mm!r} mm. "
+-                f"Every aberration here is computed for an object at infinity; "
+-                f"pass object_distance_mm=None for that case."
+-            )
+-
++        """Body of calculate_all_aberrations at one consistent wavelength."""
+         if self.is_system:
+             focal_length = self.target.get_system_focal_length()
+         else:
+@@ -248,11 +229,6 @@ class AberrationsCalculator:
+         )
+         mtf_cutoff = self._calculate_mtf_cutoff(focal_length, wavelength_nm=wavelength_nm)
+ 
+-        # None means the trace failed, which is not the same as a zero spot.
+-        # Published as 0.0 it read as a perfect design - better than
+-        # diffraction limited - for a lens that could not be traced.
+-        spot_rms = self._calculate_spot_rms()
+-
+         if self.is_system:
+             field_data = self._calculate_field_metrics_system(
+                 field_angle_deg, wavelength_nm=wavelength_nm
+@@ -281,11 +257,11 @@ class AberrationsCalculator:
+                 "chromatic": chromatic,
+                 "chromatic_aberration": chromatic,
+                 "airy_disk_diameter": airy,
+-                "spot_rms": spot_rms,
++                "spot_rms": self._calculate_spot_rms() or 0.0,
+                 "strehl": strehl,
+                 "wfe_rms_waves": wfe_rms_waves,
+                 "mtf_cutoff": mtf_cutoff,
+-                "valid": _all_valid(field_data, spherical, chromatic, airy, strehl, spot_rms),
++                "valid": _all_valid(field_data, spherical, chromatic, airy, strehl),
+             }
+ 
+         # Field curvature and distortion come from the same trace the
+@@ -424,17 +400,9 @@ class AberrationsCalculator:
+             analysis = GeometricTraceAnalysis(self._single_element_system())
+ 
+             # 1. Field Curvature and Distortion
+-            # Sample out to the requested field. The magnitude is used:
+-            # these two are even in field angle, while coma and
+-            # astigmatism below are handed the signed value. Sampling to
+-            # max(field_angle, 0.1) meant a -10 deg request was evaluated
+-            # at +0.1 deg, so one dict mixed two fields - the caller got
+-            # the curvature of a different field than the coma beside it.
+-            # The 0.1 deg floor stays to avoid a degenerate zero-width
+-            # sample at the on-axis case.
+-            requested_field = abs(float(field_angle))
++            # Sample up to field_angle
+             fc_data = analysis.calculate_field_curvature_distortion(
+-                max_field_angle_deg=max(requested_field, 0.1),
++                max_field_angle_deg=max(field_angle, 0.1),
+                 num_points=10,
+                 wavelength_nm=wavelength_nm,
+             )
+@@ -1187,37 +1155,6 @@ class AberrationsCalculator:
+         if results.get("error"):
+             return f"Error: {results['error']}"
+ 
+-        def _metric(key: str, spec: str = ".4f", suffix: str = "") -> str:
+-            """Format one metric, or say it could not be measured.
+-
+-            A helper returning None means "not measurable" - a failed trace,
+-            a vignetted design. Formatting that with a float specifier raised
+-            ``TypeError: unsupported format string passed to NoneType.__format__``
+-            and the summary was lost entirely, rather than showing that one
+-            number is missing.
+-            """
+-            value = results.get(key)
+-            if value is None or (isinstance(value, float) and not math.isfinite(value)):
+-                return f"{'unavailable':>10}{suffix}"
+-            return f"{value:>10{spec}}{suffix}"
+-
+-        def _trend(key: str, low: float, high: float, labels) -> str:
+-            """Interpretation label for a magnitude, or 'unavailable'."""
+-            value = results.get(key)
+-            if value is None or (isinstance(value, float) and not math.isfinite(value)):
+-                return "unavailable"
+-            magnitude = abs(value)
+-            for index, bound in enumerate((low, high)):
+-                if magnitude < bound:
+-                    return labels[index]
+-            return labels[-1]
+-
+-        def _detail(key: str, spec: str, suffix: str = "") -> str:
+-            value = results.get(key)
+-            if value is None or (isinstance(value, float) and not math.isfinite(value)):
+-                return f"({suffix.strip() or 'value'} unavailable)"
+-            return f"({abs(value):{spec}} {suffix})" if suffix else f"({abs(value):{spec}})"
+-
+         # self.lens only exists for a single-lens target; a system target
+         # sets is_system instead, so reading it here raised AttributeError.
+         if self.is_system:

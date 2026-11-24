@@ -1,0 +1,199 @@
+{
+ "id": "openlens-pr265",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 109,
+  "chars": 86247
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.0,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1689,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 7380,
+  "output_tokens_details": {
+   "thinking_tokens": 5048
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1689,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7380,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 1689,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1689
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0427572,
+ "model_seconds": 35.6,
+ "seconds": 42.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_basic_psf_calculation_returns_2d_array": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_default_pad_factor_is_four": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_numpy_unavailable_returns_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_pad_factor_determines_output_size": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_all_values_non_negative": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_circular_aperture_symmetry": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_different_wavefront_input_sizes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_handles_nan_outside_aperture": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_intensity_concentration_at_center": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_normalized_maximum": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_with_gaussian_vignetting_map": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_with_intensity_map_apodization": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_with_intensity_map_larger_than_one": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_with_phase_aberration": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr265.py::TestDiffractionPSFCalculatorCalculatePSF::test_psf_with_zero_intensity_map": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionPSFCalculator"
+   ]
+  }
+ }
+}

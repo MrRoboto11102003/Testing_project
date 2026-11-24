@@ -1,0 +1,121 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.aberrations.AberrationsCalculator.get_aberration_summary.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.aberrations.AberrationsCalculator.get_aberration_summary
+    def get_aberration_summary(
+        self,
+        object_distance: Optional[float] = None,
+        field_angle: float = 5.0,
+        wavelength_nm: float = WAVELENGTH_GREEN,
+        **kwargs,
+    ) -> str:
+        """
+        Get a formatted summary of all aberrations.
+
+        Args:
+            object_distance: Distance to object (mm). None for infinity
+            field_angle: Off-axis angle in degrees
+            wavelength_nm: Wavelength in nm evaluated throughout
+
+        Returns:
+            Formatted string with aberration summary
+        """
+        # Handle backward compatibility
+        field_angle_deg = kwargs.get("field_angle_deg", field_angle)
+
+        results = self.calculate_all_aberrations(
+            object_distance, field_angle_deg, wavelength_nm=wavelength_nm
+        )
+
+        if results.get("error"):
+            return f"Error: {results['error']}"
+
+        def _metric(key: str, spec: str = ".4f", suffix: str = "") -> str:
+            """Format one metric, or say it could not be measured.
+
+            A helper returning None means "not measurable" - a failed trace,
+            a vignetted design. Formatting that with a float specifier raised
+            ``TypeError: unsupported format string passed to NoneType.__format__``
+            and the summary was lost entirely, rather than showing that one
+            number is missing.
+            """
+            value = results.get(key)
+            if value is None or (isinstance(value, float) and not math.isfinite(value)):
+                return f"{'unavailable':>10}{suffix}"
+            return f"{value:>10{spec}}{suffix}"
+
+        def _trend(key: str, low: float, high: float, labels) -> str:
+            """Interpretation label for a magnitude, or 'unavailable'."""
+            value = results.get(key)
+            if value is None or (isinstance(value, float) and not math.isfinite(value)):
+                return "unavailable"
+            magnitude = abs(value)
+            for index, bound in enumerate((low, high)):
+                if magnitude < bound:
+                    return labels[index]
+            return labels[-1]
+
+        def _detail(key: str, spec: str, suffix: str = "") -> str:
+            value = results.get(key)
+            if value is None or (isinstance(value, float) and not math.isfinite(value)):
+                return f"({suffix.strip() or 'value'} unavailable)"
+            return f"({abs(value):{spec}} {suffix})" if suffix else f"({abs(value):{spec}})"
+
+        # self.lens only exists for a single-lens target; a system target
+        # sets is_system instead, so reading it here raised AttributeError.
+        if self.is_system:
+            element_count = len(getattr(self.target, "elements", []) or [])
+            name = f"{self.target.name} ({element_count} elements)"
+            material = "-"
+        else:
+            name = self.lens.name
+            material = self.lens.material
+
+        trend_labels = ("Negligible", "Moderate", "Significant")
+
+        summary = f"""
+╔═══════════════════════════════════════════════════════════════╗
+║              LENS ABERRATIONS ANALYSIS                        ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Lens: {name:<52} ║
+║ Material: {material:<48} ║
+╠═══════════════════════════════════════════════════════════════╣
+║ BASIC PARAMETERS                                              ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Focal Length:          {_metric('focal_length', '.2f', ' mm')}                      ║
+║ F-number (f/#):        {_metric('f_number', '.2f')}                          ║
+║ Numerical Aperture:    {_metric('numerical_aperture', '.4f')}                          ║
+║ Airy Disk Diameter:    {_metric('airy_disk_diameter', '.6f', ' mm (diffraction limit)')} ║
+╠═══════════════════════════════════════════════════════════════╣
+║ PRIMARY ABERRATIONS (Seidel)                                  ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Spherical Aberration:  {_metric('spherical', '.4f', ' mm (longitudinal)')}      ║
+║ Coma (@ {field_angle}°):         {_metric('coma', '.4f', ' (relative)')}              ║
+║ Astigmatism (@ {field_angle}°):  {_metric('astigmatism', '.4f', ' mm')}                       ║
+║ Field Curvature:       {_metric('field_curvature', '.2f', ' mm (tangential focus shift)')} ║
+║ Distortion (@ {field_angle}°):   {_metric('distortion', '.4f', ' %')}                        ║
+╠═══════════════════════════════════════════════════════════════╣
+║ CHROMATIC ABERRATION                                          ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Longitudinal CA:       {_metric('chromatic', '.4f', ' mm (focal shift)')}        ║
+╚═══════════════════════════════════════════════════════════════╝
+
+INTERPRETATION:
+• Spherical Aberration: {_trend('spherical', 0.001, 0.01, trend_labels)}
+  {_detail('spherical', '.4f', 'mm')}
+
+• Chromatic Aberration: {_trend('chromatic', 0.1, 0.5, trend_labels)}
+  {_detail('chromatic', '.4f', 'mm')}
+
+• Distortion: {_trend('distortion', 0.1, 1e9, ['None', 'None', 'Present'])}
+  {_detail('distortion', '.2f', '%')}
+
+• Resolution Limit: {_detail('airy_disk_diameter', '.2f', 'um')}
+"""
+
+        return summary

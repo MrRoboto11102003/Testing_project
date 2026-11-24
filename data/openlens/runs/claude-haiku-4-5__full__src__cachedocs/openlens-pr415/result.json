@@ -1,0 +1,219 @@
+{
+ "id": "openlens-pr415",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 113,
+  "units_kept": 113,
+  "chars": 91338
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 2.33,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 5,
+ "n_false_alarms": 9,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3583,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 12574,
+  "output_tokens_details": {
+   "thinking_tokens": 9186
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3583,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 12574,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 3583,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3583
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0725152,
+ "model_seconds": 58.0,
+ "seconds": 64.4,
+ "tests": {
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_detector_size_affects_grid_range": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_different_grid_sizes_produce_different_results": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_empty_system_returns_empty": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_intensity_all_non_negative": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_output_shape_is_grid_product": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestBeamSynthesisPropagatorPropagateToImage::test_propagate_returns_numpy_arrays": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamAdvanceQ::test_advance_q_scales_by_n_in_glass": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamAdvanceQ::test_advance_q_uses_exact_distance_in_air": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamAdvanceQ::test_advance_q_with_zero_n_uses_exact_distance": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamRX::test_R_x_infinity_when_inv_q_real_zero": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamRX::test_R_x_reciprocal_of_inv_q_real": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamWX::test_w_x_basic_calculation": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamWX::test_w_x_zero_when_q_purely_real": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamWY::test_w_y_equals_w_x_for_symmetric_q": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr415.py::TestGaussianBeamWY::test_w_y_zero_when_q_purely_real": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GaussianBeam",
+    "Ray3D"
+   ]
+  }
+ }
+}

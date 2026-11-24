@@ -1,0 +1,42 @@
+{
+ "id": "openlens-pr392",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 337,
+ "issue_title": "`get_refractive_index` raises on unvalidated Sellmeier data",
+ "issue_body": "**File:** `src/material_database.py:336-344`\n\nCoefficients come straight from `materials.json`, `import_csv_catalog` or `import_agf_catalog` with\nno validation. Verified: `C1 = 0.25`, query 500 nm \u2192 `ZeroDivisionError`; `B1 = -5.0, C1 = 0.5`,\nquery 1000 nm \u2192 `ValueError: math domain error`. Neither is caught; the exception propagates through\n`lens.py:311/365/384/403/411` into ray tracing and the GUI.\n\n**Fix:** guard the denominator (`if abs(lambda_sq - mat.C1) < 1e-12: continue`), guard the sqrt, and\nvalidate coefficients in `add_material`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/337",
+ "pr": 392,
+ "pr_title": "fix(materials): guard the Sellmeier singularities",
+ "pr_body": "Closes #337\n\n## Problem\n\nSellmeier coefficients arrive from `materials.json`, `import_csv_catalog` or `import_agf_catalog` with **no validation**, and `get_refractive_index` had two unguarded failure modes:\n\n```\nlambda_sq == C   ->  ZeroDivisionError\nn_sq < 0         ->  ValueError: math domain error (in sqrt)\n```\n\nBoth reproduced \u2014 `C1 = 0.25` at 500 nm, and `B1 = -5.0, C1 = 0.5` at 1000 nm. Neither was caught, so a bad catalog entry raised through `lens.py` into ray tracing and the GUI.\n\n## Fix\n\nA term whose denominator is within `1e-12` of zero is omitted with a warning; a non-positive `n^2` falls back to `n = 1.0` with a warning. A bad entry now degrades to a less accurate index instead of taking down the caller.\n\n## One correction worth flagging\n\nMy first attempt *also* skipped negative Sellmeier terms. That was wrong, and the tests caught it: the third term is **legitimately negative** for real glasses, since its UV resonance sits far above the visible (`C3 = 103.56 \u00b5m\u00b2` against `lambda\u00b2 = 0.35` at the d-line). Dropping it put BK7 at `n = 1.5223` instead of `1.5168` \u2014 a ~0.005 error on every lens.\n\nTerms are now summed with signs intact. A sweep comparing old vs new across every default material \u00d7 6 wavelengths \u00d7 2 temperatures (**84 values**) is bit-identical.\n\n## Tests\n\n11 tests, **5 fail without the change**. The rest pin real catalog behaviour: d-line indices, normal dispersion for every real glass, the temperature correction, and explicitly that the negative UV term is still subtracted. One test drives a bad-coefficient material through `Lens.update_refractive_index`, covering the reported blast radius.",
+ "fix_commit": "2cd343c86eac905e4460e09a8b1896b1cc1bf3a2",
+ "merged_at": "2026-10-06T12:45:56Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/material_database.py"
+ ],
+ "test_files": [
+  "tests/test_sellmeier_guards.py"
+ ],
+ "target_symbols": [
+  "openlens/material_database.py::MaterialDatabase._compute_refractive_index",
+  "openlens/material_database.py::MaterialDatabase.clear_cache"
+ ],
+ "fail_to_pass": [
+  "tests/test_sellmeier_guards.py::TestSellmeierGuards::test_all_terms_negative_does_not_raise",
+  "tests/test_sellmeier_guards.py::TestSellmeierGuards::test_denominator_zero_does_not_raise",
+  "tests/test_sellmeier_guards.py::TestSellmeierGuards::test_every_term_singular_does_not_raise",
+  "tests/test_sellmeier_guards.py::TestSellmeierGuards::test_near_singular_denominator_is_tolerated",
+  "tests/test_sellmeier_guards.py::TestSellmeierGuards::test_negative_n_squared_does_not_raise"
+ ],
+ "pass_to_pass": [
+  "tests/test_sellmeier_guards.py::TestRealCatalogValuesUnchanged::test_d_line_values_match_the_catalog",
+  "tests/test_sellmeier_guards.py::TestRealCatalogValuesUnchanged::test_every_real_glass_stays_monotonic",
+  "tests/test_sellmeier_guards.py::TestRealCatalogValuesUnchanged::test_temperature_correction_still_works",
+  "tests/test_sellmeier_guards.py::TestRealCatalogValuesUnchanged::test_third_term_is_still_subtracted",
+  "tests/test_sellmeier_guards.py::TestSellmeierGuards::test_lens_with_a_bad_catalog_entry_still_traces",
+  "tests/test_sellmeier_guards.py::TestSellmeierGuards::test_unknown_material_still_falls_back"
+ ],
+ "patch_lines": 41
+}

@@ -1,0 +1,112 @@
+diff --git a/tests/test_gui.py b/tests/test_gui.py
+index 14a8859..77da2c8 100755
+--- a/tests/test_gui.py
++++ b/tests/test_gui.py
+@@ -198,6 +198,52 @@ else:
+             self.assertEqual(lens.radius_of_curvature_1, 100.0)
+             self.assertEqual(lens.parabolic_sag_1, 2.0)
+ 
++        def test_sag_ranges_track_diameter(self):
++            """Sag spinbox limits follow the physics-scaled bound."""
++            self._load(lock=True)
++            self.assertAlmostEqual(self.widget._para1_sag_input.maximum(), 20.0)
++            self.assertAlmostEqual(self.widget._para1_sag_input.minimum(), -20.0)
++            self.widget._diameter_input.setValue(10.0)
++            self.assertAlmostEqual(self.widget._para1_sag_input.maximum(), 5.0)
++
++        def test_sag_clamp_syncs_model(self):
++            """Shrinking the aperture clamps sag in spinbox and model."""
++            self._load(lock=True)
++            self.widget._para1_check.setChecked(True)
++            self.widget._para1_sag_input.setValue(15.0)
++            self.assertEqual(self.widget._lens.parabolic_sag_1, 15.0)
++            self.widget._diameter_input.setValue(10.0)
++            self.assertEqual(self.widget._para1_sag_input.value(), 5.0)
++            self.assertEqual(self.widget._lens.parabolic_sag_1, 5.0)
++
++        def test_load_preserves_over_limit_sag(self):
++            """Loading never silently normalizes; the warning flags it."""
++            widget_lens = Lens(
++                name="T",
++                thickness=5.0,
++                diameter=10.0,
++                is_parabolic_1=True,
++                parabolic_sag_1=15.0,
++            )
++            self.widget._lock_edge_check.setChecked(True)
++            self.widget.load_lens(widget_lens)
++            self.assertEqual(self.widget._lens.parabolic_sag_1, 15.0)
++            self.assertEqual(self.widget._para1_sag_input.value(), 5.0)
++            self.assertFalse(self.widget._feas_warning_label.isHidden())
++
++        def test_external_latch_heals_panel(self):
++            """Optimizer-style flag mutation snaps the panel on next edit."""
++            self._load(lock=True)
++            self.widget._lens.is_parabolic_1 = True
++            self.widget._lens.parabolic_sag_1 = 8.0
++            self.assertFalse(self.widget._para1_check.isChecked())
++            self.widget._diameter_input.setValue(30.0)
++            self.assertTrue(self.widget._para1_check.isChecked())
++            self.assertFalse(self.widget._r1_input.isEnabled())
++            self.assertEqual(self.widget._para1_sag_input.value(), 8.0)
++            self.widget._on_interactive_property_changed("r1", 5.0)
++            self.assertEqual(self.widget._lens.radius_of_curvature_1, 100.0)
++
+         def test_uncheck_parabolic_zeroes_sag(self):
+             """Unchecking a parabolic surface resets its sag to zero."""
+             self._load(lock=True)
+diff --git a/tests/test_validation.py b/tests/test_validation.py
+index c8cd103..c8e6a45 100644
+--- a/tests/test_validation.py
++++ b/tests/test_validation.py
+@@ -19,6 +19,8 @@ from src.validation import (
+     safe_float_conversion,
+     validate_lens_parameters,
+     check_physical_feasibility,
++    parabolic_sag_limit,
++    validate_parabolic_sag,
+ )
+ 
+ 
+@@ -282,6 +284,41 @@ class TestPhysicalFeasibility(unittest.TestCase):
+         self.assertIsNotNone(message)
+         self.assertIn("overhang", message.lower())
+ 
++    def test_sag_limit_default_geometry(self):
++        """D=40, t=5 caps sag at half the diameter."""
++        self.assertAlmostEqual(parabolic_sag_limit(40.0, 5.0), 20.0)
++
++    def test_sag_limit_small_aperture(self):
++        """D=5 caps sag at 2.5 (vertex radius stays above minimum)."""
++        self.assertAlmostEqual(parabolic_sag_limit(5.0, 5.0), 2.5)
++
++    def test_sag_limit_large_aperture(self):
++        """D=200 reaches sag 100 (fast paraboloids optimizable)."""
++        self.assertAlmostEqual(parabolic_sag_limit(200.0, 5.0), 100.0)
++
++    def test_sag_limit_rejects_bad_diameter(self):
++        """Non-positive diameters raise instead of returning nonsense."""
++        with self.assertRaises(ValidationError):
++            parabolic_sag_limit(0.0, 5.0)
++        with self.assertRaises(ValidationError):
++            parabolic_sag_limit(-5.0, 5.0)
++
++    def test_validate_sag_diameter_aware(self):
++        """Sag 20 is absurd at D=5 but fine at D=200."""
++        with self.assertRaises(ValidationError) as ctx:
++            validate_parabolic_sag(20.0, 5.0, 5.0)
++        self.assertIn("0.156", str(ctx.exception))  # implied vertex radius
++        self.assertEqual(validate_parabolic_sag(2.5, 5.0, 5.0), 2.5)
++        self.assertEqual(validate_parabolic_sag(100.0, 200.0, 5.0), 100.0)
++        with self.assertRaises(ValidationError):
++            validate_parabolic_sag(101.0, 200.0, 5.0)
++
++    def test_validate_sag_legacy_cap(self):
++        """Without diameter the old absolute cap still applies."""
++        self.assertEqual(validate_parabolic_sag(100.0), 100.0)
++        with self.assertRaises(ValidationError):
++            validate_parabolic_sag(101.0)
++
+     def test_check_default_lens_feasible(self):
+         """Default geometry (R=+-100, t=5, D=40) has positive edge thickness"""
+         from src.constants import (

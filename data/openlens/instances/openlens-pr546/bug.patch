@@ -1,0 +1,22 @@
+diff --git a/openlens/performance_metrics.py b/openlens/performance_metrics.py
+index f7651b518baf48e48097e292cdeb1b47aea68faf..5c4bf7c02f5ffcd3d17dd318ee457f2e64de8633 100644
+--- a/openlens/performance_metrics.py
++++ b/openlens/performance_metrics.py
+@@ -338,14 +338,12 @@ class PerformanceMetrics:
+         # Hyperfocal distance
+         H = f**2 / (f_number * circle_of_confusion) + f
+ 
+-        # Near and far limits. The near formula is the exact lens-equation
+-        # form on both sides of H; H/2 is only its value at s == H, so using
+-        # it as a shortcut beyond H froze the near limit at 20530 mm while
+-        # the true limit kept receding (#459).
+-        near = (object_distance * (H - f)) / (H + object_distance - 2 * f)
++        # Near and far limits
+         if object_distance < H:
++            near = (object_distance * (H - f)) / (H + object_distance - 2 * f)
+             far = (object_distance * (H - f)) / (H - object_distance)
+         else:
++            near = H / 2
+             far = float("inf")
+ 
+         dof = far - near if far != float("inf") else float("inf")

@@ -1,0 +1,91 @@
+# Notes: `SystemRayTracer.trace_parallel_rays(num_rays=DEFAULT_NUM_RAYS, angle_deg=0.0, wavelength_mm=WAVELENGTH_GREEN*NM_TO_MM, fill=1.0)`
+
+## 1. Purpose
+- Builds a collimated fan of 2D `Ray`s and traces each one through every element of `self.system`.
+- Each ray goes through the elements in order, then the aperture stop, then the casing.
+- Returns the list of traced rays.
+
+## 2. Inputs
+- `num_rays` (int): not validated.
+  - It is used in `range(num_rays)`, so `0` or a negative value gives `[]` when the system has elements.
+  - `1` is a special case: the single ray is at height 0.
+  - `DEFAULT_NUM_RAYS` is defined in `openlens.constants`, which is not shown. Pass `num_rays` explicitly.
+- `angle_deg` (float, degrees): converted with `math.radians`. Every ray starts with `angle = radians(angle_deg)`.
+- `wavelength_mm` (float): passed only to the `Ray(..., wavelength_mm=...)` constructor.
+  - **It does NOT change the glass index.** The index comes from the `wavelength_nm` given to `SystemRayTracer(system, wavelength_nm)`. If that is `None`, each lens's stored `refractive_index` is used.
+- `fill` (float): not validated. `max_height = elements[0].lens.diameter / 2 * fill`.
+  - `fill=0` puts every ray at height 0.
+  - A negative `fill` reverses the order of the heights.
+- Inputs it does not take: there is no `ray_height_range` parameter, unlike `LensRayTracer.trace_parallel_rays`.
+
+## 3. Raises
+- The function raises nothing itself.
+- An error could only come from the `Lens`, `Ray` or `OpticalSystem` code, which is not shown. A normal `Lens` raises nothing here.
+
+## 4. Returns and guarantees
+- Empty system (`system.elements == []`): returns `[]` straight away, before the tracers are rebuilt.
+- Otherwise: returns a new `list` of exactly `max(num_rays, 0)` new `Ray` objects, in order of increasing height when `fill > 0`.
+- Ray `i` has `height = -h + 2h*i/(num_rays-1)`, where `h = D0/2*fill` and `D0` is the diameter of the first lens.
+  - Example: with D0=25, fill=1 and 5 rays, the heights are -12.5, -6.25, 0, 6.25, 12.5.
+- Every ray starts at `x = p0 - RAY_START_OFFSET_MM`, where `p0 = elements[0].position`.
+  - Its start height is `y = height - RAY_START_OFFSET_MM * tan(angle)`.
+  - So the straight-line extension of each ray passes through `(p0, height)`, the first element's vertex plane.
+  - The value of `RAY_START_OFFSET_MM` lives in `constants` and is not shown.
+- What happens to each ray depends on how it ends:
+  - **Missed an element aperture:** `ray.hit=False`, `ray.terminated=True`, and it is not propagated further. Clipping uses the clear aperture: `CA1/2` at the front surface, `CA2/2` at the back.
+  - **TIR, or exit through the side:** `terminated=True`, and the loop breaks.
+  - **Blocked by the aperture stop:** this check runs after element `i` when `stop["gap_index"] == i` and the stop diameter is truthy.
+    - If `|y at stop_x| > diameter/2`, the ray is terminated.
+    - If the stop plane is ahead of the ray, the stop point is appended to `path`.
+  - **Survived every element:** after the last element the ray gets `ray.propagate(RAY_EXIT_PROPAGATION_2D_MM)`. That value is in `constants` and is not shown.
+  - **Casing absorption:** if `system.casing` is set, a path segment that enters the wall truncates `path` at the hit point. It also sets `x,y` to the hit point, `terminated=True` and `absorbed=True`.
+    - The pre-first-element casing check (`_absorb_before_first_element`) is **not** called here. Only the finished path is checked.
+
+## 5. Side effects
+- The function calls `_sync_tracers()`, which rebuilds `self._tracers` from the current lens parameters and `element.position`.
+  - So if you edit a lens between two calls, the second call picks up the edit.
+- `system` and the lenses are not mutated.
+
+## 6. Branches and edge cases
+| Case | Input | Result |
+|---|---|---|
+| No elements | `OpticalSystem()` | `[]` |
+| Zero rays | `num_rays=0` | `[]` |
+| Single ray | `num_rays=1` | one ray at height 0 (start y = `-OFFSET*tan(angle)`) |
+| Centered element | `decenter_y == 0` and `tilt_z == 0` | `LensRayTracer.trace_ray(ray, propagate_distance=0)` |
+| Aligned element | `decenter_y != 0` or `tilt_z != 0` | traced in the local frame, and the path points are mapped back to world coordinates |
+| Fan wider than CA | `clear_aperture_1 < diameter` | outer rays have `hit=False` and `terminated=True` |
+| Stop | `set_aperture_stop(0, diameter=d)` on a 2-element system | rays above `d/2` at the stop are terminated |
+
+## 7. Rules from comments and docstrings
+- `fill` defaults to the full aperture, so rim spherical aberration is traced. Display fans pass 0.95 explicitly.
+- A terminated flag is never cleared. Terminated rays are never propagated forward.
+- The 2D trace honours only `decenter_y` and `tilt_z`. The other alignment parameters apply in 3D only.
+
+## 8. Testing hints
+- **Build the system:**
+  ```python
+  s = OpticalSystem(); s.add_lens(Lens(diameter=25.0))
+  rays = SystemRayTracer(s).trace_parallel_rays(num_rays=5)
+  ```
+- **Positions:** read `p0 = s.elements[0].position` rather than assuming it. How `add_lens` assigns positions is not shown.
+- **Exact checks that do not depend on the unseen constants:**
+  - `len(rays) == n`.
+  - `rays[i]` are distinct objects.
+  - `ray.wavelength_mm == wavelength_mm`.
+  - Symmetry for `angle_deg=0` with centered elements: `rays[i].y ≈ -rays[n-1-i].y` and `rays[i].angle ≈ -rays[n-1-i].angle` (use `pytest.approx`).
+- **Cross-check against `LensRayTracer` (single element at `p0`):**
+  - Compare with `LensRayTracer(lens, x_offset=p0).trace_parallel_rays(n, angle_deg=a, fill=f)`.
+  - The final `ray.angle` values should be equal.
+  - The path points at the two lens surfaces should be equal.
+  - Do not compare the final `x`/`y`: the exit propagation distances differ (`DEFAULT_PROPAGATION_DISTANCE` vs `RAY_EXIT_PROPAGATION_2D_MM`).
+- **Heights are referenced to the first element's diameter, not the clear aperture.**
+  - Example: `Lens(diameter=25, clear_aperture_1=10)` with `num_rays=5` and `fill=1`.
+  - The outer rays (|h| = 12.5 and 6.25) have `hit=False`. The centre ray has `hit=True`.
+- **Index comes from the constructor, not from `wavelength_mm`.**
+  - Changing `wavelength_mm` alone gives identical angles.
+  - Changing `SystemRayTracer(s, wavelength_nm=...)` gives different angles.
+- **Pitfalls:**
+  - Do not assume `ray.path` contains the start point. That depends on the `Ray` class, which is not shown.
+  - Do not hard-code `RAY_START_OFFSET_MM` or the exit distance.
+  - An on-axis ray should stay at y≈0. Use `approx(0, abs=1e-9)`, not `==`.

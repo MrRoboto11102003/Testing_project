@@ -1,0 +1,161 @@
+{
+ "id": "openlens-pr366",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 109,
+  "chars": 88664
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.31,
+ "detected": false,
+ "n_tests": 13,
+ "n_catching": 0,
+ "n_false_alarms": 12,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2573,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 6644,
+  "output_tokens_details": {
+   "thinking_tokens": 4774
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2573,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 6644,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 2573,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2573
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0408452,
+ "model_seconds": 33.4,
+ "seconds": 39.8,
+ "tests": {
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_custom_detector_pixels_applied": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_custom_image_plane_position_accepted": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_default_detector_pixels_is_64x64": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_detector_grid_coordinate_range": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_detector_grids_are_meshgrid_format": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_deterministic_output": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_different_grid_sizes_accepted": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_different_wavelengths_produce_valid_output": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "NM_TO_MM",
+    "WAVELENGTH_GREEN"
+   ]
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_empty_system_returns_empty_arrays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "BeamSynthesisPropagator",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_intensity_dtype_is_float": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_intensity_values_non_negative": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_raises_import_error_when_numpy_unavailable": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr366.py::TestBeamSynthesisPropagatorPropagateToImage::test_returns_tuple_of_three_numpy_arrays": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

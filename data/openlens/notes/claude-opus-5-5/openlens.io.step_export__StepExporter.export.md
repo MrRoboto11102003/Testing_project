@@ -1,0 +1,133 @@
+# Notes: `openlens.io.step_export.StepExporter.export(filename, housing=None) -> dict`
+
+## 1. Purpose
+- Writes `self.system` (an OpticalSystem, a single Lens, or anything else) as an ISO 10303-21 STEP text file.
+- Also writes optional annular "housing" tube solids.
+- Returns a summary dict.
+
+## 2. Inputs
+- `self.system` is set by `StepExporter(system)`. Default is `None`. Dispatch, in order:
+  1. Has both `elements` and `air_gaps` (OpticalSystem): one lens solid per element, placed by element transform.
+  2. Else has `radius_of_curvature_1` (Lens): one solid, `placement=None` (local frame, z_offset 0).
+  3. Else (e.g. `None`, a dict): tries the lens path. `AttributeError`/`KeyError` is caught.
+- `filename`: path, written with `atomic_write_text` (text mode, so `\n` becomes `\r\n` on Windows; read back in text mode).
+- `housing`: iterable of dicts with keys `name`, `z0`, `z1`, `r_inner`, `r_outer`.
+  - Each numeric value goes through `float(...)`.
+  - `name` is `str(part.get("name","part"))`; a non-dict part gets the name `"part"`.
+  - `None` or `[]` means no housing.
+
+## 3. Raises
+- `ValueError` (from `_export_lens_solid`) when a lens surface is non-spherical:
+  - **Parabolic:** `is_parabolic_N` is true, `abs(parabolic_sag_N) >= EPSILON` and diameter is non-zero.
+  - **Conic:** `abs(conic_constant_N) > EPSILON` and the radius is not "flat". Flat means `abs(r) < 1e-10` or `abs(r) > 10000`; exactly 10000 is *not* flat.
+  - The front surface (1) is checked before the back (2).
+  - Message template:
+    `f"STEP export writes spherical and flat surfaces only; lens {name!r} has a {profile} {label} surface. At the rim (h={h:g} mm) the model sags {modelled_sag:.6f} mm but a sphere of radius {stored_radius:g} mm sags {sphere_sag:.6f} mm, so the exported rim would not lie on the exported surface."`
+  - `profile` is `"parabolic"` or `f"conic (K={k:g})"`. `label` is `"front"` or `"back"`.
+  - Use `pytest.raises(ValueError, match="spherical and flat surfaces only")` and `match="conic \\(K=-1\\) front"`.
+  - Example trigger: `Lens(radius_of_curvature_1=50.0, conic_constant_1=-1.0, ...)`.
+  - **No file is created** (the raise happens before writing). Check with `not path.exists()`.
+- Housing errors (`KeyError`/`TypeError`/`ValueError`) are caught and never propagate.
+
+## 4. Returns and guarantees
+- Returns `{"shapes": int, "skipped": int, "skipped_parts": list[str]}`. `skipped == len(skipped_parts)`.
+- `shapes` counts lens solids plus housing tubes written.
+- The state is reset at the start of every call (a new `StepWriter`, ids restart at `#1`). Calling export twice on one exporter gives identical DATA sections, not doubled ones.
+- File layout:
+  - `"ISO-10303-21;\nHEADER;\n..."`, ending with `"DATA;"`.
+  - Then entity lines joined by `\n`.
+  - Then `"\nENDSEC;\nEND-ISO-10303-21;"`.
+  - FILE_NAME contains the current timestamp, so do not compare the full header.
+- Context entities are always `#1`..`#11` (exact lines):
+```
+#1=DIRECTION('axis_z',(0.000000,0.000000,1.000000));
+#2=DIRECTION('axis_x',(1.000000,0.000000,0.000000));
+#3=DIRECTION('axis_y',(0.000000,1.000000,0.000000));
+#4=CARTESIAN_POINT('origin',(0.000000,0.000000,0.000000));
+#5=AXIS2_PLACEMENT_3D('global_axis',#4,#1,#2);
+#6=(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.));
+#7=UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-06),#6,'distance_accuracy_value','confusion accuracy');
+#8=APPLICATION_CONTEXT('core data for automotive mechanical design processes');
+#9=PRODUCT_CONTEXT('part definition',#8,'mechanical');
+#10=MECHANICAL_CONTEXT('3D Mechanical Context',#8);
+#11=(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT((#7))GLOBAL_UNIT_ASSIGNED_CONTEXT((#6))REPRESENTATION_CONTEXT('',''));
+```
+- Formatting rules:
+  - Floats are written `:.6f`; ints bare; `True`/`False` as `.T.`/`.F.`; `None` as `$`.
+  - Strings are always single-quoted. `'` is doubled, `\` is doubled, non-ASCII becomes `\X2\<HEX>\X0\`.
+  - References are written `#n`; lists/tuples become `(a,b)`.
+- If `shapes > 0`, the last entity is `ADVANCED_BREP_SHAPE_REPRESENTATION('lens_geom',(#a,#b,...),#11);`, listing the solid ids in creation order. If there are 0 shapes, this entity is omitted.
+
+## 5. Side effects
+- Writes/replaces `filename`.
+- Logs warnings for skipped parts.
+- Does not mutate the system or the housing dicts.
+
+## 6. Branches and edge cases
+- **`StepExporter().export(p)` (system None):**
+  - Returns `{"shapes":0,"skipped":1,"skipped_parts":["system"]}`.
+  - The file has exactly entities `#1`..`#11` and no BREP_SHAPE_REPRESENTATION.
+- **Spherical single lens** (e.g. `Lens(name="L", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0)`): 38 entities `#12`..`#49` plus `#50` product. Deterministic lines from this code:
+  - `#12=CARTESIAN_POINT('v1',(0.000000,0.000000,0.000000));`
+  - `#13=CARTESIAN_POINT('v2',(0.000000,0.000000,5.000000));`
+  - `#18=CIRCLE('circle1',#17,12.500000);`
+  - `#24=EDGE_CURVE('edge1',#22,#22,#18,.T.);`
+  - `#26=VECTOR('dir_z',#1,1.000000);`
+  - `#27=LINE('seam_line',#14,#26);`
+  - `#29=ORIENTED_EDGE(*,*,#24,.T.);`
+  - `#30=EDGE_LOOP('loop1',(#29));`
+  - `#33=CARTESIAN_POINT('center1',(0.000000,0.000000,50.000000));` (centre = z_offset + r1)
+  - `#35=SPHERICAL_SURFACE('sphere1',#34,50.000000);`
+  - `#36=CARTESIAN_POINT('center2',(0.000000,0.000000,-45.000000));` (r2<0: thick−|r2|; r2>0: thick+r2)
+  - `#38=SPHERICAL_SURFACE('sphere2',#37,50.000000);`
+  - `#40=CYLINDRICAL_SURFACE('cyl',#39,12.500000);`
+  - `#47=ADVANCED_FACE('face3',(#45,#46),#40,.T.);`
+  - `#48=CLOSED_SHELL('shell',(#42,#44,#47));`
+  - `#49=MANIFOLD_SOLID_BREP('L',#48);`
+  - `#50=ADVANCED_BREP_SHAPE_REPRESENTATION('lens_geom',(#49),#11);`
+  - Nested ids are allocated before their parent: VECTOR before LINE, ORIENTED_EDGE before EDGE_LOOP, FACE_BOUND before ADVANCED_FACE.
+  - The e1/e2/c1/c2 z values come from `Lens.get_sag_1/2` (not visible here). Do not assert them.
+- **Flat surface** (|R| > 10000, or a parabolic surface with sag 0): that side uses `PLANE('plane1',#<axis_c1>)` instead of 3 sphere entities. Each flat side saves 2 entities (one 1 entity instead of 3).
+- **Non-flat zero-conic** (K=0 with a parabolic flag false) exports as a normal sphere.
+- **Solid label** (`_solid_label`):
+  - `name`, plus ` (CA a/b, bevel x/y, coat c1/c2)` parts when present.
+  - CA appears if `clear_aperture_1`/`_2` is not None (a missing one shows the diameter).
+  - Bevel appears if either bevel ≠ 0.
+  - Coat appears if `lens.coating_label(n) != "Uncoated"`.
+  - The Lens attribute defaults are not visible here. For a plain Lens, assert only that `'L'` appears or that `MANIFOLD_SOLID_BREP('L` is present.
+- **Rotating placement** (element tilt in a system): adds `DIRECTION('element_axis_z_1',...)` and `DIRECTION('element_axis_x_1',...)` (counter per rotated solid). Otherwise `#1`/`#2` are reused.
+- **`edge_profile` set:** the rim becomes rim_p points, POLYLINE and SURFACE_OF_REVOLUTION. This depends on `LensGeometry`, which is not shown.
+- **Valid housing tube** (`{"name":"sp","z0":0.0,"z1":2.0,"r_inner":10.0,"r_outer":12.0}`):
+  - Adds 55 entities, ending in `MANIFOLD_SOLID_BREP('sp',#...)`.
+  - Lines include `CYLINDRICAL_SURFACE('sp_co',#..,12.000000)`, `'sp_ci'` with `10.000000`, and `CIRCLE('sp_to',#..,12.000000)`.
+  - The tube's shell is also named `'shell'`.
+- **Housing skip cases.** Each appends its name to `skipped_parts` and continues:
+  - Invalid dimensions (need `r_outer > r_inner > 0` and `z1 > z0`, e.g. r_inner == r_outer, z1 == z0, r_inner=0).
+  - A missing key (KeyError).
+  - A non-numeric value (`"abc"` → ValueError, `None` → TypeError).
+  - A non-dict part, e.g. `[1, 2]` → TypeError, name `"part"`.
+  - Dict without `name` → `"part"`.
+- **System only:** `shapes == len(system.elements)`, with one `MANIFOLD_SOLID_BREP` per element.
+
+## 7. Rules from the docstrings and comments
+- Repeat calls must not accumulate entities.
+- Names like `"50"`, `"Infinity"` and `"#3 doublet"` stay quoted text.
+- A refused lens leaves no file.
+- Skipped parts must be reported, not lost silently.
+
+## 8. Testing hints
+- Use `tmp_path / "out.step"` and read it with `read_text()`.
+- To get the DATA lines: `text.split("DATA;\n")[1].split("\nENDSEC;")[0].splitlines()`.
+- Pass floats for all lens dimensions. Ints may print as `50`, not `50.000000`.
+- Good checks:
+  - Counts such as `text.count("MANIFOLD_SOLID_BREP(")`.
+  - The exact context lines.
+  - The last entity line.
+  - That line ids are sequential `#1..#N`.
+  - A second export produces the same DATA lines.
+  - Name escaping: `Lens(name="it's")` gives `'it''s'`, and `name="50"` gives `'50'`.
+- Don't assert:
+  - The timestamp.
+  - Sag-dependent z values.
+  - Transformed coordinates for decentered elements (these depend on Matrix4x4 and OpticalNode, which are not shown).
+  - Lens defaults that are not shown here.

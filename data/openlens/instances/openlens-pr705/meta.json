@@ -1,0 +1,37 @@
+{
+ "id": "openlens-pr705",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 615,
+ "issue_title": "bug: InverseSensitivityAnalyzer ignores the criterion argument",
+ "issue_body": "## Summary\n\n`InverseSensitivityAnalyzer.calculate_sensitivities(criterion=...)` accepts a `criterion` argument but never reads it. It always traces `SpotDiagram` and uses `rms_radius`, so callers asking for any other metric silently receive RMS-spot sensitivities. This is inconsistent with `MonteCarloAnalyzer.run`, which validates `criterion` and raises on unsupported values.\n\n## Impact\n\n- Silent wrong-metric results: a caller passing `criterion=\"mtf\"` (or anything else) gets RMS spot sensitivities with no warning.\n- Inverse tolerance budgeting then allocates tolerances against the wrong performance metric.\n- Inconsistent API: Monte Carlo rejects unsupported criteria; inverse sensitivity silently ignores the argument.\n\n## Reproduction\n\n```python\nimport inspect\nfrom openlens.tolerancing import InverseSensitivityAnalyzer\n\nsrc = inspect.getsource(InverseSensitivityAnalyzer.calculate_sensitivities)\nbody = src.split('\"\"\"', 2)[-1]\nprint(\"criterion referenced in body:\", \"criterion\" in body)   # False\nprint(\"only rms_radius used:\", 'res[\"rms_radius\"]' in body)     # True\n```\n\nOutput:\n\n```\ncriterion referenced in body: False\nonly rms_radius used: True\n```\n\n## Root cause\n\n`openlens/tolerancing.py:689-704` \u2014 the method signature declares `criterion: str = \"rms_spot_radius\"`, but the body constructs `SpotDiagram` and reads `res_nom[\"rms_radius\"]` unconditionally. Compare `MonteCarloAnalyzer.run` at `:566-593`, which defines `SUPPORTED_CRITERIA` and raises `ValueError` for unsupported values.\n\n## Expected behaviour\n\nEither implement the requested criterion (or the supported subset) or validate it the same way `MonteCarloAnalyzer` does and raise `ValueError` for unsupported metrics. The parameter must not be silently ignored.\n\n## Suggested fix\n\nAdd the same `SUPPORTED_CRITERIA` check at the top of `calculate_sensitivities` (reusing the Monte Carlo constant), and dispatch to the matching metric or raise. Document the supported set in the docstring. Add tests for the supported criterion and for an unsupported one raising.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/615",
+ "pr": 705,
+ "pr_title": "fix(tolerancing): honour the inverse-sensitivity criterion argument",
+ "pr_body": "## Description\n\n`InverseSensitivityAnalyzer.calculate_sensitivities(criterion=...)`\ndeclared a `criterion` argument and never read it. Every call - including\n`optimize_limits()` - traced a `SpotDiagram` and read `rms_radius`\nunconditionally:\n\n```\ncriterion referenced in body: False\nonly rms_radius used: True\n```\n\nA caller passing `criterion=\"mtf\"` (or anything else) silently received\nRMS-spot sensitivities, and inverse tolerance budgeting then allocated\ntolerances against the wrong performance measure. `MonteCarloAnalyzer`, in\nthe same module, already rejects an unimplemented criterion with a\n`ValueError`.\n\n## What changed\n\n- **`openlens/tolerancing.py`** - `InverseSensitivityAnalyzer` now shares\n  `MonteCarloAnalyzer.SUPPORTED_CRITERIA` and validates the argument at the\n  top of `calculate_sensitivities()`, before any system state is captured or\n  traced. An unsupported name raises `ValueError` naming the supported set.\n- The docstring documents the argument, the supported value, and the raise.\n- Only `\"rms_spot_radius\"` is implemented today; the validation is what makes\n  the parameter meaningful and keeps the two tolerance tools consistent.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #615\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_inverse_sensitivity_criterion.py` - four of its five\ntests fail on the unfixed code (the fifth pins that the supported criterion\nstill measures):\n\n- `test_an_unsupported_criterion_raises`\n- `test_an_unsupported_criterion_does_not_trace` - validation happens before\n  the first `SpotDiagram`\n- `test_the_supported_set_is_the_monte_carlo_set`\n- `test_a_rejected_criterion_leaves_the_design_alone`\n- `test_the_supported_criterion_is_measured`\n\nFull local suite: `Ran 2712 tests ... OK (skipped=35)`; the tolerance suites\n(70 tests) pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "acf123df535ea77825e92521694d276a3276d08b",
+ "merged_at": "2026-10-22T11:30:02Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tolerancing.py"
+ ],
+ "test_files": [
+  "tests/test_inverse_sensitivity_criterion.py"
+ ],
+ "target_symbols": [
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer.__init__",
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer._get_system_state",
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer.calculate_sensitivities"
+ ],
+ "fail_to_pass": [
+  "tests/test_inverse_sensitivity_criterion.py::TestInverseSensitivityCriterion::test_a_rejected_criterion_leaves_the_design_alone",
+  "tests/test_inverse_sensitivity_criterion.py::TestInverseSensitivityCriterion::test_an_unsupported_criterion_does_not_trace",
+  "tests/test_inverse_sensitivity_criterion.py::TestInverseSensitivityCriterion::test_an_unsupported_criterion_raises",
+  "tests/test_inverse_sensitivity_criterion.py::TestInverseSensitivityCriterion::test_the_supported_set_is_the_monte_carlo_set"
+ ],
+ "pass_to_pass": [
+  "tests/test_inverse_sensitivity_criterion.py::TestInverseSensitivityCriterion::test_the_supported_criterion_is_measured"
+ ],
+ "patch_lines": 23
+}

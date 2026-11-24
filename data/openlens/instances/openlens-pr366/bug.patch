@@ -1,0 +1,13 @@
+diff --git a/openlens/analysis/beam_synthesis.py b/openlens/analysis/beam_synthesis.py
+index 9542df6a5c4133f6601cec30f1eaacf24276aa3b..57ce43ebb7ab5c23e1a23b9ee446c970f824a364 100644
+--- a/openlens/analysis/beam_synthesis.py
++++ b/openlens/analysis/beam_synthesis.py
+@@ -346,7 +346,7 @@ class BeamSynthesisPropagator:
+             amp = (w0 / wx) * np.exp(-(local_y**2) / (wx**2) - (local_z**2) / (wy**2))
+ 
+             # Phase
+-            k = 2 * np.pi / wavelength_mm
++            k = 2 * np.pi / wavelength
+             phase_curv = k * (local_y**2 / (2 * Rx) + local_z**2 / (2 * Ry))
+             phase_opl = k * beam.ray.optical_path_length
+ 

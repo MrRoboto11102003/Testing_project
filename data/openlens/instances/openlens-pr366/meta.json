@@ -1,0 +1,43 @@
+{
+ "id": "openlens-pr366",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 302,
+ "issue_title": "`GaussianBeam` has no `R_y`; beam-synthesis propagation always raises",
+ "issue_body": "**File:** `src/analysis/beam_synthesis.py:411` (class at `:23-102`)\n\n```python\nRx = beam.R_x\nRy = beam.R_y          # GaussianBeam has no R_y property\n```\n\n**Repro (verified):**\n```\nGaussianBeam attributes: ['w_x', 'w_y', 'R_x', 'propagate', 'refract']\nhas R_y: False\n```\n`BeamSynthesisPropagator.propagate_to_image` raises `AttributeError` as soon as one beamlet survives.\n\n**Fix:**\n```python\n@property\ndef R_y(self) -> float:\n    inv_q = 1.0 / self.q_y\n    if inv_q.real == 0:\n        return float(\"inf\")\n    return 1.0 / inv_q.real\n```\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/302",
+ "pr": 366,
+ "pr_title": "fix(beam): add the missing GaussianBeam.R_y curvature radius",
+ "pr_body": "propagate_to_image() reads beam.R_y for the sagittal phase term, but GaussianBeam only defined R_x, so every beam-synthesis propagation raised AttributeError on the first surviving beamlet. R_y mirrors R_x over q_y.\r\n\r\nAlso fixes the adjacent typo on the same statement group: the phase term computed k = 2*pi/wavelength, but the parameter is wavelength_mm, so the function raised NameError immediately after R_y was satisfied. flake8 was already reporting it as F821 undefined name 'wavelength'. Without this the feature still did not run, so the ticket's fix alone was not sufficient.\r\n\r\npropagate_to_image now completes and returns a finite intensity map, and the pattern responds to the passed wavelength.\r\n\r\nTen tests, all failing without the change: R_y against the analytic |q|^2/Re(q) for positive, negative and near-zero real parts, infinite at the waist as for R_x, independence from R_x on an astigmatic beam, and propagation parity with R_x.\r\n\r\nFixes #302",
+ "fix_commit": "767cbb3203a01715c14bcef6ea2467327710ab62",
+ "merged_at": "2026-10-04T16:00:59Z",
+ "port_method": "partial_hunks:1/2",
+ "src_files": [
+  "openlens/analysis/beam_synthesis.py"
+ ],
+ "test_files": [
+  "tests/test_beam_synthesis.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/beam_synthesis.py::BeamSynthesisPropagator.propagate_to_image"
+ ],
+ "fail_to_pass": [
+  "tests/test_beam_synthesis.py::TestBeamSynthesisAlignment::test_decenter_moves_the_focal_spot",
+  "tests/test_beam_synthesis.py::TestBeamSynthesisAlignment::test_tilt_changes_the_focal_field",
+  "tests/test_beam_synthesis.py::TestBeamSynthesisPropagation::test_propagate_to_image_returns_finite_intensity",
+  "tests/test_beam_synthesis.py::TestBeamSynthesisPropagation::test_propagate_to_image_uses_the_passed_wavelength"
+ ],
+ "pass_to_pass": [
+  "tests/test_beam_synthesis.py::TestBeamSynthesisPropagation::test_empty_system_returns_empty_arrays",
+  "tests/test_beam_synthesis.py::TestGaussianBeam::test_initialization",
+  "tests/test_beam_synthesis.py::TestGaussianBeam::test_propagation",
+  "tests/test_beam_synthesis.py::TestGaussianBeam::test_refraction_flat",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_at_waist_is_infinite",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_exists",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_is_independent_of_rx",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_matches_analytic_value",
+  "tests/test_beam_synthesis.py::TestGaussianBeamCurvature::test_ry_tracks_propagation_like_rx"
+ ],
+ "patch_lines": 2
+}

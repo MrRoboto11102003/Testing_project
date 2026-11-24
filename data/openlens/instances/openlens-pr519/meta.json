@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr519",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 451,
+ "issue_title": "Tolerancing: irregularity perturbation only works for one sign of fringe; half of draws are silently dropped",
+ "issue_body": "**Where:** `src/tolerancing.py:318-329`, used at `:412`\n\n`_radius_for_fringes` searches only `[R-span, R]` when R > 0 and `[R, R+span]` when R < 0. A target sag on the other side returns `None`, `_apply_value` returns `False`, and the perturbation is skipped. In a symmetric Monte Carlo run about half the IRREGULARITY draws are dropped, so yield is too optimistic.\n\n**Repro:** R=100, +1 fringe -> 99.937; R=100, -1 fringe -> `None`; R=-100, +1 fringe -> `None`; R=-100, -1 fringe -> -99.937.\n\n**Fix:** search the full `[R-span, R+span]` (sag is monotonic in R there), and delete the dead `f_lo/f_hi` code at `:311-316` and the redundant `import math as _math`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/451",
+ "pr": 519,
+ "pr_title": "fix(tolerancing): irregularity draws must not vanish on one side",
+ "pr_body": "## Description\n\nfix(tolerancing): irregularity draws must not vanish on one side\n\n`_radius_for_fringes` bracketed the root on **one side only**:\n\n```python\nR > 0:  search [R - span, R]\nR < 0:  search [R, R + span]\n```\n\nSag rises with curvature, so a target on the *other* side of the nominal sag was\nnever bracketed. The call returned `None`, `_apply_value` returned `False`, and\nthe perturbation was silently skipped:\n\n```\nR =  100, +1 fringe -> 99.937\nR =  100, -1 fringe -> None\nR = -100, +1 fringe -> None\nR = -100, -1 fringe -> -99.937\n```\n\nIn a symmetric Monte Carlo run that drops about **half** the `IRREGULARITY` draws\n\u2014 and the half that drop is the half that would have moved the surface the other\nway, so the reported yield comes out **optimistic**.\n\nThe full interval `[R - span, R + span]` is searched instead, over which the sag is\nmonotonic in `R`. `span` is half of `|R|`, so the interval never crosses zero and\nthe surface never flips sign \u2014 the radius stays on the side it started.\n\n### Dead code the change made obvious\n\n`lo`/`hi`, `f_lo` and `f_hi` were computed and then **immediately overwritten** by\nthe one-sided branch, and `import math as _math` was used exactly once while\n`math` is already imported at module scope. Both gone.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #451\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting the bracket to the one-sided form \u2192\n      **25 failures and 3 errors** across the 15 tests\n- [x] `python3 -m unittest tests.test_irregularity_fringes` \u2014 15 tests, OK\n- [x] `python3 -m unittest tests.test_irregularity_fringes tests.test_tolerancing_live_design tests.test_tolerance_persistence tests.test_tolerancing_assemblies tests.test_tolerancing_worker_flags` \u2014 62 tests, OK\n- [x] Full suite: `Ran 1860 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 233 files unchanged\n- [x] `flake8 src/tolerancing.py` \u2014 **2 findings, identical to `master`** (the\n      `_get_system_state` / `_set_system_state` redefinitions, shifted by the change)\n- [x] Coverage includes:\n  - both fringe signs across three positive **and** three negative radii\n  - the resulting **sag change** matching the requested fringes, not merely the\n    radius being found \u2014 a bracket can contain the target and still return a\n    wrong root\n  - radius magnitude and sign behaving as the physics implies\n  - the degenerate geometries (flat, zero radius, zero/negative height, radius\n    below the semi-aperture) still declining rather than returning a bogus number\n  - zero fringes returning the nominal radius\n  - and the user-visible consequence: a 12-trial Monte Carlo run applies\n    **every** perturbation\n\n### Why the sag change is asserted, not just the non-None\n\nFinding *a* root is a weak property \u2014 a bracket can contain the target and the\nsearch can still land on the wrong one. The tests therefore measure\n`sag(result) - sag(nominal)` and require it to equal `fringes \u00d7 FRINGE_SAG_MM`.\nThat is what distinguishes \"the perturbation happened\" from \"the perturbation\nhappened by the right amount\".\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "18f219fe32ad39d047bbc97ca48ad66d2e7249d8",
+ "merged_at": "2026-10-18T15:27:06Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tolerancing.py"
+ ],
+ "test_files": [
+  "tests/test_irregularity_fringes.py"
+ ],
+ "target_symbols": [
+  "openlens/tolerancing.py::_radius_for_fringes"
+ ],
+ "fail_to_pass": [
+  "tests/test_irregularity_fringes.py::TestBothFringeSignsAreFound::test_both_signs_for_a_negative_radius",
+  "tests/test_irregularity_fringes.py::TestBothFringeSignsAreFound::test_both_signs_for_a_positive_radius",
+  "tests/test_irregularity_fringes.py::TestBothFringeSignsAreFound::test_the_issue_repro_no_longer_returns_none",
+  "tests/test_irregularity_fringes.py::TestTheRadiusActuallyProducesTheFringe::test_negative_fringes_increase_the_radius_magnitude",
+  "tests/test_irregularity_fringes.py::TestTheRadiusActuallyProducesTheFringe::test_the_sag_change_matches_the_requested_fringes",
+  "tests/test_irregularity_fringes.py::TestTheRadiusActuallyProducesTheFringe::test_the_sign_of_the_radius_is_preserved"
+ ],
+ "pass_to_pass": [
+  "tests/test_irregularity_fringes.py::TestDegenerateGeometryStillDeclines::test_a_flat_surface_still_returns_none",
+  "tests/test_irregularity_fringes.py::TestDegenerateGeometryStillDeclines::test_a_negative_height_still_returns_none",
+  "tests/test_irregularity_fringes.py::TestDegenerateGeometryStillDeclines::test_a_radius_below_the_semi_aperture_still_returns_none",
+  "tests/test_irregularity_fringes.py::TestDegenerateGeometryStillDeclines::test_a_zero_height_still_returns_none",
+  "tests/test_irregularity_fringes.py::TestDegenerateGeometryStillDeclines::test_a_zero_radius_still_returns_none",
+  "tests/test_irregularity_fringes.py::TestDegenerateGeometryStillDeclines::test_zero_fringes_returns_the_nominal_radius",
+  "tests/test_irregularity_fringes.py::TestIrregularityDrawsAreNotDropped::test_every_trial_applies_its_irregularity",
+  "tests/test_irregularity_fringes.py::TestIrregularityDrawsAreNotDropped::test_the_perturbations_go_both_ways",
+  "tests/test_irregularity_fringes.py::TestTheRadiusActuallyProducesTheFringe::test_positive_fringes_reduce_the_radius_magnitude"
+ ],
+ "patch_lines": 31
+}

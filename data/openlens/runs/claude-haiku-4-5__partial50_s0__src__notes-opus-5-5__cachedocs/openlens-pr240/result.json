@@ -1,0 +1,301 @@
+{
+ "id": "openlens-pr240",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 110,
+  "units_kept": 55,
+  "chars": 57302,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 10045
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.77,
+ "detected": true,
+ "n_tests": 24,
+ "n_catching": 3,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 5268,
+  "cache_read_input_tokens": 12724,
+  "output_tokens": 6722,
+  "output_tokens_details": {
+   "thinking_tokens": 4553
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 5268,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 6722,
+    "cache_read_input_tokens": 12724,
+    "cache_creation_input_tokens": 5268,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 5268
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.04542740000000001,
+ "model_seconds": 34.3,
+ "seconds": 40.6,
+ "tests": {
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_empty_string_returns_untitled": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_inner_whitespace_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_length_101_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_length_checked_after_stripping": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_max_length_100_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_type_error_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_type_error_int": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_type_error_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_valid_string_returned_unchanged": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_whitespace_stripping": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_check_order_sag_validated_before_diameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_custom_param_name_in_error_message": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_diameter_branch_validates_bound": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "parabolic_sag_limit",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_diameter_branch_validates_diameter_positive": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_diameter_branch_validates_thickness_non_negative": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_error_message_includes_vertex_radius_for_nonzero_sag": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ValidationError",
+    "parabolic_sag_limit",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_inf_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_legacy_branch_magnitude_100_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_legacy_branch_magnitude_exceeds_100_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_nan_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_type_error_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_type_error_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_type_error_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_valid_sag_returns_float": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_parabolic_sag"
+   ]
+  }
+ }
+}

@@ -1,0 +1,368 @@
+{
+ "id": "openlens-pr267",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 111,
+  "units_kept": 56,
+  "chars": 73416,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 17876
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.15,
+ "detected": true,
+ "n_tests": 33,
+ "n_catching": 9,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 23564,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8450,
+  "output_tokens_details": {
+   "thinking_tokens": 4643
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 23564,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8450,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 23564,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 23564
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.089387,
+ "model_seconds": 39.4,
+ "seconds": 45.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_angle_at_90_raises": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_bare_bk7_default_normal_incidence": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_bare_substrate_1_5_normal_incidence": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_bare_wavelength_independent": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_half_wave_layer_equals_bare": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner",
+    "CoatingLayer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_negative_angle_raises": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_negative_wavelength_raises": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_quarter_wave_mgf2_layer": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner",
+    "CoatingLayer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_return_clamped_0_1": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_return_type_float": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_wavelength_validation_before_angle": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_wavelength_zero_raises": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivity::test_zero_thickness_layer_equals_bare": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner",
+    "CoatingLayer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_coated_varies_with_wavelength": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "CoatingDesigner",
+    "CoatingLayer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_custom_num_points": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_default_num_points_100": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_num_points_negative_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_num_points_zero_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_reflectivity_matches_single_call": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_return_tuples": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_reversed_wavelength_range": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_single_point_at_min": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_uncoated_constant_reflectivity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_wavelength_range_wrong_length_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestCalculateReflectivityCurve::test_wavelength_spacing_linear": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestDesignVCoating::test_beats_uncoated": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestDesignVCoating::test_deterministic": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestDesignVCoating::test_inner_independent_of_substrate": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestDesignVCoating::test_inner_layer_quarter_wave": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestDesignVCoating::test_materials_and_indices": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestDesignVCoating::test_non_negative_thicknesses": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestDesignVCoating::test_returns_three_layers": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner",
+    "CoatingLayer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr267.py::TestDesignVCoating::test_zero_wavelength_gives_zero_thicknesses": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "CoatingDesigner"
+   ]
+  }
+ }
+}

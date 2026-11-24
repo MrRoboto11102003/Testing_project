@@ -1,0 +1,66 @@
+diff --git a/openlens/database.py b/openlens/database.py
+index e878011aafc3f467b4cf8cae2d276cd25f56dec2..f771d29941ccfb0afd0dcf0d31ede8950f4911ee 100644
+--- a/openlens/database.py
++++ b/openlens/database.py
+@@ -297,7 +297,6 @@ class DatabaseManager:
+                             bevel_2 REAL NOT NULL DEFAULT 0.0,
+                             coating_1 TEXT,
+                             coating_2 TEXT,
+-                            is_library INTEGER NOT NULL DEFAULT 1,
+                             metadata TEXT
+                         )
+                     """)
+@@ -775,11 +774,8 @@ class DatabaseManager:
+                 for _ckey in ("coating_1", "coating_2"):
+                     _raw = lens.get(_ckey)
+                     lens[_ckey] = _coating_parse(_raw) if isinstance(_raw, str) else _raw
+-                # Always available to assemblies, whether or not it is a
+-                # library item in its own right.
++                results.append(lens)
+                 lenses_lookup[lens["id"]] = lens
+-                if lens.get("is_library", 1):
+-                    results.append(lens)
+ 
+             # 2. Load all assemblies
+             cursor.execute("SELECT * FROM assemblies")
+@@ -920,22 +916,6 @@ class DatabaseManager:
+             asm_ids = [r["id"] for r in cursor.fetchall()]
+         return {"lenses": lens_ids, "assemblies": asm_ids}
+ 
+-    def lens_ids_used_by_assemblies(self) -> set:
+-        """Ids of every lens currently placed in at least one assembly.
+-
+-        These are not library items in their own right, so reconciliation has
+-        no business trying to delete them - the in-use guard refuses, and one
+-        refusal per assembly lens on every save reads as an application fault
+-        rather than the guard doing its job.
+-
+-        Returns:
+-            The set of referenced lens ids.
+-        """
+-        with self._connection() as conn:
+-            cursor = conn.cursor()
+-            cursor.execute("SELECT DISTINCT lens_id FROM assembly_elements")
+-            return {row["lens_id"] for row in cursor.fetchall()}
+-
+     def get_referencing_assemblies(self, lens_id: str) -> List[tuple]:
+         """Return (assembly_id, assembly_name) pairs using this lens."""
+         with self._connection() as conn:
+@@ -1007,16 +987,5 @@ class DatabaseManager:
+                 cursor.execute("COMMIT")
+             except Exception as e:
+                 cursor.execute("ROLLBACK")
+-                if isinstance(e, LensInUseError):
+-                    # The guard working as designed, not a failure. This used to
+-                    # be logged at ERROR, so every full save of a library with
+-                    # assemblies reported one failure per assembly lens - the
+-                    # application reading as broken while behaving correctly.
+-                    logger.debug(
+-                        "Refused to delete %s: still in assembly %s",
+-                        item_id,
+-                        ", ".join(name for _id, name in e.assemblies) or "an assembly",
+-                    )
+-                else:
+-                    logger.error("Failed to delete item %s: %s", item_id, e)
++                logger.error("Failed to delete item %s: %s", item_id, e)
+                 raise

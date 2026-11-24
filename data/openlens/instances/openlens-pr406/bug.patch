@@ -1,0 +1,32 @@
+diff --git a/openlens/material_database.py b/openlens/material_database.py
+index d08bcde2e77e93b79b3177c0ffb5debfc18e9814..2768fad50f8e338685a3f17266029de1b689f0d2 100644
+--- a/openlens/material_database.py
++++ b/openlens/material_database.py
+@@ -12,6 +12,7 @@ import csv
+ from typing import Dict, List, Optional, Tuple
+ from dataclasses import dataclass, field, asdict
+ import math
++from functools import lru_cache
+ from .atomic import atomic_write_json
+ from .paths import default_materials_path, ensure_parent_dir
+ 
+@@ -369,11 +370,6 @@ class MaterialDatabase:
+                 "y" if skipped == 1 else "ies",
+             )
+ 
+-        # Materials may have just been replaced wholesale, so any cached index
+-        # for them is stale. Harmless during __init__ (nothing is cached yet),
+-        # but _load_database is reachable again if this ever gains a reload().
+-        self.clear_cache()
+-
+     def save_database(self) -> None:
+         """Save materials to JSON file"""
+         # The user data directory may not exist yet. ensure_parent_dir reports
+@@ -448,6 +444,7 @@ class MaterialDatabase:
+             ]
+         return list(self.materials.keys())
+ 
++    @lru_cache(maxsize=1024)
+     def get_refractive_index(
+         self, material_name: str, wavelength_nm: float, temperature_c: float = 20.0
+     ) -> float:

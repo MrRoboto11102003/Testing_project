@@ -1,0 +1,57 @@
+{
+ "id": "openlens-pr368",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 304,
+ "issue_title": "A fully vignetted system is scored as a perfect design",
+ "issue_body": "**Files:** `src/analysis/spot_diagram.py:178-186` \u2192 `src/optimizer.py:168` \u2192 `src/tolerancing.py:465-466`\n\n```python\n# spot_diagram.py:178 \u2014 \"no rays reached the plane\" reported as a PERFECT spot\nreturn {\"rms_radius\": 0.0, \"geo_radius\": 0.0, ...}\n# optimizer.py:168\nvalue = results.get(\"rms_radius\", 0.0)      # defaults to 0.0 on any miss\n# tolerancing.py:465-466\nval = results[\"rms_radius\"]\npassed = val <= criterion_limit             # 0.0 <= limit -> PASS\n```\n\n**Repro (verified):** a 2-element system with a 1.0 mm stop on gap 0 (1 of 127 rays survives):\n```\nvalid_rays: 1   rms: 0.0\nMonteCarloAnalyzer(...).run(num_trials=5, criterion_limit=0.05)\n  -> {'mean': 0.0, 'yield': 100.0, 'max': 0.0}\nMeritFunction(s, [OptimizationTarget(\"rms_spot_radius\", 0.0)]).evaluate(s) -> 0.0\n```\n\nA 99 %-vignetted system beats every physically real design in the optimizer, and Monte Carlo reports\n**100 % production yield** on it. This inverts the purpose of both modules.\n\n**Fix:** return `rms_radius: None` (or raise) with `\"error\"` set when `valid_rays < 2`; make\n`MeritFunction._eval_rms_spot` return `INFEASIBLE_MERIT` for `None` (as `_eval_spherical:119-121`\nalready does) \u2014 never default to `0.0`; have `MonteCarloAnalyzer.run` fail the trial rather than pass it.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/304",
+ "pr": 368,
+ "pr_title": "fix(analysis): never score a vignetted design as a perfect spot",
+ "pr_body": "Closes #304\n\n## Problem\n\n`SpotDiagram.trace_spot` reported \"no rays reached the image plane\" as `rms_radius: 0.0`. Two consumers read that `0.0` as a genuine measurement:\n\n| Site | Code | Effect |\n|---|---|---|\n| `src/optimizer.py` | `results.get(\"rms_radius\", 0.0)` | defaults to 0.0 on any miss |\n| `src/tolerancing.py` | `passed = val <= criterion_limit` | `0.0 <= limit` \u2192 PASS |\n\nA two-element system behind a 1 mm stop (1 of 127 rays survives) therefore scored a *perfect* spot, outranked every physically real design in the optimizer, and reported **100% production yield** in Monte Carlo.\n\n```\nvalid_rays: 1   rms: 0.0\nmonte carlo -> {'yield': 100.0, 'mean': 0.0, 'max': 0.0}\nmerit       -> 0.0\n```\n\nThis inverts the purpose of both modules.\n\n## Fix\n\n- `trace_spot` returns `rms_radius: None` with an `error` key when **fewer than two rays** arrive. One ray sits on its own centroid, so its RMS radius is identically 0.0 \u2014 not a reporting edge case, but the best possible score. Two rays is the minimum that defines a spot.\n- `_eval_rms_spot` returns `INFEASIBLE_MERIT` for that case, matching what `_eval_spherical` already did for a `None` aberration, and never defaults to `0.0`.\n- Vignetted Monte Carlo trials are counted as failures and contribute `inf`. Since `statistics.mean/stdev` cannot reduce `inf` (`inf - inf` is `nan`), the summary is taken over the finite trials while `max` keeps the `inf`, and a new `vignetted_trials` count reports how many there were.\n- The inverse-sensitivity slope is `nan` when both ends are `inf`: the operand never moved the design between two unmanufacturable states, so there is no slope \u2014 and `inf` would wrongly imply an infinitely sensitive operand.\n\n## After\n\n```\nvignetted : valid_rays=1 rms=None\n  merit vignetted=1000000000.0  healthy=0.440376  -> healthy wins: True\n  monte carlo yield=0.0 mean=inf max=inf vignetted_trials=5\n  healthy monte carlo yield=0.0 mean=0.440369\n```\n\n## Tests\n\nNew `tests/test_vignetted_scoring.py` (10 tests, 8 fail without the change): the `None` contract, healthy systems still reporting real radii, optimizer merit ordering, yield no longer 100%, statistics surviving non-finite values, and both inverse-sensitivity paths.",
+ "fix_commit": "17557859860408a98127d2cc4f2097521477b0cb",
+ "merged_at": "2026-10-04T20:38:02Z",
+ "port_method": "partial_hunks:3/8",
+ "src_files": [
+  "openlens/analysis/spot_diagram.py",
+  "openlens/optimizer.py",
+  "openlens/tolerancing.py"
+ ],
+ "test_files": [
+  "tests/test_analysis.py",
+  "tests/test_vignetted_scoring.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/spot_diagram.py::SpotDiagram.trace_spot",
+  "openlens/tolerancing.py::InverseSensitivityAnalyzer.calculate_sensitivities",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._apply_tolerances",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._optimize_compensators",
+  "openlens/tolerancing.py::MonteCarloAnalyzer._spot_rms"
+ ],
+ "fail_to_pass": [
+  "tests/test_analysis.py::TestSpotDiagramFailureModes::test_genuine_no_rays_still_returns_empty_stats",
+  "tests/test_vignetted_scoring.py::TestInverseSensitivityHandlesVignetting::test_vignetted_system_does_not_crash",
+  "tests/test_vignetted_scoring.py::TestMonteCarloFailsVignettedTrials::test_statistics_survive_non_finite_values",
+  "tests/test_vignetted_scoring.py::TestMonteCarloFailsVignettedTrials::test_yield_is_not_100_percent",
+  "tests/test_vignetted_scoring.py::TestVignettedSpotIsNotPerfect::test_single_surviving_ray_is_not_zero_radius",
+  "tests/test_vignetted_scoring.py::TestVignettedSpotIsNotPerfect::test_spot_reports_none_below_two_rays"
+ ],
+ "pass_to_pass": [
+  "tests/test_analysis.py::TestSpotDiagram::test_defocus",
+  "tests/test_analysis.py::TestSpotDiagram::test_hexapolar_grid",
+  "tests/test_analysis.py::TestSpotDiagram::test_off_axis_spot",
+  "tests/test_analysis.py::TestSpotDiagram::test_on_axis_spot",
+  "tests/test_analysis.py::TestSpotDiagramFailureModes::test_empty_system_raises_index_error_not_unbound_local",
+  "tests/test_analysis.py::TestSpotDiagramFailureModes::test_lens_state_restored_when_tracer_raises",
+  "tests/test_analysis.py::TestSpotDiagramFailureModes::test_normal_run_unaffected",
+  "tests/test_analysis.py::TestSpotDiagramFailureModes::test_tracer_failure_propagates_even_after_points_landed",
+  "tests/test_analysis.py::TestSpotDiagramFailureModes::test_tracer_failure_propagates_instead_of_returning_zero_radius",
+  "tests/test_vignetted_scoring.py::TestInverseSensitivityHandlesVignetting::test_healthy_system_sensitivity_is_finite",
+  "tests/test_vignetted_scoring.py::TestMonteCarloFailsVignettedTrials::test_healthy_system_reports_finite_statistics",
+  "tests/test_vignetted_scoring.py::TestOptimizerRejectsVignettedDesign::test_rms_spot_merit_is_infeasible",
+  "tests/test_vignetted_scoring.py::TestOptimizerRejectsVignettedDesign::test_vignetted_design_scores_worse_than_a_healthy_one",
+  "tests/test_vignetted_scoring.py::TestVignettedSpotIsNotPerfect::test_healthy_system_still_reports_a_real_radius"
+ ],
+ "patch_lines": 41
+}

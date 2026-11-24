@@ -1,0 +1,54 @@
+{
+ "id": "openlens-pr244",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 232,
+ "issue_title": "Paraboloid normal double-flip + per-ray inverse in hot loop",
+ "issue_body": "**File:** `src/tracer_3d.py:149-216,241-318`\n\nSpherical outward normal `(hit-center)` vs paraboloid gradient `(1,-y/R,-z/R)` have opposite base orientation, but the same `if R<0: flip; if back and R>0: flip` is applied to both \u2014 front parabolic `R>0` stays inward, back flips wrong. Masked today by `apply_snell:96-101` auto-flip + `abs()` Fresnel, but polarization basis `s=k\u00d7n` flips sign and tilted-transform cases break. Perf: `transform.inverse()` (4x4) computed twice per surface per ray; aperture epsilons disagree (`+1e-6` vs `+1e-4` vs 2D exact `D/2`).\n\n**Fix:** outward-normal helper (`front \u2248 -axis, back \u2248 +axis` regardless of `R` sign), cache `_inv` in `_calculate_geometry`, single `AP = D/2 + 1e-9` constant.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/232",
+ "pr": 244,
+ "pr_title": "fix(tracer-3d): orient normals outward and add Matrix4x4 inverse",
+ "pr_body": "Matrix4x4.inverse() was missing, so both tilted-transform call sites raised AttributeError per ray and fell back to translation-only math. Add Gauss-Jordan inverse with partial pivoting (exact for translations, ValueError on singular) and cache it as _inv.\r\n\r\n- Add _outward_normal helper: front faces -axis, back +axis regardless of curvature sign, fixing spherical/parabolic double-flip cascades (refraction unchanged via apply_snell auto-flip, s=kxn basis now consistent)\r\n- Unify aperture tolerance to D/2+1e-9; beyond-rim rays vignette instead of folding\r\n- Tests: new tests/test_transform.py (5 inverse tests) + 3 orientation/aperture tests in test_ray_tracer_3d.py\r\n\r\nDeliberately untouched: already_exited block (separate miss-semantics issue). Verified all 12 orientation combos incl. tilted plus tilted parabolic refraction; full suite green, black clean.",
+ "fix_commit": "dcb202ddc9cc3bc5cc6f8e7480f7f9168599d68e",
+ "merged_at": "2026-09-10T12:13:16Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/tracer_3d.py",
+  "openlens/transform.py"
+ ],
+ "test_files": [
+  "tests/test_ray_tracer_3d.py",
+  "tests/test_transform.py"
+ ],
+ "target_symbols": [
+  "openlens/transform.py::Matrix4x4.__mul__",
+  "openlens/transform.py::Matrix4x4.from_translation",
+  "openlens/transform.py::Matrix4x4.multiply_point",
+  "openlens/transform.py::Matrix4x4.multiply_vector"
+ ],
+ "fail_to_pass": [
+  "tests/test_transform.py::TestMatrixInverse::test_composed_inverse",
+  "tests/test_transform.py::TestMatrixInverse::test_euler_orthonormal",
+  "tests/test_transform.py::TestMatrixInverse::test_inverse_reverses_points",
+  "tests/test_transform.py::TestMatrixInverse::test_singular_raises",
+  "tests/test_transform.py::TestMatrixInverse::test_translation_inverse_exact"
+ ],
+ "pass_to_pass": [
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_aperture_vignettes_beyond_rim",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_back_surface_miss_reports_missed",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_cemented_doublet_trace",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_normal_ray_still_refracts_at_back_surface",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_off_axis_meridional_ray",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_on_axis_ray_agreement",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_outward_normals_all_quadrants",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_parabolic_normals_outward",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_skew_ray_symmetry",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_system_tracer",
+  "tests/test_ray_tracer_3d.py::TestRayTracer3D::test_trace_edge_ray_crossed",
+  "tests/test_ray_tracer_3d.py::TestSphericalCapSelection3D::test_3d_matches_2d_on_concave_first_surface",
+  "tests/test_ray_tracer_3d.py::TestSphericalCapSelection3D::test_cemented_doublet_still_traces",
+  "tests/test_ray_tracer_3d.py::TestSphericalCapSelection3D::test_front_hit_matches_analytic_sag"
+ ],
+ "patch_lines": 21
+}

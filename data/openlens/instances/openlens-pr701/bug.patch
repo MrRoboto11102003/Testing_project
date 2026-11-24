@@ -1,0 +1,22 @@
+diff --git a/openlens/analysis/beam_synthesis.py b/openlens/analysis/beam_synthesis.py
+index 9542df6a5c4133f6601cec30f1eaacf24276aa3b..5c42a7f1059907bc092bbc6cf4480a3517090634 100644
+--- a/openlens/analysis/beam_synthesis.py
++++ b/openlens/analysis/beam_synthesis.py
+@@ -58,7 +58,6 @@ from ..vector3 import vec3
+ from ..ray_tracer import RefractionResult, Ray3D, LensRayTracer3D, SystemRayTracer3D
+ from ..optical_system import OpticalSystem
+ from ..constants import NM_TO_MM, WAVELENGTH_GREEN
+-from .paraxial import find_paraxial_focus
+ 
+ 
+ @dataclass
+@@ -309,7 +308,8 @@ class BeamSynthesisPropagator:
+ 
+         # 2. Define Detector Grid
+         if image_plane_x is None:
+-            image_plane_x = self._default_image_plane(wavelength_mm)
++            # Default to paraxial focus (approx)
++            image_plane_x = self.system.get_total_length() + 50
+ 
+         det_y = np.linspace(-detector_size / 2, detector_size / 2, detector_pixels)
+         det_z = np.linspace(-detector_size / 2, detector_size / 2, detector_pixels)

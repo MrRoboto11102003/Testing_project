@@ -1,0 +1,34 @@
+diff --git a/openlens/optical_system.py b/openlens/optical_system.py
+index 4113bb20ba36abb0b6181d613217c3f1cb18a8dd..3bb3257f453ac147d91661b9f5b414cb97ebf80a 100644
+--- a/openlens/optical_system.py
++++ b/openlens/optical_system.py
+@@ -1042,12 +1042,7 @@ class AchromaticDoubletDesigner:
+         else:
+             R2_flint = 1.0 / inv_R2
+ 
+-        # Create lenses. The refractive index must be the one the radii were
+-        # solved with: Lens.__init__ otherwise falls back to
+-        # DEFAULT_MATERIAL_INDICES (SF11 -> 1.78), not the catalog nd
+-        # (1.78472) used above, leaving the doublet built to a different index
+-        # than its geometry assumes. Lens.for_material is no substitute: it
+-        # re-evaluates Sellmeier and lands on yet another value (1.785107).
++        # Create lenses
+         crown_lens = Lens(
+             name=f"{crown_material} Element",
+             radius_of_curvature_1=R1_crown,
+@@ -1055,7 +1050,6 @@ class AchromaticDoubletDesigner:
+             thickness=diameter * 0.15,  # ~15% of diameter
+             diameter=diameter,
+             material=crown_material,
+-            refractive_index=n1,
+             wavelength=WAVELENGTH_D_LINE,
+         )
+ 
+@@ -1066,7 +1060,6 @@ class AchromaticDoubletDesigner:
+             thickness=diameter * 0.08,  # Thinner flint
+             diameter=diameter,
+             material=flint_material,
+-            refractive_index=n2,
+             wavelength=WAVELENGTH_D_LINE,
+         )
+ 

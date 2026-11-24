@@ -1,0 +1,60 @@
+{
+ "id": "openlens-pr548",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 442,
+ "issue_title": "Lens.get_coating_*()/to_dict() return live mutable coating dicts",
+ "issue_body": "**Where:** `src/lens.py:272-278`, `:486-488`\n\nThe getters copy only the outer list, and `to_dict()` returns the coating lists directly. Mutating a returned layer silently mutates the lens and bypasses `set_coating()` and its `modified_at` update.\n\n**Repro:** `lens.get_coating_1()[0][\"n\"] = 99` changes `lens.coating_1[0][\"n\"]` to `99`.\n\n**Fix:** deep-copy coating layers at these API boundaries, or return immutable dataclasses.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/442",
+ "pr": 548,
+ "pr_title": "fix(lens): deep-copy coating layers at the API boundaries",
+ "pr_body": "## Description\n\nfix(lens): deep-copy coating layers at the API boundaries\n\n`Lens.get_coating_1/2()` copied only the outer list, and `Lens.to_dict()` returned the `coating_1` / `coating_2` lists themselves. The layer dicts stayed shared, so\n\n```python\nlens.get_coating_1()[0][\"refractive_index\"] = 99\n```\n\nsilently edited the lens and bypassed `set_coating()` and its `modified_at` update. `Lens.from_dict(lens.to_dict())` was not an independent copy either: it shared every layer with the original.\n\n### The fix\n\nReturn `copy.deepcopy` from both getters and from `to_dict()`, matching the defensive copy the same method already performs for `metadata`.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking)\n\n## Related Issues\n\nCloses #442\n\n## How Has This Been Tested?\n\n- [x] **5 new tests** in `tests/test_coating.py`: mutating a getter layer, appending to a getter list, fresh layers on every call, mutating a `to_dict` layer, and a round-trip guard that both surfaces still deserialize\n- [x] **Red before the fix**: `FAILED (failures=3)` \u2014 the mutation reached `lens.coating_1[0]` and the two getter calls returned identical layer objects\n- [x] `tests.test_coating` \u2014 28 tests OK\n- [x] Full suite: `Ran 2258 tests`, `FAILED (errors=6)` \u2014 master (2253) plus the five new tests; the six errors are the pre-existing `gui_flows` loader failures (pytest is not installed locally)\n- [x] `black --check` clean; `flake8` only pre-existing findings (`E402` import order in `lens.py`, `F401` unused `json` in the test module)\n",
+ "fix_commit": "b5b40bc4081cb76e38791995ad7086bef4959fea",
+ "merged_at": "2026-10-19T18:58:12Z",
+ "port_method": "partial_hunks:2/3",
+ "src_files": [
+  "openlens/lens.py"
+ ],
+ "test_files": [
+  "tests/test_coating.py"
+ ],
+ "target_symbols": [
+  "openlens/lens.py::Lens.get_coating_1",
+  "openlens/lens.py::Lens.get_coating_2",
+  "openlens/lens.py::Lens.set_coating"
+ ],
+ "fail_to_pass": [
+  "tests/test_coating.py::TestCoatingCopiesAreDefensive::test_each_getter_call_returns_fresh_layers",
+  "tests/test_coating.py::TestCoatingCopiesAreDefensive::test_mutating_a_getter_layer_does_not_change_the_lens",
+  "tests/test_coating.py::TestCoatingCopiesAreDefensive::test_mutating_to_dict_coatings_does_not_change_the_lens",
+  "tests/test_coating.py::TestCoatingCopiesAreDefensive::test_to_dict_still_round_trips_the_coatings",
+  "tests/test_coating.py::TestCoatingPersistence::test_assembly_elements_preserve_coatings",
+  "tests/test_coating.py::TestCoatingPersistence::test_save_and_load_preserves_coatings",
+  "tests/test_coating.py::TestLensCoatingModel::test_set_coating_round_trip"
+ ],
+ "pass_to_pass": [
+  "tests/test_coating.py::TestCoatingCopiesAreDefensive::test_appending_to_a_getter_list_does_not_change_the_lens",
+  "tests/test_coating.py::TestCoatingDesigner::test_labels",
+  "tests/test_coating.py::TestCoatingDesigner::test_layer_round_trip",
+  "tests/test_coating.py::TestCoatingDesigner::test_presets_build_stacks",
+  "tests/test_coating.py::TestCoatingDesigner::test_single_layer_beats_bare",
+  "tests/test_coating.py::TestCoatingExports::test_iso_table_shows_coating",
+  "tests/test_coating.py::TestCoatingExports::test_step_name_carries_coating",
+  "tests/test_coating.py::TestCoatingExports::test_zemax_has_coat_lines",
+  "tests/test_coating.py::TestCoatingGhosts::test_coated_ghosts_dimmer",
+  "tests/test_coating.py::TestCoatingPersistence::test_v4_database_migrates_with_uncoated_defaults",
+  "tests/test_coating.py::TestCoatingValidation::test_bad_index_raises",
+  "tests/test_coating.py::TestCoatingValidation::test_missing_key_raises",
+  "tests/test_coating.py::TestCoatingValidation::test_non_list_raises",
+  "tests/test_coating.py::TestCoatingValidation::test_none_and_empty_mean_uncoated",
+  "tests/test_coating.py::TestCoatingValidation::test_nonpositive_thickness_raises",
+  "tests/test_coating.py::TestCoatingValidation::test_valid_stack_normalizes",
+  "tests/test_coating.py::TestLensCoatingModel::test_coated_reflectance_beats_bare",
+  "tests/test_coating.py::TestLensCoatingModel::test_custom_glass_uses_stored_index",
+  "tests/test_coating.py::TestLensCoatingModel::test_defaults_uncoated",
+  "tests/test_coating.py::TestLensCoatingModel::test_set_coating_bad_surface_raises",
+  "tests/test_coating.py::TestSeriesECoatingSeed::test_seed_air_surfaces_single_coated"
+ ],
+ "patch_lines": 5
+}

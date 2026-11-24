@@ -1,0 +1,50 @@
+{
+ "id": "openlens-pr399",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 335,
+ "issue_title": "3D `_intersect_sphere` accepts a zero-length hit; the 2D guard was never ported",
+ "issue_body": "**File:** `src/tracer_3d.py:171` vs `src/tracer_2d.py:187`\n\n```python\n# 3D\nvalid_ts = [t for t in [t1, t2] if t > -EPSILON]      # <- 2D uses t > EPSILON\nis_inside = dist_sq < radius**2                       # <- no EPSILON slack\n```\n\nThe 2D tracer's comment documents this exact defect as already fixed; the fix was never applied to\nthe 3D copy. If the origin lies exactly on the sphere, `t = 0` is returned, the tracer appends a\nduplicate path point with 0 OPL, and refracts the ray in place.\n\n**Fix:** use `t > EPSILON` in the 3D tracer and add the same `radius*radius - EPSILON` slack.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/335",
+ "pr": 399,
+ "pr_title": "fix(tracer3d): do not record a zero-length hit as a path point",
+ "pr_body": "Closes #335\n\n## I did not apply the fix as written, because it would break cemented doublets\n\nThe issue asks the 3D tracer to reject `t ~ 0` the way the 2D tracer does. But `rank_cap_roots` documents that divergence as **deliberate**:\n\n> Callers own this because they disagree on purpose: \u2026 the 3D tracer accepts one so that touching surfaces in a cemented doublet still refract.\n\nIt is right. When two elements share a vertex, the ray has to change index at the point it is already standing on. Rejecting the hit would stop doublets refracting at the cemented interface.\n\n## What was actually wrong: the recording, not the acceptance\n\nThree sites appended the intersection unconditionally, so a cemented doublet produced **three pairs of consecutive identical path points**:\n\n```\n2: x=8.000000  seg=8.000e+00\n3: x=8.000000  seg=0.000e+00   <- duplicate\n4: x=8.000000  seg=0.000e+00   <- duplicate\n5: x=14.000000 seg=6.000e+00\n6: x=14.000000 seg=0.000e+00   <- duplicate\n```\n\nAnything deriving a direction or a segment length from consecutive path points divides by zero on those. `ray.origin` is still updated, so the refraction is untouched.\n\nThe sites: the surface intersection in `tracer_3d`, the aperture-stop append, and `Ray3D.propagate` with a zero distance.\n\n## Verified\n\n```\npath points: 5 | duplicates: 0\nx positions: [-50, 0.0, 8.0, 14.0, 64.0]\nOPL: 122.814400     (unchanged)\n```\n\nThe cemented vertex at `x = 8` is recorded exactly once. A spaced doublet, an off-axis ray, and the 2D tracer are all unaffected.\n\n## Tests\n\n15 tests, **6 fail without the change**.",
+ "fix_commit": "52b77489438faab9f0f19a9cc2e3a4c878ba26e3",
+ "merged_at": "2026-10-06T13:24:34Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/ray.py",
+  "openlens/tracer_3d.py"
+ ],
+ "test_files": [
+  "tests/test_tracer3d_zero_length_hit.py"
+ ],
+ "target_symbols": [
+  "openlens/ray.py::Ray3D.__init__",
+  "openlens/ray.py::Ray3D._compute_fresnel_reflectance",
+  "openlens/ray.py::Ray3D.propagate",
+  "openlens/tracer_3d.py::LensRayTracer3D.trace_surface",
+  "openlens/tracer_3d.py::SystemRayTracer3D.trace_off_axis_rays"
+ ],
+ "fail_to_pass": [
+  "tests/test_tracer3d_zero_length_hit.py::TestCementedDoubletPath::test_no_duplicate_path_points",
+  "tests/test_tracer3d_zero_length_hit.py::TestCementedDoubletPath::test_off_axis_ray_has_no_duplicates",
+  "tests/test_tracer3d_zero_length_hit.py::TestCementedDoubletPath::test_vertex_positions_are_all_present",
+  "tests/test_tracer3d_zero_length_hit.py::TestPropagateIsNoOpAtZero::test_negligible_propagate_appends_nothing",
+  "tests/test_tracer3d_zero_length_hit.py::TestPropagateIsNoOpAtZero::test_zero_propagate_appends_nothing",
+  "tests/test_tracer3d_zero_length_hit.py::TestSpacedDoubletUnaffected::test_no_duplicates"
+ ],
+ "pass_to_pass": [
+  "tests/test_tracer3d_zero_length_hit.py::TestCementedDoubletPath::test_optical_path_is_unchanged_by_dedup",
+  "tests/test_tracer3d_zero_length_hit.py::TestCementedDoubletPath::test_path_is_strictly_along_the_axis",
+  "tests/test_tracer3d_zero_length_hit.py::TestCementedDoubletPath::test_ray_still_refracts_at_the_cemented_interface",
+  "tests/test_tracer3d_zero_length_hit.py::TestPropagateIsNoOpAtZero::test_optical_path_unchanged_by_zero_propagate",
+  "tests/test_tracer3d_zero_length_hit.py::TestPropagateIsNoOpAtZero::test_real_propagate_still_records",
+  "tests/test_tracer3d_zero_length_hit.py::TestSpacedDoubletUnaffected::test_expected_surfaces_are_hit",
+  "tests/test_tracer3d_zero_length_hit.py::TestSpacedDoubletUnaffected::test_optical_path_is_positive_and_sane",
+  "tests/test_tracer3d_zero_length_hit.py::TestTwoDimensionalTracerUnchanged::test_2d_hit_on_the_front_surface_still_resolves",
+  "tests/test_tracer3d_zero_length_hit.py::TestTwoDimensionalTracerUnchanged::test_2d_path_has_no_zero_length_segments"
+ ],
+ "patch_lines": 31
+}

@@ -1,0 +1,38 @@
+{
+ "id": "openlens-pr690",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 688,
+ "issue_title": "bug(physics): a thickness tolerance changes the air gap instead of moving the elements",
+ "issue_body": "## Summary\n\nA thickness tolerance changes the air gap instead of moving the elements. `_apply_value()` writes `lens.thickness` and then calls `system._update_positions()`, which advances by the element's *cached* thickness wrapper - a copy of the lens value taken at construction. The wrapper is stale, so the element does not move and the gap to the next element absorbs the change.\n\n## Impact\n\n- The Monte Carlo analysis perturbs a design the user did not ask for: a thickness tolerance of +2 mm on the first element turns a 10 mm air gap into an 8 mm one. The reported yield is the yield of a different system.\n- A tolerance that is supposed to be a manufacturing tolerance of the lens becomes a variation of the mechanical spacing, which is not what the user configured and is not what the compensators or the assembly drawing assume.\n- The same stale-wrapper defect made the optimizer's thickness variable wrong (fixed separately in #632); the tolerancing path was left with it.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.tolerancing import ToleranceType, _apply_value\n\nsystem = OpticalSystem(\"two element\")\nsystem.add_lens(Lens(name=\"L1\", radius_of_curvature_1=70.0, radius_of_curvature_2=-100.0,\n                      thickness=5.0, diameter=25.0, refractive_index=1.5168),\n                air_gap_before=0.0)\nsystem.add_lens(Lens(name=\"L2\", radius_of_curvature_1=80.0, radius_of_curvature_2=-120.0,\n                      thickness=5.0, diameter=25.0, refractive_index=1.5168),\n                air_gap_before=10.0)\n\nprint(\"before:\", [e.position for e in system.elements], [g.thickness for g in system.air_gaps])\napplied = _apply_value(system, ToleranceType.THICKNESS, 0, 2.0)\nprint(\"after :\", [e.position for e in system.elements], [g.thickness for g in system.air_gaps])\ngap = system.elements[1].position - (\n    system.elements[0].position + system.elements[0].lens.thickness)\nprint(\"the real gap is now\", gap)\n```\n\nOutput:\n\n```\nbefore: [0.0, 15.0] [10.0]\nafter : [0.0, 15.0] [10.0]\nthe real gap is now 8.0\n```\n\nThe lens grew by 2 mm and the gap shrank by 2 mm; the second element did not\nmove.\n\n## Root cause\n\n- `openlens/tolerancing.py::_apply_value` writes\n  `lens.thickness += value` and then calls `system._update_positions()`.\n- `openlens/optical_system.py::_update_positions` advances with\n  `element.thickness` - the `LensElement` wrapper, a copy of the lens value\n  (`openlens/optical_system.py:59`, refreshed only by `LensElement.refresh`).\n- Nothing updates the wrapper when the lens's thickness changes, so the\n  positions - and with them the real gaps - are computed from the old value.\n\n## Expected behaviour\n\nA thickness tolerance makes the lens thicker and moves everything behind it,\nkeeping the declared air gap. The perturbed design is the one the user asked\nfor.\n\n## Suggested fix\n\nUpdate the element's thickness wrapper whenever the lens thickness changes\n(the model should own that invariant, so a `Lens.thickness` setter that keeps\nthe wrapper in step would be the durable fix), and add a test that a\nthickness perturbation leaves the air gap unchanged and moves the elements\nbehind it.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/688",
+ "pr": 690,
+ "pr_title": "fix(physics): a thickness tolerance must move the elements, not the gap",
+ "pr_body": "## Description\n\n`LensElement.thickness` was a copy of the lens value, taken when the element\nwas built. The copy went stale as soon as the lens changed, and\n`_update_positions()` advances by the copy - so a thickness tolerance moved\nthe air gap instead of the elements behind it:\n\n```\nafter +2 mm on the thickness of element 0:\n  lens0 thickness=7.000  positions=[0.0, 15.0]  air_gaps=[10.0]\n  the real gap between the elements is now 8.000 mm (was 10.0)\n```\n\nThe Monte Carlo analysis therefore perturbed a design the user did not ask\nfor: a tolerance of the lens became a variation of the mechanical spacing.\n\n## What changed\n\n- `openlens/optical_system.py::LensElement.thickness` is now a property that\n  reads the lens's thickness, and setting it writes through to the lens. The\n  element and its lens are one thing, so there is no second copy to keep in\n  step.\n- `openlens/optimizer.py` and `openlens/analysis/environmental.py` no longer\n  copy the value into a wrapper that does not exist any more.\n\nThe optimizer's thickness variable needed the same fix (#632); both paths now\nshare the one invariant.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #688\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n\nNew test module `tests/test_thickness_tolerance_geometry.py` (all three tests\nfail on the unfixed code):\n\n- `test_the_element_moves_with_its_thickness`\n- `test_the_air_gap_is_unchanged`\n- `test_the_element_and_its_lens_never_disagree`\n\nThe existing `tests/test_update_positions_identity.py`, which sets the\nelement's thickness directly, still passes.\n\nFull local suite: `Ran 2626 tests ... OK (skipped=35)`, `black` clean,\n`ruff` clean, `flake8` clean, `mypy` clean.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "205bc7f54ebcb611329e9c2d0f3b124163711e30",
+ "merged_at": "2026-10-22T07:34:25Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/analysis/environmental.py",
+  "openlens/optical_system.py",
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_thickness_tolerance_geometry.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/environmental.py::EnvironmentalAnalyzer.apply_environment",
+  "openlens/optical_system.py::AirGap.__format__",
+  "openlens/optical_system.py::LensElement.__post_init__",
+  "openlens/optical_system.py::LensElement.refresh",
+  "openlens/optimizer.py::LensOptimizer._apply_single_variable"
+ ],
+ "fail_to_pass": [
+  "tests/test_thickness_tolerance_geometry.py::TestThicknessToleranceMovesTheElements::test_the_air_gap_is_unchanged",
+  "tests/test_thickness_tolerance_geometry.py::TestThicknessToleranceMovesTheElements::test_the_element_and_its_lens_never_disagree",
+  "tests/test_thickness_tolerance_geometry.py::TestThicknessToleranceMovesTheElements::test_the_element_moves_with_its_thickness"
+ ],
+ "pass_to_pass": [],
+ "patch_lines": 44
+}

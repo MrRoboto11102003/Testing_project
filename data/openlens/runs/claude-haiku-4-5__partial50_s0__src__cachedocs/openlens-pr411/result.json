@@ -1,0 +1,234 @@
+{
+ "id": "openlens-pr411",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 53249
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 2.0,
+ "detected": false,
+ "n_tests": 17,
+ "n_catching": 0,
+ "n_false_alarms": 17,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3052,
+  "cache_read_input_tokens": 12916,
+  "output_tokens": 11835,
+  "output_tokens_details": {
+   "thinking_tokens": 7836
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3052,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11835,
+    "cache_read_input_tokens": 12916,
+    "cache_creation_input_tokens": 3052,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3052
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0665796,
+ "model_seconds": 51.5,
+ "seconds": 58.0,
+ "tests": {
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexBasic::test_multiple_variables_optimization": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexBasic::test_no_variables_raises_error": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexBasic::test_single_variable_optimization": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexBasic::test_start_parameter_as_initial_point": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexBasic::test_start_wrong_length_raises_error": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexBounds::test_best_values_within_bounds_on_success": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexBounds::test_handles_tight_bounds": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexCallback::test_callback_invoked_during_optimization": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexCallback::test_callback_merit_matches_history": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexConvergence::test_max_iterations_limit": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexConvergence::test_merit_history_exists": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexConvergence::test_variable_history_tracks_all_variables": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexEdgeCases::test_nearly_optimal_design_converges_quickly": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexEdgeCases::test_tolerance_relative_to_merit_magnitude": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexEdgeCases::test_very_small_step_size": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexResult::test_improvement_calculation": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr411.py::TestOptimizeSimplexResult::test_result_contains_required_fields": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "LensOptimizer"
+   ]
+  }
+ }
+}

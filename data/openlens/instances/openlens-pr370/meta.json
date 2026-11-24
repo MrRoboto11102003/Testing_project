@@ -1,0 +1,55 @@
+{
+ "id": "openlens-pr370",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 322,
+ "issue_title": "`PerformanceMetrics.calculate_back_focal_length` returns the EFL for a system",
+ "issue_body": "**File:** `src/performance_metrics.py:110-116`\n\n```python\nelif self.system:\n    f = self.system.get_system_focal_length()\n    if f and self.system.elements:\n        last_elem = self.system.elements[-1]      # dead\n        # Approximate: system focal length - distance to last surface\n        return f                                 # <- comment says \"minus\", code returns f\n```\n\nThe returned BFL equals the EFL \u2014 an error of the whole back focal distance (typically 10-50 mm).\n`OpticalSystem.calculate_back_focal_length()` (`:597`) already exists and is not used.\n\n**Fix:** `return self.system.calculate_back_focal_length()`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/322",
+ "pr": 370,
+ "pr_title": "fix(perf): report the real back focal length for a system",
+ "pr_body": "Closes #322\n\n## Problem\n\n`PerformanceMetrics.calculate_back_focal_length()` returned `get_system_focal_length()` verbatim for a system target:\n\n```python\nelif self.system:\n    f = self.system.get_system_focal_length()\n    if f and self.system.elements:\n        last_elem = self.system.elements[-1]\n        # Approximate: system focal length - distance to last surface\n        return f          # <- comment says minus, code returns f\n```\n\nThe comment describes a subtraction that never happens, and `last_elem` is bound and never read. Every reported back focal distance was the EFL \u2014 too long by the whole distance from the last surface to focus, typically 10\u201350 mm.\n\n```\nPerformanceMetrics BFL : 200.59241626938237   <- the EFL\nOpticalSystem BFL      : 180.8039744044078     <- the real BFL\n```\n\n## Fix\n\n`OpticalSystem.calculate_back_focal_length()` already derives this from the system ABCD matrix (`-A/C`, measured from the last surface). The wrapper now delegates rather than duplicating a broken approximation.\n\n```\nBFL now           : 180.8039744044078\nOpticalSystem BFL : 180.8039744044078 | match: True\n```\n\nThe single-lens branch is untouched, and an empty system still returns `None`.\n\n## Tests\n\n5 tests in `tests/test_performance_metrics.py`; 3 fail without the change.",
+ "fix_commit": "69f0974ce233f52a0272142104e03b4f7f1345a9",
+ "merged_at": "2026-10-04T20:40:25Z",
+ "port_method": "revert_3way",
+ "src_files": [
+  "openlens/performance_metrics.py"
+ ],
+ "test_files": [
+  "tests/test_performance_metrics.py"
+ ],
+ "target_symbols": [
+  "openlens/performance_metrics.py::PerformanceMetrics.calculate_back_focal_length"
+ ],
+ "fail_to_pass": [
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_is_measured_from_the_last_surface",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_is_not_the_efl",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_matches_optical_system"
+ ],
+ "pass_to_pass": [
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_empty_system_returns_none",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_single_lens_bfl_uses_the_thick_lens_model",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_far_limit_is_infinite_only_at_or_beyond_hyperfocal",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_near_limit_beyond_hyperfocal_uses_the_formula_not_half_h",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_near_limit_keeps_receding_beyond_the_hyperfocal_distance",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_the_formula_holds_at_and_on_both_sides_of_h",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_airy_radius_uses_the_overridden_pupil",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_angular_rayleigh_limit_scales_with_the_wavelength",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_bundle_describes_one_aperture",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_numerical_aperture_uses_the_overridden_pupil",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_airy_disk",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_angular_rayleigh_resolution_absolute_value",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_back_focal_length",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_depth_of_field",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_f_number_calculation",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_field_of_view",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_format_metrics_report",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_get_all_metrics",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_mtf_cutoff",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_numerical_aperture",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_resolution_estimate",
+  "tests/test_performance_metrics.py::TestPerformanceMetricsWithSystem::test_optical_system_metrics"
+ ],
+ "patch_lines": 11
+}

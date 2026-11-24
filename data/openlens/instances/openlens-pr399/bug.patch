@@ -1,0 +1,62 @@
+diff --git a/openlens/ray.py b/openlens/ray.py
+index ca11693ef9cc2d1c6031799e0dad9ab7b30afcd0..cc4a9933044d1a988ea76a84f9b806cd49465646 100644
+--- a/openlens/ray.py
++++ b/openlens/ray.py
+@@ -290,15 +290,7 @@ class Ray3D:
+                 self.polarization_vector = np.array(self.polarization_vector, dtype=complex)
+ 
+     def propagate(self, distance: float) -> None:
+-        """Propagate ray in current direction.
+-
+-        A zero (or negligible) distance is a no-op rather than a recorded
+-        step: appending would leave consecutive identical path points, which
+-        breaks any consumer that derives a direction or a segment length from
+-        consecutive path points.
+-        """
+-        if abs(distance) <= EPSILON:
+-            return
++        """Propagate ray in current direction"""
+         self.origin = self.origin + self.direction * distance
+         self.path.append(self.origin)
+         self.optical_path_length += distance * self.n
+diff --git a/openlens/tracer_3d.py b/openlens/tracer_3d.py
+index 3c17c14e397814c953683be8c0a36e4aab3c06c2..f148936f69852648ae1e8d12edd29358de34925b 100644
+--- a/openlens/tracer_3d.py
++++ b/openlens/tracer_3d.py
+@@ -589,21 +589,8 @@ class LensRayTracer3D:
+         segment = intersection - ray.origin
+         ray.optical_path_length += segment.magnitude() * ray.n
+ 
+-        # A zero-length hit (t ~ 0) is legitimate and must still refract: in a
+-        # cemented doublet the two surfaces share a vertex, so the ray has to
+-        # change index at the point it is already standing on. This is why
+-        # _intersect_sphere passes min_t=-EPSILON here while the 2D tracer
+-        # rejects such hits outright.
+-        #
+-        # What must not happen is *recording* it. Appending unconditionally
+-        # left consecutive identical path points separated by zero length, so
+-        # anything deriving a direction or a segment length from consecutive
+-        # path points divides by zero. A cemented doublet produced three such
+-        # repeats. The refraction below is unaffected.
+-        previous_origin = ray.origin
+         ray.origin = intersection
+-        if not ray.path or (intersection - previous_origin).magnitude() > EPSILON:
+-            ray.path.append(intersection)
++        ray.path.append(intersection)
+ 
+         if fresnel_hit is None and is_parabolic and normal is None:
+             # Paraboloid normal: gradient of F = x - (y²+z²)/(2R) - vx = 0,
+@@ -895,12 +882,8 @@ class SystemRayTracer3D:
+         hit = ray.origin + ray.direction * t if t >= 0 else ray.origin
+         if hit.y * hit.y + hit.z * hit.z > (semi + 1e-9) ** 2:
+             if t >= 0:
+-                # Same rule as the surface hit: never append a point that
+-                # repeats the current origin.
+-                moved = (hit - ray.origin).magnitude() > EPSILON
+                 ray.origin = hit
+-                if not ray.path or moved:
+-                    ray.path.append(hit)
++                ray.path.append(hit)
+                 ray.optical_path_length += t * ray.n
+             ray.terminated = True
+             return False

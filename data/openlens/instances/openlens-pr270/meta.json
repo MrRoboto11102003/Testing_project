@@ -1,0 +1,57 @@
+{
+ "id": "openlens-pr270",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 252,
+ "issue_title": "**Meniscus presets aren't meniscus** `constants.py:238-239`",
+ "issue_body": "`(80,\u2212120)`/`(\u2212120,80)` have opposite signs \u2192 classified Biconvex/Biconcave\n   by `lens.py:487-490`. Meniscus needs same-sign radii, e.g. `(80,120)`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/252",
+ "pr": 270,
+ "pr_title": "fix(constants): give meniscus presets same-sign radii",
+ "pr_body": "The meniscus presets used opposite-sign radii, so they described biconvex/biconcave lenses and classify_lens_type round-tripped them to the wrong type. Use (80, 120) for Meniscus Convex (net converging) and (-80, -120) for Meniscus Concave (net diverging), keeping the original magnitudes. Add round-trip and power-sign regression tests.",
+ "fix_commit": "960a8c8ffd154ebb613484dff60e6ba82aea6ae3",
+ "merged_at": "2026-09-11T09:38:54Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/constants.py"
+ ],
+ "test_files": [
+  "tests/test_lens.py"
+ ],
+ "target_symbols": [],
+ "fail_to_pass": [
+  "tests/test_lens.py::TestLensTypePresets::test_every_preset_classifies_as_its_own_type",
+  "tests/test_lens.py::TestLensTypePresets::test_meniscus_presets_have_same_sign_radii"
+ ],
+ "pass_to_pass": [
+  "tests/test_lens.py::TestLensConstruction::test_construction_with_defaults",
+  "tests/test_lens.py::TestLensConstruction::test_default_lens_is_feasible",
+  "tests/test_lens.py::TestLensConstruction::test_edge_thickness_negative_when_surfaces_cross",
+  "tests/test_lens.py::TestLensConstruction::test_edge_thickness_none_when_aperture_overhangs",
+  "tests/test_lens.py::TestLensConstruction::test_ids_are_unique_per_instance",
+  "tests/test_lens.py::TestLensConstruction::test_radius_zero_converted_to_flat",
+  "tests/test_lens.py::TestLensOptics::test_afocal_focal_lengths_are_none",
+  "tests/test_lens.py::TestLensOptics::test_back_and_front_focal_length_defined",
+  "tests/test_lens.py::TestLensOptics::test_diverging_lens_ffl_positive",
+  "tests/test_lens.py::TestLensOptics::test_focal_length_afocal_returns_none",
+  "tests/test_lens.py::TestLensOptics::test_focal_length_biconvex_positive",
+  "tests/test_lens.py::TestLensOptics::test_front_focal_length_cartesian_sign",
+  "tests/test_lens.py::TestLensOptics::test_optical_power_in_diopters",
+  "tests/test_lens.py::TestLensOptics::test_plano_convex_through_flat_surface",
+  "tests/test_lens.py::TestLensOptics::test_symmetric_lens_ffl_mirrors_bfl",
+  "tests/test_lens.py::TestLensSerialization::test_from_dict_missing_fields_use_defaults",
+  "tests/test_lens.py::TestLensSerialization::test_from_dict_null_radius_is_a_flat_surface",
+  "tests/test_lens.py::TestLensSerialization::test_round_trip_preserves_geometry",
+  "tests/test_lens.py::TestLensSerialization::test_to_dict_keeps_the_numeric_radius_for_the_database",
+  "tests/test_lens.py::TestLensTypePresets::test_classify_uses_effective_radii",
+  "tests/test_lens.py::TestLensTypePresets::test_custom_radii_preserved",
+  "tests/test_lens.py::TestLensTypePresets::test_preset_applied_when_radii_default",
+  "tests/test_lens.py::TestLensTypePresets::test_set_lens_type_clears_parabolic",
+  "tests/test_lens.py::TestLensTypePresets::test_set_lens_type_updates_radii",
+  "tests/test_lens.py::TestLensTypePresets::test_unknown_type_leaves_radii",
+  "tests/test_lens.py::TestRadiusValidationContract::test_validator_accepts_negative_concave",
+  "tests/test_lens.py::TestRadiusValidationContract::test_validator_rejects_zero"
+ ],
+ "patch_lines": 10
+}

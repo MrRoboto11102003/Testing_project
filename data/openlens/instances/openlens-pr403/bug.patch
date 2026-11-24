@@ -1,0 +1,98 @@
+diff --git a/openlens/io/step_export.py b/openlens/io/step_export.py
+index 54f6b55d2abd6fcd4997fab82f3b85c40ee18efd..0844f593e7652922fe151aa010b4dc8e4ac62631 100644
+--- a/openlens/io/step_export.py
++++ b/openlens/io/step_export.py
+@@ -336,7 +336,7 @@ class StepExporter:
+         self.dir_z = 0
+         self.dir_x = 0
+ 
+-    def export(self, filename: str, housing: Optional[list] = None) -> dict:
++    def export(self, filename: str, housing: Optional[list] = None):
+         """Export the current system to a STEP file.
+ 
+         Safe to call repeatedly on one exporter: the entity buffer is reset
+@@ -386,7 +386,6 @@ class StepExporter:
+         self._create_context()
+ 
+         shape_ids = []
+-        skipped: list = []
+ 
+         # Export each lens
+         if hasattr(self.system, "elements") and hasattr(self.system, "air_gaps"):
+@@ -407,19 +406,13 @@ class StepExporter:
+                 if solid_id:
+                     shape_ids.append(solid_id)
+             except (AttributeError, KeyError) as e:
+-                skipped.append("system")
+-                logger.warning(
+-                    "STEP solid export skipped - object exposes neither a lens "
+-                    "nor elements/air_gaps: %s",
+-                    e,
+-                )
++                logger.debug("STEP solid export skipped: %s", e)
+ 
+         # Export housing parts (spacers, barrel, retainers) as tube solids.
+         for part in housing or []:
+-            name = str(part.get("name", "part")) if isinstance(part, dict) else "part"
+             try:
+                 solid_id = self._export_tube_solid(
+-                    name,
++                    str(part.get("name", "part")),
+                     float(part["z0"]),
+                     float(part["z1"]),
+                     float(part["r_inner"]),
+@@ -427,18 +420,8 @@ class StepExporter:
+                 )
+                 if solid_id:
+                     shape_ids.append(solid_id)
+-                else:
+-                    # _export_tube_solid rejected the dimensions; it has already
+-                    # logged, but the part still has to be counted.
+-                    skipped.append(name)
+             except (KeyError, TypeError, ValueError) as e:
+-                skipped.append(name)
+-                logger.warning(
+-                    "STEP housing part %r skipped - malformed or missing "
+-                    "z0/z1/r_inner/r_outer: %s",
+-                    name,
+-                    e,
+-                )
++                logger.debug("STEP housing part skipped: %s", e)
+ 
+         # Create Root Product Definition if needed
+         # For simplicity, we just leave the geometric entities in the file.
+@@ -451,17 +434,6 @@ class StepExporter:
+         with atomic_write_text(filename) as f:
+             f.write(self.writer.generate())
+ 
+-        # Surface the omissions. A mechanical drawing that silently lost its
+-        # barrel and spacers is worse than one that says so.
+-        if skipped:
+-            logger.warning(
+-                "STEP export wrote %d solid(s) but skipped %d part(s): %s",
+-                len(shape_ids),
+-                len(skipped),
+-                ", ".join(skipped),
+-            )
+-        return {"shapes": len(shape_ids), "skipped": len(skipped), "skipped_parts": skipped}
+-
+     def _create_context(self):
+         """Create the units, contexts and directions the solids refer to.
+ 
+@@ -847,15 +819,7 @@ class StepExporter:
+         lens solids above (no CAD kernel in this environment).
+         """
+         if not (r_outer > r_inner > 0 and z1 > z0):
+-            logger.warning(
+-                "STEP tube %r skipped - need r_outer > r_inner > 0 and z1 > z0, "
+-                "got r_inner=%r r_outer=%r z0=%r z1=%r",
+-                name,
+-                r_inner,
+-                r_outer,
+-                z0,
+-                z1,
+-            )
++            logger.debug("STEP tube export skipped (bad dims): %s", name)
+             return None
+ 
+         def _circle(label: str, z: float, r: float):

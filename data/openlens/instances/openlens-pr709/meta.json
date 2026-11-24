@@ -1,0 +1,41 @@
+{
+ "id": "openlens-pr709",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 624,
+ "issue_title": "bug(io): STEP export discards element decenter and tilt",
+ "issue_body": "## Summary\n\n`StepExporter.export()` passes only `elem.position` to `_export_lens_solid()`. The element's `decenter_y`, `decenter_z`, `tilt_x`, `tilt_y`, and `tilt_z` are never applied, so every exported solid is centered on the global Z axis.\n\n## Impact\n\n- An intentionally decentered or tilted assembly exports as perfectly aligned.\n- The STEP file cannot be used to inspect or manufacture the actual layout.\n- Silent: the export reports success and the file is valid, just geometrically wrong.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.io.step_export import StepExporter\n\ndef export(path, aligned):\n    s = OpticalSystem()\n    s.add_lens(Lens(), air_gap_before=0.0)\n    if not aligned:\n        s.set_element_alignment(0, decenter_y=5.0, decenter_z=2.0,\n                                tilt_x=3.0, tilt_y=-2.0)\n    StepExporter(s).export(path)\n\nexport(\"/tmp/aligned.step\", True)\nexport(\"/tmp/tilted.step\", False)\na = [l for l in open(\"/tmp/aligned.step\") if \"CARTESIAN_POINT\" in l]\nb = [l for l in open(\"/tmp/tilted.step\") if \"CARTESIAN_POINT\" in l]\nprint(\"point lines identical:\", a == b)\n```\n\nObserved:\n\n```\nelement 0 decenter/tilt in the model: 5.0 2.0 3.0 -2.0\npoint-line count: 9 9\npoint lines identical: True\n   #4=CARTESIAN_POINT('origin',(0.000000,0.000000,0.000000));\n   #10=CARTESIAN_POINT('v1',(0.000000,0.000000,0.000000));\n   #11=CARTESIAN_POINT('v2',(0.000000,0.000000,5.000000));\n```\n\n## Root cause\n\n- `openlens/io/step_export.py:239-243` \u2014 only `elem.position` is passed.\n- `openlens/io/step_export.py:348` \u2014 `_export_lens_solid(self, lens, z_offset)` has no alignment parameters.\n\n## Expected behaviour\n\nExported solids carry the element's full transform (translation + rotation), matching `SystemRayTracer3D` / the assembly view.\n\n## Suggested fix\n\nPass the element's decenter/tilt (or its node global transform) into the solid builder and apply it to every `CARTESIAN_POINT`, or emit an `AXIS2_PLACEMENT_3D` per element with the rotation and reference it from the surface. Add a test asserting that a decentered/tilted export differs from the aligned one and that a known point lands at the transformed coordinate.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/624",
+ "pr": 709,
+ "pr_title": "fix(io): export each element with its decenter and tilt",
+ "pr_body": "## Description\n\n`StepExporter.export()` passed only `elem.position` to `_export_lens_solid()`,\nso every solid was built on the global axis. An element intentionally\ndecentered or tilted - the layout the ray tracer and the assembly view use -\nexported perfectly aligned:\n\n```\nelement 0 decenter/tilt in the model: 5.0 2.0 3.0 -2.0\npoint lines identical: True\n#10=CARTESIAN_POINT('v1',(0.000000,0.000000,0.000000));\n```\n\nThe file was valid and the export reported success, so nothing surfaced the\nmismatch. A STEP file that does not match the designed layout cannot be used\nto inspect or manufacture the assembly.\n\n## What changed\n\n- **`openlens/io/step_export.py`** - each element is exported with its global\n  transform from the optical tree (`get_global_transform()`), so a transform\n  inherited from a group is honoured too. Elements are paired with their tree\n  nodes by identity; if the tree and the flat element list disagree, the flat\n  record's own `position`/`decenter_y`/`decenter_z`/`tilt_x`/`tilt_y`/`tilt_z`\n  fields are used instead, so a stale list cannot apply one element's\n  alignment to another.\n- Every `CARTESIAN_POINT` of the solid is placed through that transform.\n  Rotated elements get their own axis and reference `DIRECTION` entities, so\n  the plane normals, rim circles, seam and cylindrical axis follow the tilt.\n- The optical model runs along +X with lateral offsets in Y/Z; STEP writes the\n  axis along +Z with the cross-section in X/Y. The conversion is explicit:\n  `decenter_y` moves the solid along STEP X, `decenter_z` along STEP Y, and the\n  axial position along STEP Z.\n- Single lenses and aligned systems keep their previous coordinates; the\n  global direction entities are reused when an element is only translated.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #624\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_step_element_alignment.py` (7 tests). Four fail on the\nunfixed code:\n\n- `test_a_decentered_element_moves_off_the_axis` - the vertex must land on the\n  node's global position (STEP `(decenter_y, decenter_z, axial)`); it stayed at\n  the origin\n- `test_a_decentered_rim_moves_with_the_element`\n- `test_a_tilted_element_rotates_its_axis` - a 90 deg tilt about the model Z\n  must turn the cylinder axis from STEP +Z to +X; it stayed +Z\n- `test_two_differently_tilted_elements_get_two_axes` - both elements shared\n  the global `axis_z` entity\n\nThree guard the supported cases:\n\n- `test_the_rim_stays_on_the_curved_surface_after_a_tilt` - the transformed\n  rim point is still exactly one radius from the transformed sphere centre\n- `test_the_aligned_export_still_uses_the_global_axes`\n- `test_each_element_keeps_its_axial_position` - doublet vertices still sit at\n  each element's model position\n\nFull local suite: `Ran 2746 tests ... OK (skipped=35)`; the STEP,\natomic-write, export-service and GUI-export suites (102 tests) pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "cbc667c924bcdd2fbaed855b9975ea46aa95cff7",
+ "merged_at": "2026-10-22T12:27:00Z",
+ "port_method": "partial_hunks:8/10",
+ "src_files": [
+  "openlens/io/step_export.py"
+ ],
+ "test_files": [
+  "tests/test_step_element_alignment.py"
+ ],
+ "target_symbols": [
+  "openlens/io/step_export.py::StepExporter.__init__",
+  "openlens/io/step_export.py::StepExporter._export_lens_solid",
+  "openlens/io/step_export.py::StepExporter._export_tube_solid._circle",
+  "openlens/io/step_export.py::StepExporter._export_tube_solid._edge",
+  "openlens/io/step_export.py::StepExporter.export",
+  "openlens/io/step_export.py::_surface_is_flat"
+ ],
+ "fail_to_pass": [
+  "tests/test_step_element_alignment.py::TestAssemblyPlacement::test_each_element_keeps_its_axial_position",
+  "tests/test_step_element_alignment.py::TestAssemblyPlacement::test_two_differently_tilted_elements_get_two_axes",
+  "tests/test_step_element_alignment.py::TestElementPlacementIsExported::test_a_decentered_element_moves_off_the_axis",
+  "tests/test_step_element_alignment.py::TestElementPlacementIsExported::test_a_decentered_rim_moves_with_the_element",
+  "tests/test_step_element_alignment.py::TestElementPlacementIsExported::test_a_tilted_element_rotates_its_axis",
+  "tests/test_step_element_alignment.py::TestElementPlacementIsExported::test_the_aligned_export_still_uses_the_global_axes",
+  "tests/test_step_element_alignment.py::TestElementPlacementIsExported::test_the_rim_stays_on_the_curved_surface_after_a_tilt"
+ ],
+ "pass_to_pass": [],
+ "patch_lines": 161
+}

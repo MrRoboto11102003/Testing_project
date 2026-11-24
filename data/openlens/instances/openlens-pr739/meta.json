@@ -1,0 +1,32 @@
+{
+ "id": "openlens-pr739",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 648,
+ "issue_title": "bug: the CLI create-lens defaults are rejected by the CLI own feasibility check",
+ "issue_body": "## Summary\n\nThe default values offered by the CLI's \"Create new lens\" prompt (R1 = 100 mm,\nR2 = -100 mm, thickness = 5 mm, diameter = 50 mm) describe a lens whose\nsurfaces intersect inside the clear aperture: the edge thickness is -1.35 mm.\nThe CLI's own feasibility check rejects it, so pressing Enter on every prompt\nfails with \"cannot create lens: Surfaces intersect within the clear\naperture\". The defaults of the GUI editor are feasible.\n\n## Impact\n\n- The first thing a new user does - accept the defaults - fails, and the\n  error message blames the user's input rather than the defaults.\n- The failure is non-obvious: every individual value is within its own\n  validation range, so the user has to work out that the combination is\n  impossible.\n\n## Reproduction\n\n```python\nimport builtins, os, sys, tempfile\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.lens_editor import LensManager\nfrom openlens.validation import check_physical_feasibility\n\nmanager = LensManager(os.path.join(tempfile.mkdtemp(), \"cli.db\"))\nanswers = iter([\"demo\", \"\", \"\", \"\", \"\", \"\", \"\", \"\"])  # every prompt default\nbuiltins.input = lambda prompt=\"\": next(answers)\nprint(\"create_lens() with all defaults returned:\", manager.create_lens())\nprint(\"default geometry feasible?\", check_physical_feasibility(100.0, -100.0, 5.0, 50.0))\n```\n\nOutput:\n\n```\n=== Create New Optical Lens ===\n  cannot create lens: Surfaces intersect within the clear aperture (edge thickness -1.35mm <= 0). Increase center thickness, reduce diameter, or flatten the radii.\ncreate_lens() with all defaults returned: None\ndefault geometry feasible? (False, 'Surfaces intersect within the clear aperture (edge thickness -1.35mm <= 0). ...')\n```\n\n## Root cause\n\n- `openlens/lens_editor.py:113-134` supplies the defaults\n  (`100.0`, `-100.0`, `5.0`, `50.0`, `1.5168`).\n- `openlens/lens_editor.py:143-146` then runs `check_physical_feasibility()`\n  on exactly those values and rejects them, because for a biconvex lens with\n  R = 100 mm the sag at h = 25 mm is 3.18 mm per surface, so a 5 mm centre\n  thickness leaves a negative rim.\n\n## Expected behaviour\n\nThe defaults offered by the prompt are a valid lens, and the create path\naccepts them. If a default combination is infeasible, the prompt should\ndefault to a feasible geometry (e.g. a smaller diameter or a larger\nthickness) rather than failing.\n\n## Suggested fix\n\nChange the CLI defaults to a feasible set (for example D = 25 mm or t = 8 mm\nwith R = 100 mm) and add a test that runs the create path with all defaults\nand asserts a lens is created. Consider deriving the default diameter from\nthe radii so the defaults stay feasible if the radii change.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/648",
+ "pr": 739,
+ "pr_title": "fix(cli): use the shared constants for the create-lens defaults",
+ "pr_body": "## Description\n\nThe create-lens prompt offered `R1 = 100`, `R2 = -100`, `t = 5`, `D = 50`.\nEach value passes its own validator, but the combination has an edge thickness\nof **-1.35 mm**, so the CLI's own `check_physical_feasibility()` rejected the\ndefaults: a new user pressing Enter on every prompt got\n\"cannot create lens: Surfaces intersect within the clear aperture\". The GUI\nuses `DEFAULT_DIAMETER = 40 mm`, which is feasible.\n\n## What changed\n\n- **`openlens/lens_editor.py`**\n  - Import `DEFAULT_RADIUS_1`, `DEFAULT_RADIUS_2`, `DEFAULT_THICKNESS`,\n    `DEFAULT_DIAMETER` and `REFRACTIVE_INDEX_BK7` from `constants`.\n  - Build both the prompt labels and the accepted values from those constants,\n    so the displayed default and the value cannot drift apart. The default\n    diameter is now 40 mm (the feasible GUI default).\n- **`tests/test_cli_create_lens_validation.py`**\n  - Pressing Enter on every prompt creates a `Lens` whose edge thickness is at\n    least `MIN_EDGE_THICKNESS`.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #648\n\n## How Has This Been Tested?\n\n- [x] Added regression test that fails before this change and passes after\n  - Before: `create_lens()` returns `None` for the defaults.\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2844 tests ... OK (skipped=35)`\n- [x] `black --line-length=100`, `ruff check`, `flake8`, `mypy`\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "5ed48bd1163b619cfbcdea49043e24ae857f7e4f",
+ "merged_at": "2026-10-23T09:07:29Z",
+ "port_method": "partial_hunks:1/2",
+ "src_files": [
+  "openlens/lens_editor.py"
+ ],
+ "test_files": [
+  "tests/test_cli_create_lens_validation.py"
+ ],
+ "target_symbols": [],
+ "fail_to_pass": [
+  "tests/test_cli_create_lens_validation.py::TestCreateLensValidation::test_a_feasible_lens_is_still_created",
+  "tests/test_cli_create_lens_validation.py::TestCreateLensValidation::test_an_infeasible_lens_is_rejected_and_not_saved",
+  "tests/test_cli_create_lens_validation.py::TestCreateLensValidation::test_the_prompt_defaults_create_a_feasible_lens"
+ ],
+ "pass_to_pass": [
+  "tests/test_cli_create_lens_validation.py::TestCreateLensValidation::test_a_name_over_the_limit_is_rejected_and_not_saved"
+ ],
+ "patch_lines": 7
+}

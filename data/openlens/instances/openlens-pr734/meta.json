@@ -1,0 +1,41 @@
+{
+ "id": "openlens-pr734",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 628,
+ "issue_title": "bug(io): ISO 10110 notes are not XML-escaped, producing invalid SVG",
+ "issue_body": "## Summary\n\nThe ISO 10110 SVG drawing escapes the system title but interpolates note text \u2014 including coating material names \u2014 directly into `<text>` elements. A material name containing `&`, `<`, or `>` produces invalid XML, so the exported drawing cannot be opened.\n\n## Impact\n\n- Output corruption: `A&B <AR>` yields a raw `&` and `<AR>`; XML parsing fails at that line.\n- Coating layer names are free-form user input, so this is reachable through normal use.\n- The file is written successfully and reported as exported; only the consumer discovers it is invalid.\n\n## Reproduction\n\n```python\n# Coating material name: \"A&B <AR>\"\n# Export the ISO 10110 drawing, then parse it:\nimport xml.etree.ElementTree as ET\nET.parse(\"/tmp/iso10110.svg\")\n```\n\nObserved:\n\n```\n<text ... class=\"title\">ISO 10110 Drawing: A &amp; B &lt;optics&gt;</text>\n<text ...>6/ Coating: L1: A&B <AR> SLAR/Uncoated.</text>\n\nXML ParseError: not well-formed (invalid token): line 76, column 53\n```\n\n## Root cause\n\n- `openlens/io/export.py:220` \u2014 coating label interpolated into a note string.\n- `openlens/io/export.py:225` \u2014 note inserted into `<text>` without `html.escape`/`xml.sax.saxutils.escape`. The title path already escapes correctly.\n\n## Expected behaviour\n\nEvery user-controlled string is XML-escaped before insertion, and the exported SVG parses as well-formed XML for any valid material name.\n\n## Suggested fix\n\nEscape all note text at the insertion point (or build the SVG with an XML writer). Add a test with `&`, `<`, `>`, and a quote in a coating name that parses the result with `ElementTree`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/628",
+ "pr": 734,
+ "pr_title": "fix(io): XML-escape the ISO 10110 notes before inserting them into the SVG",
+ "pr_body": "## Description\n\nThe ISO 10110 SVG drawing escaped the system title and the table values but\ninterpolated note text directly into `<text>` elements. Coating layer names are\nfree-form user input, so a stack labelled `A&B <AR>` put a raw `&` and a tag\ninto the drawing. The file was written and reported as exported, but the\nresult was not well-formed XML and no consumer could open it.\n\n## What changed\n\n- **`openlens/io/export.py`**\n  - `_generate_iso_notes()` now XML-escapes every note at the insertion point.\n    The note strings still contain the human-readable coating label, so the\n    drawing shows `A&B <AR>` while the file carries `A&amp;B &lt;AR&gt;`.\n- **`tests/test_iso_drawing.py`**\n  - A system whose name, material and coating all contain `&`, `<`, `>` and\n    quotes renders and parses with `xml.etree.ElementTree`.\n  - The markup is escaped rather than dropped (the parsed text still contains\n    the original labels).\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #628\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n  - Before: `ParseError: not well-formed (invalid token)` and the raw\n    `A&B <AR>` assertion fails.\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2826 tests ... OK (skipped=35)`\n- [x] `black --line-length=100`, `ruff check`, `flake8`, `mypy`\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "ddf93ba00e093039d117d5cfc84cf1886803581d",
+ "merged_at": "2026-10-23T08:47:44Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/io/export.py"
+ ],
+ "test_files": [
+  "tests/test_iso_drawing.py"
+ ],
+ "target_symbols": [
+  "openlens/io/export.py::ISO10110Generator._generate_dimensions",
+  "openlens/io/export.py::ISO10110Generator._generate_iso_notes"
+ ],
+ "fail_to_pass": [
+  "tests/test_iso_drawing.py::TestIsoXmlEscaping::test_markup_is_escaped_not_dropped",
+  "tests/test_iso_drawing.py::TestIsoXmlEscaping::test_notes_with_markup_parse_as_well_formed_xml"
+ ],
+ "pass_to_pass": [
+  "tests/test_iso_drawing.py::TestIsoDimensions::test_overall_dimensions",
+  "tests/test_iso_drawing.py::TestIsoNotes::test_centering_reflects_tilt",
+  "tests/test_iso_drawing.py::TestIsoNotes::test_coating_note_lists_surfaces",
+  "tests/test_iso_drawing.py::TestIsoNotes::test_numbered_notes_present",
+  "tests/test_iso_drawing.py::TestIsoTable::test_bevel_and_coat_columns",
+  "tests/test_iso_drawing.py::TestIsoTable::test_stop_marker",
+  "tests/test_iso_drawing.py::TestIsoTitleBlock::test_empty_system_renders",
+  "tests/test_iso_drawing.py::TestIsoTitleBlock::test_title_block_fields"
+ ],
+ "patch_lines": 5
+}

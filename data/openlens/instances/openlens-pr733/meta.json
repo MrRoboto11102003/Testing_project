@@ -1,0 +1,48 @@
+{
+ "id": "openlens-pr733",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 638,
+ "issue_title": "bug(optimizer): negative initial_temperature skips annealing despite claiming to clamp",
+ "issue_body": "## Summary\n\n`optimize_simulated_annealing()` copies `initial_temperature` into\n`temperature` before clamping non-positive values. For\n`initial_temperature=-100` the parameter is clamped to `1e-6` (and the log says\nso), but the loop variable `temperature` remains -100. The first iteration\nthen hits `if temperature < 1e-6: break`, so the run performs one greedy step\nfollowed by local simplex refinement instead of simulated annealing. The API\naccepts the value and reports success.\n\n## Impact\n\n- A caller asking for annealing with a negative (or zero) starting temperature\n  silently gets a different algorithm, with far less exploration and a\n  different result.\n- The warning explicitly claims a clamp happened, which makes the behaviour\n  hard to diagnose.\n- The reported iteration counts mix one SA step with the local refinement,\n  obscuring that annealing did not run.\n\n## Reproduction\n\n```python\nfrom openlens.global_optimizer import GlobalOptimizer\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.optimizer import OptimizationTarget, OptimizationVariable\n\ndef system():\n    s = OpticalSystem(\"sa\")\n    s.add_lens(Lens(radius_of_curvature_1=70.0, radius_of_curvature_2=-100.0,\n                    thickness=5.0, diameter=20.0, refractive_index=1.5168))\n    return s\n\nvariables = [OptimizationVariable(\"R1\", 0, \"radius_of_curvature_1\", 70.0, 60.0, 200.0, 5.0)]\ntargets = [OptimizationTarget(\"focal_length\", 100.0, 1.0, \"target\")]\n\nclass Recording(GlobalOptimizer):\n    def __init__(self, *a, **k):\n        super().__init__(*a, **k)\n        self.calls = 0\n        self.before_simplex = None\n    def _evaluate_design(self, values):\n        self.calls += 1\n        return super()._evaluate_design(values)\n    def optimize_simplex(self, *a, **k):\n        self.before_simplex = self.calls\n        return super().optimize_simplex(*a, **k)\n\nfor t0 in (-100.0, 100.0):\n    opt = Recording(system(), variables, targets, seed=7)\n    res = opt.optimize_simulated_annealing(max_iterations=20, initial_temperature=t0)\n    print(\"T0=%6.1f annealing iterations=%2d total=%d message=%r\" % (\n        t0, opt.before_simplex - 1, res.iterations, res.message))\n```\n\nOutput:\n\n```\ninitial_temperature=-100.0 is not positive; clamping to a small positive value ...\nT0=-100.0 annealing iterations= 1 total=26 message='SA Converged after 1 iterations + 25 local steps'\nT0= 100.0 annealing iterations=20 total=46 message='SA Converged after 20 iterations + 26 local steps'\n```\n\n## Root cause\n\n- `openlens/global_optimizer.py:110` assigns\n  `temperature = initial_temperature` before validation.\n- `openlens/global_optimizer.py:121-127` clamps only the local parameter\n  `initial_temperature` to `1e-6`.\n- `openlens/global_optimizer.py:200-201` immediately breaks because the loop\n  variable is still negative.\n\n## Expected behaviour\n\nEither reject a non-positive initial temperature with a `ValueError`, or clamp\nit before initialising the loop variable so the run performs the requested\nnumber of annealing iterations with a well-defined schedule.\n\n## Suggested fix\n\nMove `temperature = initial_temperature` below the clamp (or assign\n`temperature = max(initial_temperature, EPSILON)` once and use it for both the\nschedule and the loop). Add a regression test asserting a negative\n`initial_temperature` either raises or runs more than one annealing iteration,\nand that the number of SA iterations matches `max_iterations` for a small run.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/638",
+ "pr": 733,
+ "pr_title": "fix(optimizer): apply the annealed temperature clamp to the loop variable",
+ "pr_body": "## Description\n\n`optimize_simulated_annealing()` copied `initial_temperature` into\n`temperature` **before** clamping a non-positive value. For\n`initial_temperature=-100` the parameter was clamped to `1e-6` (and the log\nsaid so), but the loop variable stayed `-100`, so the first iteration hit\n`if temperature < 1e-6: break`. The caller got one greedy step plus local\nsimplex refinement instead of the requested annealing schedule, and the\nreported iteration count obscured that annealing never ran.\n\n## What changed\n\n- **`openlens/global_optimizer.py`**\n  - Initialise `temperature` *after* the clamp, so the schedule the warning\n    describes is the schedule that runs. A zero/negative start now performs\n    the full `max_iterations` annealing loop with the derived cooling factor\n    (`1.0` at the floor).\n- **`tests/test_global_optimizer_degenerate_configs.py`**\n  - A counting subclass records how many evaluations happen before the local\n    refinement: negative and zero starting temperatures must run all 20\n    annealing iterations.\n  - The existing \"runs at all\" guards stay.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #638\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2826 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nBefore the fix the reproduction reports\n`annealing iterations=1 total=26`; after it reports\n`annealing iterations=20 total=42` for `T0=-100` and `T0=0`.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "4e45fef0efde3c95a6733f4f010b6a2398d3bfad",
+ "merged_at": "2026-10-23T08:48:51Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/global_optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_global_optimizer_degenerate_configs.py"
+ ],
+ "target_symbols": [
+  "openlens/global_optimizer.py::GlobalOptimizer.optimize_simulated_annealing"
+ ],
+ "fail_to_pass": [
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_negative_initial_temperature_runs_the_full_schedule",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_zero_initial_temperature_runs_the_full_schedule"
+ ],
+ "pass_to_pass": [
+  "tests/test_global_optimizer_degenerate_configs.py::TestSearchQualityUnaffected::test_annealing_with_zero_iterations_leaves_variables_alone",
+  "tests/test_global_optimizer_degenerate_configs.py::TestSearchQualityUnaffected::test_small_population_still_finds_the_optimum",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_negative_initial_temperature_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_normal_temperature_is_unchanged",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_tiny_initial_temperature_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTemperatureGuard::test_zero_initial_temperature_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_normal_population_still_optimises",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_population_of_one_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_population_of_two_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_tournament_clamps_k",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_tournament_on_empty_population_raises_clearly",
+  "tests/test_global_optimizer_degenerate_configs.py::TestTournamentSampleGuard::test_tournament_picks_the_best_of_the_sample",
+  "tests/test_global_optimizer_degenerate_configs.py::TestZeroIterationsGuard::test_negative_iterations_runs",
+  "tests/test_global_optimizer_degenerate_configs.py::TestZeroIterationsGuard::test_result_is_still_well_formed",
+  "tests/test_global_optimizer_degenerate_configs.py::TestZeroIterationsGuard::test_zero_iterations_leaves_the_result_well_formed",
+  "tests/test_global_optimizer_degenerate_configs.py::TestZeroIterationsGuard::test_zero_iterations_runs"
+ ],
+ "patch_lines": 7
+}

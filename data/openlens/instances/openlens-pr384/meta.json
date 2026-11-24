@@ -1,0 +1,63 @@
+{
+ "id": "openlens-pr384",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 323,
+ "issue_title": "No atomic file writes; a crash mid-export destroys the previous file",
+ "issue_body": "**Files:** `src/export_formats.py:24, 80, 159, 350, 517, 590, 636`; `src/io/export.py:22`;\n`src/io/step_export.py:160`; `src/stl_export.py:277`; `src/preset_lenses.py:246`;\n`src/material_database.py:293, 614`\n\n`open(path, \"w\")` truncates immediately. Because T-05 raises *after* the open, and `StepWriter.generate()`\n/ `json.dump` can raise partway, the user loses the previously exported file and is left with a\npartial one. `add_material` (`:305`) calls `save_database()` per material, so `import_csv_catalog`\ntruncates and rewrites the whole file N times \u2014 any failure leaves `materials.json` destroyed.\n\n**Fix:** write to `path.with_suffix(path.suffix + \".tmp\")` in the same directory, then\n`os.replace(tmp, path)`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/323",
+ "pr": 384,
+ "pr_title": "fix(io): write exports atomically so a crash cannot destroy the last file",
+ "pr_body": "Closes #323\n\n## Problem\n\n`open(path, \"w\")` truncates immediately, so any failure after that point leaves the user with a truncated file **and** the previous good one already gone \u2014 a serialiser raising partway, a geometry check, an interrupt.\n\n`material_database` was the sharpest case: `add_material()` calls `save_database()` per material, so `import_csv_catalog` truncated and rewrote the whole file N times. Any failure left `materials.json` destroyed.\n\n## Fix\n\nNew `src/atomic.py`:\n\n- `atomic_write_text`, `atomic_write_bytes`, `atomic_write_json`\n- each writes to `path + \".tmp\"` **in the same directory**, then `os.replace()`s it over the target \u2014 atomic on POSIX and Windows as long as both paths share a filesystem, hence the same directory\n- the temporary file is removed on any failure, so the target is untouched unless the write fully succeeded\n\nAll 13 open-for-write sites route through it: `export_formats` (7), `io/export`, `preset_lenses`, `optical_system.save`, `material_database` (\u00d72), `io/step_export`, `stl_export`.\n\n## Two judgement calls worth reviewing\n\n**No implicit `mkdir`.** An earlier draft created missing parent directories, which silently changed `OpticalSystem.save()` into *succeeding* on a path inside a non-existent directory \u2014 behaviour `test_save_to_unwritable_path_fails_gracefully` depends on. Removed, and the test now pins the absence.\n\n**Placed at `src/atomic.py`, not `src/io/atomic.py`.** Importing anything under `src.io` runs `src/io/__init__.py`, which imports `export.py`, which imports `optical_system` \u2014 so a helper there is circular from `optical_system`, itself one of the call sites.\n\n## Tests\n\n13 tests in `tests/test_atomic_writes.py`.\n\nOnly **one** discriminates the call sites (`test_material_database_save_keeps_previous_file`); the rest exercise the new helper directly, including `BaseException` so `KeyboardInterrupt` cannot truncate a target either.\n\nWorth being straight about: `StepExporter.export()` turned out **not** to be a truncation risk \u2014 it writes the file as its last step, after all entities are built. Its test passes either way and is kept only as a guard.",
+ "fix_commit": "b641472d5bfeb31fe53e35da12b492e01cfdf9d4",
+ "merged_at": "2026-10-05T13:39:23Z",
+ "port_method": "partial_hunks:13/22",
+ "src_files": [
+  "openlens/atomic.py",
+  "openlens/export_formats.py",
+  "openlens/io/export.py",
+  "openlens/io/step_export.py",
+  "openlens/material_database.py",
+  "openlens/optical_system.py",
+  "openlens/preset_lenses.py",
+  "openlens/stl_export.py"
+ ],
+ "test_files": [
+  "tests/test_atomic_writes.py"
+ ],
+ "target_symbols": [
+  "openlens/export_formats.py::OpticStudioExporter.export_lens",
+  "openlens/export_formats.py::OpticStudioExporter.export_system",
+  "openlens/export_formats.py::PrescriptionExporter.export_prescription",
+  "openlens/export_formats.py::SVGExporter.export_lens",
+  "openlens/export_formats.py::SVGExporter.export_system",
+  "openlens/export_formats.py::ZemaxExporter.export_lens",
+  "openlens/export_formats.py::ZemaxSystemExporter.export_system",
+  "openlens/io/export.py::ISO10110Generator._render_svg",
+  "openlens/io/export.py::ISO10110Generator.generate_svg",
+  "openlens/io/step_export.py::StepExporter.export",
+  "openlens/material_database.py::MaterialDatabase.export_material",
+  "openlens/material_database.py::MaterialDatabase.get_material",
+  "openlens/material_database.py::MaterialDatabase.save_database",
+  "openlens/stl_export.py::STLExporter.write_binary_stl"
+ ],
+ "fail_to_pass": [
+  "tests/test_atomic_writes.py::TestExportsUseAtomicWrites::test_material_database_save_keeps_previous_file"
+ ],
+ "pass_to_pass": [
+  "tests/test_atomic_writes.py::TestAtomicWriteBytes::test_failure_keeps_the_previous_file",
+  "tests/test_atomic_writes.py::TestAtomicWriteBytes::test_writes_bytes",
+  "tests/test_atomic_writes.py::TestAtomicWriteJson::test_unserialisable_payload_keeps_the_previous_file",
+  "tests/test_atomic_writes.py::TestAtomicWriteJson::test_writes_valid_json",
+  "tests/test_atomic_writes.py::TestAtomicWriteText::test_base_exception_also_rolls_back",
+  "tests/test_atomic_writes.py::TestAtomicWriteText::test_failure_leaves_the_previous_file_intact",
+  "tests/test_atomic_writes.py::TestAtomicWriteText::test_failure_removes_the_temporary_file",
+  "tests/test_atomic_writes.py::TestAtomicWriteText::test_missing_parent_directory_is_not_created",
+  "tests/test_atomic_writes.py::TestAtomicWriteText::test_overwrites_an_existing_file",
+  "tests/test_atomic_writes.py::TestAtomicWriteText::test_temporary_file_is_in_the_same_directory",
+  "tests/test_atomic_writes.py::TestAtomicWriteText::test_writes_the_file",
+  "tests/test_atomic_writes.py::TestExportsUseAtomicWrites::test_step_export_leaves_previous_file_on_failure"
+ ],
+ "patch_lines": 27
+}

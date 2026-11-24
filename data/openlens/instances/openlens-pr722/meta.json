@@ -1,0 +1,72 @@
+{
+ "id": "openlens-pr722",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 655,
+ "issue_title": "bug: EF-mount and F-mount are bayonet standards but carry a thread, so the mechanical BOM announces a non-existent screw adapter",
+ "issue_body": "## Summary\n\nThe mount catalogue lists Canon EF and Nikon F as if they were threaded\nmounts: `EF-mount` carries `thread_diameter = 54.0` with a 1.0 mm pitch and\n`F-mount` carries `44.0` with a 1.0 mm pitch. Both are bayonet standards, and\nthe module's own comment states the convention (\"Bayonet mounts have no\nthread, so their diameter and pitch are zero\") which the X-mount and M-mount\nentries follow. The mechanical designer then uses the field literally, so the\ngenerated bill of materials asks the user to machine a screw adapter for a\nbayonet lens.\n\n## Impact\n\n- The mechanical BOM for an EF- or F-mount lens is wrong: it announces\n  \"Thread=54.0mm\" / \"Thread=44.0mm\" adapters that do not exist (there is no\n  M54x1.0 or M44x1.0 EF/F adapter), so the assembly instructions cannot be\n  followed.\n- The 54.0/44.0 values are actually the *register diameters* of those\n  standards, and the 1.0 mm pitch is fabricated.\n- The inconsistency makes the whole catalogue untrustworthy as a source of\n  mechanical dimensions.\n\n## Reproduction\n\n```python\nimport sys\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.mechanical_designer import MechanicalDesigner\nfrom openlens.mounts import MountCatalog\n\ncatalog = MountCatalog()\nfor name, spec in catalog.get_available_mounts().items():\n    print(f\"{name:<12} flange={spec['flange_distance']:>7.3f} \"\n          f\"thread={spec['thread_diameter']:>5.1f} pitch={spec['thread_pitch']:>5.3f}\")\n\ndesigner = MechanicalDesigner()\nfor name in (\"X-mount\", \"M-mount\", \"EF-mount\", \"F-mount\"):\n    mount = designer.design_mount(mount_type=name, lens_diameter=25.4)\n    dims = (f\"Thread={mount.thread_diameter:.1f}mm\" if mount.thread_diameter > 0\n            else f\"Bayonet, flange={mount.flange_distance:.2f}mm\")\n    print(f\"{name:<10} -> BOM dimensions: {dims}\")\n```\n\nOutput:\n\n```\nC-mount      flange= 17.526 thread= 25.4 pitch=0.794\nCS-mount     flange= 12.526 thread= 25.4 pitch=0.794\nM42          flange= 45.460 thread= 42.0 pitch=1.000\nM39          flange= 28.800 thread= 39.0 pitch=1.000\nT-mount      flange= 55.000 thread= 42.0 pitch=0.750\nX-mount      flange= 17.700 thread=  0.0 pitch=0.000\nM-mount      flange= 27.800 thread=  0.0 pitch=0.000\nEF-mount     flange= 44.000 thread= 54.0 pitch=1.000\nF-mount      flange= 46.500 thread= 44.0 pitch=1.000\nX-mount    -> BOM dimensions: Bayonet, flange=17.70mm\nM-mount    -> BOM dimensions: Bayonet, flange=27.80mm\nEF-mount   -> BOM dimensions: Thread=54.0mm\nF-mount    -> BOM dimensions: Thread=44.0mm\n```\n\n## Root cause\n\n- `openlens/mounts.py:23-24` states the convention; `openlens/mounts.py:33-34`\n  violates it for the two entry-level bayonet standards:\n  ```python\n  \"EF-mount\": {\"thread_diameter\": 54.0, \"thread_pitch\": 1.0, \"flange_distance\": 44.0},\n  \"F-mount\":  {\"thread_diameter\": 44.0, \"thread_pitch\": 1.0, \"flange_distance\": 46.5},\n  ```\n- `openlens/mechanical_designer.py:239-240` copies the fields verbatim.\n- `openlens/mechanical_designer.py:382-387` decides Thread vs Bayonet purely\n  on `thread_diameter > 0`.\n\n## Expected behaviour\n\nBayonet standards carry no thread data, so the BOM describes them as bayonet\nmounts with their flange distance (and, if it is worth keeping, their\nregister diameter).\n\n## Suggested fix\n\nSet `thread_diameter`/`thread_pitch` to `0.0` for EF-mount and F-mount, and\nadd an explicit `register_diameter` field for the bayonet geometry so the\ninformation is not lost. Add a test asserting that every mount the catalogue\nreports as a bayonet has `thread_diameter == 0` and that the BOM never\nannounces a thread for it.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/655",
+ "pr": 722,
+ "pr_title": "fix(mounts): treat EF-mount and F-mount as bayonets, not threaded mounts",
+ "pr_body": "## Description\n\nEF-mount and F-mount are bayonet standards, but the catalogue listed them with\nfabricated thread data (54.0/1.0 and 44.0/1.0). The mechanical designer copies\nthe fields verbatim, so the generated BOM announced non-existent M54x1.0 and\nM44x1.0 screw adapters for those lenses. The module's own convention\n(\"Bayonet mounts have no thread, so their diameter and pitch are zero\") was\nalready followed by X-mount and M-mount.\n\nThe 54.0 and 44.0 values are the register (bayonet outer) diameters, so they\nare preserved under an explicit `register_diameter` field instead of being\ndiscarded.\n\n## What changed\n\n- **`openlens/mounts.py`**\n  - EF-mount and F-mount now carry `thread_diameter = 0.0` and\n    `thread_pitch = 0.0`.\n  - Added `register_diameter` to every standard mount (54.0 for EF-mount,\n    44.0 for F-mount, 0.0 otherwise) and to `_normalize_spec`, so custom\n    mounts and reloaded configurations keep the field.\n- **`openlens/mechanical_designer.py`**\n  - `LensMount` carries `register_diameter` and reports it in\n    `get_specifications()`. `design_mount()` and `add_custom_mount()` thread\n    it through.\n- **`tests/test_mounts.py`**\n  - The bayonet test now covers EF-mount and F-mount as well.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #655\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2803 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\n`tests.test_mounts` and `tests.test_mechanical_designer` pass, including the\nbayonet check for X, M, EF and F.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "6d947cfff60bd0d5c8cbfb4fc9ce9ffe8a4a4da7",
+ "merged_at": "2026-10-22T19:21:54Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/mechanical_designer.py",
+  "openlens/mounts.py"
+ ],
+ "test_files": [
+  "tests/test_mounts.py"
+ ],
+ "target_symbols": [
+  "openlens/mechanical_designer.py::LensCell",
+  "openlens/mechanical_designer.py::LensMount.get_specifications",
+  "openlens/mechanical_designer.py::MechanicalDesigner.add_custom_mount",
+  "openlens/mechanical_designer.py::MechanicalDesigner.calculate_total_length",
+  "openlens/mechanical_designer.py::MechanicalDesigner.design_mount",
+  "openlens/mechanical_designer.py::MechanicalDesigner.remove_custom_mount",
+  "openlens/mounts.py::MountCatalog.__init__",
+  "openlens/mounts.py::MountCatalog.get_available_mounts",
+  "openlens/mounts.py::MountCatalog.get_mount",
+  "openlens/mounts.py::MountCatalog.load_custom_mounts",
+  "openlens/mounts.py::MountCatalog.save_custom_mounts"
+ ],
+ "fail_to_pass": [
+  "tests/test_mounts.py::TestStandardMountCatalog::test_bayonet_mounts_may_have_no_thread"
+ ],
+ "pass_to_pass": [
+  "tests/test_mounts.py::TestCustomMounts::test_add_custom_mount_makes_it_available",
+  "tests/test_mounts.py::TestCustomMounts::test_custom_mount_can_carry_thread_dimensions",
+  "tests/test_mounts.py::TestCustomMounts::test_custom_mount_cannot_shadow_a_standard_mount",
+  "tests/test_mounts.py::TestCustomMounts::test_custom_mount_rejects_blank_name",
+  "tests/test_mounts.py::TestCustomMounts::test_custom_mount_rejects_non_positive_flange_distance",
+  "tests/test_mounts.py::TestCustomMounts::test_custom_mounts_survive_save_and_reload",
+  "tests/test_mounts.py::TestCustomMounts::test_invalid_entries_are_skipped_without_losing_valid_ones",
+  "tests/test_mounts.py::TestCustomMounts::test_malformed_config_is_ignored",
+  "tests/test_mounts.py::TestCustomMounts::test_mechanical_designer_delegates_custom_mount_management",
+  "tests/test_mounts.py::TestCustomMounts::test_mechanical_designer_persists_custom_mounts",
+  "tests/test_mounts.py::TestCustomMounts::test_remove_custom_mount",
+  "tests/test_mounts.py::TestCustomMounts::test_removed_custom_mount_stays_removed_after_reload",
+  "tests/test_mounts.py::TestCustomMounts::test_standard_mount_cannot_be_removed",
+  "tests/test_mounts.py::TestLensMountModel::test_afocal_lens_returns_none",
+  "tests/test_mounts.py::TestLensMountModel::test_default_mount_is_c_mount",
+  "tests/test_mounts.py::TestLensMountModel::test_default_mounts_path_lives_in_user_data_dir",
+  "tests/test_mounts.py::TestLensMountModel::test_legacy_payload_defaults_to_c_mount",
+  "tests/test_mounts.py::TestLensMountModel::test_mount_type_is_not_duplicated_in_metadata",
+  "tests/test_mounts.py::TestLensMountModel::test_mount_type_round_trips_through_sqlite",
+  "tests/test_mounts.py::TestLensMountModel::test_mount_type_survives_serialization",
+  "tests/test_mounts.py::TestLensMountModel::test_mounts_path_override_is_honoured",
+  "tests/test_mounts.py::TestLensMountModel::test_unknown_mount_returns_none",
+  "tests/test_mounts.py::TestLensMountModel::test_working_flange_distance_adds_bfl_and_flange",
+  "tests/test_mounts.py::TestLensMountModel::test_working_flange_distance_uses_custom_mount",
+  "tests/test_mounts.py::TestPerformanceMountMetrics::test_all_metrics_include_working_flange_distance",
+  "tests/test_mounts.py::TestPerformanceMountMetrics::test_report_shows_working_flange_breakdown",
+  "tests/test_mounts.py::TestStandardMountCatalog::test_design_mount_accepts_a_bayonet",
+  "tests/test_mounts.py::TestStandardMountCatalog::test_existing_standard_mounts_are_preserved",
+  "tests/test_mounts.py::TestStandardMountCatalog::test_new_standard_mounts_have_their_flange_distances",
+  "tests/test_mounts.py::TestStandardMountCatalog::test_unknown_mount_is_none"
+ ],
+ "patch_lines": 85
+}

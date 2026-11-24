@@ -1,0 +1,46 @@
+{
+ "id": "openlens-pr697",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 607,
+ "issue_title": "bug(physics): catalog material names do not resolve, causing missing dispersion and BK7 index jumps",
+ "issue_body": "## Summary\n\nMaterial names used by the UI/defaults (`\"Fused Silica\"`, `\"Sapphire\"`, `\"Crown Glass\"`, `\"Flint Glass\"`) do not match the catalog keys (`\"FUSEDSILICA\"`, etc.). `MaterialDatabase.get_material()` only uppercases and does not strip spaces, so catalog lookups miss. Two different failure modes result:\n\n1. `Lens.refractive_index_at()` falls back to the stored index \u2014 no dispersion at all.\n2. `Lens.update_refractive_index()` does not have that guard, so the database returns its BK7 fallback (`1.5168`) and the lens's index jumps from the correct value to BK7.\n\n## Impact\n\n- `Lens(material=\"Fused Silica\", refractive_index=1.4585).refractive_index_at(486.1)` returns `1.4585` for every wavelength (no dispersion).\n- Calling `update_refractive_index(486.1)` on the same lens changes the stored index to `1.5168` \u2014 a physically wrong jump to BK7.\n- Same for other display-name materials, and for `\"Sapphire\"` / `\"Crown Glass\"` / `\"Flint Glass\"`.\n- Chromatic analyses, ghost/Fresnel calculations, and tolerancing that call `update_refractive_index` silently use BK7 for these materials.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.material_database import MaterialDatabase\n\ndb = MaterialDatabase()\nprint(db.get_material(\"Fused Silica\"))   # None\nprint(bool(db.get_material(\"FUSEDSILICA\")))  # True\n\nl = Lens(material=\"Fused Silica\", refractive_index=1.4585)\nprint(l.refractive_index_at(486.1))      # 1.4585 (no dispersion)\nl.update_refractive_index(486.1)\nprint(l.refractive_index)                # 1.5168 (BK7)\n```\n\nOutput:\n\n```\nget_material('Fused Silica'): None\nget_material('FUSEDSILICA'): True\nn@486.1: 1.4585\nafter update_refractive_index(486.1): 1.5168\n```\n\n## Root cause\n\n- `openlens/material_database.py:231` \u2014 catalog key is `\"FUSEDSILICA\"`; `DEFAULT_MATERIAL_INDICES` at `openlens/constants.py:54-61` uses display names with spaces.\n- `openlens/material_database.py:370-372` \u2014 `get_material` only uppercases, no space/punctuation normalization.\n- `openlens/material_database.py:424-430` \u2014 unknown material returns `1.5168  # Default to BK7`.\n- `openlens/lens.py:519+` \u2014 `refractive_index_at` guards with `db.get_material(...) is not None`, so it returns the stored index instead (no dispersion).\n- `openlens/lens.py:477-515` \u2014 `update_refractive_index` has no such guard and assigns the BK7 fallback.\n\n## Expected behaviour\n\nA material name that appears in `DEFAULT_MATERIAL_INDICES` resolves to the same catalog entry as its canonical key, with correct dispersion. An unknown material must never silently become BK7; it should keep the stored index or raise/warn.\n\n## Suggested fix\n\nNormalize catalog keys on both write and read (uppercase, collapse spaces/punctuation, e.g. `\"Fused Silica\" \u2192 \"FUSEDSILICA\"`), and/or add explicit aliases for the default-material names. Make `get_refractive_index` distinguish \"material not found\" from a real value and have `update_refractive_index` preserve the stored index on a miss (matching `refractive_index_at`). Add tests for every entry in `DEFAULT_MATERIAL_INDICES`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/607",
+ "pr": 697,
+ "pr_title": "fix(physics): resolve catalog material names by spelling-insensitive lookup",
+ "pr_body": "## Description\n\nThe lens model, the defaults and the UI call the catalog by display name -\n`\"Fused Silica\"` - while the catalog is keyed by the glass name,\n`\"FUSEDSILICA\"`. `MaterialDatabase.get_material()` only uppercased the name\nbefore looking it up, so the lookup missed, and the miss was silent in two\ndifferent ways:\n\n- `Lens.refractive_index_at()` fell back to the stored index, so a fused-silica\n  lens had **one index for every wavelength** - no dispersion at all;\n- `Lens.update_refractive_index()` stored `get_refractive_index()`'s BK7\n  fallback, so moving the wavelength **turned the lens into BK7** (1.5168).\n\n```\nn(486.1) before: 1.4585 (stored, no dispersion)\nn(486.1) after:  1.463128\nupdate_refractive_index(486.1) before: 1.5168  # BK7\nupdate_refractive_index(486.1) after:  1.463128\n```\n\n## What changed\n\n- `openlens/material_database.py`: lookups try the exact uppercased key first,\n  then a normalised alias index that ignores case, spaces and punctuation, so\n  `\"Fused Silica\"`, `\"fused-silica\"`, `\"FUSEDSILICA\"`, `\"N BK7\"` and `\"nbk7\"`\n  all find their glass. The alias index is built on the first miss and dropped\n  by `clear_cache()`, which `add_material()` already calls, so a catalog edit\n  can never leave a stale name behind.\n- `MaterialDatabase.has_material(name)` reports a miss explicitly.\n- `Lens.update_refractive_index()` asks `has_material()` first and keeps the\n  lens's own index for a name the catalog does not hold, matching what\n  `refractive_index_at()` already did. Names such as `\"Sapphire\"`,\n  `\"Crown Glass\"` or `\"Flint Glass\"` have no catalog entry and therefore no\n  dispersion to apply; they keep their stored index instead of quietly\n  becoming 1.5168.\n- `refractive_index_at()` and `_coating_substrate_index()` use the same\n  `has_material()` test instead of spelling out `get_material(...) is not None`.\n\n`get_refractive_index()` keeps its historical BK7 fallback for callers that\ncannot handle a miss (the chromatic analyzer's per-wavelength lookups); its\ndocstring now says to ask `has_material()` first when the caller can.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #607\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_material_name_resolution.py` (all eight tests fail on\nthe unfixed code):\n\n- `test_display_name_resolves_to_the_catalog_entry`\n- `test_lookup_ignores_case_spacing_and_punctuation`\n- `test_unknown_name_is_still_a_miss`\n- `test_has_material_accepts_display_names`\n- `test_added_materials_are_reachable_by_normalised_name`\n- `test_display_name_lens_has_dispersion`\n- `test_update_refractive_index_does_not_replace_the_glass`\n- `test_unknown_material_keeps_its_stored_index`\n\nFull local suite: `Ran 2655 tests ... OK (skipped=35)`.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "0f529835afd66c0762f465f400240242215c7db3",
+ "merged_at": "2026-10-22T09:48:52Z",
+ "port_method": "partial_hunks:8/9",
+ "src_files": [
+  "openlens/lens.py",
+  "openlens/material_database.py"
+ ],
+ "test_files": [
+  "tests/test_material_name_resolution.py"
+ ],
+ "target_symbols": [
+  "openlens/lens.py::Lens._coating_substrate_index",
+  "openlens/lens.py::Lens.update_refractive_index",
+  "openlens/material_database.py::MaterialDatabase._compute_refractive_index",
+  "openlens/material_database.py::MaterialDatabase._load_builtin_materials",
+  "openlens/material_database.py::MaterialDatabase.add_material",
+  "openlens/material_database.py::MaterialDatabase.get_refractive_index",
+  "openlens/material_database.py::MaterialDatabase.import_agf_catalog",
+  "openlens/material_database.py::MaterialDatabase.list_materials",
+  "openlens/material_database.py::MaterialProperties"
+ ],
+ "fail_to_pass": [
+  "tests/test_material_name_resolution.py::TestCatalogNameResolution::test_added_materials_are_reachable_by_normalised_name",
+  "tests/test_material_name_resolution.py::TestCatalogNameResolution::test_display_name_resolves_to_the_catalog_entry",
+  "tests/test_material_name_resolution.py::TestCatalogNameResolution::test_has_material_accepts_display_names",
+  "tests/test_material_name_resolution.py::TestCatalogNameResolution::test_lookup_ignores_case_spacing_and_punctuation",
+  "tests/test_material_name_resolution.py::TestCatalogNameResolution::test_unknown_name_is_still_a_miss",
+  "tests/test_material_name_resolution.py::TestLensUsesTheResolvedMaterial::test_display_name_lens_has_dispersion",
+  "tests/test_material_name_resolution.py::TestLensUsesTheResolvedMaterial::test_unknown_material_keeps_its_stored_index",
+  "tests/test_material_name_resolution.py::TestLensUsesTheResolvedMaterial::test_update_refractive_index_does_not_replace_the_glass"
+ ],
+ "pass_to_pass": [],
+ "patch_lines": 78
+}

@@ -1,0 +1,51 @@
+{
+ "id": "openlens-pr522",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 457,
+ "issue_title": "Coating presets 'Dual-layer AR' and 'V-coating' reflect more than bare glass",
+ "issue_body": "**Where:** `src/coating_designer.py:172-191`, `:315-329`\n\nThe dual-layer preset stacks quarter-wave Ta2O5 under quarter-wave MgF2. Two quarter-wave layers only cancel when the inner index is about `n2 * sqrt(ns)` ~ 1.70; 2.10 makes the coating worse than none. The V-coating thicknesses look arbitrary (x1.2 and x0.9 factors). These values feed `Lens` reflectance and ghost analysis.\n\n**Repro (BK7, 550 nm):**\n\n| Preset | Reflectance |\n|---|---|\n| Uncoated | 4.216% |\n| MgF2 single-layer | 1.284% |\n| Dual-layer AR | **4.345%** |\n| V-coating | **18.949%** |\n\n**Fix:** use Al2O3 (n~1.63) under MgF2 for the quarter-wave pair, or a real V-coat with solved non-quarter thicknesses. Add a test that every AR preset is below the uncoated reflectance at the design wavelength. (The transfer-matrix maths itself checks out.)",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/457",
+ "pr": 522,
+ "pr_title": "fix(coating): an AR preset must not reflect more than bare glass",
+ "pr_body": "## Description\n\nfix(coating): an AR preset must not reflect more than bare glass\n\nBoth anti-reflection presets were physically wrong. **The transfer-matrix code\nwas not the problem \u2014 the inputs were.**\n\n### Dual-layer AR\n\nIt used Ta2O5 at n=2.10 under MgF2. Two quarter-wave layers cancel only when the\ninner index is `n_outer \u00b7 \u221an_substrate` \u2014 about **1.70** for MgF2 on BK7. At 2.10\nthe pair *amplified* reflection.\n\n### V-coating\n\nIts broadband design was expressed with unexplained `\u00d71.2` and `\u00d70.9` factors.\nThat is an assertion, not a design, and it stacked Ta2O5 again.\n\n### What they do now\n\n| BK7 at 550 nm | before | after |\n| --- | --- | --- |\n| uncoated | 4.216 % | 4.216 % |\n| MgF2 single layer | 1.284 % | 1.284 % |\n| **dual-layer AR** | **4.345 %** | **0.0014 %** |\n| **V-coating** | **18.949 %** | **0.266 %** |\n\nThe dual-layer now **scores every ordered pair of catalogued materials with the\nmodule's own transfer-matrix routine** and keeps the best. The bare substrate is\na candidate \u2014 so the preset cannot come out worse than doing nothing, which is\nexactly the property the old hard-coded pair violated.\n\nThe V-coating's outer thicknesses are **solved numerically**, minimising mean\nreflection across 400\u2013700 nm and starting from the bare substrate's cost, so the\nsearch can only improve on it. It now beats bare glass at **every wavelength in\nthe band**, not just at 550 nm where it used to be 4.5\u00d7 worse.\n\n## Two things stated rather than glossed\n\n**The solved V-coat gives SiO2 about 7 nm.** That is a real outcome of minimising\nband-average reflectance \u2014 the middle layer contributes little once the outer pair\ndoes the work \u2014 but it is thin. A fabrication minimum would be worth applying if\nthese presets are ever used for a real coating specification.\n\n**One test I wrote asserted two substrates get different dual-layer materials.**\nThat is not a property the design has: the search is a coarse grid over seven\nindices, so neighbouring substrates can legitimately share the best pair while both\nremaining correct. It now asserts the **index condition**, which is what actually\ndecides the cancellation.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #457\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      the issue's exact table reproduces (`4.345%` dual-layer, `18.949%` V-coat)\n- [x] Verified by reverting **each preset separately**:\n  - the dual-layer back to hard-coded Ta2O5/MgF2 \u2192 **12 of 14 fail**\n  - the V-coating back to asserted `\u00d71.2`/`\u00d70.9` thicknesses \u2192 **8 of 14 fail**\n- [x] `python3 -m unittest tests.test_coating_presets tests.test_coating` \u2014 37 tests, OK\n- [x] Full suite: `Ran 1887 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 233 files unchanged\n- [x] `flake8 src/coating_designer.py` \u2014 **4 findings, identical to `master`**\n- [x] Coverage includes:\n  - **the user's check**: every AR preset reflects less than uncoated\n  - the dual-layer's index condition (`n_inner = n_outer\u00b7\u221an_substrate`) within 10%\n  - the inner layer being the higher index and both layers genuinely quarter-wave\n  - the inner layer *not* being Ta2O5 at 2.10 \u2014 named explicitly, since that is the bug\n  - the V-coat helping at 450/550/650 nm individually, not just at the design point\n  - the V-coat earning its extra layers against the single-layer preset\n  - six substrates from n=1.40 to n=2.00, each improving on bare\n  - the inner index tracking the substrate across that range\n\n### Why the acceptance criterion is \"better than bare\" and not a magic number\n\nThe obvious test \u2014 assert reflectance equals 0.0014% \u2014 would pin the *search*,\nnot the *physics*, and would break the next time the catalog gains a material. The\nproperty a user can check at a glance is that a coating labelled \"anti-reflection\"\nreflects less than no coating at all. That holds for every preset, on every\nsubstrate tested, by construction rather than by luck.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "5f570a67d0f1ce0361ccb20b59881af4e02143cd",
+ "merged_at": "2026-10-18T16:47:33Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/coating_designer.py"
+ ],
+ "test_files": [
+  "tests/test_coating_presets.py"
+ ],
+ "target_symbols": [
+  "openlens/coating_designer.py::CoatingDesigner.__init__",
+  "openlens/coating_designer.py::CoatingDesigner.calculate_reflectivity",
+  "openlens/coating_designer.py::CoatingDesigner.design_dual_layer_ar",
+  "openlens/coating_designer.py::CoatingDesigner.get_coating_info",
+  "openlens/coating_designer.py::_tilted_admittance"
+ ],
+ "fail_to_pass": [
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_it_does_not_use_ta2o5_as_the_inner_layer",
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_the_inner_index_is_near_the_cancelling_value",
+  "tests/test_coating_presets.py::TestEveryArPresetBeatsTheBareSubstrate::test_no_preset_reflects_more_than_uncoated",
+  "tests/test_coating_presets.py::TestEveryArPresetBeatsTheBareSubstrate::test_the_issue_repro_values",
+  "tests/test_coating_presets.py::TestPresetsTrackTheSubstrate::test_a_different_substrate_still_improves_on_bare",
+  "tests/test_coating_presets.py::TestPresetsTrackTheSubstrate::test_the_inner_index_follows_the_substrate",
+  "tests/test_coating_presets.py::TestPresetsTrackTheSubstrate::test_the_preset_never_beats_the_bare_substrate",
+  "tests/test_coating_presets.py::TestVCoatingIsDerivedNotAsserted::test_it_beats_a_bare_single_layer_across_the_band",
+  "tests/test_coating_presets.py::TestVCoatingIsDerivedNotAsserted::test_it_helps_across_the_visible_band"
+ ],
+ "pass_to_pass": [
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_both_layers_are_quarter_wave_at_the_design_wavelength",
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_it_is_a_two_layer_stack",
+  "tests/test_coating_presets.py::TestDualLayerUsesAQuarterWavePairThatCanCancel::test_the_outer_layer_is_the_lower_index",
+  "tests/test_coating_presets.py::TestEveryArPresetBeatsTheBareSubstrate::test_every_preset_is_a_non_empty_stack",
+  "tests/test_coating_presets.py::TestReflectivityCurveSampling::test_num_points_controls_the_number_of_samples",
+  "tests/test_coating_presets.py::TestReflectivityCurveSampling::test_one_point_returns_one_sample_at_the_start",
+  "tests/test_coating_presets.py::TestReflectivityCurveSampling::test_zero_or_negative_points_are_rejected",
+  "tests/test_coating_presets.py::TestVCoatingIsDerivedNotAsserted::test_thicknesses_are_positive_and_finite"
+ ],
+ "patch_lines": 133
+}

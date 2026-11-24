@@ -21,7 +21,7 @@ from . import config, generate
 from .gitutil import git
 from .harness import load_instance
 
-NOTES_SYSTEM = """You are a senior Python engineer helping with a research project on LLM-written unit tests.
+NOTES_SYSTEM_ARNIO = """You are a senior Python engineer helping with a research project on LLM-written unit tests.
 
 How the project works:
 - A small, fast model (Claude Haiku) is asked to write ONE pytest file of unit tests for one or
@@ -62,6 +62,26 @@ Use these sections (skip one only if it truly does not apply):
 Be concrete and terse: bullet points, real values, exact messages. At most ~90 lines. Short
 code snippets are fine; do not write a full test file. Reply with the notes in Markdown only."""
 
+# Other projects get the same text with the arnio/pandas-specific phrases swapped for neutral ones.
+_GENERIC = [
+    ("the library `arnio` (import arnio as ar), a pandas data-preparation library\n  with a compiled C++ core.",
+     config.LIBRARY_DESC + "."),
+    ("(e.g. the C++ core or\nanother module)", "(e.g. another\nmodule)"),
+    ("type of the result, column order, dtypes, values, whether it is a\n   new object or the input itself, "
+     "what metadata is kept, how nulls are handled.",
+     "type of the result and its exact content (for generated code: the\n   exact text, formatting and "
+     "ordering), whether it is a new object or the input itself, what\n   state is kept."),
+    ("special cases such as empty\n   or zero-row input)", "special cases such as empty\n   input)"),
+    ("with the public API (e.g. ar.from_pandas)", "with the public API"),
+    ("(exact dtypes, float formatting, ordering, things that are not observable)",
+     "(exact whitespace, float formatting, ordering, things that are not observable)"),
+]
+NOTES_SYSTEM = NOTES_SYSTEM_ARNIO
+if config.PROJECT != "arnio":
+    for _a, _b in _GENERIC:
+        assert _a in NOTES_SYSTEM, _a
+        NOTES_SYSTEM = NOTES_SYSTEM.replace(_a, _b)
+
 NOTES_USER = """Write the notes for `{module}.{qual}` (defined in {rel}; its source is in the module above).
 """
 
@@ -73,8 +93,8 @@ def note_path(model: str, symbol: str):
 
 def module_context(rel: str) -> str:
     src = git("show", f"{config.BASE_REF}:{rel}")
-    return (f"## Public API index of arnio (signatures only)\n\n{generate.api_index()}\n\n"
-            f"## Full source of {rel} (arnio {config.BASE_REF})\n\n```python\n{src}\n```")
+    return (f"## Public API index of {config.PACKAGE} (signatures only)\n\n{generate.api_index()}\n\n"
+            f"## Full source of {rel} ({config.PACKAGE} {config.BASE_REF})\n\n```python\n{src}\n```")
 
 
 def write_note(symbol: str, model: str, wait: bool = True) -> str:

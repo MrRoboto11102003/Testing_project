@@ -1,0 +1,42 @@
+diff --git a/openlens/tolerancing.py b/openlens/tolerancing.py
+index 3f211a4585509d066806163a7b3c46c9df210bb0..23715f3a9f7c7f01d242f7f6856640c90dfd9677 100644
+--- a/openlens/tolerancing.py
++++ b/openlens/tolerancing.py
+@@ -728,10 +728,6 @@ class InverseSensitivityAnalyzer:
+     Calculates required tolerances to achieve a target performance.
+     """
+ 
+-    #: The metric this analyzer measures, shared with MonteCarloAnalyzer so
+-    #: the two tolerance tools accept the same criterion names.
+-    SUPPORTED_CRITERIA = MonteCarloAnalyzer.SUPPORTED_CRITERIA
+-
+     def __init__(self, system: OpticalSystem, tolerances: List[ToleranceOperand]):
+         self.system = system
+         self.tolerances = tolerances
+@@ -747,25 +743,8 @@ class InverseSensitivityAnalyzer:
+     def calculate_sensitivities(self, criterion: str = "rms_spot_radius") -> List[Dict[str, Any]]:
+         """
+         Calculate sensitivity of each operand.
+-
+-        Args:
+-            criterion: Performance metric. Only ``"rms_spot_radius"`` is
+-                implemented, the same set MonteCarloAnalyzer accepts.
+-
+-        Returns:
+-            List of dicts with 'operand', 'sensitivity', 'change'.
+-
+-        Raises:
+-            ValueError: If *criterion* is unsupported. The argument used to be
+-                ignored, so a caller asking for another metric silently got
+-                RMS-spot sensitivities and budgeted tolerances against the
+-                wrong performance measure.
++        Returns list of dicts with 'operand', 'sensitivity', 'change'.
+         """
+-        if criterion != self.SUPPORTED_CRITERIA:
+-            raise ValueError(
+-                f"Unsupported criterion {criterion!r}; " f"supported: {self.SUPPORTED_CRITERIA!r}"
+-            )
+-
+         results = []
+ 
+         # Nominal performance

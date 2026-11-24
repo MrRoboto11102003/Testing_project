@@ -1,0 +1,199 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.optimizer.LensOptimizer.optimize_simplex.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.optimizer.LensOptimizer.optimize_simplex
+    def optimize_simplex(
+        self,
+        max_iterations: int = 100,
+        tolerance: float = 1e-6,
+        callback: Optional[Callable[[int, float, List[float]], None]] = None,
+        start: Optional[List[float]] = None,
+    ) -> OptimizationResult:
+        """
+        Nelder-Mead simplex optimization
+        Simple but robust algorithm for lens optimization
+
+        Args:
+            max_iterations: Iteration cap.
+            tolerance: Merit spread below which the simplex is converged.
+            callback: Optional per-iteration progress callback.
+            start: Optional explicit starting point, one value per variable.
+                GlobalOptimizer hands its best design here instead of writing
+                the values into the caller's OptimizationVariable objects.
+                Defaults to each variable's current_value.
+        """
+        n_vars = len(self.variables)
+
+        if n_vars == 0:
+            # With no variables the simplex has a single vertex, merit_range is
+            # identically 0, and the loop "converges" on iteration 1 having
+            # evaluated nothing and changed nothing - reported as success.
+            raise ValueError(
+                "optimize_simplex needs at least one variable; a design with "
+                "nothing to optimise is not an optimisation problem"
+            )
+        if start is not None and len(start) != n_vars:
+            raise ValueError(f"start has {len(start)} value(s) but there are {n_vars} variable(s)")
+
+        # Initialize simplex (n+1 vertices in n-dimensional space)
+        simplex = []
+        current_values = (
+            list(start) if start is not None else [var.current_value for var in self.variables]
+        )
+
+        # First vertex is the starting design
+        simplex.append(current_values.copy())
+
+        # Create n additional vertices by perturbing each variable.
+        # Deliberately NOT clamped: out-of-bounds vertices earn a bound
+        # penalty in _evaluate_design instead, so the search sees the true
+        # landscape. Clamping collapses distinct vertices onto one bound
+        # point, faking convergence (merit_range -> 0, success=True).
+        for i in range(n_vars):
+            vertex = current_values.copy()
+            vertex[i] += self.variables[i].step_size
+            simplex.append(vertex)
+
+        # Evaluate merit for all vertices
+        merit_values = [self._evaluate_design(vertex) for vertex in simplex]
+
+        initial_merit = merit_values[0]
+        variable_history = [dict(zip([v.name for v in self.variables], current_values))]
+        merit_history = [initial_merit]
+
+        # Simplex algorithm parameters
+        alpha = 1.0  # Reflection
+        gamma = 2.0  # Expansion
+        rho = 0.5  # Contraction
+        sigma = 0.5  # Shrinkage
+
+        last_iteration = 0
+
+        for iteration in range(max_iterations):
+            last_iteration = iteration
+            # Sort vertices by merit (best to worst)
+            order = sorted(range(len(merit_values)), key=lambda i: merit_values[i])
+            simplex = [simplex[i] for i in order]
+            merit_values = [merit_values[i] for i in order]
+
+            # Callback with best solution so far
+            if callback:
+                callback(iteration, merit_values[0], simplex[0])
+
+            merit_range = merit_values[-1] - merit_values[0]
+            n_clamped = sum(
+                1
+                for vertex in simplex
+                if any(not var.is_valid(v) for var, v in zip(self.variables, vertex))
+            )
+            logger.debug(
+                "simplex iter %d: merit_range=%.3g n_clamped=%d best=%.3g",
+                iteration,
+                merit_range,
+                n_clamped,
+                merit_values[0],
+            )
+            if n_clamped > n_vars / 2 and merit_range < tolerance:
+                # Asphyxiation, not convergence: a majority of vertices is
+                # pinned outside the box with no merit spread between them.
+                return OptimizationResult(
+                    success=False,
+                    iterations=iteration + 1,
+                    initial_merit=initial_merit,
+                    final_merit=merit_values[0],
+                    improvement=(
+                        ((initial_merit - merit_values[0]) / initial_merit * 100)
+                        if initial_merit > 0
+                        else 0
+                    ),
+                    optimized_system=self._apply_variables(simplex[0]),
+                    variable_history=variable_history,
+                    merit_history=merit_history,
+                    best_values=list(simplex[0]),
+                    message=(
+                        f"Aborted after {iteration + 1} iterations: {n_clamped} of "
+                        f"{len(simplex)} simplex vertices stuck outside variable bounds"
+                    ),
+                )
+
+            # Check convergence, relative to the merit's own magnitude.
+            #
+            # An absolute 1e-6 spread is meaningless on a merit carrying a
+            # geometry penalty: at 1e8 the spacing between adjacent floats is
+            # already ~1.5e-8, so merit_range can never fall below 1e-6 and the
+            # run always burns the full iteration budget while the code is
+            # written as though it had converged. Comparing against the merit
+            # itself makes the test scale-blind.
+            if self._merit_range_converged(merit_values, merit_range, tolerance):
+                break
+
+            # Calculate centroid of best n points (excluding worst)
+            centroid = [sum(simplex[i][j] for i in range(n_vars)) / n_vars for j in range(n_vars)]
+
+            # Reflection (unclamped: bounds are penalties, not walls)
+            worst = simplex[-1]
+            reflected = [centroid[j] + alpha * (centroid[j] - worst[j]) for j in range(n_vars)]
+            reflected_merit = self._evaluate_design(reflected)
+
+            if merit_values[0] <= reflected_merit < merit_values[-2]:
+                # Accept reflection
+                simplex[-1] = reflected
+                merit_values[-1] = reflected_merit
+            elif reflected_merit < merit_values[0]:
+                # Try expansion
+                expanded = [
+                    centroid[j] + gamma * (reflected[j] - centroid[j]) for j in range(n_vars)
+                ]
+                expanded_merit = self._evaluate_design(expanded)
+
+                if expanded_merit < reflected_merit:
+                    simplex[-1] = expanded
+                    merit_values[-1] = expanded_merit
+                else:
+                    simplex[-1] = reflected
+                    merit_values[-1] = reflected_merit
+            else:
+                # Contraction
+                contracted = [centroid[j] + rho * (worst[j] - centroid[j]) for j in range(n_vars)]
+                contracted_merit = self._evaluate_design(contracted)
+
+                if contracted_merit < merit_values[-1]:
+                    simplex[-1] = contracted
+                    merit_values[-1] = contracted_merit
+                else:
+                    # Shrink simplex toward best point
+                    best = simplex[0]
+                    for i in range(1, len(simplex)):
+                        simplex[i] = [
+                            best[j] + sigma * (simplex[i][j] - best[j]) for j in range(n_vars)
+                        ]
+                        merit_values[i] = self._evaluate_design(simplex[i])
+
+            # Record history
+            variable_history.append(dict(zip([v.name for v in self.variables], simplex[0])))
+            merit_history.append(merit_values[0])
+
+            last_iteration = iteration
+
+        # Best solution (a best point outside the box is not a success,
+        # even if the merit range converged: the design is unusable).
+        best_values = simplex[0]
+        final_merit = merit_values[0]
+
+        return self._finalize(
+            best_values=best_values,
+            final_merit=final_merit,
+            initial_merit=initial_merit,
+            iterations=last_iteration + 1,
+            variable_history=variable_history,
+            merit_history=merit_history,
+            converged_message=f"Converged after {last_iteration + 1} iterations",
+            out_of_bounds_message=(
+                f"Finished after {last_iteration + 1} iterations outside variable bounds"
+            ),
+        )

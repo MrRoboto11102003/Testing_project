@@ -1,0 +1,49 @@
+{
+ "id": "openlens-pr698",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 608,
+ "issue_title": "bug(io): STEP export emits quoted/dangling entity references and omits unit/context entities",
+ "issue_body": "## Summary\n\nThe STEP writer now quotes raw string arguments, which exposed several long-standing reference bugs: entity references are emitted as quoted text (`'#unit_mm'`, `'#application_context'`, `'#47'`) instead of references, and the referenced entities (`LENGTH_UNIT`, `APPLICATION_CONTEXT`) are never written. The `GEOMETRIC_REPRESENTATION_CONTEXT` call also passes a string where the uncertainty argument is expected. The result is syntactically invalid / semantically dangling STEP.\n\n## Impact\n\n- Exported `.step` files contain dangling references and missing units/context entities; a compliant CAD/STEP reader will reject or misread them.\n- Length unit is implied only by the quoted `'#unit_mm'` string, and `LENGTH_UNIT`/`APPLICATION_CONTEXT` are absent entirely.\n- The B-rep shape references the string `'#47'` rather than entity `#47`.\n\n## Reproduction\n\n```python\nimport tempfile\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.io.step_export import StepExporter\n\ns = OpticalSystem(); s.add_lens(Lens())\np = tempfile.mktemp(suffix=\".step\")\nStepExporter(s).export(p)\nprint(open(p).read())\n```\n\nRelevant output lines:\n\n```\n#7=UNCERTAINTY_MEASURE_WITH_UNIT(0.000001,'#unit_mm','distance_accuracy_value','confusion accuracy');\n#8=PRODUCT_CONTEXT('part definition','#application_context','mechanical');\n#48=ADVANCED_BREP_SHAPE_REPRESENTATION('lens_geom',('#47'),#9);\nLENGTH_UNIT present: False\nAPPLICATION_CONTEXT present: False\n```\n\n## Root cause\n\n- `openlens/io/step_export.py:332` \u2014 `\"UNCERTAINTY_MEASURE_WITH_UNIT\"` args use the raw strings `\"#unit_mm\"` and an unset unit entity.\n- `openlens/io/step_export.py:337` \u2014 `\"PRODUCT_CONTEXT\"` uses `\"#application_context\"`.\n- `openlens/io/step_export.py:345` \u2014 `GEOMETRIC_REPRESENTATION_CONTEXT` receives `[\"3D\", \"Geometric Context\", 3]`; the third argument should be a plane-angle unit/uncertainty reference or `$`.\n- `openlens/io/step_export.py:708` \u2014 `ADVANCED_BREP_SHAPE_REPRESENTATION` puts `\"#47\"` in the items list as a string instead of a `StepRef`.\n- The writer's `StepRef`/`StepEnum`/`StepDerived` markers exist (`:16-63`) but these call sites were never migrated.\n\n## Expected behaviour\n\nAll entity references are written as `#n` tokens, and every referenced entity is emitted (`LENGTH_UNIT`, `APPLICATION_CONTEXT`, etc.) or replaced by `$` where optional. The file validates as STEP AP203/AP214.\n\n## Suggested fix\n\nReplace the raw strings with `StepRef` values, emit the missing `(LENGTH_UNIT() NAMED_UNIT(*) SI_UNIT(.MILLI.,.METRE.))` and `APPLICATION_CONTEXT(...)` entities, and pass `$`/a proper unit reference to `GEOMETRIC_REPRESENTATION_CONTEXT`. Add a test that parses the output and asserts every `#n` has a defining entity.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/608",
+ "pr": 698,
+ "pr_title": "fix(io): write STEP entity references as references and define what they name",
+ "pr_body": "## Description\n\nThe STEP writer learned to quote text properly, which exposed the call sites\nthat were passing pre-written syntax as strings. The exported file referred to\nits length unit and its application context by name - `'#unit_mm'`,\n`'#application_context'` - and the B-rep items as `('#47')`, so a reader\nresolved none of them. The entities themselves were never written: the file\nhad **no `LENGTH_UNIT` and no `APPLICATION_CONTEXT` at all**, and its geometry\ntherefore had no unit.\n\n```\nbefore:\n#7=UNCERTAINTY_MEASURE_WITH_UNIT(0.000001,'#unit_mm','distance_accuracy_value','confusion accuracy');\n#48=ADVANCED_BREP_SHAPE_REPRESENTATION('lens_geom',('#47'),#9);\nLENGTH_UNIT present: False\nAPPLICATION_CONTEXT present: False\n\nafter:\n#6=(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.));\n#7=UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-06),#6,'distance_accuracy_value','confusion accuracy');\n#8=APPLICATION_CONTEXT('core data for automotive mechanical design processes');\n#9=PRODUCT_CONTEXT('part definition',#8,'mechanical');\n#10=MECHANICAL_CONTEXT('3D Mechanical Context',#8);\n#11=(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT((#7))\n     GLOBAL_UNIT_ASSIGNED_CONTEXT((#6))REPRESENTATION_CONTEXT('',''));\n#50=ADVANCED_BREP_SHAPE_REPRESENTATION('lens_geom',(#49),#11);\n```\n\n## What changed\n\n- `openlens/io/step_export.py`:\n  - the millimetre unit, the application context, the product/mechanical\n    contexts and the uncertainty are now actually written, and referenced as\n    `StepRef`s rather than text;\n  - the geometric context is a complex entity carrying\n    `GLOBAL_UNIT_ASSIGNED_CONTEXT` and `GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT`,\n    which is where a Part 21 file states what its numbers mean. Its third\n    argument stays the dimension count (`3`) - the issue's suggestion that it\n    should take the uncertainty reference is not what the schema says;\n  - `MECHANICAL_CONTEXT` takes `(name, frame_of_reference)`; the old call\n    passed three text arguments, none of them a reference;\n  - the `ADVANCED_BREP_SHAPE_REPRESENTATION` items are the solids'\n    `StepRef`s, not interpolated `\"#47\"` strings;\n  - `StepWriter.add_complex_entity()` writes multi-type instances\n    (`#6=(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(...));`) and `StepTyped` carries\n    the typed parameter `LENGTH_MEASURE(1.E-06)` that the uncertainty's\n    select requires. `add_entity`/`add_complex_entity` share one argument\n    formatter.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #608\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_step_entity_references.py` parses the exported file the\nway a Part 21 reader does: text literals are not references, and every\nremaining `#n` must have a definition. Seven of its ten tests fail on the\nunfixed code:\n\n- `test_a_single_lens_has_no_dangling_references`\n- `test_a_system_has_no_dangling_references`\n- `test_no_reference_is_written_as_quoted_text`\n- `test_the_brep_shape_lists_the_solids_as_references`\n- `test_the_millimetre_length_unit_is_written`\n- `test_the_application_context_is_written`\n- `test_the_product_context_points_at_the_application_context`\n- `test_the_geometric_context_assigns_units_and_uncertainty`\n- `test_the_uncertainty_is_a_length_measure_of_the_unit`\n- `test_a_lens_name_with_a_hash_is_not_a_reference`\n\nFull local suite: `Ran 2663 tests ... OK (skipped=35)`; the five existing STEP\nsuites (58 tests) still pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "7b21942592b6f1190cb9a1a6ce49a33ce7cf133e",
+ "merged_at": "2026-10-22T09:59:17Z",
+ "port_method": "partial_hunks:6/7",
+ "src_files": [
+  "openlens/io/step_export.py"
+ ],
+ "test_files": [
+  "tests/test_step_entity_references.py"
+ ],
+ "target_symbols": [
+  "openlens/io/step_export.py::StepDerived.__new__",
+  "openlens/io/step_export.py::StepExporter._create_context",
+  "openlens/io/step_export.py::StepExporter._element_placements",
+  "openlens/io/step_export.py::StepExporter._export_lens_solid",
+  "openlens/io/step_export.py::StepWriter.__init__",
+  "openlens/io/step_export.py::StepWriter._format_scalar",
+  "openlens/io/step_export.py::StepWriter.add_entity",
+  "openlens/io/step_export.py::StepWriter.generate",
+  "openlens/io/step_export.py::_is_flat_radius",
+  "openlens/io/step_export.py::_sphere_sag"
+ ],
+ "fail_to_pass": [
+  "tests/test_step_entity_references.py::TestContextEntities::test_the_application_context_is_written",
+  "tests/test_step_entity_references.py::TestContextEntities::test_the_geometric_context_assigns_units_and_uncertainty",
+  "tests/test_step_entity_references.py::TestContextEntities::test_the_millimetre_length_unit_is_written",
+  "tests/test_step_entity_references.py::TestContextEntities::test_the_product_context_points_at_the_application_context",
+  "tests/test_step_entity_references.py::TestContextEntities::test_the_uncertainty_is_a_length_measure_of_the_unit",
+  "tests/test_step_entity_references.py::TestReferencesResolve::test_no_reference_is_written_as_quoted_text",
+  "tests/test_step_entity_references.py::TestReferencesResolve::test_the_brep_shape_lists_the_solids_as_references"
+ ],
+ "pass_to_pass": [
+  "tests/test_step_entity_references.py::TestReferencesResolve::test_a_single_lens_has_no_dangling_references",
+  "tests/test_step_entity_references.py::TestReferencesResolve::test_a_system_has_no_dangling_references",
+  "tests/test_step_entity_references.py::TestTextThatLooksLikeAReference::test_a_lens_name_with_a_hash_is_not_a_reference"
+ ],
+ "patch_lines": 113
+}

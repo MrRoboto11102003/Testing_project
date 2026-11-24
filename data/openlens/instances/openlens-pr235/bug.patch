@@ -1,0 +1,38 @@
+diff --git a/openlens/analysis/plots.py b/openlens/analysis/plots.py
+index a5c4ec242f79dca4ec3001df599fbcb213ded3d0..0e879298a22a3b9d9e350f6dc617569eb944b98c 100644
+--- a/openlens/analysis/plots.py
++++ b/openlens/analysis/plots.py
+@@ -47,10 +47,13 @@ from ..optical_system import OpticalSystem
+ def draw_system_outline(ax, system: OpticalSystem) -> None:
+     """Draw the lens element outlines of ``system`` onto ``ax`` (Z vs Y).
+ 
+-    Canonical convention: ``lens.thickness`` is the CENTER (vertex to
+-    vertex) thickness, matching the ray tracers, the ABCD matrix, the
+-    lensmaker equation, and ``LensGeometry``. The rim (edge) thickness is
+-    derived as ``thickness - sag1 + sag2`` at the clear aperture.
++    Uses the same edge-thickness convention as the 2D editor widgets
++    (lens_viz_2d, simulation_viz, assembly_viz) so the ghost dialog
++    matches the Editor tab: the rim-to-rim distance is ``lens.thickness``
++    and the vertex separation is ``thickness + sag1 - sag2``. The
++    previous center-thickness placement (``current_z + thickness + sag2``)
++    produced a pointy/spindle outline for large apertures that did not
++    match the editor.
+     """
+     current_z = 0.0
+     for i, element in enumerate(system.elements):
+diff --git a/openlens/validation.py b/openlens/validation.py
+index 1afebdc4a1fd18a6f4199d8afb72af8f4f088477..2697d491190a7ac871d85c3fd3c52fdb28187638 100644
+--- a/openlens/validation.py
++++ b/openlens/validation.py
+@@ -869,11 +869,6 @@ def check_physical_feasibility(
+             f"diameter ({diameter:.1f}mm). May be fragile."
+         )
+ 
+-    if hard_error is not None:
+-        if warnings:
+-            return False, hard_error + " " + " ".join(warnings)
+-        return False, hard_error
+-
+     if warnings:
+         return False, " ".join(warnings)
+ 

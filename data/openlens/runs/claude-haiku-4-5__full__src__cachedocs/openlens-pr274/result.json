@@ -1,0 +1,209 @@
+{
+ "id": "openlens-pr274",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 115,
+  "units_kept": 115,
+  "chars": 105572
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.67,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 7177,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 11055,
+  "output_tokens_details": {
+   "thinking_tokens": 7718
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 7177,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11055,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 7177,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 7177
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.07210820000000001,
+ "model_seconds": 53.7,
+ "seconds": 61.4,
+ "tests": {
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_backward_compatibility_field_angle_deg_kwarg": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_basic_quality_analysis_returns_dict_with_required_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_quality_score_boundaries": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestAnalyzeLensQuality::test_wavelength_nm_parameter_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "analyze_lens_quality"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystemChromaticAberration::test_chromatic_aberration_afocal_system_returns_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystemChromaticAberration::test_chromatic_aberration_returns_expected_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystemChromaticAberration::test_chromatic_aberration_uses_fraunhofer_lines": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystemLoad::test_load_handles_null_radii_for_flat_surfaces": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystemLoad::test_load_invalid_json_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystemLoad::test_load_nonexistent_file_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystemLoad::test_load_rejects_nan_infinity_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestOpticalSystemLoad::test_load_valid_json_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestSimulateImage::test_simulate_image_handles_color_image": {
+   "clean": "skipped",
+   "buggy": "skipped",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageSimulator",
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestSimulateImage::test_simulate_image_returns_expected_structure": {
+   "clean": "skipped",
+   "buggy": "skipped",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageSimulator",
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr274.py::TestSimulateImage::test_simulate_image_wavelength_parameter": {
+   "clean": "skipped",
+   "buggy": "skipped",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ImageSimulator",
+    "Lens"
+   ]
+  }
+ }
+}

@@ -1,0 +1,56 @@
+{
+ "id": "openlens-pr415",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 351,
+ "issue_title": "Beam synthesis: off-by-one beamlet spacing and `q` propagated with the wrong \u03bb in glass",
+ "issue_body": "**File:** `src/analysis/beam_synthesis.py:340, 357-358, 62-63, 445-448`\n\n```python\n340: delta = ep_diam / grid_size\n357: y_vals = np.linspace(-max_r, max_r, grid_size)\n```\n\nActual spacing is `2*max_r/(grid_size-1) = ep_diam/(grid_size-1)` \u2014 a 3 % error at `grid_size=32`\nthat directly sets the beamlet waist `w0 = 1.5*delta` (`:342`).\n\n```python\n 62: self.q_x += distance        # GaussianBeam.propagate \u2014 always free-space lambda, full d\n447: beam.q_x += dist            # inside the glass: needs d/n\n```\n\n`q` is defined with the *local* wavelength, so on entering `n=1.5168` the reduced `q'` should be\nscaled by `n1/n2` and the propagation length by `1/n`. Verified: `w_x` 0.1323 \u2192 0.1621 mm across an\n`n=1.0\u21921.5, R=50` surface.\n\nAlso `class np: ndarray = Any` (`:13-14`) has no `array()`, so the \"graceful degradation\" returns at\n`:129`, `:285`, `:334` raise `AttributeError: type object 'np' has no attribute 'array'` when numpy\nis missing \u2014 the exact opposite of graceful. `NUMPY_AVAILABLE` is checked at `:284`/`:329` but not `:129`.\n\n**Fix:** use `dx = 2*max_r/(grid_size-1)`; track the local wavelength/index on `GaussianBeam` and\nuse `q' = n1/n2 * q` with `d/n` propagation; define a real fallback or raise a clean `ImportError`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/351",
+ "pr": 415,
+ "pr_title": "fix(beam): correct beamlet spacing, track the local medium, degrade honestly",
+ "pr_body": "Closes #351\n\n## Three defects\n\n**1. Beamlet spacing was 3.1% wrong.**\n\n```python\ndelta = ep_diam / grid_size\n```\n\nThe grid is `np.linspace(-max_r, max_r, grid_size)`, which spans `2*max_r` in **`grid_size - 1`** intervals:\n\n```\ngrid=8    -12.50%\ngrid=32    -3.125%     <- the issue's figure\ngrid=64    -1.562%\n```\n\nThat error went straight into the waist `w0 = 1.5 * delta`.\n\n**2. `q` is defined against the local medium \u2014 and two things weren't.**\n\n`refract()` already used the reduced form `1/q' = (n1/n2)(1/q) - Phi/n2`, but:\n\n- `propagate` advanced `q` by `d`, not `d/n` \u2014 a beam crossing a thick element propagated as if in air.\n- `GaussianBeam` carried the **vacuum** wavelength forever, while `w = sqrt(-\u03bb_local / (\u03c0\u00b7Im(1/q)))` with `\u03bb_local = \u03bb_vac/n`. So every beam radius after entering glass was too large by `n`:\n\n```\nbefore:  w_x 0.1323 -> 0.1621 mm across an n=1.0->1.5, R=50 surface\nafter:   w_x 0.100000 -> 0.100000  (continuous)\n```\n\n`GaussianBeam` now tracks `n` and updates `wavelength` on refraction. The new `advance_q()` does the index-aware advance **without moving the ray** \u2014 the BSP tracer has already moved it, so `propagate()` would double-count. The BSP propagator also passes `beam.n` as `n1` instead of a hardcoded `1.0`, which was wrong for every element after the first in an assembly.\n\n**3. Graceful degradation wasn't.**\n\nThe numpy stand-in declared only `ndarray`, so every \"return an empty result\" path raised:\n\n```\nAttributeError: type object 'np' has no attribute 'array'\n```\n\nIt now provides `array`/`zeros`/`ones`/`linspace`/`meshgrid` returning plain lists \u2014 all an empty-result caller can use. The genuinely numpy-requiring BSP path still raises its clean `ImportError`, and a test asserts it does.\n\n## Tests\n\n21 tests, **13 fail without the change**: `w_x` continuity across curved *and* flat surfaces, vacuum-wavelength preservation over one and two surfaces and a round trip, `d/n` propagation in glass vs `d` in air, both axes advancing, `advance_q` not moving the ray, and three subprocess tests with numpy genuinely blocked.\n",
+ "fix_commit": "7cd2cfc916398da3ec1f8e89fc86714c48e0e2b6",
+ "merged_at": "2026-10-06T23:52:03Z",
+ "port_method": "partial_hunks:6/7",
+ "src_files": [
+  "openlens/analysis/beam_synthesis.py"
+ ],
+ "test_files": [
+  "tests/test_beam_synthesis_medium.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/beam_synthesis.py::BeamSynthesisPropagator._default_image_plane",
+  "openlens/analysis/beam_synthesis.py::BeamSynthesisPropagator.propagate_to_image",
+  "openlens/analysis/beam_synthesis.py::GaussianBeam.R_x",
+  "openlens/analysis/beam_synthesis.py::GaussianBeam.advance_q",
+  "openlens/analysis/beam_synthesis.py::GaussianBeam.w_x",
+  "openlens/analysis/beam_synthesis.py::GaussianBeam.w_y"
+ ],
+ "fail_to_pass": [
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_advance_q_does_not_move_the_ray",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_beam_carries_its_local_index",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_beam_radius_continuous_for_a_flat_surface_too",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_beam_radius_is_continuous_across_a_surface",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_both_axes_advance",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_local_wavelength_is_vacuum_over_n",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_propagate_still_moves_the_ray",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_propagation_in_air_advances_q_by_d",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_propagation_in_glass_advances_q_by_d_over_n",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_round_trip_through_glass_restores_the_vacuum_wavelength",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_two_surfaces_scale_the_wavelength_twice",
+  "tests/test_beam_synthesis_medium.py::TestMediumAwareQ::test_vacuum_wavelength_is_preserved_across_a_surface"
+ ],
+ "pass_to_pass": [
+  "tests/test_beam_synthesis_medium.py::TestBeamletSpacing::test_old_formula_was_wrong_by_the_expected_amount",
+  "tests/test_beam_synthesis_medium.py::TestBeamletSpacing::test_single_point_grid_does_not_divide_by_zero",
+  "tests/test_beam_synthesis_medium.py::TestBeamletSpacing::test_spacing_is_independent_of_grid_size_scaling",
+  "tests/test_beam_synthesis_medium.py::TestBeamletSpacing::test_spacing_matches_the_linspace_grid",
+  "tests/test_beam_synthesis_medium.py::TestGracefulDegradationWithoutNumpy::test_bsp_still_raises_a_clean_import_error",
+  "tests/test_beam_synthesis_medium.py::TestGracefulDegradationWithoutNumpy::test_empty_wavefront_path_returns_instead_of_raising",
+  "tests/test_beam_synthesis_medium.py::TestGracefulDegradationWithoutNumpy::test_flag_is_false",
+  "tests/test_beam_synthesis_medium.py::TestGracefulDegradationWithoutNumpy::test_mtf_path_returns_instead_of_raising",
+  "tests/test_beam_synthesis_medium.py::TestGracefulDegradationWithoutNumpy::test_shim_provides_the_names_the_module_uses"
+ ],
+ "patch_lines": 77
+}

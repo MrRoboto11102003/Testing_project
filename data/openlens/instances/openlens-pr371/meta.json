@@ -1,0 +1,61 @@
+{
+ "id": "openlens-pr371",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 332,
+ "issue_title": "`design_cemented_doublet` designs with database indices but builds lenses with static defaults",
+ "issue_body": "**File:** `src/optical_system.py:685-729`\n\n```python\nn1 = crown.nd          # 1.78472 for SF11 (from the database)\nn2 = flint.nd\n...\nflint_lens = Lens(name=..., material=\"SF11\", ...)   # no refractive_index= !\n```\n\n`Lens.__init__` falls back to `DEFAULT_MATERIAL_INDICES[\"SF11\"] = 1.78` (`lens.py:138`,\n`constants.py:42`) \u2014 **not** the 1.78472 the radii were solved with.\n\n**Repro (verified):** `design_cemented_doublet(100.0, 50.0)` returns EFL 100.879 (0.9 % long) with\nresidual LCA 0.0386 mm \u2014 an \"achromatic\" doublet that is not achromatic.\n\n**Fix:** pass `refractive_index=n1` / `refractive_index=n2` (or use `Lens.for_material(...)`).",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/332",
+ "pr": 371,
+ "pr_title": "fix(achromat): build doublet lenses with the solved refractive index",
+ "pr_body": "Closes #332\n\n## Problem\n\n`design_cemented_doublet` solves the element radii from the catalog refractive index but builds the lenses without passing one:\n\n```python\nn1 = crown.nd          # 1.78472 for SF11, from the database\n...\nflint_lens = Lens(name=..., material=\"SF11\", ...)   # no refractive_index= !\n```\n\n`Lens.__init__` falls back to `DEFAULT_MATERIAL_INDICES[\"SF11\"] = 1.78` \u2014 **not** the 1.78472 the radii were solved with. Each doublet was designed against one index and built as another.\n\n## Fix\n\nBoth lenses now carry the exact `n1`/`n2` used for the radii:\n\n```\n                before      after\nBK7 Element     1.516800    1.516800   (= db nd 1.5168)\nSF11 Element    1.780000    1.784720   (= db nd 1.78472)\n```\n\n`Lens.for_material` is deliberately **not** used: it re-evaluates Sellmeier and lands on `1.785107`, a third value matching neither `nd` nor the static default. The designer must hand the lens the number it solved with.\n\n## Note\n\nThe thick-lens approximation still leaves the built EFL above nominal (101.26 vs 100) \u2014 that is the designer's thin-lens solution applied to lenses with real thickness, and is a separate concern from this index mismatch.\n\n## Tests\n\n4 tests in `tests/test_optical_system_functional.py`; 3 fail without the change (the 4th pins the intended +/- power split).",
+ "fix_commit": "45491884af98b728896e868d1a4bac2a2046097e",
+ "merged_at": "2026-10-04T17:29:51Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/optical_system.py"
+ ],
+ "test_files": [
+  "tests/test_optical_system_functional.py"
+ ],
+ "target_symbols": [
+  "openlens/optical_system.py::AchromaticDoubletDesigner.design_cemented_doublet"
+ ],
+ "fail_to_pass": [
+  "tests/test_optical_system_functional.py::TestCementedDoubletMaterialConsistency::test_custom_material_pair_also_consistent",
+  "tests/test_optical_system_functional.py::TestCementedDoubletMaterialConsistency::test_elements_use_catalog_index",
+  "tests/test_optical_system_functional.py::TestCementedDoubletMaterialConsistency::test_flint_is_not_the_static_default"
+ ],
+ "pass_to_pass": [
+  "tests/test_optical_system_functional.py::TestAchromaticDoublet::test_air_spaced_doublet",
+  "tests/test_optical_system_functional.py::TestAchromaticDoublet::test_create_doublet",
+  "tests/test_optical_system_functional.py::TestAchromaticDoublet::test_custom_materials",
+  "tests/test_optical_system_functional.py::TestAchromaticDoublet::test_doublet_crown_is_positive",
+  "tests/test_optical_system_functional.py::TestAchromaticDoublet::test_doublet_flint_is_negative",
+  "tests/test_optical_system_functional.py::TestAchromaticDoublet::test_doublet_is_cemented",
+  "tests/test_optical_system_functional.py::TestCementedDoubletMaterialConsistency::test_flint_still_has_negative_power",
+  "tests/test_optical_system_functional.py::TestChromaticAberration::test_achromatic_doublet_corrects_chromatic",
+  "tests/test_optical_system_functional.py::TestChromaticAberration::test_efl_keys_are_true_efl_not_bfl_copies",
+  "tests/test_optical_system_functional.py::TestChromaticAberration::test_single_lens_has_chromatic_aberration",
+  "tests/test_optical_system_functional.py::TestNumericalAperture::test_numerical_aperture",
+  "tests/test_optical_system_functional.py::TestNumericalAperture::test_numerical_aperture_uses_system_focal_length",
+  "tests/test_optical_system_functional.py::TestOpticalSystem::test_empty_system",
+  "tests/test_optical_system_functional.py::TestOpticalSystem::test_single_lens_system",
+  "tests/test_optical_system_functional.py::TestOpticalSystem::test_three_lens_system",
+  "tests/test_optical_system_functional.py::TestOpticalSystem::test_two_lens_system",
+  "tests/test_optical_system_functional.py::TestSerialization::test_complex_system_serialization",
+  "tests/test_optical_system_functional.py::TestSerialization::test_from_dict",
+  "tests/test_optical_system_functional.py::TestSerialization::test_save_and_load",
+  "tests/test_optical_system_functional.py::TestSerialization::test_to_dict",
+  "tests/test_optical_system_functional.py::TestSystemFocalLength::test_converging_plus_diverging",
+  "tests/test_optical_system_functional.py::TestSystemFocalLength::test_single_lens_focal_length",
+  "tests/test_optical_system_functional.py::TestSystemFocalLength::test_two_converging_lenses",
+  "tests/test_optical_system_functional.py::TestSystemIntegration::test_doublet_achieves_design_focal_length",
+  "tests/test_optical_system_functional.py::TestSystemIntegration::test_is_achromatic",
+  "tests/test_optical_system_functional.py::TestTriplet::test_create_triplet",
+  "tests/test_optical_system_functional.py::TestTriplet::test_triplet_has_air_gaps",
+  "tests/test_optical_system_functional.py::TestTriplet::test_triplet_material_pattern"
+ ],
+ "patch_lines": 9
+}

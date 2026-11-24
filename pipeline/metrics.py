@@ -36,9 +36,9 @@ from . import config
 from .gitutil import git
 from .harness import GENERATED_DIR, load_instance, materialize
 
-RCFILE = """[run]
+RCFILE = f"""[run]
 branch = True
-source = arnio
+source = {config.PACKAGE}
 dynamic_context = test_function
 data_file = .coverage-metrics
 """

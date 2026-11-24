@@ -1,0 +1,326 @@
+diff --git a/tests/test_assembly_lens_library_membership.py b/tests/test_assembly_lens_library_membership.py
+index ff1af93..a7b7616 100644
+--- a/tests/test_assembly_lens_library_membership.py
++++ b/tests/test_assembly_lens_library_membership.py
+@@ -122,14 +122,14 @@ class TestAssemblyLensesAreNotLibraryItems(_DbFixture):
+         """The fix must not strip the elements out of the assembly."""
+         self._save(_assembly(_lens("L1"), _lens("L2")))
+ 
+-        assemblies = [i for i in self.db.load_all() if i["type"] == "OpticalSystem"]
++        assemblies = [i for i in self.db.load_all() if i["row_type"] == "OpticalSystem"]
+         self.assertEqual(len(assemblies), 1)
+         self.assertEqual(len(assemblies[0]["elements"]), 2, msg="an assembly lost an element")
+ 
+     def test_every_element_has_its_lens_data(self):
+         self._save(_assembly(_lens("L1"), _lens("L2", 35.0)))
+ 
+-        assembly = [i for i in self.db.load_all() if i["type"] == "OpticalSystem"][0]
++        assembly = [i for i in self.db.load_all() if i["row_type"] == "OpticalSystem"][0]
+         radii = sorted(e["lens"]["radius_of_curvature_1"] for e in assembly["elements"])
+ 
+         self.assertEqual(
+@@ -153,7 +153,7 @@ class TestTheSavedShapeSurvivesAReload(_DbFixture):
+ 
+         first = self._kinds()
+         for item in self.db.load_all():
+-            if item["type"] == "OpticalSystem":
++            if item["row_type"] == "OpticalSystem":
+                 self.db.save_assembly(item)
+             else:
+                 self.db.save_lens(item)
+@@ -209,7 +209,7 @@ class TestTheInUseGuardIsNotLoggedAsAFailure(_DbFixture):
+ 
+     def _lens_id_in_assembly(self, assembly_name):
+         for item in self.db.load_all():
+-            if item["type"] == "OpticalSystem" and item["name"] == assembly_name:
++            if item["row_type"] == "OpticalSystem" and item["name"] == assembly_name:
+                 return item["elements"][0]["lens_id"]
+         raise AssertionError("assembly not found")
+ 
+@@ -333,7 +333,9 @@ class TestReconciliationDoesNotAttemptDoomedDeletes(_DbFixture):
+         self.storage.save_lenses(items, show_status=False, reconcile=True)
+ 
+         self.assertIn("A", self._names())
+-        self.assertEqual(len([i for i in self.db.load_all() if i["type"] == "OpticalSystem"]), 1)
++        self.assertEqual(
++            len([i for i in self.db.load_all() if i["row_type"] == "OpticalSystem"]), 1
++        )
+ 
+ 
+ class TestAllIdsStillSeesEverything(_DbFixture):
+diff --git a/tests/test_clear_aperture.py b/tests/test_clear_aperture.py
+index 499afb2..d68f0b2 100644
+--- a/tests/test_clear_aperture.py
++++ b/tests/test_clear_aperture.py
+@@ -196,7 +196,7 @@ class TestClearAperturePersistence(unittest.TestCase):
+         system = OpticalSystem(name="CA System")
+         system.add_lens(lens)
+         self.db.save_assembly(system.to_dict())
+-        assemblies = [r for r in self.db.load_all() if r.get("type") == "OpticalSystem"]
++        assemblies = [r for r in self.db.load_all() if r.get("row_type") == "OpticalSystem"]
+         self.assertEqual(len(assemblies), 1)
+         element_lens = assemblies[0]["elements"][0]["lens"]
+         self.assertEqual(element_lens["clear_aperture_1"], 36.0)
+diff --git a/tests/test_coating.py b/tests/test_coating.py
+index 5dc9390..20b8f5b 100644
+--- a/tests/test_coating.py
++++ b/tests/test_coating.py
+@@ -163,7 +163,7 @@ class TestCoatingPersistence(unittest.TestCase):
+         system = OpticalSystem(name="Coated System")
+         system.add_lens(lens)
+         self.db.save_assembly(system.to_dict())
+-        assemblies = [r for r in self.db.load_all() if r.get("type") == "OpticalSystem"]
++        assemblies = [r for r in self.db.load_all() if r.get("row_type") == "OpticalSystem"]
+         self.assertEqual(len(assemblies), 1)
+         element_lens = assemblies[0]["elements"][0]["lens"]
+         self.assertEqual(len(element_lens["coating_2"]), 1)
+diff --git a/tests/test_database.py b/tests/test_database.py
+index 9c29fb5..8c02f54 100644
+--- a/tests/test_database.py
++++ b/tests/test_database.py
+@@ -51,13 +51,23 @@ def _make_assembly_dict(
+ 
+ 
+ def _load_assemblies(db):
+-    """Return only OpticalSystem items from load_all."""
+-    return [r for r in db.load_all() if r.get("type") == "OpticalSystem"]
++    """Return only OpticalSystem items from load_all.
++
++    ``row_type`` is the row marker. ``type`` is the payload's own type - for
++    a lens that is the lens type ("Biconvex", ...), which is exactly the
++    collision #488 is about.
++    """
++    return [r for r in db.load_all() if r.get("row_type") == "OpticalSystem"]
+ 
+ 
+ def _load_lenses(db):
+-    """Return only standalone Lens items from load_all."""
+-    return [r for r in db.load_all() if r.get("type") == "Lens"]
++    """Return only standalone Lens items from load_all.
++
++    Filtering on ``type`` made this return [] for every call: the metadata
++    merge overwrites the marker with Lens.to_dict()["type"], so every
++    assertion built on the old helper passed vacuously.
++    """
++    return [r for r in db.load_all() if r.get("row_type") == "Lens"]
+ 
+ 
+ class TestDatabaseManagerInit(unittest.TestCase):
+@@ -622,5 +632,121 @@ class TestMigrationIsAtomicAndIdempotent(unittest.TestCase):
+             os.unlink(tmp.name)
+ 
+ 
++class TestLoadAllRowMarker(unittest.TestCase):
++    """#488: the row marker must not collide with the payload's own type.
++
++    ``Lens.to_dict()["type"]`` is the lens type ("Biconvex", ...). Storing the
++    row marker under the same key meant the metadata merge overwrote it, so
++    ``load_all`` returned ``type: "Biconvex"`` for every lens. The marker is
++    now ``row_type``, set after the merge so a stored blob cannot spoof it.
++    """
++
++    def setUp(self):
++        self.db, self.path = _make_db()
++        self.addCleanup(os.unlink, self.path)
++
++    def test_a_lens_row_is_marked_and_keeps_its_lens_type(self):
++        from openlens.constants import LENS_TYPE_PLANO_CONVEX
++        from openlens.lens import Lens
++
++        self.db.save_lens(Lens(name="PCX", lens_type=LENS_TYPE_PLANO_CONVEX).to_dict())
++
++        row = _load_lenses(self.db)[0]
++
++        self.assertEqual(row["row_type"], "Lens")
++        self.assertEqual(row["type"], LENS_TYPE_PLANO_CONVEX)
++
++    def test_the_default_lens_type_is_not_mistaken_for_the_marker(self):
++        from openlens.constants import LENS_TYPE_BICONVEX
++        from openlens.lens import Lens
++
++        self.db.save_lens(Lens(name="Biconvex").to_dict())
++
++        row = _load_lenses(self.db)[0]
++
++        self.assertEqual(row["type"], LENS_TYPE_BICONVEX)
++        self.assertNotEqual(row["type"], "Lens")
++
++    def test_an_assembly_row_is_marked(self):
++        from openlens.optical_system import OpticalSystem
++
++        self.db.save_assembly(OpticalSystem(name="Doublet").to_dict())
++
++        row = _load_assemblies(self.db)[0]
++
++        self.assertEqual(row["row_type"], "OpticalSystem")
++        self.assertEqual(row["type"], "OpticalSystem")
++
++    def test_a_stored_blob_cannot_spoof_the_row_marker(self):
++        """The marker is not a payload key: metadata reaches the row through
++        the merge, so it must not be able to claim a different row kind."""
++        from openlens.lens import Lens
++
++        self.db.save_lens(Lens(name="Sneaky", metadata={"row_type": "OpticalSystem"}).to_dict())
++
++        row = _load_lenses(self.db)[0]
++
++        self.assertEqual(row["row_type"], "Lens")
++
++    def test_a_row_written_without_a_blob_still_gets_a_marker(self):
++        self.db.save_lens(_make_lens_dict())
++
++        row = _load_lenses(self.db)[0]
++
++        self.assertEqual(row["row_type"], "Lens")
++        self.assertEqual(row["name"], "Test Lens")
++
++
++class TestLensStorageUsesTheRowMarker(unittest.TestCase):
++    """The production dispatcher must key on the marker, not the payload."""
++
++    def setUp(self):
++        self.db, self.path = _make_db()
++        self.addCleanup(os.unlink, self.path)
++
++    def test_a_lens_comes_back_as_a_lens_with_its_type(self):
++        from openlens.constants import LENS_TYPE_PLANO_CONVEX
++        from openlens.gui.storage import LensStorage
++        from openlens.lens import Lens
++
++        lens = Lens(name="PCX", lens_type=LENS_TYPE_PLANO_CONVEX)
++        self.db.save_lens(lens.to_dict())
++
++        items = LensStorage(self.path).load_lenses()
++
++        self.assertEqual(len(items), 1)
++        self.assertIsInstance(items[0], Lens)
++        self.assertEqual(items[0].lens_type, LENS_TYPE_PLANO_CONVEX)
++
++    def test_an_assembly_comes_back_as_an_assembly(self):
++        from openlens.gui.storage import LensStorage
++        from openlens.optical_system import OpticalSystem
++
++        self.db.save_assembly(OpticalSystem(name="Doublet").to_dict())
++
++        items = LensStorage(self.path).load_lenses()
++
++        self.assertEqual(len(items), 1)
++        self.assertIsInstance(items[0], OpticalSystem)
++
++    def test_an_assembly_without_a_payload_type_is_still_an_assembly(self):
++        """The table is the authority, not a key the payload may omit.
++
++        ``OpticalSystem.to_dict`` writes "type": "OpticalSystem", but a row
++        assembled by hand - or by an older writer - need not. Dispatching on
++        "type" then built a Lens out of the assembly's row.
++        """
++        from openlens.gui.storage import LensStorage
++        from openlens.optical_system import OpticalSystem
++
++        self.db.save_assembly(_make_assembly_dict(asm_id="asm-x", name="Typeless"))
++
++        items = LensStorage(self.path).load_lenses()
++
++        systems = [item for item in items if isinstance(item, OpticalSystem)]
++        self.assertEqual(len(systems), 1)
++        self.assertEqual(systems[0].name, "Typeless")
++
++
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tests/test_database_migrations.py b/tests/test_database_migrations.py
+index 394ab71..cb2e738 100644
+--- a/tests/test_database_migrations.py
++++ b/tests/test_database_migrations.py
+@@ -281,7 +281,7 @@ class TestUnstampedLegacyDatabase(_TempDb):
+     def test_existing_rows_survive_the_migration(self):
+         """Migrating must not drop the lenses the user already had."""
+         db = DatabaseManager(self.path)
+-        lenses = [item for item in db.load_all() if item.get("type") == "Lens"]
++        lenses = [item for item in db.load_all() if item.get("row_type") == "Lens"]
+ 
+         self.assertEqual([lens["id"] for lens in lenses], ["legacy-1"])
+         self.assertEqual(lenses[0]["name"], "Legacy Lens")
+@@ -347,7 +347,7 @@ class TestEveryHistoricalVersionMigrates(_TempDb):
+                 self.addCleanup(self._remove, path)
+ 
+                 db = DatabaseManager(path)
+-                lenses = [item for item in db.load_all() if item.get("type") == "Lens"]
++                lenses = [item for item in db.load_all() if item.get("row_type") == "Lens"]
+ 
+                 self.assertEqual([lens["id"] for lens in lenses], ["legacy-1"])
+ 
+diff --git a/tests/test_e2e_persistence.py b/tests/test_e2e_persistence.py
+index e02cc6d..bb3f67b 100644
+--- a/tests/test_e2e_persistence.py
++++ b/tests/test_e2e_persistence.py
+@@ -52,7 +52,7 @@ class TestEndToEndPersistence(unittest.TestCase):
+         assemblies = [
+             item
+             for item in loaded_items
+-            if item.get("id") == "e2e_doublet_123" and item.get("type") == "OpticalSystem"
++            if item.get("id") == "e2e_doublet_123" and item.get("row_type") == "OpticalSystem"
+         ]
+         self.assertEqual(len(assemblies), 1, "Assembly not found in database")
+         loaded_dict = assemblies[0]
+diff --git a/tests/test_metadata_persistence.py b/tests/test_metadata_persistence.py
+index b2a6d04..9e7c654 100644
+--- a/tests/test_metadata_persistence.py
++++ b/tests/test_metadata_persistence.py
+@@ -114,7 +114,7 @@ class _DbCase(unittest.TestCase):
+         # production; matching it here keeps this test honest about the real
+         # loading path.
+         for item in DatabaseManager(self.path).load_all():
+-            if item.get("type") != "OpticalSystem":
++            if item.get("row_type") != "OpticalSystem":
+                 return item
+         self.fail("the lens did not come back from the database")
+ 
+@@ -252,7 +252,7 @@ class TestMetadataSurvivesSqlite(_DbCase):
+         db.save_assembly(system.to_dict())
+ 
+         for item in DatabaseManager(self.path).load_all():
+-            if item.get("type") == "OpticalSystem":
++            if item.get("row_type") == "OpticalSystem":
+                 self.assertEqual(item["metadata"]["tolerances"], TOLERANCES)
+                 return
+         self.fail("the assembly did not come back from the database")
+diff --git a/tests/test_metadata_resilience.py b/tests/test_metadata_resilience.py
+index 9ac236e..49474b1 100644
+--- a/tests/test_metadata_resilience.py
++++ b/tests/test_metadata_resilience.py
+@@ -138,7 +138,7 @@ class TestLoadAllSurvivesCorruptMetadata(unittest.TestCase):
+         conn.commit()
+         conn.close()
+ 
+-        asm = next(r for r in self.db.load_all() if r.get("type") == "OpticalSystem")
++        asm = next(r for r in self.db.load_all() if r.get("row_type") == "OpticalSystem")
+         self.assertEqual(asm["elements"][0]["lens"]["name"], "Shared")
+ 
+ 
+diff --git a/tests/test_seed_data.py b/tests/test_seed_data.py
+index 5e25eaa..e35dc49 100644
+--- a/tests/test_seed_data.py
++++ b/tests/test_seed_data.py
+@@ -101,7 +101,7 @@ class TestEnsureSeedData(unittest.TestCase):
+     def test_seeded_assembly_loads_with_correct_gaps(self):
+         """Seeded assembly should round-trip with patent air gaps."""
+         ensure_nikon_series_e_example(self.db)
+-        assemblies = [r for r in self.db.load_all() if r.get("type") == "OpticalSystem"]
++        assemblies = [r for r in self.db.load_all() if r.get("row_type") == "OpticalSystem"]
+         seed = [a for a in assemblies if a["id"] == NIKON_SERIES_E_ASSEMBLY_ID]
+         self.assertEqual(len(seed), 1)
+         self.assertEqual(len(seed[0]["elements"]), 6)
+diff --git a/tests/test_stop_alignment.py b/tests/test_stop_alignment.py
+index b4b57fa..1bc8ef9 100644
+--- a/tests/test_stop_alignment.py
++++ b/tests/test_stop_alignment.py
+@@ -199,7 +199,7 @@ class TestStopAlignmentPersistence(unittest.TestCase):
+         system.set_element_alignment(1, decenter_y=0.1, tilt_x=0.5)
+         system.set_aperture_stop(0, 20.0)
+         self.db.save_assembly(system.to_dict())
+-        assemblies = [r for r in self.db.load_all() if r.get("type") == "OpticalSystem"]
++        assemblies = [r for r in self.db.load_all() if r.get("row_type") == "OpticalSystem"]
+         self.assertEqual(len(assemblies), 1)
+         loaded = assemblies[0]
+         self.assertEqual(loaded["aperture_stop_gap"], 0)

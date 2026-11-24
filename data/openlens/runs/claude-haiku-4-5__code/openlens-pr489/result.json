@@ -1,0 +1,240 @@
+{
+ "id": "openlens-pr489",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code",
+ "context": {
+  "mode": "code",
+  "chars": 16452
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": null,
+ "mean_arnio_calls": 1.05,
+ "detected": true,
+ "n_tests": 20,
+ "n_catching": 1,
+ "n_false_alarms": 5,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 5467,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10123,
+  "output_tokens_details": {
+   "thinking_tokens": 5304
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 5467,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10123,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 5467,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 5467
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.061558,
+ "model_seconds": 48.1,
+ "seconds": 53.0,
+ "tests": {
+  "tests/_generated/test_openlens_pr489.py::TestDatabaseManagerLoadAll::test_load_all_items_have_row_type_field": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DatabaseManager"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestDatabaseManagerLoadAll::test_load_all_non_library_lenses_excluded": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DatabaseManager"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestDatabaseManagerLoadAll::test_load_all_radius_fields_renamed_to_radius_of_curvature": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DatabaseManager"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestDatabaseManagerLoadAll::test_load_all_returns_list_of_dicts": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DatabaseManager"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestLensToDict::test_to_dict_coating_deep_copy": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestLensToDict::test_to_dict_edge_profile_converted_to_list_of_lists": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestLensToDict::test_to_dict_edge_profile_none_handling": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestLensToDict::test_to_dict_includes_all_basic_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestLensToDict::test_to_dict_includes_aperture_and_bevel_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestLensToDict::test_to_dict_includes_parabolic_and_conic_fields": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestLensToDict::test_to_dict_metadata_is_shallow_copy": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestLensToDict::test_to_dict_type_field_is_lens_type": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestOpticalSystemFromDict::test_from_dict_creates_system_from_minimal_dict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestOpticalSystemFromDict::test_from_dict_preserves_id_and_timestamps": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestOpticalSystemFromDict::test_from_dict_restores_air_gaps": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestOpticalSystemFromDict::test_from_dict_with_lens_lookup_reuses_instance": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestOpticalSystemFromDict::test_from_dict_without_lens_lookup_creates_new_lens": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestUnsupportedSchemaVersionError::test_exception_attributes_stored": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnsupportedSchemaVersionError"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestUnsupportedSchemaVersionError::test_exception_is_runtime_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnsupportedSchemaVersionError"
+   ]
+  },
+  "tests/_generated/test_openlens_pr489.py::TestUnsupportedSchemaVersionError::test_exception_message_contains_version_info": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "UnsupportedSchemaVersionError"
+   ]
+  }
+ }
+}

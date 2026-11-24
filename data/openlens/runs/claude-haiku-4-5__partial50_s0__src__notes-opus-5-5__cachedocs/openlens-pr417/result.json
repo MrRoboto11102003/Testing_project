@@ -1,0 +1,277 @@
+{
+ "id": "openlens-pr417",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 112,
+  "units_kept": 56,
+  "chars": 86699,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 26230
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.52,
+ "detected": true,
+ "n_tests": 23,
+ "n_catching": 10,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 13554,
+  "cache_read_input_tokens": 12724,
+  "output_tokens": 9487,
+  "output_tokens_details": {
+   "thinking_tokens": 5034
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 13554,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9487,
+    "cache_read_input_tokens": 12724,
+    "cache_creation_input_tokens": 13554,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 13554
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.07582440000000001,
+ "model_seconds": 56.5,
+ "seconds": 65.6,
+ "tests": {
+  "tests/_generated/test_openlens_pr417.py::TestGlobalOptimizerGenetic::test_genetic_merit_history_length": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr417.py::TestGlobalOptimizerGenetic::test_genetic_merit_history_non_increasing": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr417.py::TestGlobalOptimizerGenetic::test_genetic_population_size_zero_raises": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr417.py::TestGlobalOptimizerGenetic::test_genetic_zero_generations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr417.py::TestGlobalOptimizerSimulatedAnnealing::test_simulated_annealing_callback_called": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr417.py::TestGlobalOptimizerSimulatedAnnealing::test_simulated_annealing_negative_temperature_clamped": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr417.py::TestGlobalOptimizerSimulatedAnnealing::test_simulated_annealing_reproducibility": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr417.py::TestGlobalOptimizerSimulatedAnnealing::test_simulated_annealing_zero_iterations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr417.py::TestSerializeOperands::test_serialize_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "serialize_operands"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestSerializeOperands::test_serialize_enum_values_correct": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType",
+    "serialize_operands"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestSerializeOperands::test_serialize_gaussian_operand": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType",
+    "serialize_operands"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestSerializeOperands::test_serialize_multiple_operands": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType",
+    "serialize_operands"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestSerializeOperands::test_serialize_roundtrip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType",
+    "deserialize_operands",
+    "serialize_operands"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestSerializeOperands::test_serialize_single_operand_basic": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType",
+    "serialize_operands"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_gaussian_auto_sigma": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_gaussian_clamping": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_gaussian_explicit_sigma": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_gaussian_with_no_rng": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_gaussian_zero_range": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_invalid_distribution_uses_uniform": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_no_rng_uses_module_random": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_uniform_basic": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr417.py::TestToleranceOperandGenerateValue::test_generate_value_uniform_reproducible": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  }
+ }
+}

@@ -1,0 +1,181 @@
+{
+ "id": "openlens-pr269",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 109,
+  "chars": 84391
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.0,
+ "detected": false,
+ "n_tests": 13,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1101,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 9463,
+  "output_tokens_details": {
+   "thinking_tokens": 6703
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1101,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9463,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 1101,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1101
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0519962,
+ "model_seconds": 38.5,
+ "seconds": 42.8,
+ "tests": {
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_does_not_mutate_original": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_full_visible_spectrum": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_has_all_required_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_ideal_achromatic_lens": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_large_chromatic_aberration": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_multiple_calls_consistent": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_preserves_basic_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_returns_dict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_very_small_aberrations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_with_empty_spectrum": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_with_negative_aberrations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_with_none_aberration_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  },
+  "tests/_generated/test_openlens_pr269.py::TestChromaticResultToDict::test_to_dict_with_numpy_arrays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ChromaticResult"
+   ]
+  }
+ }
+}

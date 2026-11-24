@@ -1,0 +1,165 @@
+diff --git a/openlens/database.py b/openlens/database.py
+index e878011aafc3f467b4cf8cae2d276cd25f56dec2..7066af9f76b16b6cae47c25f7e80eee06c7e883e 100644
+--- a/openlens/database.py
++++ b/openlens/database.py
+@@ -208,24 +208,6 @@ class DatabaseManager:
+         finally:
+             conn.close()
+ 
+-    @contextmanager
+-    def _write_transaction(self) -> Iterator[sqlite3.Cursor]:
+-        """Run a block as one immediate transaction and commit it atomically.
+-
+-        Yields:
+-            A cursor on a fresh autocommit connection, inside ``BEGIN
+-            IMMEDIATE``. Any exception rolls the whole block back.
+-        """
+-        with self._connection() as conn:
+-            cursor = conn.cursor()
+-            cursor.execute("BEGIN IMMEDIATE")
+-            try:
+-                yield cursor
+-            except Exception:
+-                cursor.execute("ROLLBACK")
+-                raise
+-            cursor.execute("COMMIT")
+-
+     def _initialize_db(self):
+         """Create tables if they don't exist and handle migrations.
+ 
+diff --git a/openlens/export_formats.py b/openlens/export_formats.py
+index 3a771742e319faba63db4e0a624ba77e0784f077..ca1fc7e7bf6f86754e477c46af9e90c09e1be0e5 100644
+--- a/openlens/export_formats.py
++++ b/openlens/export_formats.py
+@@ -23,7 +23,6 @@ from .constants import (
+ from .material_database import get_material_database
+ from .validation import (
+     ValidationError,
+-    reject_oversized_file,
+     validate_clear_aperture,
+     validate_lens_parameters,
+     validate_wavelength,
+@@ -1104,11 +1103,7 @@ class ZemaxSystemImporter:
+ 
+         Returns:
+             OpticalSystem with elements, gaps, and stop (when present).
+-
+-        Raises:
+-            ValidationError: If the file exceeds the import size limit.
+         """
+-        reject_oversized_file(filename)
+         with open(filename) as f:
+             text = f.read()
+         surfaces = ZemaxSystemImporter._parse_surfaces(text)
+diff --git a/openlens/io/step_reader.py b/openlens/io/step_reader.py
+index 6543b5e8fd37008c6371a0115e42e2a310316575..3b6361363ce09ffca9725dd2ae91cffc6459a16d 100644
+--- a/openlens/io/step_reader.py
++++ b/openlens/io/step_reader.py
+@@ -12,8 +12,6 @@ import logging
+ import re
+ from typing import Any, Dict, List, Tuple
+ 
+-from ..validation import reject_oversized_file
+-
+ logger = logging.getLogger(__name__)
+ 
+ # A Part 21 string literal is '...' with any apostrophe doubled (''), so the
+@@ -91,11 +89,7 @@ def read_step_solids(filename: str) -> List[Dict[str, Any]]:
+         List of dicts with ``id``, ``name``, ``points`` (list of
+         ``(x, y, z)`` tuples in file order), ``z_min`` and ``z_max``
+         (None when a solid owns no points).
+-
+-    Raises:
+-        ValidationError: If the file exceeds the import size limit.
+     """
+-    reject_oversized_file(filename)
+     with open(filename) as f:
+         content = f.read()
+ 
+diff --git a/openlens/lens_editor.py b/openlens/lens_editor.py
+index ea4bffe05f73c063e70dda426ad0b0c600c9cf4c..51b248b6d98381298f368bb0d9a5e04671dbf888 100644
+--- a/openlens/lens_editor.py
++++ b/openlens/lens_editor.py
+@@ -23,7 +23,6 @@ from .logging_setup import setup_logging, verbose_requested
+ from .paths import default_db_path, resolve_db_path
+ from .validation import (
+     ValidationError,
+-    check_physical_feasibility,
+     validate_radius,
+     validate_thickness,
+     validate_diameter,
+@@ -112,11 +111,6 @@ class LensManager:
+         """
+         print("\n=== Create New Optical Lens ===")
+         name = input("Lens name: ").strip() or "Untitled"
+-        try:
+-            name = validate_lens_name(name)
+-        except ValidationError as e:
+-            print(f"  invalid name: {e}")
+-            return None
+ 
+         r1 = self._prompt_float(
+             f"Radius of curvature 1 (mm) [{DEFAULT_RADIUS_1}]: ",
+@@ -149,14 +143,6 @@ class LensManager:
+         )
+         material = input("Material (BK7/Fused Silica/etc) [BK7]: ").strip() or "BK7"
+ 
+-        # Same cross-parameter check the GUI runs before it accepts a lens:
+-        # radii, thickness and diameter can each be valid on their own while
+-        # the surfaces intersect inside the clear aperture.
+-        feasible, reason = check_physical_feasibility(r1, r2, thickness, diameter)
+-        if not feasible:
+-            print(f"  cannot create lens: {reason}")
+-            return None
+-
+         lens = Lens(
+             name=name,
+             radius_of_curvature_1=r1,
+diff --git a/openlens/optical_system.py b/openlens/optical_system.py
+index 4113bb20ba36abb0b6181d613217c3f1cb18a8dd..579bca228e1cf0f07ff7c5f37887b5b9881eb399 100644
+--- a/openlens/optical_system.py
++++ b/openlens/optical_system.py
+@@ -38,7 +38,6 @@ except ImportError:
+     HAS_MATERIAL_DATABASE = False
+ from .vector3 import vec3
+ from .atomic import atomic_write_text
+-from .validation import reject_non_finite_numbers, reject_oversized_file
+ 
+ logger = logging.getLogger(__name__)
+ 
+diff --git a/openlens/validation.py b/openlens/validation.py
+index 1afebdc4a1fd18a6f4199d8afb72af8f4f088477..d67ca1ae908264b946c3c13be48222bb46600cfe 100644
+--- a/openlens/validation.py
++++ b/openlens/validation.py
+@@ -1007,31 +1007,6 @@ def validate_json_file_path(
+     return path
+ 
+ 
+-#: Largest file an importer will read into memory. A catalog or CAD file
+-#: larger than this is far more likely to be a mistake - or a hostile input -
+-#: than a real optical design, and reading it whole would exhaust memory.
+-MAX_IMPORT_FILE_BYTES = 64 * 1024 * 1024
+-
+-
+-def reject_oversized_file(path: Union[str, Path], max_bytes: Optional[int] = None) -> None:
+-    """Reject an import file above the in-memory size limit.
+-
+-    Args:
+-        path: File to inspect.
+-        max_bytes: Optional override for the limit. The default is read from
+-            :data:`MAX_IMPORT_FILE_BYTES` at call time, so callers that change
+-            the policy see it.
+-
+-    Raises:
+-        ValidationError: If the file is larger than the limit.
+-        OSError: If the file cannot be stat'ed (missing, unreadable).
+-    """
+-    limit = MAX_IMPORT_FILE_BYTES if max_bytes is None else max_bytes
+-    size = os.path.getsize(path)
+-    if size > limit:
+-        raise ValidationError(f"{path} is {size} bytes; the import limit is {limit} bytes")
+-
+-
+ def reject_non_finite_numbers(data: Any, param_name: str = "data") -> Any:
+     """Reject NaN and Infinity anywhere in a parsed JSON payload.
+ 

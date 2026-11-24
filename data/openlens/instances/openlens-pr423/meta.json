@@ -1,0 +1,40 @@
+{
+ "id": "openlens-pr423",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 321,
+ "issue_title": "`ProcessPoolExecutor` inside a GUI `QThread` pickles the whole optimizer",
+ "issue_body": "**File:** `src/optimizer.py:621-623`\n\n```python\nif n_vars > 4:\n    with ProcessPoolExecutor() as executor:\n        f_plus_list = list(executor.map(self._evaluate_design, perturbed_designs))\n```\n\n`self._evaluate_design` is a **bound method**, so `executor.map` pickles the entire `LensOptimizer` \u2014\nthe deep-copied `OpticalSystem`, the targets, and the (large) `_merit_cache` \u2014 once per task.\nProblems: (a) children get a *copy* of the cache, so all parent-side caching is wasted; (b) under\n`spawn` (macOS/Windows/PyInstaller) the child re-imports `__main__`, which for `python3 openlens.py`\nre-enters the Qt app; (c) a pool is constructed and torn down on *every* gradient call; (d) forking a\nprocess holding Qt/matplotlib state is a known hang source.\n\n**Fix:** use a module-level worker taking `(picklable_system, targets, values)`, or drop the pool \u2014\n`_evaluate_design` is dominated by a single-threaded Python ray trace anyway.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/321",
+ "pr": 423,
+ "pr_title": "fix(optimizer): stop forking worker processes inside the GUI thread",
+ "pr_body": "Closes #321\n\n`LensOptimizer._calculate_gradient` spread its finite-difference\nperturbations over a `ProcessPoolExecutor`:\n\n```python\nwith ProcessPoolExecutor() as executor:\n    f_plus_list = list(executor.map(self._evaluate_design, perturbed_designs))\n```\n\n`self._evaluate_design` is a **bound method**, so each task pickled the\nentire optimizer - the deep-copied `OpticalSystem`, the targets and the\nwhole merit cache. Each child then evaluated against a private copy of\nthat cache, so none of the parent-side caching was reused.\n\nThe part that actually bites: this runs inside `OptimizationWorker`, a\n`QThread` holding live Qt state. Under the `spawn` start method (macOS,\nWindows, PyInstaller) the child re-imports `__main__`, which for\n`python3 openlens.py` starts a second Qt application. Forking a process\nthat holds Qt/matplotlib state is also a known hang source. And a pool\nwas constructed and torn down on *every* gradient call, so process\nstartup dominated the work it was meant to parallelise.\n\n## The fix\n\nA bounded `ThreadPoolExecutor`. No pickling, one shared merit cache, no\nchild process to re-enter `__main__`, and threads rather than whole\nprocesses per call.\n\nFan-out is capped at `GRADIENT_MAX_WORKERS = 4`, because each evaluation\ndeep-copies the system and unbounded fan-out would compete for memory\nrather than help. The `> 4` variable threshold is preserved.\n\n## Honest note on the speedup\n\nI measured this rather than assuming. On a 5-variable singlet:\n\n| path | time |\n|---|---|\n| `ProcessPoolExecutor` gradient | 130 ms |\n| `ThreadPoolExecutor` gradient | 238 ms |\n| pure serial, same 5 evaluations | 216 ms |\n\nThe gradients are numerically identical in all three. The merit function\nis GIL-bound Python ray tracing, so the old process pool bought ~1.6x by\npaying four process spawns per call - and that factor shrinks on\nrealistic (slower) merit functions while the fork hazard stays constant.\n\nSo this is deliberately a safety fix, not a speed fix: it trades an\nunreliable 1.6x that can deadlock or re-enter `__main__` under Qt for a\npath that is no worse than serial and cannot hang.\n\n## Tests\n\nNew `tests/test_optimizer_gradient_parallel.py` (7 tests):\n- no process pool is imported or referenced anywhere in the module -\n  checked via **AST**, not text matching, so the docstring can still\n  explain what was replaced\n- the threaded gradient matches a serial recomputation to 9 places\n- every component is finite, and not NaN\n- no child processes are spawned or leaked\n- the merit cache is shared across perturbations (the thing the process\n  pool silently defeated)\n- the below-threshold serial path still works, and fan-out stays bounded\n\nFull suite: 1069 tests, 31 skipped, no new failures. flake8 output on\n`src/optimizer.py` is byte-identical to the master baseline.",
+ "fix_commit": "e35202c9f65d8a30b287466547cbe9b5f6b681ff",
+ "merged_at": "2026-10-06T14:56:58Z",
+ "port_method": "partial_hunks:2/4",
+ "src_files": [
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_optimizer_gradient_parallel.py"
+ ],
+ "target_symbols": [
+  "openlens/optimizer.py::LensOptimizer._bound_penalty",
+  "openlens/optimizer.py::LensOptimizer._calculate_gradient",
+  "openlens/optimizer.py::LensOptimizer._evaluate_design",
+  "openlens/optimizer.py::LensOptimizer._merit_range_converged"
+ ],
+ "fail_to_pass": [
+  "tests/test_optimizer_gradient_parallel.py::TestGradientParallelism::test_gradient_does_not_leak_child_processes",
+  "tests/test_optimizer_gradient_parallel.py::TestGradientParallelism::test_gradient_matches_serial_evaluation",
+  "tests/test_optimizer_gradient_parallel.py::TestGradientParallelism::test_merit_cache_is_shared_across_perturbations",
+  "tests/test_optimizer_gradient_parallel.py::TestGradientParallelism::test_no_process_pool_is_constructed",
+  "tests/test_optimizer_gradient_parallel.py::TestGradientParallelism::test_parallel_gradient_is_finite_and_correct_length",
+  "tests/test_optimizer_gradient_parallel.py::TestGradientParallelism::test_worker_bound_is_respected"
+ ],
+ "pass_to_pass": [
+  "tests/test_optimizer_gradient_parallel.py::TestGradientParallelism::test_small_variable_count_still_works"
+ ],
+ "patch_lines": 34
+}

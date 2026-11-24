@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr374",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 320,
+ "issue_title": "`ImageQualityAnalyzer.simulate_image` fails on 2-D input and truncates on `uint8`",
+ "issue_body": "**File:** `src/analysis/psf_mtf.py:543, 556, 580`\n\n```python\noutput_image = np.zeros_like(image_array)        # :543 inherits uint8\nchannel = image_array[:, :, i]                   # :556 IndexError for 2-D\noutput_image[:, :, i] = convolved                # :580 truncates to 0/1\n```\n\nA 2-D grayscale array \u2192 `IndexError: too many indices for array`. A `uint8` input has the float\nresult truncated to 0/1 before `np.clip(0, 1)`. Note `ImageSimulator._create_grid_pattern` and\nfriends return 2-D arrays.\n\n**Fix:** branch on `image_array.ndim`; allocate `output_image = np.zeros(image_array.shape, dtype=np.float64)`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/320",
+ "pr": 374,
+ "pr_title": "fix(psf): accept 2-D and integer images in simulate_image",
+ "pr_body": "Closes #320\n\n## Problem\n\n`simulate_image` assumed an `(H, W, 3)` float input in two ways:\n\n```python\noutput_image = np.zeros_like(image_array)   # :543 inherits uint8\nchannel = image_array[:, :, i]              # :556 IndexError for 2-D\noutput_image[:, :, i] = convolved           # :580 truncates to 0/1\n```\n\nBoth reproduced:\n\n```\n--- 2-D grayscale input ---\n  IndexError: too many indices for array: array is 2-dimensional, but 3 were indexed\n--- uint8 3-D input ---\n  dtype: uint8  unique values: [1]  max: 1\n```\n\nA uint8 image saturated to a single value \u2014 the entire image clipped to 1.\n\n## Fix\n\n- The array is validated: 2-D or 3-D, with channel count matching `wavelengths_nm`.\n- Integer input is scaled by its dtype maximum, so the clip can't saturate it. Without this the `np.clip(0, 1)` still blows out any 0\u2013255 image.\n- Output is always `float64`, in the **input's shape**. A 2-D input returns 2-D: the per-wavelength results are averaged rather than inventing a third axis the caller didn't ask for.\n\n## After\n\n```\n2-D grayscale : shape=(32, 32)    dtype=float64 range=[0.075, 0.445]\n3-D float     : shape=(32, 32, 3) dtype=float64 range=[0.050, 0.499]\n3-D uint8     : shape=(32, 32, 3) dtype=float64 range=[0.056, 0.510] distinct=3072\nuint8 vs float agree: max abs diff = 0.0015\n```\n\n## Tests\n\n7 tests in `tests/test_psf_mtf.py`; all fail without the change.",
+ "fix_commit": "b4a0d6a830b91f7aad4c9fae56f4bfcd87d2b46c",
+ "merged_at": "2026-10-04T20:46:23Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/analysis/psf_mtf.py"
+ ],
+ "test_files": [
+  "tests/test_psf_mtf.py"
+ ],
+ "target_symbols": [
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer._numpy_fftconvolve",
+  "openlens/analysis/psf_mtf.py::ImageQualityAnalyzer.simulate_image"
+ ],
+ "fail_to_pass": [
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_output_dtype_is_float64_whatever_the_input",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_two_d_input_does_not_raise",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_uint8_and_float_paths_agree",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_uint8_input_is_not_truncated_to_binary",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_wrong_channel_count_is_rejected"
+ ],
+ "pass_to_pass": [
+  "tests/test_psf_mtf.py::TestDiffractionFrequencyScale::test_frequency_axis_is_uniform_and_starts_at_zero",
+  "tests/test_psf_mtf.py::TestDiffractionFrequencyScale::test_frequency_step_is_not_the_n_not_n_minus_1_value",
+  "tests/test_psf_mtf.py::TestDiffractionFrequencyScale::test_frequency_step_matches_sample_spacing",
+  "tests/test_psf_mtf.py::TestDiffractionFrequencyScale::test_step_matches_the_sensors_actual_grid",
+  "tests/test_psf_mtf.py::TestImageQualityAnalyzer::test_mtf_structure",
+  "tests/test_psf_mtf.py::TestImageQualityAnalyzer::test_off_axis",
+  "tests/test_psf_mtf.py::TestImageQualityAnalyzer::test_psf_structure",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_output_is_normalized",
+  "tests/test_psf_mtf.py::TestSimulateImageInputs::test_wrong_dimensionality_is_rejected"
+ ],
+ "patch_lines": 56
+}

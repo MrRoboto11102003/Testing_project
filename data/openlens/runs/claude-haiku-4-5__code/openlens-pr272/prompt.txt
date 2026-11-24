@@ -1,0 +1,40 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.optical_system.OpticalSystem.get_system_focal_length.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.optical_system.OpticalSystem.get_system_focal_length
+    def get_system_focal_length(self) -> Optional[float]:
+        """
+        Calculate the system effective focal length (EFL).
+
+        A single lens returns its own (thick-lens) focal length. Any
+        multi-element system — including two-lens systems — uses the exact
+        paraxial value EFL = -1/C from the system ABCD matrix (reduced
+        glass thickness d/n, air gaps included). The old two-lens
+        thin-combination 1/f = 1/f1 + 1/f2 - d/(f1*f2) ignored
+        principal-plane offsets and disagreed with the matrix by ~10%
+        for thick/cemented pairs, so it was removed.
+        """
+        if not self.elements:
+            return None
+
+        # For single lens, return its focal length
+        if len(self.elements) == 1:
+            return self.elements[0].lens.calculate_focal_length()
+
+        # Exact matrix method for all multi-element systems
+        matrix = self._calculate_system_matrix()
+        if not matrix:
+            return None
+
+        A, B, C, D = matrix
+
+        # System Focal Length f = -1 / C
+        if abs(C) < 1e-10:
+            return None  # Infinite focal length (afocal)
+
+        return -1.0 / C

@@ -1,0 +1,34 @@
+diff --git a/openlens/chromatic_analyzer.py b/openlens/chromatic_analyzer.py
+index 893eb974a2cc4c8023663b72ac731f920e2af3b4..41007aa579eca31a367255d4e7532cbae38592d4 100644
+--- a/openlens/chromatic_analyzer.py
++++ b/openlens/chromatic_analyzer.py
+@@ -374,10 +374,6 @@ class ChromaticAnalyzer:
+ 
+         Returns:
+             Dictionary with lens parameters for both elements
+-
+-        Raises:
+-            ValueError: If crown and flint have the same Abbe number, which
+-                makes the achromat unsolvable.
+         """
+         # Get Abbe numbers
+         V1 = self.calculate_abbe_number(crown_material)
+@@ -392,18 +388,6 @@ class ChromaticAnalyzer:
+         # φ1 + φ2 = 1/f
+ 
+         phi_total = 1.0 / focal_length
+-        # Achromatism splits power by Abbe number, so the split divides by
+-        # (V1 - V2). Two glasses with the same Abbe number cannot be
+-        # achromatised at any focal length - the condition has no solution -
+-        # and the division raised ZeroDivisionError. The sibling designer in
+-        # optical_system.AchromaticDoubletDesigner guards this.
+-        if abs(V1 - V2) < 1e-12:
+-            raise ValueError(
+-                f"Cannot design an achromat from {crown_material!r} and "
+-                f"{flint_material!r}: both have Abbe number V={V1:.4f}. Two "
+-                "different glasses are required to cancel chromatic "
+-                "aberration."
+-            )
+         phi1 = phi_total * V1 / (V1 - V2)
+         phi2 = phi_total * V2 / (V2 - V1)
+ 

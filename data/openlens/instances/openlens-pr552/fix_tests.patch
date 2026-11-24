@@ -1,0 +1,244 @@
+diff --git a/tests/test_cli_create_lens_validation.py b/tests/test_cli_create_lens_validation.py
+new file mode 100644
+index 0000000..474582b
+--- /dev/null
++++ b/tests/test_cli_create_lens_validation.py
+@@ -0,0 +1,56 @@
++"""#475: the interactive CLI must apply the same validators as the GUI.
++
++``create_lens`` prompted for values, built a ``Lens`` and appended it without
++``validate_lens_name`` or ``check_physical_feasibility`` - both of which the
++GUI applies before it accepts the same parameters. A 101-character name or a
++lens whose surfaces intersect inside the clear aperture was saved happily.
++"""
++
++import os
++import tempfile
++import unittest
++from unittest import mock
++
++from openlens.lens import Lens
++from openlens.lens_editor import LensManager
++
++
++class TestCreateLensValidation(unittest.TestCase):
++    def setUp(self):
++        handle, self.storage_file = tempfile.mkstemp(suffix=".json")
++        os.close(handle)
++        self.addCleanup(self._cleanup)
++        self.manager = LensManager(storage_file=self.storage_file)
++
++    def _cleanup(self):
++        base = self.storage_file.replace(".json", ".db")
++        for path in (base, base + "-shm", base + "-wal", self.storage_file):
++            if os.path.exists(path):
++                os.unlink(path)
++
++    def _run_create(self, answers):
++        with mock.patch("builtins.input", side_effect=answers):
++            return self.manager.create_lens()
++
++    def test_a_name_over_the_limit_is_rejected_and_not_saved(self):
++        result = self._run_create(["x" * 101])
++
++        self.assertIsNone(result)
++        self.assertEqual(self.manager.lenses, [])
++
++    def test_an_infeasible_lens_is_rejected_and_not_saved(self):
++        result = self._run_create(["Bad", "50", "-50", "1", "100", "1.5168", "Biconvex", "BK7"])
++
++        self.assertIsNone(result)
++        self.assertEqual(self.manager.lenses, [])
++
++    def test_a_feasible_lens_is_still_created(self):
++        lens = self._run_create(["Good", "50", "-50", "5", "25", "1.5168", "Biconvex", "BK7"])
++
++        self.assertIsInstance(lens, Lens)
++        self.assertEqual(lens.name, "Good")
++        self.assertEqual(len(self.manager.lenses), 1)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_gui_save_reporting.py b/tests/test_gui_save_reporting.py
+index 1ec539c..f3fb183 100644
+--- a/tests/test_gui_save_reporting.py
++++ b/tests/test_gui_save_reporting.py
+@@ -92,8 +92,9 @@ class _WindowCase(unittest.TestCase):
+     def _break_the_database(self):
+         """Make every real save raise, the way an unwritable file would."""
+         error = RuntimeError("table lenses has no column named is_parabolic_1")
+-        self.storage.db.save_lens = mock.Mock(side_effect=error)
+-        self.storage.db.save_assembly = mock.Mock(side_effect=error)
++        # LensStorage commits the whole snapshot through save_library; the
++        # per-item save_lens/save_assembly methods are no longer on that path.
++        self.storage.db.save_library = mock.Mock(side_effect=error)
+ 
+     def _save(self):
+         self.window._on_save()
+diff --git a/tests/test_import_limits.py b/tests/test_import_limits.py
+new file mode 100644
+index 0000000..1158fdc
+--- /dev/null
++++ b/tests/test_import_limits.py
+@@ -0,0 +1,87 @@
++"""#475: importers cap the file they read and reject non-finite JSON.
++
++``ZemaxSystemImporter``, ``read_step_solids`` and ``OpticalSystem.load`` read
++a whole file with no size limit, and ``load`` handed Python's ``NaN`` /
++``Infinity`` extensions straight to ``from_dict``.
++"""
++
++import json
++import os
++import tempfile
++import unittest
++from unittest import mock
++
++from openlens.export_formats import ZemaxSystemImporter
++from openlens.io.step_reader import read_step_solids
++from openlens.optical_system import OpticalSystem
++from openlens.validation import ValidationError
++
++_TINY_ZMX = """! a tiny but valid sequential file
++SURF 0
++  TYPE STANDARD
++  CURV 0.0
++  DISZ 0.0
++"""
++
++_TINY_STEP = """ISO-10303-21;
++HEADER;
++ENDSEC;
++DATA;
++ENDSEC;
++END-ISO-10303-21;
++"""
++
++
++@mock.patch("openlens.validation.MAX_IMPORT_FILE_BYTES", 128)
++class TestImportSizeCaps(unittest.TestCase):
++    def _file(self, text, suffix):
++        handle, path = tempfile.mkstemp(suffix=suffix)
++        os.close(handle)
++        with open(path, "w", encoding="utf-8") as f:
++            f.write(text)
++        self.addCleanup(os.unlink, path)
++        return path
++
++    def test_zemax_import_rejects_a_file_over_the_cap(self):
++        path = self._file(_TINY_ZMX + " " * 200, ".zmx")
++
++        with self.assertRaises(ValidationError):
++            ZemaxSystemImporter.import_system(path)
++
++    def test_step_reader_rejects_a_file_over_the_cap(self):
++        path = self._file(_TINY_STEP + " " * 200, ".step")
++
++        with self.assertRaises(ValidationError):
++            read_step_solids(path)
++
++    def test_system_load_rejects_a_file_over_the_cap(self):
++        path = self._file(json.dumps({"name": "Tiny"}) + " " * 200, ".json")
++
++        self.assertIsNone(OpticalSystem.load(path))
++
++    def test_a_small_file_is_still_read(self):
++        path = self._file(_TINY_ZMX, ".zmx")
++
++        system = ZemaxSystemImporter.import_system(path)
++
++        self.assertEqual(system.name, "Imported System")
++
++
++class TestNonFiniteNumbers(unittest.TestCase):
++    def _load(self, payload):
++        handle, path = tempfile.mkstemp(suffix=".json")
++        os.close(handle)
++        with open(path, "w", encoding="utf-8") as f:
++            f.write(payload)
++        self.addCleanup(os.unlink, path)
++        return OpticalSystem.load(path)
++
++    def test_nan_is_rejected(self):
++        self.assertIsNone(self._load('{"name": "T", "thickness": NaN}'))
++
++    def test_infinity_is_rejected(self):
++        self.assertIsNone(self._load('{"name": "T", "thickness": Infinity}'))
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_library_save_transaction.py b/tests/test_library_save_transaction.py
+new file mode 100644
+index 0000000..a562977
+--- /dev/null
++++ b/tests/test_library_save_transaction.py
+@@ -0,0 +1,67 @@
++"""#475: one ``save_lenses`` call must be one transaction.
++
++The storage layer saved each item through its own ``save_lens`` /
++``save_assembly`` call, each of which committed. A failure on item three left
++items one and two in the library - a partially saved snapshot that looked
++like a successful save.
++"""
++
++import os
++import tempfile
++import unittest
++
++from openlens.database import DatabaseManager
++from openlens.gui.storage import LensStorage
++from openlens.lens import Lens
++
++
++def _lens(name):
++    return Lens(
++        name=name,
++        radius_of_curvature_1=50.0,
++        radius_of_curvature_2=-50.0,
++        thickness=5.0,
++        diameter=25.0,
++        refractive_index=1.5168,
++    )
++
++
++class TestLibrarySaveIsAtomic(unittest.TestCase):
++    def setUp(self):
++        handle, self.path = tempfile.mkstemp(suffix=".db")
++        os.close(handle)
++        os.unlink(self.path)
++        self.addCleanup(self._remove_database)
++        self.db = DatabaseManager(self.path)
++        self.storage = LensStorage(self.path)
++
++    def _remove_database(self):
++        for suffix in ("", "-shm", "-wal"):
++            try:
++                os.unlink(self.path + suffix)
++            except FileNotFoundError:
++                pass
++
++    def test_a_failure_mid_save_leaves_no_rows(self):
++        first = _lens("L1")
++        second = _lens("L2")
++        # float("oops") raises inside the row write, after the first row was
++        # already INSERTed in the caller's transaction.
++        second.bevel_1 = "oops"
++
++        saved = self.storage.save_lenses([first, second], show_status=False, library_snapshot=True)
++
++        self.assertFalse(saved)
++        self.assertEqual(self.db.load_all(), [])
++
++    def test_a_successful_save_still_writes_every_item(self):
++        saved = self.storage.save_lenses(
++            [_lens("L1"), _lens("L2")], show_status=False, library_snapshot=True
++        )
++
++        self.assertTrue(saved)
++        self.assertEqual(sorted(item["name"] for item in self.db.load_all()), ["L1", "L2"])
++
++
++if __name__ == "__main__":
++    unittest.main()

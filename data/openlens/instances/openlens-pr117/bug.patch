@@ -1,0 +1,67 @@
+diff --git a/openlens/analysis/beam_synthesis.py b/openlens/analysis/beam_synthesis.py
+index 9542df6a5c4133f6601cec30f1eaacf24276aa3b..80ff50594b6e0024525f4cb124fed1c278e9744b 100644
+--- a/openlens/analysis/beam_synthesis.py
++++ b/openlens/analysis/beam_synthesis.py
+@@ -273,7 +273,7 @@ class BeamSynthesisPropagator:
+         # 1/q = 1/R - i * lambda / (pi * w0^2)
+         # R = inf -> 1/q = -i * lambda / (pi * w0^2)
+         # q = i * (pi * w0^2 / lambda) = i * zR
+-        zR = math.pi * w0**2 / wavelength_mm
++        zR = math.pi * w0**2 / wavelength
+         q0 = complex(0, zR)
+ 
+         beamlets = []
+diff --git a/openlens/analysis/geometric.py b/openlens/analysis/geometric.py
+index 312694a801674855b29beffcd779a66c95c1ebba..5997101375d7151899abe56ce8ce634d11989be8 100644
+--- a/openlens/analysis/geometric.py
++++ b/openlens/analysis/geometric.py
+@@ -45,7 +45,7 @@ class GeometricTraceAnalysis:
+         step = (stop - start) / (num - 1)
+         return [start + i * step for i in range(num)]
+ 
+-    def _get_image_plane_x(self, wavelength_nm: float = WAVELENGTH_GREEN) -> float:
++    def _get_image_plane_x(self, wavelength: float = WAVELENGTH_GREEN) -> float:
+         """
+         Determine the image plane position for the system.
+ 
+diff --git a/openlens/analysis/psf_mtf.py b/openlens/analysis/psf_mtf.py
+index bdfd94aec535a0c2745d29888e6ffd86459fdf14..89f7ea1b89aed7d7fb7cf28dfe48637fbad2d048 100644
+--- a/openlens/analysis/psf_mtf.py
++++ b/openlens/analysis/psf_mtf.py
+@@ -434,7 +434,7 @@ class ImageQualityAnalyzer:
+             L_grid = ep_diam  # We used +/- max_r = ep_diam/2
+ 
+             # Sampling frequency in MTF domain
+-            # Fs = L_grid / (wavelength_nm * 1e-6 * efl)
++            # Fs = L_grid / (wavelength * 1e-6 * efl)
+             # This assumes the PSF calculation uses the standard FFT scaling.
+             # Yes, if we pad to M, the spatial extent of PSF is lambda*f/dx_pupil.
+             # dx_pupil = L_grid / N.
+@@ -832,10 +832,10 @@ class ImageQualityAnalyzer:
+             # Diffraction PSF is smoother. Let's use Diffraction.
+ 
+             psf_data = self.calculate_psf(
+-                field_angle_deg=field_angle_deg,
+-                wavelength_nm=wl,
+-                focus_shift_mm=focus_shift_mm,
+-                sensor_size_mm=psf_pixels * pixel_size_mm,
++                field_angle=field_angle,
++                wavelength=wl,
++                focus_shift=focus_shift,
++                sensor_size=psf_pixels * pixel_size,
+                 pixels=psf_pixels,
+                 use_diffraction=True,
+             )
+diff --git a/openlens/vector3.py b/openlens/vector3.py
+index 2a153368edbbbe663f6cf3b6fa27dc4bfdef2eb1..d32c6aed3bff1df0ff8a55279468597490198d5c 100644
+--- a/openlens/vector3.py
++++ b/openlens/vector3.py
+@@ -51,7 +51,7 @@ class Vector3:
+ 
+     def normalize(self) -> "Vector3":
+         mag = self.magnitude()
+-        if mag < 1e-15:
++        if mag == 0:
+             return Vector3(0, 0, 0)
+         return self / mag
+ 

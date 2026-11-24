@@ -1,0 +1,230 @@
+{
+ "id": "openlens-pr237",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 53020,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6647
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 2.93,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 2,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 16510,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10476,
+  "output_tokens_details": {
+   "thinking_tokens": 8004
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 16510,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10476,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 16510,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 16510
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.085409,
+ "model_seconds": 47.4,
+ "seconds": 55.4,
+ "tests": {
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_angle_deg_converted_to_radians": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_default_parameters_produce_valid_rays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_empty_system_returns_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_fill_parameter_scales_heights": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_large_number_of_rays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_multiple_elements_traced": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_negative_fill_reverses_height_order": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_negative_rays_returns_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_rays_are_distinct_objects": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_returned_ray_count_matches_num_rays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_single_ray_special_case": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_symmetry_zero_angle_centered_lens": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_wavelength_mm_propagated_to_rays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_zero_fill_concentrates_rays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr237.py::TestSystemRayTracerTraceParallelRays::test_zero_rays_returns_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  }
+ }
+}

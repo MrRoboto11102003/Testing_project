@@ -1,0 +1,72 @@
+{
+ "id": "openlens-pr267",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 249,
+ "issue_title": "**Fake transfer-matrix** `coating_designer.py:135-148`",
+ "issue_body": " computes dead `phases`, then incoherent `\u03a3r\u1d62\u00b2/len`.\n   No `M\u2c7c=[[cos\u03b4,i\u00b7sin\u03b4/\u03b7],[i\u03b7\u00b7sin\u03b4,cos\u03b4]]`.\n   BK7/MgF\u2082 QW gives 0.92% vs exact 1.28% (~30% low); off-design unbounded.\n   Angled branch `return 0.04`, `:150`, is a stub ignoring \u03b8 and s/p.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/249",
+ "pr": 267,
+ "pr_title": "fix(coating): implement exact transfer-matrix reflectivity with angle\u2026",
+ "pr_body": "\u2026d incidence\r\n\r\nReplace the incoherent interface-sum estimate (dead phase terms, normalization by layer count) with the characteristic-matrix method M_j=[[cos d,i sin d/eta],[i eta sin d,cos d]], Snell-corrected tilted admittances, s/p averaging for unpolarized light. Uncoated branch is now angle-aware Fresnel; oblique angles validated (Brewster Rp=0, MgF2 QW on BK7 = 1.2835% vs exact 1.284%).\r\n\r\nUpdate the e2e broadband assertion to the exact-physics value: the heuristic QW-pair dual stack averages ~5.4% over 450-650nm, not the ~2.4% the old formula returned. Add TestTransferMatrixPhysics with closed-form regression values.",
+ "fix_commit": "ead039d33f8e8bee2d2c4a7233b500177dc5a749",
+ "merged_at": "2026-09-11T09:05:04Z",
+ "port_method": "partial_hunks:2/3",
+ "src_files": [
+  "openlens/coating_designer.py"
+ ],
+ "test_files": [
+  "tests/test_comparator_coating_functional.py",
+  "tests/test_e2e_workflows.py"
+ ],
+ "target_symbols": [
+  "openlens/coating_designer.py::CoatingDesigner.calculate_reflectivity",
+  "openlens/coating_designer.py::CoatingDesigner.calculate_reflectivity_curve",
+  "openlens/coating_designer.py::CoatingDesigner.design_v_coating"
+ ],
+ "fail_to_pass": [
+  "tests/test_comparator_coating_functional.py::TestTransferMatrixPhysics::test_ideal_index_quarter_wave_is_zero",
+  "tests/test_comparator_coating_functional.py::TestTransferMatrixPhysics::test_invalid_inputs_raise",
+  "tests/test_comparator_coating_functional.py::TestTransferMatrixPhysics::test_mgf2_quarter_wave_matches_exact_value",
+  "tests/test_comparator_coating_functional.py::TestTransferMatrixPhysics::test_off_design_wavelength_shows_interference"
+ ],
+ "pass_to_pass": [
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_calculate_reflectivity",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_coating_info_contains_all_details",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_coating_info_generation",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_coating_materials_available",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_create_designer",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_custom_substrate_index",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_dual_layer_ar_design",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_dual_layer_materials",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_reflectivity_curve",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_reflectivity_reduced_by_coating",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_single_layer_ar_design",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_single_layer_thickness",
+  "tests/test_comparator_coating_functional.py::TestCoatingDesigner::test_v_coating_design",
+  "tests/test_comparator_coating_functional.py::TestCoatingLayer::test_create_layer",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_add_lens",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_clear",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_compare_lenses",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_comparison_result_fields",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_comparison_table_generation",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_create_comparator",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_csv_export",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_get_best_overall",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_parameter_differences",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_rank_by_diameter_descending",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_rank_by_parameter",
+  "tests/test_comparator_coating_functional.py::TestLensComparator::test_to_dict",
+  "tests/test_comparator_coating_functional.py::TestTransferMatrixPhysics::test_angled_incidence_computed_not_stubbed",
+  "tests/test_comparator_coating_functional.py::TestTransferMatrixPhysics::test_uncoated_matches_fresnel",
+  "tests/test_e2e_workflows.py::TestCoatingDesignWorkflow::test_coating_design_and_analysis_workflow",
+  "tests/test_e2e_workflows.py::TestCompleteDesignWorkflow::test_design_custom_lens_full_workflow",
+  "tests/test_e2e_workflows.py::TestIntegratedAnalysisWorkflow::test_complete_system_analysis",
+  "tests/test_e2e_workflows.py::TestMaterialSelectionWorkflow::test_material_comparison_workflow",
+  "tests/test_e2e_workflows.py::TestMultiElementSystemWorkflow::test_doublet_analysis_workflow",
+  "tests/test_e2e_workflows.py::TestPresetWorkflow::test_preset_analysis_workflow",
+  "tests/test_e2e_workflows.py::TestTemperatureCompensationWorkflow::test_temperature_effects_on_lens"
+ ],
+ "patch_lines": 114
+}

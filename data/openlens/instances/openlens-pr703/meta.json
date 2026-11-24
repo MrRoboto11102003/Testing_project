@@ -1,0 +1,50 @@
+{
+ "id": "openlens-pr703",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 612,
+ "issue_title": "bug(physics): ImageSimulator image distance ignores wavelength; blank-image Nyquist ratio is nan",
+ "issue_body": "## Summary\n\n`ImageSimulator._calculate_image_distance(object_distance, wavelength)` accepts a wavelength but calls `self._system_focal_length()`, which always evaluates the design index. The class already has a correct wavelength-aware helper, `_system_focal_length_at(wavelength)`, which is never used here. Image distance, magnification, and vignetting are therefore identical at every wavelength.\n\n## Impact\n\n- Chromatic focal shift is absent from simulated images: C-line and F-line image distances are bit-identical despite a ~1.5 mm EFL difference for a BK7 singlet.\n- `magnification = -image_distance / object_distance` and `_apply_vignetting(image_distance_mm=...)` inherit the wrong plane.\n- A separate but related numerical bug: `_calculate_nyquist_spectral_ratio` divides by the DC bin, so a blank image returns `nan` with a `RuntimeWarning`.\n\n## Reproduction\n\n```python\nimport numpy as np\nfrom openlens.lens import Lens\nfrom openlens.optical_system import OpticalSystem\nfrom openlens.image_simulator import ImageSimulator\nfrom openlens.constants import WAVELENGTH_C_LINE, WAVELENGTH_F_LINE\n\ns = OpticalSystem()\ns.add_lens(Lens(radius_of_curvature_1=100.0, radius_of_curvature_2=-100.0,\n                refractive_index=1.5168, thickness=5.0, diameter=25.0))\nsim = ImageSimulator(s)\nimg = np.zeros((32, 32))\nfor wl in (WAVELENGTH_C_LINE, WAVELENGTH_F_LINE):\n    r = sim.simulate_image(img, object_distance=500.0, wavelength=wl)\n    print(wl, r[\"image_distance\"])\nprint(\"focal @C/F:\", sim._system_focal_length_at(WAVELENGTH_C_LINE),\n      sim._system_focal_length_at(WAVELENGTH_F_LINE))\nprint(\"blank nyquist:\", sim._calculate_nyquist_spectral_ratio(np.zeros((64, 64))))\n```\n\nOutput:\n\n```\nimage_distance @C: 121.242121 | @F: 121.242121 | differ: False\n_system_focal_length_at(C): 98.047981\n_system_focal_length_at(F): 96.544197\nblank image ratio: nan | warnings: ['invalid value encountered in scalar divide']\n```\n\n## Root cause\n\n- `openlens/image_simulator.py:277-279` \u2014 `f = self._system_focal_length()` ignores the `wavelength` argument; the wavelength-aware `_system_focal_length_at` exists at `:257`.\n- `openlens/image_simulator.py:617` \u2014 `ratio = magnitude[mask].mean() / magnitude[cy, cx]`; for a blank image the DC bin is 0, producing 0/0.\n\n## Expected behaviour\n\nImage distance and all derived quantities use the index at the requested wavelength, so C/F produce different image planes. The Nyquist ratio returns a finite value (e.g. `0.0`) for a blank image without emitting a warning.\n\n## Suggested fix\n\nReplace `self._system_focal_length()` with `self._system_focal_length_at(wavelength)` in `_calculate_image_distance`. Guard the DC denominator in `_calculate_nyquist_spectral_ratio` (`if dc <= 0: return 0.0`). Add tests for chromatic image distance and the blank-image metric.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/612",
+ "pr": 703,
+ "pr_title": "fix(physics): place the simulated image at the plane for its wavelength",
+ "pr_body": "## Description\n\n`ImageSimulator._calculate_image_distance(object_distance, wavelength)`\naccepted a wavelength and then called `_system_focal_length()`, which always\nmeasures the design index. The class already had a correct wavelength-aware\nhelper, `_system_focal_length_at(wavelength)`, two methods above - it was\nnever used here.\n\nThe result: the image distance, the magnification and the vignetting derived\nfrom it were identical at every wavelength. For the test singlet the C and F\nlines have a \u22481.5 mm EFL difference:\n\n```\nimage_distance @C: 121.24 | @F: 121.24 | differ: False\n_system_focal_length_at(C): 98.05\n_system_focal_length_at(F): 96.54\n```\n\nA second, adjacent bug: `_calculate_nyquist_spectral_ratio` divided the ring\nenergy by the DC bin, so a blank image evaluated `0/0` and returned `nan`\nwith a `RuntimeWarning`.\n\n## What changed\n\n- **`openlens/image_simulator.py`** - `_calculate_image_distance` now uses\n  `_system_focal_length_at(wavelength)`, which sets each lens to the index\n  for the requested wavelength, measures, and restores the design indices on\n  the way out (the same discipline the wavefront sensor uses). The index\n  policy is unchanged: a catalog material resolves through the catalog, a\n  custom glass keeps its stored index.\n- **`_calculate_nyquist_spectral_ratio`** - a DC bin with no energy has\n  nothing to normalise against, so the ratio is `0.0` instead of `nan`, and\n  no warning is emitted. A normal image is unchanged.\n- **`tests/test_image_simulator_api.py`** - the fixture passes `n=1.5` with\n  the default `\"BK7\"` material. Now that the simulator honours the\n  wavelength, the catalog index for BK7 at the d-line silently replaced that\n  1.5. The fixture uses `material=\"Custom\"`, which is what it always meant.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #612\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nNew module `tests/test_image_simulator_wavelength.py` - all six tests fail on\nthe unfixed code:\n\n- `test_the_red_and_blue_image_planes_differ`\n- `test_the_image_distance_is_the_lens_equation_at_that_wavelength` (C, d, F)\n- `test_the_design_index_is_restored_after_the_measurement`\n- `test_simulate_image_reports_the_chromatic_plane`\n- `test_a_blank_image_scores_zero_without_a_warning`\n- `test_a_delta_image_still_scores_above_zero`\n\nFull local suite: `Ran 2697 tests ... OK (skipped=35)`; the five image\nsimulator suites (54 tests) pass.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "ba7a188ee32e4d7d549a5d6ffdec21d7fc2b18ae",
+ "merged_at": "2026-10-22T11:04:02Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/image_simulator.py"
+ ],
+ "test_files": [
+  "tests/test_image_simulator_api.py",
+  "tests/test_image_simulator_wavelength.py"
+ ],
+ "target_symbols": [
+  "openlens/image_simulator.py::ImageSimulator._apply_aberrations",
+  "openlens/image_simulator.py::ImageSimulator._calculate_image_distance",
+  "openlens/image_simulator.py::ImageSimulator._calculate_sharpness",
+  "openlens/image_simulator.py::ImageSimulator._system_focal_length_at"
+ ],
+ "fail_to_pass": [
+  "tests/test_image_simulator_wavelength.py::TestBlankImageNyquist::test_a_blank_image_scores_zero_without_a_warning",
+  "tests/test_image_simulator_wavelength.py::TestChromaticImageDistance::test_simulate_image_reports_the_chromatic_plane",
+  "tests/test_image_simulator_wavelength.py::TestChromaticImageDistance::test_the_image_distance_is_the_lens_equation_at_that_wavelength",
+  "tests/test_image_simulator_wavelength.py::TestChromaticImageDistance::test_the_red_and_blue_image_planes_differ"
+ ],
+ "pass_to_pass": [
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_aberration_blur_is_applied",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_aberrations_are_retrieved",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_chromatic_path_runs",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_diffraction_spot_scales_with_f_number",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_entrance_pupil_uses_the_first_element",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_focal_length_comes_from_the_real_api",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_image_distance_uses_the_lens_equation",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_magnification_is_not_always_minus_one",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_real_system_has_none_of_the_probed_attributes",
+  "tests/test_image_simulator_api.py::TestImageSimulatorRealAPI::test_unsupported_target_fails_loudly",
+  "tests/test_image_simulator_wavelength.py::TestBlankImageNyquist::test_a_delta_image_still_scores_above_zero",
+  "tests/test_image_simulator_wavelength.py::TestChromaticImageDistance::test_the_design_index_is_restored_after_the_measurement"
+ ],
+ "patch_lines": 17
+}

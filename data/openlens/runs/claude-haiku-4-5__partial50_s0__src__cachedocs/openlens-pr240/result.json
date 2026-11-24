@@ -1,0 +1,195 @@
+{
+ "id": "openlens-pr240",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 110,
+  "units_kept": 55,
+  "chars": 47095
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.36,
+ "detected": false,
+ "n_tests": 14,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 14559,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11163,
+  "output_tokens_details": {
+   "thinking_tokens": 10271
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 14559,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11163,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 14559,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 14559
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.084942,
+ "model_seconds": 53.5,
+ "seconds": 57.5,
+ "tests": {
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_empty_string_returns_untitled": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_name_exactly_100_chars_is_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_name_over_100_chars_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_name_with_special_characters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_non_string_type_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_strips_leading_trailing_whitespace": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_valid_simple_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateLensName::test_whitespace_only_returns_untitled": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_lens_name"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_non_numeric_sag_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_sag_at_negative_legacy_limit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_sag_at_positive_legacy_limit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_sag_exceeds_negative_legacy_limit_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_sag_exceeds_positive_legacy_limit_raises_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_parabolic_sag"
+   ]
+  },
+  "tests/_generated/test_openlens_pr240.py::TestValidateParabolicSag::test_zero_sag_is_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_parabolic_sag"
+   ]
+  }
+ }
+}

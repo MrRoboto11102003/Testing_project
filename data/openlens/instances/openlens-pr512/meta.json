@@ -1,0 +1,43 @@
+{
+ "id": "openlens-pr512",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 441,
+ "issue_title": "Lens constructor: model-glass mode starts with the catalog index, and type presets undo parabolic settings",
+ "issue_body": "**Where:** `src/lens.py:123-138` and `:142-160`, `:623-637`\n\n1. The constructor records `model_glass_mode` and `model_nd` but resolves the working `refractive_index` from the material unless an explicit index is passed. A BK7 model-glass lens with `model_nd=1.7` starts at `n=1.5168` (EFL 97.58 mm); after `update_refractive_index()` it is `n~1.7` (EFL 72.17 mm).\n2. `use_type_defaults` calls `_update_radii_for_type()` before the parabolic flags and sags are assigned, which undoes the method's reset. A plano-convex preset with `is_parabolic_1=True, parabolic_sag_1=4` keeps the flag (effective R1=50), while `set_lens_type(\"Plano-Convex\")` clears it (R1=100).\n\n**Fix:** initialise the working index from the model-glass parameters when that mode is requested, and apply the type preset after the parabolic properties are set, with a documented precedence rule.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/441",
+ "pr": 512,
+ "pr_title": "fix(analysis): start a model-glass lens at its own index",
+ "pr_body": "## Description\n\nfix(analysis): start a model-glass lens at its own index\n\nTwo defects in `Lens.__init__`, both of the same shape: the constructor\ndisagreed with the methods that are supposed to run after it.\n\n### 1. Model glass was resolved from the material\n\nThe constructor recorded `model_glass_mode` and `model_nd`, then resolved the\nworking `refractive_index` from the material. A model-glass lens is defined by\nits `nd`/`vd` pair \u2014 the material name is only a label \u2014 so a BK7-named lens with\n`model_nd=1.7` was built like BK7:\n\n```\nconstruction:  n = 1.5168   ->  EFL 97.58 mm\nafter update:  n \u2248 1.7000   ->  EFL 72.17 mm\n```\n\nNothing in between said why the lens had changed focal length.\n\nThe index now comes from the same resolution `update_refractive_index()` uses \u2014\n`refractive_index_at(wavelength)` \u2014 so the two agree.\n\n**Precedence is unchanged for the cases that already worked:** an explicit\n`refractive_index` still wins, which is what keeps serialization round-trips\nexact, and a real glass is still resolved from its material.\n\n### 2. `use_type_defaults` ran before the parabolics were assigned\n\n`_update_radii_for_type()` clears the parabolic flags and sags. The constructor\ncalled it *before* those properties existed, so the reset had nothing to clear:\n\n```python\nLens(lens_type=\"Plano-Convex\", use_type_defaults=True,\n     is_parabolic_1=True, parabolic_sag_1=4)   # keeps the paraboloid\nlens.set_lens_type(\"Plano-Convex\")             # clears it\n```\n\nThe same preset behaved differently depending on how it was applied. The preset\nnow runs after the parabolics are set, so both paths agree.\n\n**Precedence: the preset wins.** A type preset is spherical and cannot be\ncombined with a paraboloid \u2014 which is what `set_lens_type()` already did, and\nwhat `_update_radii_for_type()`'s own docstring says. The default path\n(`use_type_defaults=False`) still touches nothing, so an explicit paraboloid\nsurvives.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #441\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      **6 of 13 failed** on the original `lens.py`\n- [x] Verified by reverting **each fix on its own**:\n  - the model-glass index resolution \u2192 **5 of 13 fail**\n  - the preset ordering \u2192 **2 of 13 fail**\n- [x] `python3 -m unittest tests.test_lens_model_glass_init` \u2014 13 tests, OK\n- [x] `python3 -m unittest tests.test_lens tests.test_lens_menu tests.test_lens_editor tests.test_lens_comparator tests.test_lens_outline tests.test_parabolic_conic_consistency tests.test_paraboloid_vertex_frame tests.test_preset_catalogue tests.test_thick_lens_bfl` \u2014 129 tests, OK\n- [x] Full suite: `Ran 1777 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors that exist on clean\n      `master` (they need `pytest`), no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 227 files unchanged\n- [x] `flake8 tests/test_lens_model_glass_init.py` \u2014 clean. The `E402` in\n      `lens.py` is pre-existing (1 finding on `master`, unchanged)\n- [x] Coverage includes: the index coming from the model, the index *not moving*\n      on the first update, the focal length being stable across an update, two\n      model glasses with different `nd` starting differently, an explicit index\n      still winning, a real glass and a default lens being unaffected, the\n      constructor agreeing with `set_lens_type` on flags *and* effective radius,\n      the preset clearing sags, parabolics surviving without the preset, the\n      preset still setting radii, and an unknown type preserving everything\n\n### Why the focal length is asserted, not just the index\n\nAsserting `refractive_index` alone would pass for a lens that was numerically\nright and optically wrong. The EFL comparison is the user-visible consequence:\na lens that reports `n=1.7` but images like BK7 is still broken, and only the\nfocal length notices.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "454fef7c1cefafdf95ecac2432d8b9959e0aa602",
+ "merged_at": "2026-10-18T08:43:25Z",
+ "port_method": "partial_hunks:2/2",
+ "src_files": [
+  "openlens/lens.py"
+ ],
+ "test_files": [
+  "tests/test_lens_model_glass_init.py"
+ ],
+ "target_symbols": [
+  "openlens/lens.py::Lens.__init__"
+ ],
+ "fail_to_pass": [
+  "tests/test_lens_model_glass_init.py::TestModelGlassModeStartsWithItsOwnIndex::test_refractive_index_at_agrees_with_the_stored_index",
+  "tests/test_lens_model_glass_init.py::TestModelGlassModeStartsWithItsOwnIndex::test_the_focal_length_is_the_same_before_and_after_an_update",
+  "tests/test_lens_model_glass_init.py::TestModelGlassModeStartsWithItsOwnIndex::test_the_index_comes_from_the_model_not_the_material",
+  "tests/test_lens_model_glass_init.py::TestModelGlassModeStartsWithItsOwnIndex::test_the_index_does_not_change_on_the_first_update",
+  "tests/test_lens_model_glass_init.py::TestModelGlassModeStartsWithItsOwnIndex::test_two_model_glasses_with_different_nd_differ",
+  "tests/test_lens_model_glass_init.py::TestTypePresetAndParabolicSurfaces::test_the_preset_clears_the_sag_too",
+  "tests/test_lens_model_glass_init.py::TestTypePresetAndParabolicSurfaces::test_use_type_defaults_matches_set_lens_type"
+ ],
+ "pass_to_pass": [
+  "tests/test_lens_model_glass_init.py::TestModelGlassModeStartsWithItsOwnIndex::test_a_real_glass_is_unaffected",
+  "tests/test_lens_model_glass_init.py::TestModelGlassModeStartsWithItsOwnIndex::test_an_explicit_index_still_wins",
+  "tests/test_lens_model_glass_init.py::TestModelGlassModeStartsWithItsOwnIndex::test_the_default_construction_is_unaffected",
+  "tests/test_lens_model_glass_init.py::TestTypePresetAndParabolicSurfaces::test_an_unknown_type_preserves_everything",
+  "tests/test_lens_model_glass_init.py::TestTypePresetAndParabolicSurfaces::test_parabolic_surfaces_survive_without_the_preset",
+  "tests/test_lens_model_glass_init.py::TestTypePresetAndParabolicSurfaces::test_the_preset_still_sets_the_radii"
+ ],
+ "patch_lines": 38
+}

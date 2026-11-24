@@ -1,0 +1,75 @@
+# Notes: `PerformanceMetrics.calculate_back_focal_length`
+
+## 1. Purpose
+- Returns the back focal length (BFL) in mm, measured from the last surface to the focal point.
+- It does no maths of its own. It hands the work to the wrapped `Lens` or `OpticalSystem` and returns that result unchanged.
+
+## 2. Inputs
+- The method takes no arguments. Everything comes from the object built by `PerformanceMetrics(lens_or_system)`.
+- What the constructor does:
+  - A `Lens` gives `self.lens = obj` and `self.system = None`.
+  - An `OpticalSystem` gives `self.lens = None` and `self.system = obj`.
+  - Anything else raises `ValueError("Must provide Lens or OpticalSystem")`. For example, `PerformanceMetrics(42)` or `PerformanceMetrics(None)` raises this.
+  - The `Lens` check comes first in the constructor.
+
+## 3. Raises
+- The method raises nothing itself.
+- Any exception thrown by `Lens.calculate_back_focal_length()` or `OpticalSystem.calculate_back_focal_length()` passes straight through. Both live in other modules, not shown here.
+- The only error that belongs to this class comes from the constructor: `ValueError`, message `"Must provide Lens or OpticalSystem"`.
+
+## 4. Returns and guarantees
+The branches are checked in this order:
+1. If `self.lens` is truthy, it returns `self.lens.calculate_back_focal_length()` exactly as given, including `None`.
+2. Otherwise, if `self.system` is truthy, it returns `self.system.calculate_back_focal_length()`.
+   - It is called with **no arguments**, so `n_overrides` keeps its default.
+   - Per the comment, the system works this out from its ABCD matrix as `-A/C`, measured from the last surface.
+3. Otherwise it returns `None`.
+
+The return type is `Optional[float]`. The value is the delegate's own object, with no `abs`, rounding or unit conversion applied.
+
+## 5. Side effects
+- This method changes nothing.
+- Whatever the delegates do internally is not visible here.
+
+## 6. Branches and edge cases
+- **Lens:** `PerformanceMetrics(Lens()).calculate_back_focal_length() == Lens().calculate_back_focal_length()`.
+- **System:** `PerformanceMetrics(sys).calculate_back_focal_length() == sys.calculate_back_focal_length()`.
+  - `create_doublet()` from `openlens.optical_system` is a good input for this.
+- **Empty `OpticalSystem()`:** the branches use truthiness (`elif self.system:`), not `is not None`.
+  - If `OpticalSystem` defined `__len__` or `__bool__`, an empty system would be falsy and this method would return `None` without delegating.
+  - Whether it does is not visible here. Do not assert on empty systems unless you compare against the delegate *and* `None` loosely.
+  - Prefer non-empty systems.
+- **Third branch:** returning `None` is unreachable through the public constructor, because one of `lens`/`system` is always set.
+  - It can only be reached by setting `pm.lens = None; pm.system = None` by hand, which gives `None`.
+
+## 7. Rules stated in comments
+- **Lens:** use the **thick-lens** BFL from the `Lens` model.
+  - The old approximation `f - t/2` was wrong and must not come back. It disagreed with the editor and with the working-flange breakdown by several mm.
+- **System:** delegate to `OpticalSystem.calculate_back_focal_length()`.
+  - Returning the EFL (`get_system_focal_length()`) was a bug: it was too long by the whole distance from the last surface to focus.
+
+## 8. Testing hints
+- **Pin the delegation exactly** by comparing with the delegate on the same object:
+  ```python
+  lens = Lens(radius_of_curvature_1=50, radius_of_curvature_2=-50, thickness=10, diameter=25)
+  assert PerformanceMetrics(lens).calculate_back_focal_length() == pytest.approx(lens.calculate_back_focal_length())
+  ```
+- **Guard against regressions with a thick lens** (e.g. thickness 10–20 mm):
+  - Assert `result != pytest.approx(f - t/2)` and `result != pytest.approx(f)`, where `f = lens.calculate_focal_length()`.
+  - Only add these asserts after checking that they differ on the current code. They depend on `Lens` maths you cannot see, so guard with `if bfl is not None`, or pick a clearly thick lens.
+- **For a system** (e.g. `create_doublet(100.0, 50.0)`):
+  - Assert the result equals `sys.calculate_back_focal_length()`.
+  - Assert it is **not** approx equal to `sys.get_system_focal_length()`, since a real doublet has nonzero principal-plane offset. Again, sanity-check that the difference is noticeable (e.g. `abs(diff) > 1e-3`) before relying on it.
+- **Monkeypatch spies are fully deterministic and recommended:**
+  - Patch `lens.calculate_back_focal_length = lambda: 123.456` and assert the result is `123.456`.
+  - Return `None` and assert `None`; this shows `None` is passed through and not replaced.
+  - For a system, patch with `lambda *a, **k: calls.append((a, k)) or 7.0` and assert `calls == [((), {})]`. This shows it is called with no arguments.
+  - Patch the system's `get_system_focal_length` to return a different value and assert it is **not** used.
+- **Lens wins over system:**
+  - With `pm.lens` set, patching `pm.system` has no effect.
+  - Do this by building from a `Lens`, then assigning `pm.system` to an object whose method returns something else.
+- **Constructor tests:** use `pytest.raises(ValueError, match="Must provide Lens or OpticalSystem")`.
+- **Pitfalls:**
+  - Do not hard-code numeric BFL values; the formulas are in unseen modules.
+  - Do not assert sign or positivity unless you have checked it.
+  - Use `pytest.approx` for float comparisons with recomputed values. Identity comparison (`is`) is fine with patched sentinels.

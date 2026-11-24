@@ -1,0 +1,205 @@
+{
+ "id": "openlens-pr404",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 111,
+  "units_kept": 111,
+  "chars": 90845
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.21,
+ "detected": true,
+ "n_tests": 19,
+ "n_catching": 3,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 3275,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 12566,
+  "output_tokens_details": {
+   "thinking_tokens": 8219
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3275,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 12566,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 3275,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3275
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0718592,
+ "model_seconds": 51.8,
+ "seconds": 58.8,
+ "tests": {
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_plot_airy_disk_calls_figure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_plot_airy_disk_calls_savefig_with_save_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_plot_airy_disk_calls_show_without_save_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_plot_airy_disk_closes_figure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_plot_airy_disk_matplotlib_unavailable": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_plot_encircled_energy_calls_savefig_with_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_plot_encircled_energy_closes_figure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_plot_encircled_energy_creates_figure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_plot_encircled_energy_marks_50_80_percent": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_plot_encircled_energy_matplotlib_unavailable": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPsf2d::test_plot_psf_2d_calls_point_spread_function_with_correct_size": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPsf2d::test_plot_psf_2d_closes_figure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPsf2d::test_plot_psf_2d_creates_subplots": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPsf2d::test_plot_psf_2d_matplotlib_unavailable": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPsf2d::test_plot_psf_2d_saves_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlottingParameterHandling::test_plot_airy_disk_with_dpi_settings": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlottingParameterHandling::test_plot_encircled_energy_ylim_set": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlottingParameterHandling::test_plot_functions_handle_various_parameters": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlottingParameterHandling::test_plot_psf_2d_calls_imshow": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  }
+ }
+}

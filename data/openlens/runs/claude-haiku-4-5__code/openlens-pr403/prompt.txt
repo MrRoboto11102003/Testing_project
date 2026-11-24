@@ -1,0 +1,134 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.io.step_export.StepExporter.export.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.io.step_export.StepExporter.export
+    def export(self, filename: str, housing: Optional[list] = None) -> dict:
+        """Export the current system to a STEP file.
+
+        Safe to call repeatedly on one exporter: the entity buffer is reset
+        first. It used to be created only in __init__, so a second export
+        appended a fresh context and a second copy of every solid to the
+        first export's lines - 48 entities after one call, 96 after two, with
+        two MANIFOLD_SOLID_BREPs in one file.
+
+        Args:
+            filename: Output path.
+            housing: Optional iterable of housing-part dicts with keys
+                ``name``, ``z0``, ``z1``, ``r_inner``, ``r_outer`` (all mm)
+                describing annular tube solids (spacers, barrel, retainers).
+                See ``mechanical_designer.suggest_housing``.
+
+        Returns:
+            A summary dict: ``shapes`` (solids written), ``skipped`` (count of
+            parts that could not be exported) and ``skipped_parts`` (their
+            names). Previously this returned None, so callers ignoring the
+            result are unaffected. A malformed part used to be logged at
+            DEBUG, which is invisible at default verbosity - the drawing came
+            out with silently missing solids and nothing said so.
+
+        Raises:
+            ValueError: If a lens has a parabolic or general conic surface.
+                A ``SPHERICAL_SURFACE`` cannot pass through the modelled rim,
+                so the solid would not close. Refusing leaves no file: the
+                buffer is only written once every part has been built.
+        """
+        # Start from a clean buffer and a clean id sequence.
+        self.writer = StepWriter()
+        self.axis_id = 0
+        self.dir_z = 0
+        self.dir_x = 0
+        self.dir_y = 0
+        self.origin = 0
+        self.axis2_placement = 0
+        self.context = 0
+        self.uncertainty = 0
+        self.related_context = 0
+        self.geom_context = 0
+        self.length_unit = 0
+        self.application_context = 0
+        self._solid_index = 0
+
+        # Standard setup entities
+        self._create_context()
+
+        shape_ids = []
+        skipped: list = []
+
+        # Export each lens
+        if hasattr(self.system, "elements") and hasattr(self.system, "air_gaps"):
+            for elem, placement in zip(self.system.elements, self._element_placements()):
+                solid_id = self._export_lens_solid(elem.lens, 0.0, placement)
+                if solid_id:
+                    shape_ids.append(solid_id)
+        elif hasattr(self.system, "radius_of_curvature_1"):
+            # Single lens
+            solid_id = self._export_lens_solid(self.system, 0.0)
+            if solid_id:
+                shape_ids.append(solid_id)
+        else:
+            # Fallback for dict or other objects
+            try:
+                # Try to use it as a single lens if it has necessary attributes
+                solid_id = self._export_lens_solid(self.system, 0.0)
+                if solid_id:
+                    shape_ids.append(solid_id)
+            except (AttributeError, KeyError) as e:
+                skipped.append("system")
+                logger.warning(
+                    "STEP solid export skipped - object exposes neither a lens "
+                    "nor elements/air_gaps: %s",
+                    e,
+                )
+
+        # Export housing parts (spacers, barrel, retainers) as tube solids.
+        for part in housing or []:
+            name = str(part.get("name", "part")) if isinstance(part, dict) else "part"
+            try:
+                solid_id = self._export_tube_solid(
+                    name,
+                    float(part["z0"]),
+                    float(part["z1"]),
+                    float(part["r_inner"]),
+                    float(part["r_outer"]),
+                )
+                if solid_id:
+                    shape_ids.append(solid_id)
+                else:
+                    # _export_tube_solid rejected the dimensions; it has already
+                    # logged, but the part still has to be counted.
+                    skipped.append(name)
+            except (KeyError, TypeError, ValueError) as e:
+                skipped.append(name)
+                logger.warning(
+                    "STEP housing part %r skipped - malformed or missing "
+                    "z0/z1/r_inner/r_outer: %s",
+                    name,
+                    e,
+                )
+
+        # Create Root Product Definition if needed
+        # For simplicity, we just leave the geometric entities in the file.
+        # Most viewers will find the MANIFOLD_SOLID_BREP entities.
+        # But properly we should link them to a PRODUCT.
+
+        self._create_product_structure(shape_ids)
+
+        # Write file
+        with atomic_write_text(filename) as f:
+            f.write(self.writer.generate())
+
+        # Surface the omissions. A mechanical drawing that silently lost its
+        # barrel and spacers is worse than one that says so.
+        if skipped:
+            logger.warning(
+                "STEP export wrote %d solid(s) but skipped %d part(s): %s",
+                len(shape_ids),
+                len(skipped),
+                ", ".join(skipped),
+            )
+        return {"shapes": len(shape_ids), "skipped": len(skipped), "skipped_parts": skipped}

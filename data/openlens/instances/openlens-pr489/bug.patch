@@ -1,0 +1,108 @@
+diff --git a/openlens/database.py b/openlens/database.py
+index e878011aafc3f467b4cf8cae2d276cd25f56dec2..ef607f607abd1824654979c10801cae240fa7f90 100644
+--- a/openlens/database.py
++++ b/openlens/database.py
+@@ -37,7 +37,7 @@ def _coating_parse(raw) -> Optional[list]:
+     return parsed
+ 
+ 
+-def _metadata_merge(target: Dict[str, Any], raw: Any, what: str) -> Dict[str, Any]:
++def _metadata_merge(target: Dict[str, Any], raw: Any, what: str) -> None:
+     """Merge a metadata JSON blob into ``target``, tolerating a bad blob.
+ 
+     Mirrors :func:`_coating_parse`. A truncated or hand-edited blob used to
+@@ -46,16 +46,9 @@ def _metadata_merge(target: Dict[str, Any], raw: Any, what: str) -> Dict[str, An
+     looking at an entirely empty library with only a log line to explain it.
+     A blob that is valid JSON but not an object raises TypeError/ValueError
+     from dict.update, so that is caught too.
+-
+-    Returns the parsed object (empty when absent or unusable). The blob is
+-    merged flat into ``target`` so keys written by older builds - ``lens_type``,
+-    ``wavelength`` and friends, which never had columns - keep resolving
+-    against the row dict. Returning it is also what lets the caller hand it to
+-    the model as its own ``metadata`` attribute: a reloaded Lens used to come
+-    back with no ``metadata`` at all, so a saved tolerance set vanished.
+     """
+     if not raw:
+-        return {}
++        return
+     if isinstance(raw, (dict, list)):
+         meta = raw
+     else:
+@@ -63,29 +56,13 @@ def _metadata_merge(target: Dict[str, Any], raw: Any, what: str) -> Dict[str, An
+             meta = json.loads(raw)
+         except (ValueError, TypeError) as e:
+             logger.warning("Ignoring unparseable %s metadata: %s", what, e)
+-            return {}
++            return
+     if not isinstance(meta, dict):
+         logger.warning(
+             "Ignoring %s metadata: expected an object, got %s", what, type(meta).__name__
+         )
+-        return {}
++        return
+     target.update(meta)
+-    return dict(meta)
+-
+-
+-def _metadata_payload(source: Dict[str, Any], column_keys) -> str:
+-    """Build the flat metadata blob for a row.
+-
+-    Anything without a dedicated column goes in the blob, and so does the
+-    model's own ``metadata`` dict - flattened into the same level rather than
+-    nested. Nesting would write ``{"metadata": {"metadata": ...}}`` and would
+-    break every existing reader, which expects the blob to be flat.
+-    """
+-    blob = {k: v for k, v in source.items() if k not in column_keys}
+-    nested = source.get("metadata") or {}
+-    if isinstance(nested, dict):
+-        blob.update(nested)
+-    return json.dumps(blob)
+ 
+ 
+ class LensInUseError(RuntimeError):
+@@ -870,9 +847,7 @@ class DatabaseManager:
+                             "coating_1": _coating_parse(e_dict["lens_coating_1"]),
+                             "coating_2": _coating_parse(e_dict["lens_coating_2"]),
+                         }
+-                        lens_data["metadata"] = _metadata_merge(
+-                            lens_data, e_dict["lens_metadata"], f"lens {lens_id}"
+-                        )
++                        _metadata_merge(lens_data, e_dict["lens_metadata"], f"lens {lens_id}")
+ 
+                     elements.append(
+                         {
+diff --git a/openlens/lens.py b/openlens/lens.py
+index bb4732f57ec5262153dce15e05e7982da3a94690..e45a84478ee06f8a88af04df0c92a16e0f0d5163 100644
+--- a/openlens/lens.py
++++ b/openlens/lens.py
+@@ -874,9 +874,6 @@ class Lens:
+             ),
+             "created_at": self.created_at,
+             "modified_at": self.modified_at,
+-            # A copy: to_dict must not hand out a live reference to the
+-            # model's own state, or editing the exported dict edits the lens.
+-            "metadata": dict(self.metadata),
+         }
+ 
+     @staticmethod
+diff --git a/openlens/optical_system.py b/openlens/optical_system.py
+index 4113bb20ba36abb0b6181d613217c3f1cb18a8dd..a68d2b5c2a881c06ad2d25bd94f093303d6aed90 100644
+--- a/openlens/optical_system.py
++++ b/openlens/optical_system.py
+@@ -671,14 +671,7 @@ class OpticalSystem:
+         If ``lens_lookup`` is provided, elements with a matching ``lens_id``
+         reuse the shared Lens instance instead of deserializing a fresh copy.
+         """
+-        system = cls(
+-            name=data.get("name", "Optical System"),
+-            metadata={
+-                k: v
+-                for k, v in (data.get("metadata") or {}).items()
+-                if k not in _SYSTEM_SERIALIZED_KEYS
+-            },
+-        )
++        system = cls(name=data.get("name", "Optical System"))
+         system.id = data.get("id", system.id)
+         system.created_at = data.get("created_at", system.created_at)
+         system.modified_at = data.get("modified_at", system.modified_at)

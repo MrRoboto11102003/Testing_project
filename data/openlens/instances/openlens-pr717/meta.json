@@ -1,0 +1,62 @@
+{
+ "id": "openlens-pr717",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 642,
+ "issue_title": "bug: get_all_metrics mixes an overridden pupil and wavelength with the lens geometry",
+ "issue_body": "## Summary\n\n`PerformanceMetrics.get_all_metrics()` accepts overrides for the entrance\npupil diameter and the wavelength, but only forwards the pupil override to\n`calculate_f_number()`. `numerical_aperture`, `airy_disk_radius_mm` and\n`rayleigh_limit_urad` keep using the lens' mechanical diameter and the lens'\nstored wavelength. The returned dictionary therefore describes two different\napertures and one fixed wavelength at the same time.\n\nWith a 25 mm lens and `entrance_pupil_diameter=10`, the same result contains\n`f_number = 4.92` (f/10 mm) but `numerical_aperture = 0.2462` (equivalent\nf/2.03) and an Airy radius that belongs to the 25 mm lens. `resolution_um`\nand `airy_disk_radius_mm` differ by exactly the factor 25/10 = 2.5, and\n`rayleigh_limit_urad` stays at 28.6749 urad for 400, 550 and 700 nm because\nthe wavelength override is never passed to it.\n\n## Impact\n\n- The metrics bundle is internally inconsistent, so any report, dashboard or\n  comparison built from it mixes apertures and wavelengths.\n- The wavelength override silently does not apply to the angular Rayleigh\n  limit, which is the metric most likely to be quoted next to a wavelength.\n- These values are surfaced in the GUI performance tab, so users see numbers\n  that do not correspond to the optics they are looking at.\n\n## Reproduction\n\n```python\nfrom openlens.lens import Lens\nfrom openlens.performance_metrics import PerformanceMetrics\n\nlens = Lens(name=\"singlet\", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0,\n            thickness=5.0, diameter=25.0, material=\"BK7\")\nmetrics = PerformanceMetrics(lens)\n\nm = metrics.get_all_metrics(entrance_pupil_diameter=10.0, wavelength=550.0)\nna = m[\"numerical_aperture\"]\nprint(\"f_number           = %.4f\" % m[\"f_number\"])\nprint(\"numerical_aperture = %.4f (equivalent f/# = %.4f)\" % (na, 1.0 / (2.0 * na)))\nprint(\"resolution_um      = %.4f\" % m[\"resolution_um\"])\nprint(\"airy_disk_radius   = %.4f um\" % (m[\"airy_disk_radius_mm\"] * 1000.0))\nprint(\"resolution / airy  = %.3f\" % (m[\"resolution_um\"] / (m[\"airy_disk_radius_mm\"] * 1000.0)))\n\nfor wavelength in (400.0, 550.0, 700.0):\n    m = metrics.get_all_metrics(wavelength=wavelength)\n    print(\"wavelength=%5.1f -> resolution_um=%.4f airy=%.4f um rayleigh_urad=%.4f\" % (\n        wavelength, m[\"resolution_um\"], m[\"airy_disk_radius_mm\"] * 1000.0,\n        m[\"rayleigh_limit_urad\"]))\n```\n\nOutput:\n\n```\nf_number           = 4.9213\nnumerical_aperture = 0.2462 (equivalent f/# = 2.0310)\nresolution_um      = 3.3022\nairy_disk_radius   = 1.3209 um\nresolution / airy  = 2.500\nwavelength=400.0 -> resolution_um=0.9606 airy=0.9606 um rayleigh_urad=28.6749\nwavelength=550.0 -> resolution_um=1.3209 airy=1.3209 um rayleigh_urad=28.6749\nwavelength=700.0 -> resolution_um=1.6811 airy=1.6811 um rayleigh_urad=28.6749\n```\n\n## Root cause\n\n- `openlens/performance_metrics.py:365` forwards the pupil override to\n  `calculate_f_number()` only.\n- `openlens/performance_metrics.py:366` calls `calculate_numerical_aperture()`\n  without the override; that method (`:61-90`) derives the NA from the lens'\n  own diameter.\n- `openlens/performance_metrics.py:385` calls\n  `calculate_airy_disk_radius(wavelength)`, which (`:241-260`) uses the lens'\n  diameter for `D`.\n- `openlens/performance_metrics.py:384` calls\n  `calculate_resolution_rayleigh()`, which (`:163-183`) has no wavelength\n  parameter at all and falls back to the lens' stored wavelength or 550 nm.\n\n## Expected behaviour\n\nAll metrics in one bundle refer to the same aperture and the same\nwavelength. Overriding the entrance pupil or the wavelength must change every\nmetric that depends on it.\n\n## Suggested fix\n\nThread `entrance_pupil_diameter` and `wavelength` through\n`calculate_numerical_aperture()`, `calculate_airy_disk_radius()` and\n`calculate_resolution_rayleigh()`, and give the last one a `wavelength`\nargument. Add a regression test asserting that the NA and the Airy radius\ncorrespond to the overridden pupil, and that `rayleigh_limit_urad` scales with\n1/lambda.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/642",
+ "pr": 717,
+ "pr_title": "fix(analysis): thread pupil and wavelength overrides through all metrics",
+ "pr_body": "## Description\n\n`PerformanceMetrics.get_all_metrics()` accepts `entrance_pupil_diameter` and\n`wavelength`, but only forwarded the pupil to `calculate_f_number()`. Every\nother derived metric ignored both overrides, so one result bundle described\ntwo different optical systems:\n\n```text\nlens: f = 50.6 mm, mechanical diameter 25 mm\nget_all_metrics(entrance_pupil_diameter=10.0, wavelength=400.0)\n\nf_number              f/5.06     (overridden pupil)\nnumerical_aperture    0.246      (25 mm mechanical diameter)\nairy_disk_radius_mm   f/2.5 value (25 mm mechanical diameter)\nresolution_um         f/2.5 value (25 mm mechanical diameter)\nrayleigh_limit_urad   28.6749    (400, 550 and 700 nm all identical)\n```\n\nThe NA did not match the f-number cone, and the Rayleigh limit was independent\nof the requested wavelength.\n\n## What changed\n\n- **`openlens/performance_metrics.py`**\n  - `calculate_numerical_aperture()` and `calculate_airy_disk_radius()` accept\n    an optional `entrance_pupil_diameter`.\n  - `calculate_resolution_rayleigh()` accepts an optional `wavelength`.\n  - `get_all_metrics()` threads both overrides into all of them.\n  - Defaults are unchanged, so callers that pass neither keep the previous\n    behaviour.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #642\n\n## How Has This Been Tested?\n\n- [x] Added regression tests that fail before this change and pass after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n  - `Ran 2793 tests ... OK (skipped=35)`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n- [x] `ruff check`, `flake8`, `mypy`\n\nFour tests in `tests/test_performance_metrics.py`:\n\n- `test_the_numerical_aperture_uses_the_overridden_pupil` - NA equals\n  `sin(atan(D / 2f))` for the requested pupil.\n- `test_the_airy_radius_uses_the_overridden_pupil` - the Airy radius uses the\n  same pupil.\n- `test_the_angular_rayleigh_limit_scales_with_the_wavelength` - 400 nm and\n  800 nm differ by exactly 2x.\n- `test_the_bundle_describes_one_aperture` - the f-number, NA, Rayleigh spot\n  estimate and Airy radius in the same bundle agree with each other.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "0b9c92f8999757e272e21790ae0af1b4d574e4f7",
+ "merged_at": "2026-10-22T15:17:31Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/performance_metrics.py"
+ ],
+ "test_files": [
+  "tests/test_performance_metrics.py"
+ ],
+ "target_symbols": [
+  "openlens/performance_metrics.py::PerformanceMetrics.calculate_airy_disk_radius",
+  "openlens/performance_metrics.py::PerformanceMetrics.calculate_f_number",
+  "openlens/performance_metrics.py::PerformanceMetrics.calculate_field_of_view",
+  "openlens/performance_metrics.py::PerformanceMetrics.calculate_numerical_aperture",
+  "openlens/performance_metrics.py::PerformanceMetrics.calculate_resolution_rayleigh",
+  "openlens/performance_metrics.py::PerformanceMetrics.estimate_resolution_rayleigh",
+  "openlens/performance_metrics.py::PerformanceMetrics.format_metrics_report",
+  "openlens/performance_metrics.py::PerformanceMetrics.get_all_metrics"
+ ],
+ "fail_to_pass": [
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_airy_radius_uses_the_overridden_pupil",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_angular_rayleigh_limit_scales_with_the_wavelength",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_bundle_describes_one_aperture",
+  "tests/test_performance_metrics.py::TestMetricOverridesAreConsistent::test_the_numerical_aperture_uses_the_overridden_pupil"
+ ],
+ "pass_to_pass": [
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_is_measured_from_the_last_surface",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_is_not_the_efl",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_bfl_matches_optical_system",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_empty_system_returns_none",
+  "tests/test_performance_metrics.py::TestBackFocalLengthForSystem::test_single_lens_bfl_uses_the_thick_lens_model",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_far_limit_is_infinite_only_at_or_beyond_hyperfocal",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_near_limit_beyond_hyperfocal_uses_the_formula_not_half_h",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_near_limit_keeps_receding_beyond_the_hyperfocal_distance",
+  "tests/test_performance_metrics.py::TestDepthOfFieldBeyondHyperfocal::test_the_formula_holds_at_and_on_both_sides_of_h",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_airy_disk",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_angular_rayleigh_resolution_absolute_value",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_back_focal_length",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_depth_of_field",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_f_number_calculation",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_field_of_view",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_format_metrics_report",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_get_all_metrics",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_mtf_cutoff",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_numerical_aperture",
+  "tests/test_performance_metrics.py::TestPerformanceMetrics::test_resolution_estimate",
+  "tests/test_performance_metrics.py::TestPerformanceMetricsWithSystem::test_optical_system_metrics"
+ ],
+ "patch_lines": 56
+}

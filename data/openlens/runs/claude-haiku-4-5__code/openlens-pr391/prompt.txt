@@ -1,0 +1,75 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.validation.safe_float_conversion, openlens.validation.validate_conic_constant.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.validation.safe_float_conversion
+def safe_float_conversion(
+    value: Union[str, int, float], default: float = 0.0, param_name: str = "value"
+) -> Tuple[bool, float]:
+    """
+    Safely convert a value to float.
+
+    Args:
+        value: Value to convert
+        default: Default value if conversion fails
+        param_name: Parameter name for logging
+
+    Returns:
+        Tuple[bool, float]: (success, converted_value)
+
+    Note:
+        This function's contract is that it never raises. ``float()`` on a
+        large int raises OverflowError rather than returning inf, so a JSON
+        integer literal such as ``10**400`` used to escape - as did anything
+        TypeError could reach.
+    """
+    # Reject booleans explicitly (bool is subclass of int in Python)
+    if isinstance(value, bool):
+        return False, default
+
+    if isinstance(value, (int, float)):
+        try:
+            result = float(value)
+        except (ValueError, OverflowError, TypeError):
+            return False, default
+        if math.isnan(result) or math.isinf(result):
+            return False, default
+        return True, result
+
+    if isinstance(value, str):
+        try:
+            result = float(value)
+        except (ValueError, OverflowError, TypeError):
+            return False, default
+        if math.isnan(result) or math.isinf(result):
+            return False, default
+        return True, result
+
+    return False, default
+
+# openlens.validation.validate_conic_constant
+def validate_conic_constant(conic_constant: float, param_name: str = "conic constant") -> float:
+    """Validate a conic constant.
+
+    The optical range of interest is small, but hyperbolic surfaces are
+    commonly written with values below -1.  Keep a generous finite bound so
+    a typo still fails loudly without rejecting unusual prescriptions.
+
+    Args:
+        conic_constant: Conic constant (K).
+        param_name: Parameter name for error messages.
+
+    Returns:
+        The validated conic constant.
+
+    Raises:
+        ValidationError: If the value is not finite or outside [-100, 100].
+    """
+    value = _validate_number(conic_constant, param_name)
+    if value < -100.0 or value > 100.0:
+        raise ValidationError(f"{param_name} must be between -100 and 100, got {value}")
+    return value

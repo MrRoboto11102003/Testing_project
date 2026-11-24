@@ -1,0 +1,59 @@
+{
+ "id": "openlens-pr530",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 471,
+ "issue_title": "User data uses a relative `openlens.db` path: launching from another directory silently opens an empty library",
+ "issue_body": "**Where:** `openlens.py:100`, `:1207`; `src/gui/dialogs/startup.py:48`, `:409`; `src/gui/storage.py:30`\n\n`\"openlens.db\"` is resolved against the current working directory. Starting the app from another folder (a desktop launcher, an IDE, `python /path/openlens.py`) silently creates a new empty DB, which looks like data loss. User materials are also stored next to the source tree.\n\n**Fix:** store user data under a per-user directory (`QStandardPaths.AppDataLocation` or `platformdirs`), centralise the path in one function, allow an override via env var/CLI flag, and offer to migrate an existing `./openlens.db`.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/471",
+ "pr": 530,
+ "pr_title": "fix: user data must not depend on the working directory",
+ "pr_body": "## Description\n\nfix: user data must not depend on the working directory\n\nThe database was opened as the bare relative name `\"openlens.db\"`, which SQLite resolves\nagainst the **current working directory**. Launching from a desktop launcher, an IDE, or\n`python /path/to/openlens.py` created a brand new empty database in whatever folder\nhappened to be current \u2014 which looks exactly like data loss, because the real database is\nstill sitting somewhere else with everything in it.\n\n`src/paths.py` resolves the location once, per platform. The stated end-to-end test:\n\n```\ntwo different working directories \u2192 one database path\n```\n\n### No new dependency\n\n`platformdirs` is available locally but is **not** a declared dependency, and #470 is\nalready about how fragile this project's packaging is. The rule is short enough to state\noutright: `$XDG_DATA_HOME/openlens` (or `~/.local/share/openlens`) on Linux,\n`~/Library/Application Support/openlens` on macOS, `%APPDATA%\\openlens` on Windows.\n\n### Resolution happens at call time\n\nThe default is `None`, resolved inside the function \u2014 **not** a filename default. A\ndefault argument is evaluated once when the module loads, which would freeze the path\nbefore a test or a launcher had a chance to set the environment. A test asserts the\nsignatures directly, so this cannot quietly come back.\n\n### Migration never overwrites\n\nIf the destination already exists the old file is left **completely alone**. Overwriting\nit is the one outcome here that could destroy someone's library, so the user's data wins\nand the orphan stays where it is. `$OPENLENS_DB_PATH` suppresses migration entirely \u2014 the\nuser has said where the database is; relocating it would be arguing with them.\n\n### Also fixed\n\n`LensManager` seeded the example lens whenever the file was *named* `openlens.db`, so any\nscratch file with that name was treated as the app database. It now compares resolved\npaths.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #471\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **each part separately**:\n\n  | Reverted | Failures (of 29) |\n  | --- | --- |\n  | resolve to a relative path again | 5 |\n  | a frozen filename default argument | 2 |\n  | overwrite an existing destination | 1 |\n  | remove the `migrate_legacy_db()` call from `main()` | 1 |\n\n- [x] `python3 -m unittest tests.test_user_data_paths` \u2014 29 tests, OK (2 skipped: the\n      macOS and Windows platform-convention tests, on Linux)\n- [x] `python3 -m unittest tests.test_database tests.test_database_migrations tests.test_lens_editor tests.test_material_database` \u2014 91 tests, OK\n- [x] Full suite: `Ran 1990 tests`, `FAILED (errors=6, skipped=34)` \u2014 the same six\n      pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 242 files unchanged\n- [x] `flake8` \u2014 no new findings beyond one `E402` per file touched, which is that\n      file's existing structure (imports after `logger = ...`); and I removed one\n      now-unused `import os` in `lens_editor.py` that the old `os.path.basename` check\n      had been keeping alive\n- [x] Coverage includes: the default being absolute, not landing in the working\n      directory, being stable across working directories, agreeing with the data\n      directory, each platform convention, the data-dir env var, the path getter *not*\n      creating the directory, the DB env var winning and being read on every call, tilde\n      expansion, empty-string handling, no frozen defaults, migration moving the data,\n      never overwriting a live database, suppression by the env var, directory creation,\n      a permissions failure being reported rather than raised, and the end-to-end\n      two-directories-one-library case\n\n### \u26a0\ufe0f My test base class never ran, and the suite looked fine\n\n```python\nclass _Env:          # not unittest.TestCase\n```\n\nunittest silently ignores every class built on it. The first run reported **`Ran 3\ntests ... FAILED`** \u2014 a plausible-looking small suite \u2014 while **23 tests never\nexecuted**. After the fix: `Ran 26 tests, OK`.\n\nNothing in the output distinguished those two states. It is the same failure mode as the\nempty `_sources` helper I left in the file: a class that exists but contributes nothing.\n\n### \u26a0\ufe0f Removing the migration call from `main()` left all 26 passing\n\nTesting `migrate_legacy_db()` does not prove anything calls it. Three tests now cover the\ncall site directly: that `main()` calls it, that it runs **before** the window is built\n(moving the file after the database is opened does nothing), and that a failure is\ncaught so an unwritable data directory cannot stop the app starting.\n\nThis is the **third** time in this batch that the helper was tested and the caller assumed\n\u2014 #464 (`_fold_target_into_library`), #466 (`_shutdown_workers`), now `migrate_legacy_db`.\nWorth treating as a standing review question rather than three coincidences.\n\n### One test could not test what it claimed\n\nThe migration tests originally patched `paths.os.getcwd`. `Path(\"openlens.db\")` resolves\nagainst the **process** working directory and never calls `os.getcwd()`, so the patch\nchanged nothing \u2014 the tests were passing or failing for unrelated reasons. They now\nactually `chdir`, with the previous directory restored.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "026211edf872e8afa023afb882ac213e095c9ce7",
+ "merged_at": "2026-10-18T19:19:25Z",
+ "port_method": "partial_hunks:4/7",
+ "src_files": [
+  "openlens/database.py",
+  "openlens/lens_editor.py",
+  "openlens/paths.py"
+ ],
+ "test_files": [
+  "tests/test_user_data_paths.py"
+ ],
+ "target_symbols": [
+  "openlens/database.py::DatabaseManager.__init__",
+  "openlens/database.py::DatabaseManager._get_connection",
+  "openlens/lens_editor.py::LensManager.__init__"
+ ],
+ "fail_to_pass": [
+  "tests/test_user_data_paths.py::TestResolutionHappensAtCallTimeNotImportTime::test_no_default_argument_freezes_the_path",
+  "tests/test_user_data_paths.py::TestTheCallersUseIt::test_the_seeding_check_compares_resolved_paths"
+ ],
+ "pass_to_pass": [
+  "tests/test_user_data_paths.py::TestEndToEndAcrossWorkingDirectories::test_the_same_library_from_two_directories",
+  "tests/test_user_data_paths.py::TestMigration::test_a_database_in_the_working_directory_is_moved",
+  "tests/test_user_data_paths.py::TestMigration::test_a_directory_in_the_way_is_reported_not_raised",
+  "tests/test_user_data_paths.py::TestMigration::test_an_existing_destination_is_never_overwritten",
+  "tests/test_user_data_paths.py::TestMigration::test_nothing_to_migrate_is_not_an_error",
+  "tests/test_user_data_paths.py::TestMigration::test_the_env_var_suppresses_migration",
+  "tests/test_user_data_paths.py::TestMigration::test_the_new_directory_is_created",
+  "tests/test_user_data_paths.py::TestResolutionHappensAtCallTimeNotImportTime::test_the_env_var_is_read_on_every_call",
+  "tests/test_user_data_paths.py::TestTheAppRunsTheMigration::test_a_failing_migration_does_not_stop_the_app_starting",
+  "tests/test_user_data_paths.py::TestTheAppRunsTheMigration::test_main_migrates_before_opening_anything",
+  "tests/test_user_data_paths.py::TestTheAppRunsTheMigration::test_the_migration_runs_before_the_window_is_built",
+  "tests/test_user_data_paths.py::TestTheCallersUseIt::test_no_bare_openlens_db_literal_remains",
+  "tests/test_user_data_paths.py::TestTheDefaultIsNotRelative::test_the_default_lives_under_a_per_user_directory",
+  "tests/test_user_data_paths.py::TestTheDefaultIsNotRelative::test_the_default_path_is_absolute",
+  "tests/test_user_data_paths.py::TestTheDefaultIsNotRelative::test_the_path_is_below_the_data_directory",
+  "tests/test_user_data_paths.py::TestTheDefaultIsNotRelative::test_the_working_directory_does_not_change_the_path",
+  "tests/test_user_data_paths.py::TestTheEnvVarOverride::test_a_tilde_is_expanded",
+  "tests/test_user_data_paths.py::TestTheEnvVarOverride::test_an_empty_string_is_treated_as_unset",
+  "tests/test_user_data_paths.py::TestTheEnvVarOverride::test_an_explicit_argument_wins_over_the_env_var",
+  "tests/test_user_data_paths.py::TestTheEnvVarOverride::test_the_db_env_var_wins",
+  "tests/test_user_data_paths.py::TestTheResolutionFollowsThePlatform::test_the_data_dir_env_var_wins",
+  "tests/test_user_data_paths.py::TestTheResolutionFollowsThePlatform::test_the_data_dir_is_not_created_by_asking_for_it",
+  "tests/test_user_data_paths.py::TestTheResolutionFollowsThePlatform::test_windows_uses_appdata"
+ ],
+ "patch_lines": 17
+}

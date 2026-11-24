@@ -1,0 +1,215 @@
+diff --git a/openlens/io/step_export.py b/openlens/io/step_export.py
+index 54f6b55d2abd6fcd4997fab82f3b85c40ee18efd..e0d026c756fa1f74446dac14fac19ba47cef1c96 100644
+--- a/openlens/io/step_export.py
++++ b/openlens/io/step_export.py
+@@ -673,10 +673,10 @@ class StepExporter:
+         # A single EDGE_CURVE with same start/end vertex on a circle is allowed in some schemas,
+         # but robust exporters use 2 semicircles or just declare it as an EDGE_LOOP with one edge.
+         # Let's try single edge.
+-        edge1 = self.writer.add_entity("EDGE_CURVE", ["edge1", v_e1, v_e1, circle1, STEP_TRUE])
++        edge1 = self.writer.add_entity("EDGE_CURVE", ["edge1", v_e1, v_e1, circle1, ".T."])
+ 
+         # EDGE_CURVE for Edge 2
+-        edge2 = self.writer.add_entity("EDGE_CURVE", ["edge2", v_e2, v_e2, circle2, STEP_TRUE])
++        edge2 = self.writer.add_entity("EDGE_CURVE", ["edge2", v_e2, v_e2, circle2, ".T."])
+ 
+         # Longitudinal Seam Edge (connecting e1 to e2 along cylinder)
+         # Line segment
+@@ -699,11 +699,7 @@ class StepExporter:
+             "EDGE_LOOP",
+             [
+                 "loop1",
+-                [
+-                    self.writer.add_entity(
+-                        "ORIENTED_EDGE", [STEP_DERIVED, STEP_DERIVED, edge1, STEP_TRUE]
+-                    )
+-                ],
++                [self.writer.add_entity("ORIENTED_EDGE", ["*", "*", edge1, ".T."])],
+             ],
+         )
+ 
+@@ -712,11 +708,7 @@ class StepExporter:
+             "EDGE_LOOP",
+             [
+                 "loop2",
+-                [
+-                    self.writer.add_entity(
+-                        "ORIENTED_EDGE", [STEP_DERIVED, STEP_DERIVED, edge2, STEP_TRUE]
+-                    )
+-                ],
++                [self.writer.add_entity("ORIENTED_EDGE", ["*", "*", edge2, ".T."])],
+             ],
+         )
+ 
+@@ -795,9 +787,9 @@ class StepExporter:
+             "ADVANCED_FACE",
+             [
+                 "face1",
+-                [self.writer.add_entity("FACE_BOUND", ["b1", loop1, STEP_TRUE])],
++                [self.writer.add_entity("FACE_BOUND", ["b1", loop1, ".T."])],
+                 surf1,
+-                STEP_TRUE,
++                ".T.",
+             ],
+         )
+ 
+@@ -806,9 +798,9 @@ class StepExporter:
+             "ADVANCED_FACE",
+             [
+                 "face2",
+-                [self.writer.add_entity("FACE_BOUND", ["b2", loop2, STEP_TRUE])],
++                [self.writer.add_entity("FACE_BOUND", ["b2", loop2, ".T."])],
+                 surf2,
+-                STEP_TRUE,
++                ".T.",
+             ],
+         )
+ 
+@@ -822,10 +814,10 @@ class StepExporter:
+         # But let's try just listing the bounds.
+         # One bound is the front circle, one is the back.
+ 
+-        b3_1 = self.writer.add_entity("FACE_BOUND", ["b3_1", loop1, STEP_TRUE])
+-        b3_2 = self.writer.add_entity("FACE_BOUND", ["b3_2", loop2, STEP_TRUE])
++        b3_1 = self.writer.add_entity("FACE_BOUND", ["b3_1", loop1, ".T."])
++        b3_2 = self.writer.add_entity("FACE_BOUND", ["b3_2", loop2, ".T."])
+ 
+-        face3 = self.writer.add_entity("ADVANCED_FACE", ["face3", [b3_1, b3_2], surf3, STEP_TRUE])
++        face3 = self.writer.add_entity("ADVANCED_FACE", ["face3", [b3_1, b3_2], surf3, ".T."])
+ 
+         # --- Shell ---
+         shell = self.writer.add_entity("CLOSED_SHELL", ["shell", [face1, face2, face3]])
+@@ -868,12 +860,10 @@ class StepExporter:
+         def _edge(label: str, circle_id: int, z: float, r: float):
+             pe = self.writer.add_entity("CARTESIAN_POINT", [f"{label}_p", (r, 0.0, z)])
+             ve = self.writer.add_entity("VERTEX_POINT", [f"{label}_v", pe])
+-            return self.writer.add_entity("EDGE_CURVE", [f"{label}", ve, ve, circle_id, STEP_TRUE])
++            return self.writer.add_entity("EDGE_CURVE", [f"{label}", ve, ve, circle_id, ".T."])
+ 
+         def _loop(label: str, edge_id: int):
+-            oriented = self.writer.add_entity(
+-                "ORIENTED_EDGE", [STEP_DERIVED, STEP_DERIVED, edge_id, STEP_TRUE]
+-            )
++            oriented = self.writer.add_entity("ORIENTED_EDGE", ["*", "*", edge_id, ".T."])
+             return self.writer.add_entity("EDGE_LOOP", [f"{label}", [oriented]])
+ 
+         c_top_out = _circle(f"{name}_to", z1, r_outer)
+@@ -902,11 +892,11 @@ class StepExporter:
+             [
+                 f"{name}_ft",
+                 [
+-                    self.writer.add_entity("FACE_BOUND", [f"{name}_bt1", loop_top_out, STEP_TRUE]),
+-                    self.writer.add_entity("FACE_BOUND", [f"{name}_bt2", loop_top_in, STEP_TRUE]),
++                    self.writer.add_entity("FACE_BOUND", [f"{name}_bt1", loop_top_out, ".T."]),
++                    self.writer.add_entity("FACE_BOUND", [f"{name}_bt2", loop_top_in, ".T."]),
+                 ],
+                 plane_top,
+-                STEP_TRUE,
++                ".T.",
+             ],
+         )
+ 
+@@ -920,11 +910,11 @@ class StepExporter:
+             [
+                 f"{name}_fb",
+                 [
+-                    self.writer.add_entity("FACE_BOUND", [f"{name}_bb1", loop_bot_out, STEP_TRUE]),
+-                    self.writer.add_entity("FACE_BOUND", [f"{name}_bb2", loop_bot_in, STEP_TRUE]),
++                    self.writer.add_entity("FACE_BOUND", [f"{name}_bb1", loop_bot_out, ".T."]),
++                    self.writer.add_entity("FACE_BOUND", [f"{name}_bb2", loop_bot_in, ".T."]),
+                 ],
+                 plane_bot,
+-                STEP_TRUE,
++                ".T.",
+             ],
+         )
+ 
+@@ -938,11 +928,11 @@ class StepExporter:
+             [
+                 f"{name}_fo",
+                 [
+-                    self.writer.add_entity("FACE_BOUND", [f"{name}_bo1", loop_top_out, STEP_TRUE]),
+-                    self.writer.add_entity("FACE_BOUND", [f"{name}_bo2", loop_bot_out, STEP_TRUE]),
++                    self.writer.add_entity("FACE_BOUND", [f"{name}_bo1", loop_top_out, ".T."]),
++                    self.writer.add_entity("FACE_BOUND", [f"{name}_bo2", loop_bot_out, ".T."]),
+                 ],
+                 surf_outer,
+-                STEP_TRUE,
++                ".T.",
+             ],
+         )
+         surf_inner = self.writer.add_entity("CYLINDRICAL_SURFACE", [f"{name}_ci", ax_cyl, r_inner])
+@@ -951,11 +941,11 @@ class StepExporter:
+             [
+                 f"{name}_fi",
+                 [
+-                    self.writer.add_entity("FACE_BOUND", [f"{name}_bi1", loop_top_in, STEP_TRUE]),
+-                    self.writer.add_entity("FACE_BOUND", [f"{name}_bi2", loop_bot_in, STEP_TRUE]),
++                    self.writer.add_entity("FACE_BOUND", [f"{name}_bi1", loop_top_in, ".T."]),
++                    self.writer.add_entity("FACE_BOUND", [f"{name}_bi2", loop_bot_in, ".T."]),
+                 ],
+                 surf_inner,
+-                STEP_TRUE,
++                ".T.",
+             ],
+         )
+ 
+diff --git a/openlens/io/step_reader.py b/openlens/io/step_reader.py
+index 6543b5e8fd37008c6371a0115e42e2a310316575..ac3ed5b8f4e2bfcf11aa8d2d6921c85305ae6c7e 100644
+--- a/openlens/io/step_reader.py
++++ b/openlens/io/step_reader.py
+@@ -32,53 +32,9 @@ _POINT_RE = re.compile(rf"#(\d+)=CARTESIAN_POINT\('{_LITERAL_BODY}',\(([^)]*)\)\
+ _SPHERE_RE = re.compile(r"#(\d+)=SPHERICAL_SURFACE\([^,]*,#(\d+)")
+ _PLACEMENT_RE = re.compile(r"#(\d+)=AXIS2_PLACEMENT_3D\([^,]*,#(\d+)")
+ 
+-# Encoding directives the writer emits for non-ASCII text: \X2\ is UTF-16
+-# code units, \X4\ UTF-32 code points (only \X2\ is produced today).
+-_X2_RE = re.compile(r"\\X2\\([0-9A-Fa-f]+)\\X0\\")
+-_X4_RE = re.compile(r"\\X4\\([0-9A-Fa-f]+)\\X0\\")
+-_X_ENCODINGS = ((_X2_RE, "utf-16-be"), (_X4_RE, "utf-32-be"))
+-
+ 
+ def _unescape(name: str) -> str:
+-    """Undo the Part 21 escapes that ``StepWriter`` applies.
+-
+-    Scanned left to right rather than by ``str.replace``: the writer doubles a
+-    literal backslash, so a name that literally contains ``\\X2\\00FC\\X0\\``
+-    arrives as ``\\\\X2\\\\00FC\\\\X0\\\\`` and must come back as text. A
+-    replacement pass that looked for ``\\X2\\`` first would decode the
+-    doublings it happens to contain.
+-    """
+-    out: List[str] = []
+-    i = 0
+-    while i < len(name):
+-        ch = name[i]
+-        if ch == "'" and name.startswith("''", i):
+-            out.append("'")
+-            i += 2
+-            continue
+-        if ch == "\\":
+-            if name.startswith("\\\\", i):
+-                out.append("\\")
+-                i += 2
+-                continue
+-            for pattern, encoding in _X_ENCODINGS:
+-                match = pattern.match(name, i)
+-                if match:
+-                    try:
+-                        out.append(bytes.fromhex(match.group(1)).decode(encoding))
+-                    except (ValueError, UnicodeDecodeError):
+-                        # A malformed directive is not a reason to drop the
+-                        # name; keep it exactly as it was written.
+-                        out.append(match.group(0))
+-                    i = match.end()
+-                    break
+-            else:
+-                out.append(ch)
+-                i += 1
+-            continue
+-        out.append(ch)
+-        i += 1
+-    return "".join(out)
++    return name.replace("''", "'")
+ 
+ 
+ def read_step_solids(filename: str) -> List[Dict[str, Any]]:

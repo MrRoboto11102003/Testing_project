@@ -1,0 +1,33 @@
+{
+ "id": "openlens-pr684",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 631,
+ "issue_title": "bug(optimizer): cemented doublet is permanently infeasible (1e8 penalty on zero air gap)",
+ "issue_body": "## Summary\n\nA cemented interface is represented as an air gap with `thickness == 0`, but\n`MeritFunction._penalty_physical()` treats every `air_gaps` entry as a real air\nspace. It therefore adds a soft penalty because `0 < min_air_gap` and, more\nimportantly, a hard `1e8` because the edge clearance at the cemented interface\nis exactly zero. The built-in `create_doublet_optimizer()` can never reach a\nfeasible merit: its shipped design finishes at ~`1.00002e8`, yet reports\n`success=True`.\n\n## Impact\n\n- The application's own cemented-doublet optimizer is unusable; every\n  evaluation is dominated by a constant 1e8 term.\n- Genuine further improvements (or regressions) in the optical merit are\n  invisible next to the penalty, so the optimizer's reported improvement and\n  convergence are meaningless.\n- Users cannot optimise any cemented achromat, a standard design form.\n\n## Reproduction\n\n```python\nfrom openlens.optical_system import create_doublet\nfrom openlens.optimizer import MeritFunction, create_doublet_optimizer\n\ndoublet = create_doublet(focal_length=100.0, diameter=50.0)\nprint(\"air gaps:\", [g.thickness for g in doublet.air_gaps])\nmf = MeritFunction(doublet, [])\nprint(\"physical penalty:\", mf._penalty_physical(doublet))\n\nopt = create_doublet_optimizer(create_doublet(100.0, 50.0), 100.0)\nresult = opt.optimize(max_iterations=100)\nprint(\"success=%s final_merit=%.6f\" % (result.success, result.final_merit))\nprint(\"physical penalty of result:\", opt.merit_function._penalty_physical(result.optimized_system))\n```\n\nOutput:\n\n```\nair gaps: [0.0]\nphysical penalty: 200126478.71056747\nsuccess=True final_merit=100002052.187376\nphysical penalty of result: 100002000.0\n```\n\nThe returned elements have positive edge thicknesses\n(`[2.319, 3.329]` mm), so the remaining 1e8 comes solely from the cemented\ninterface: `gap 0` plus coincident mating surfaces gives `edge_clearance == 0`.\n\n## Root cause\n\n- `openlens/optimizer.py:354-356` applies the minimum-air-gap penalty to every\n  gap, including a cemented gap.\n- `openlens/optimizer.py:368-372` computes edge clearance as\n  `gap + sag_front(next) - sag_back(previous)`; for a cemented interface the\n  mating sags are equal, so the clearance is exactly 0 and the `<= 0` branch\n  adds `1e8`.\n\nNothing in `AirGap` distinguishes \"cemented\" from \"air\", and `create_doublet`\nuses `thickness=0` for the cemented surface.\n\n## Expected behaviour\n\nA cemented interface is a valid, manufacturable geometry. It should not be\nsubject to the minimum air gap or positive edge-clearance requirements, and a\ncemented doublet should be able to converge to a merit well below `1e8`.\n\n## Suggested fix\n\nRepresent/identify cemented gaps explicitly (e.g. an `AirGap.is_cemented`\nflag, or treat `abs(thickness) <= EPSILON` together with coincident mating\nsags as cemented) and skip the `min_air_gap` and `min_edge_clearance` checks\nfor them. Do not simply lower `min_air_gap` to 0: that would also accept\nzero-gap uncemented elements that can interpenetrate. Add a regression test\nthat `create_doublet_optimizer(...).optimize()` returns a design with\n`success=True` and `final_merit < 1e6`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/631",
+ "pr": 684,
+ "pr_title": "fix(optimizer): a cemented interface is a feasible geometry, not an air gap",
+ "pr_body": "## Description\n\nThe model represents a cemented doublet as an air gap of zero: the two\nelements share a surface. `MeritFunction._penalty_physical()` treated every\ngap as an air space, so the cemented interface collected a soft penalty for\nthe missing air and a hard `1e8` for an edge clearance of exactly zero.\n\nEvery cemented doublet was therefore permanently infeasible, and the\napplication's own doublet optimizer finished at a merit of `1.00002e8` with\nthe real merit invisible next to the penalty.\n\n## What changed\n\n- `openlens/optimizer.py::_penalty_physical` recognises a zero-thickness gap\n  as a cemented interface: it is not subject to the minimum air gap, and it\n  has no clearance to keep. A real air gap that is too small is still\n  penalised.\n\n```\nphysical penalty: 0.0\nfinal_merit: 1.607803 (was 100002052.187376)\n```\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #631\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] `QT_QPA_PLATFORM=offscreen OPENLENS_SKIP_SLOW=1 python3 -m unittest discover -s tests -t .`\n- [x] `black --line-length=100 openlens/ tests/ --check`\n\nNew test module `tests/test_cemented_feasibility.py` (two of the three tests\nfail on the unfixed code):\n\n- `test_a_cemented_doublet_has_no_physical_penalty`\n- `test_the_built_in_doublet_optimizer_converges`\n- `test_a_real_air_gap_is_still_penalised`\n\nFull local suite: `Ran 2613 tests ... OK (skipped=35)`, `black` clean,\n`ruff` clean, `mypy` clean.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [x] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes\n",
+ "fix_commit": "89bde6c16c976ca33e5400eabdaaaed877926d73",
+ "merged_at": "2026-10-22T01:05:22Z",
+ "port_method": "partial_hunks:2/3",
+ "src_files": [
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_cemented_feasibility.py"
+ ],
+ "target_symbols": [
+  "openlens/optimizer.py::MeritFunction._penalty_physical"
+ ],
+ "fail_to_pass": [
+  "tests/test_cemented_feasibility.py::TestCementedInterfaceIsFeasible::test_a_cemented_doublet_has_no_physical_penalty",
+  "tests/test_cemented_feasibility.py::TestCementedInterfaceIsFeasible::test_the_built_in_doublet_optimizer_converges"
+ ],
+ "pass_to_pass": [
+  "tests/test_cemented_feasibility.py::TestCementedInterfaceIsFeasible::test_a_real_air_gap_is_still_penalised"
+ ],
+ "patch_lines": 12
+}

@@ -1,0 +1,40 @@
+{
+ "id": "openlens-pr404",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 355,
+ "issue_title": "`diffraction.py` plotting skips the matplotlib guard set up 300 lines earlier",
+ "issue_body": "**File:** `src/diffraction.py:103-109` (sets the flag) vs `:397, 441, 468, 498, 524` (uses `plt`)\n\n```python\n103: try:\n104:     import matplotlib.pyplot as plt\n106:     MATPLOTLIB_AVAILABLE = True\n...\n397: plt.figure(figsize=(10, 6))      # in plot_airy_disk \u2014 flag never consulted\n```\n\nEvery other reviewed module guards (`polarization.py:346, 410`). Without matplotlib these five\nmethods raise `NameError: name 'plt' is not defined`, violating the AGENTS.md graceful-degradation rule.\n\n**Fix:** add `if not MATPLOTLIB_AVAILABLE: logger.warning(...); return` at the top of each `plot_*`,\nmatching `PolarizationCalculator.plot_fresnel_curves`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/355",
+ "pr": 404,
+ "pr_title": "fix(diffraction): honour the matplotlib flag in all three plot methods",
+ "pr_body": "Closes #355\n\n## Problem\n\n`diffraction.py` sets the flag at import:\n\n```python\ntry:\n    import matplotlib.pyplot as plt\n    MATPLOTLIB_AVAILABLE = True\nexcept ImportError:\n    MATPLOTLIB_AVAILABLE = False\n```\n\n\u2026but **never consulted it**. `plot_airy_disk`, `plot_psf_2d` and `plot_encircled_energy` went straight to `plt.figure` / `plt.subplots`, so without matplotlib all three raised:\n\n```\nNameError: name 'plt' is not defined\n```\n\nThat violates the AGENTS.md rule that the app must run its core features without optional dependencies. Every other reviewed module guards \u2014 `PolarizationCalculator.plot_fresnel_curves` checks `HAS_MATPLOTLIB` \u2014 so this file was the outlier.\n\n## Fix\n\nEach of the three warns and returns, matching that precedent. The guard sits after the cheap scalar setup and before the first `plt` call, so a caller that only wants the numbers gets a warning-free path.\n\nVerified by blocking matplotlib via `sys.meta_path` in a subprocess:\n\n```\nplot_airy_disk         -> returned cleanly\nplot_psf_2d            -> returned cleanly\nplot_encircled_energy  -> returned cleanly\nnon-plot maths still works: airy radius = 1.342\n```\n\n## Tests\n\n8 tests, **2 fail without the change**: the plot methods raising, and a reflection-based check that *every* `plot_*` on the class consults the flag \u2014 so a fourth method added later cannot silently regress. Three others pass either way by design (the subprocess harness itself, the flag value, and the normal-matplotlib path), and one asserts the numerical API still works without matplotlib.\n",
+ "fix_commit": "1794e9eed3a535022ce31973e462ff76f7fdf359",
+ "merged_at": "2026-10-06T15:25:16Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/diffraction.py"
+ ],
+ "test_files": [
+  "tests/test_diffraction_optional_mpl.py"
+ ],
+ "target_symbols": [
+  "openlens/diffraction.py::DiffractionCalculator.plot_airy_disk",
+  "openlens/diffraction.py::DiffractionCalculator.plot_encircled_energy",
+  "openlens/diffraction.py::DiffractionCalculator.plot_psf_2d"
+ ],
+ "fail_to_pass": [
+  "tests/test_diffraction_optional_mpl.py::TestWithoutMatplotlib::test_every_plot_method_is_guarded",
+  "tests/test_diffraction_optional_mpl.py::TestWithoutMatplotlib::test_plot_methods_do_not_raise"
+ ],
+ "pass_to_pass": [
+  "tests/test_diffraction_optional_mpl.py::TestWithMatplotlib::test_airy_plot_still_runs",
+  "tests/test_diffraction_optional_mpl.py::TestWithMatplotlib::test_encircled_plot_still_runs",
+  "tests/test_diffraction_optional_mpl.py::TestWithMatplotlib::test_flag_is_true",
+  "tests/test_diffraction_optional_mpl.py::TestWithMatplotlib::test_psf_plot_still_runs",
+  "tests/test_diffraction_optional_mpl.py::TestWithoutMatplotlib::test_flag_is_false",
+  "tests/test_diffraction_optional_mpl.py::TestWithoutMatplotlib::test_numerical_api_still_works"
+ ],
+ "patch_lines": 12
+}

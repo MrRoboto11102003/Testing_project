@@ -1,0 +1,35 @@
+diff --git a/openlens/image_simulator.py b/openlens/image_simulator.py
+index fdf62054589f134d8e257ae180669dc4b49884f5..795d744c6e5e92376d693b7740f0c9b29b47acd8 100644
+--- a/openlens/image_simulator.py
++++ b/openlens/image_simulator.py
+@@ -275,14 +275,8 @@ class ImageSimulator:
+                 lens.refractive_index = index
+ 
+     def _calculate_image_distance(self, object_distance: float, wavelength: float) -> float:
+-        """Calculate image distance using the lens equation at *wavelength*.
+-
+-        The focal length is a function of the refractive index, and the index
+-        is a function of wavelength. Measuring it at the design index made the
+-        image plane - and the magnification and vignetting derived from it -
+-        identical at every wavelength.
+-        """
+-        f = self._system_focal_length_at(wavelength)
++        """Calculate image distance using lens equation."""
++        f = self._system_focal_length()
+ 
+         if abs(object_distance - f) < 0.001:
+             return float("inf")  # Object at focal point
+@@ -620,12 +614,7 @@ class ImageSimulator:
+         r = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+ 
+         mask = (r >= nyquist_idx - 2) & (r <= nyquist_idx + 2)
+-        dc = float(magnitude[cy, cx])
+-        if dc <= 0.0:
+-            # A blank (or purely negative-cancelling) image has no DC energy
+-            # to normalise against; 0/0 used to return nan and warn.
+-            return 0.0
+-        ratio = magnitude[mask].mean() / dc
++        ratio = magnitude[mask].mean() / magnitude[cy, cx]
+ 
+         return float(ratio)
+ 

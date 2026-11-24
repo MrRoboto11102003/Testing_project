@@ -1,0 +1,72 @@
+{
+ "id": "openlens-pr372",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 307,
+ "issue_title": "`ChromaticAnalyzer.design_achromatic_doublet` raises `ZeroDivisionError` for one glass",
+ "issue_body": "**File:** `src/chromatic_analyzer.py:345-347` (duplicate of `src/optical_system.py:675-681`)\n\n```python\nphi_total = 1.0 / focal_length\nphi1 = phi_total * V1 / (V1 - V2)\nphi2 = phi_total * V2 / (V2 - V1)\n```\n\nThe `optical_system` twin has a `if v1 == v2:` guard; this copy does not.\n\n**Repro (verified):** `ChromaticAnalyzer().design_achromatic_doublet(100.0, \"BK7\", \"BK7\")` \u2192\n`ZeroDivisionError: float division by zero`. The two implementations of the same physics have\ndiverged. `calculate_abbe_number` (`:301`) also has no `n_F - n_C` guard.\n\n**Fix:** make `AchromaticDoubletDesigner` the single implementation and delegate; add\n`if V1 == V2: raise ValueError(...)` to the analyzer.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/307",
+ "pr": 372,
+ "pr_title": "fix(chromatic): reject unsolvable achromats instead of dividing by zero",
+ "pr_body": "Closes #307\n\n## Problem\n\n`design_achromatic_doublet` splits optical power by Abbe number, dividing by `(V1 - V2)`. Given the same glass twice that is `1/0`:\n\n```\ndesign_achromatic_doublet(100.0, \"BK7\", \"BK7\")\n  -> ZeroDivisionError: float division by zero\n```\n\nThe condition has **no solution**: two glasses with equal dispersion cannot cancel chromatic aberration. `optical_system.AchromaticDoubletDesigner` already guarded exactly this \u2014 which is how two copies of the same physics diverged.\n\n`calculate_abbe_number` had the same shape of hole: `V_d = (n_d - 1)/(n_F - n_C)` is undefined when a material has no dispersion across F..C.\n\n## Fix\n\nBoth now raise `ValueError` with the glasses and their Abbe numbers named:\n\n```\nCannot design an achromat from 'BK7' and 'BK7': both have Abbe number V=64.141.\n```\n\nThe guard is `1e-12` on the Abbe difference rather than equality, so genuinely different glasses are unaffected.\n\n**Worth knowing:** `BK7` and `N-BK7` are the same catalog entry and share V to 9 places, so pairing them is rejected for the same physical reason. A test pins that.\n\n## On the suggested refactor\n\nThe ticket also suggested making `AchromaticDoubletDesigner` the single implementation and delegating. I did not do that: the two are not duplicates. `design_cemented_doublet` returns a built `OpticalSystem`; `design_achromatic_doublet` returns a dict of design parameters (power split only, no radii or thickness). Collapsing them changes a public return shape \u2014 a redesign, not a bug fix. What was fixed is the divergence that actually caused the crash.\n\n## Tests\n\n7 tests in `tests/test_chromatic_analyzer.py`; all fail without the change.",
+ "fix_commit": "12f22f3ec92e3903ca91063803704a101e9ce231",
+ "merged_at": "2026-10-04T20:40:32Z",
+ "port_method": "partial_hunks:2/3",
+ "src_files": [
+  "openlens/chromatic_analyzer.py"
+ ],
+ "test_files": [
+  "tests/test_chromatic_analyzer.py"
+ ],
+ "target_symbols": [
+  "openlens/chromatic_analyzer.py::ChromaticAnalyzer.design_achromatic_doublet"
+ ],
+ "fail_to_pass": [
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_alias_glasses_with_identical_abbe_are_rejected",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_message_names_the_glasses_and_explains",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_same_glass_raises_for_each_catalog_pair",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_same_glass_raises_value_error"
+ ],
+ "pass_to_pass": [
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_abbe_number_rejects_zero_dispersion",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_different_glasses_still_design_normally",
+  "tests/test_chromatic_analyzer.py::TestAchromatDegenerateInputs::test_near_equal_abbe_numbers_are_not_rejected",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_abbe_number_calculation",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_abbe_number_flint_vs_crown",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_achromatic_condition",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_achromatic_doublet_design",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_afocal_raises",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_chromatic_metrics",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_spot_scales_with_aperture",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_analyze_lens_thick_focal_lengths",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_chromatic_focal_shift",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_chromatic_result_structure",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_extreme_wavelengths",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_high_index_material",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_multiple_materials",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_partial_dispersion",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_refractive_index_temperature_dependence",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_refractive_index_wavelength_dependence",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_transmission_data",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_transmission_interpolation",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_uv_material_fused_silica",
+  "tests/test_chromatic_analyzer.py::TestChromaticAnalyzer::test_wavelength_constants",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_partial_dispersion_of_a_flat_material_raises_value_error",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_partial_dispersion_of_an_unknown_material_raises_value_error",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_plot_chromatic_focal_shift_requires_at_least_two_points",
+  "tests/test_chromatic_analyzer.py::TestErrorTypes::test_plot_chromatic_focal_shift_still_accepts_two_points",
+  "tests/test_chromatic_analyzer.py::TestLateralColorIsTheChiefRay::test_lateral_color_does_not_depend_on_the_aperture",
+  "tests/test_chromatic_analyzer.py::TestLateralColorIsTheChiefRay::test_lateral_color_matches_a_hand_traced_chief_ray",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_case_insensitive_lookup",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_get_material",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_list_by_catalog",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_load_builtin_materials",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_physical_properties",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_sellmeier_coefficients",
+  "tests/test_chromatic_analyzer.py::TestMaterialDatabase::test_temperature_coefficients",
+  "tests/test_chromatic_analyzer.py::TestWavelengthOrderIndependence::test_axial_colour_agrees_with_the_focal_shift",
+  "tests/test_chromatic_analyzer.py::TestWavelengthOrderIndependence::test_permuted_wavelengths_give_the_same_scalar_metrics"
+ ],
+ "patch_lines": 16
+}

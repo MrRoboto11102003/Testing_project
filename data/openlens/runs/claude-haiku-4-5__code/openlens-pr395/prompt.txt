@@ -1,0 +1,294 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.export_formats.SVGExporter.export_lens, openlens.export_formats.SVGExporter.export_system.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.export_formats.SVGExporter.export_lens
+    @staticmethod
+    def export_lens(
+        lens: Lens,
+        filename: str,
+        width: int = 400,
+        height: int = 300,
+        show_rays: bool = False,
+        show_labels: bool = True,
+    ):
+        """
+        Export lens cross-section as SVG.
+
+        Args:
+            lens: Lens object to export
+            filename: Output SVG filename
+            width: SVG width in pixels
+            height: SVG height in pixels
+            show_rays: Whether to show ray paths (simplified)
+            show_labels: Whether to show dimension labels
+        """
+        # Calculate scaling
+        margin = 40
+        available_width = width - 2 * margin
+        available_height = height - 2 * margin
+
+        # Scale to fit lens
+        max_dimension = max(lens.thickness * 2, lens.diameter)
+        scale = min(available_width, available_height) / max_dimension * 0.8
+
+        # Center position
+        cx = width / 2
+        cy = height / 2
+
+        # Scaled lens dimensions
+        thickness = lens.thickness * scale
+        half_diameter = (lens.diameter / 2) * scale
+
+        # Calculate surface positions
+        front_x = cx - thickness / 2
+        back_x = cx + thickness / 2
+
+        with atomic_write_text(filename) as f:
+            # SVG header
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            f.write(
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+                f'height="{height}" viewBox="0 0 {width} {height}">\n'
+            )
+            f.write("  <defs>\n")
+            f.write("    <style>\n")
+            f.write("      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }\n")
+            f.write("      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }\n")
+            f.write("      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }\n")
+            f.write("      .ray { stroke: #ff6600; stroke-width: 1.5; fill: none; }\n")
+            f.write(
+                "      .label { font-family: Arial, sans-serif; font-size: 12px; fill: #333333; }\n"
+            )
+            f.write(
+                "      .title { font-family: Arial, sans-serif; font-size: 14px; "
+                "font-weight: bold; fill: #333333; }\n"
+            )
+            f.write("    </style>\n")
+            f.write("  </defs>\n")
+            f.write("\n")
+
+            # Background
+            f.write(f'  <rect width="{width}" height="{height}" fill="white"/>\n')
+            f.write("\n")
+
+            # Title
+            f.write(
+                f'  <text x="{width/2}" y="25" class="title" text-anchor="middle">'
+                f"{escape(str(lens.name))}</text>\n"
+            )
+            f.write("\n")
+
+            # Optical axis
+            f.write(
+                f'  <line x1="{margin}" y1="{cy}" x2="{width-margin}" y2="{cy}" class="axis"/>\n'
+            )
+            f.write("\n")
+
+            # Generate lens outline path
+            r1 = lens.radius_of_curvature_1
+            r2 = lens.radius_of_curvature_2
+
+            # Calculate sag (surface deviation from flat)
+            def calc_sag(radius, half_d):
+                if abs(radius) > 1e9:
+                    return 0
+                try:
+                    return abs(radius) - math.sqrt(radius * radius - half_d * half_d)
+                except ValueError as e:
+                    logger.debug("Sag calculation failed: %s", e)
+                    return 0
+
+            sag1 = calc_sag(r1, lens.diameter / 2) * scale
+            sag2 = calc_sag(r2, lens.diameter / 2) * scale
+
+            # Front surface edge x positions
+            if abs(r1) > 1e9:  # Flat
+                front_top_x = front_x
+                front_bot_x = front_x
+            elif r1 > 0:  # Convex front
+                front_top_x = front_x + sag1
+                front_bot_x = front_x + sag1
+            else:  # Concave front
+                front_top_x = front_x - sag1
+                front_bot_x = front_x - sag1
+
+            # Back surface edge x positions
+            if abs(r2) > 1e9:  # Flat
+                back_top_x = back_x
+                back_bot_x = back_x
+            elif r2 < 0:  # Convex back (negative radius)
+                back_top_x = back_x - sag2
+                back_bot_x = back_x - sag2
+            else:  # Concave back
+                back_top_x = back_x + sag2
+                back_bot_x = back_x + sag2
+
+            # Build path for lens outline
+            top_y = cy - half_diameter
+            bot_y = cy + half_diameter
+
+            # Start path
+            path_parts = []
+
+            # Front surface (top to bottom)
+            if abs(r1) > 1e9:  # Flat surface
+                path_parts.append(f"M {front_top_x:.2f} {top_y:.2f}")
+                path_parts.append(f"L {front_bot_x:.2f} {bot_y:.2f}")
+            else:
+                # Curved surface using quadratic bezier approximation
+                # Control point for quadratic bezier
+                if r1 > 0:  # Convex
+                    ctrl_x = front_x
+                else:  # Concave
+                    ctrl_x = front_top_x + sag1 * 2
+
+                path_parts.append(f"M {front_top_x:.2f} {top_y:.2f}")
+                path_parts.append(f"Q {ctrl_x:.2f} {cy:.2f} {front_bot_x:.2f} {bot_y:.2f}")
+
+            # Bottom edge
+            path_parts.append(f"L {back_bot_x:.2f} {bot_y:.2f}")
+
+            # Back surface (bottom to top)
+            if abs(r2) > 1e9:  # Flat surface
+                path_parts.append(f"L {back_top_x:.2f} {top_y:.2f}")
+            else:
+                if r2 < 0:  # Convex back
+                    ctrl_x = back_x
+                else:  # Concave back
+                    ctrl_x = back_bot_x - sag2 * 2
+
+                path_parts.append(f"Q {ctrl_x:.2f} {cy:.2f} {back_top_x:.2f} {top_y:.2f}")
+
+            # Close path
+            path_parts.append("Z")
+
+            path_d = " ".join(path_parts)
+
+            # Draw lens
+            f.write(f'  <path d="{path_d}" class="lens-fill"/>\n')
+            f.write(f'  <path d="{path_d}" class="lens-stroke"/>\n')
+            f.write("\n")
+
+            # Optional rays
+            if show_rays:
+                ray_y_positions = [-half_diameter * 0.7, 0, half_diameter * 0.7]
+                for ray_y in ray_y_positions:
+                    # Simplified parallel rays
+                    f.write(
+                        f'  <line x1="{margin}" y1="{cy + ray_y}" x2="{front_top_x}" '
+                        f'y2="{cy + ray_y}" class="ray"/>\n'
+                    )
+                f.write("\n")
+
+            # Labels
+            if show_labels:
+                # Diameter label
+                f.write(
+                    f'  <text x="{margin + 10}" y="{cy - half_diameter - 5}" '
+                    f'class="label">∅{lens.diameter:.1f}mm</text>\n'
+                )
+
+                # Thickness label
+                f.write(
+                    f'  <text x="{cx}" y="{cy + half_diameter + 20}" class="label" '
+                    f'text-anchor="middle">t={lens.thickness:.1f}mm</text>\n'
+                )
+
+                # Material label
+                f.write(
+                    f'  <text x="{cx}" y="{height - 15}" class="label" text-anchor="middle">'
+                    f"{escape(str(lens.material))} "
+                    f"(n={lens.refractive_index:.4f})</text>\n"
+                )
+
+                # Focal length
+                fl = lens.calculate_focal_length()
+                if fl:
+                    f.write(
+                        f'  <text x="{width - margin - 10}" y="{cy - 10}" class="label" '
+                        f'text-anchor="end">f={fl:.1f}mm</text>\n'
+                    )
+
+            f.write("\n")
+            f.write("</svg>\n")
+
+# openlens.export_formats.SVGExporter.export_system
+    @staticmethod
+    def export_system(system: OpticalSystem, filename: str, width: int = 600, height: int = 300):
+        """Export optical system as SVG diagram"""
+        margin = 40
+
+        with atomic_write_text(filename) as f:
+            # SVG header
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">\n')
+            f.write("  <defs>\n")
+            f.write("    <style>\n")
+            f.write("      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }\n")
+            f.write("      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }\n")
+            f.write("      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }\n")
+            f.write(
+                "      .title { font-family: Arial, sans-serif; font-size: 14px; "
+                "font-weight: bold; }\n"
+            )
+            f.write("    </style>\n")
+            f.write("  </defs>\n")
+
+            # Background
+            f.write(f'  <rect width="{width}" height="{height}" fill="white"/>\n')
+
+            # Title
+            f.write(
+                f'  <text x="{width/2}" y="25" class="title" text-anchor="middle">'
+                f"{escape(str(system.name))}</text>\n"
+            )
+
+            # Optical axis
+            cy = height / 2
+            f.write(
+                f'  <line x1="{margin}" y1="{cy}" x2="{width-margin}" y2="{cy}" class="axis"/>\n'
+            )
+
+            # Calculate total system length for scaling
+            total_length = system.get_total_length() or 100
+
+            # Get max diameter for vertical scaling
+            max_diameter = max((elem.lens.diameter for elem in system.elements), default=50)
+
+            available_width = width - 2 * margin
+            available_height = height - 2 * margin
+
+            scale_x = available_width / total_length * 0.8
+            scale_y = available_height / max_diameter * 0.8
+            scale = min(scale_x, scale_y)
+
+            # Draw each lens element
+            x_pos = margin + 20
+            for i, elem in enumerate(system.elements):
+                lens = elem.lens
+
+                # Add air gap
+                x_pos += _gap_before(system, i) * scale
+
+                # Lens dimensions
+                t = lens.thickness * scale
+                h = lens.diameter / 2 * scale
+
+                # Simple rectangle for each lens (simplified)
+                f.write(
+                    f'  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" '
+                    f'class="lens-fill"/>\n'
+                )
+                f.write(
+                    f'  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" '
+                    f'class="lens-stroke"/>\n'
+                )
+
+                x_pos += t
+
+            f.write("</svg>\n")

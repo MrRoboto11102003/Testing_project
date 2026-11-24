@@ -1,0 +1,16 @@
+diff --git a/openlens/optical_system.py b/openlens/optical_system.py
+index 4113bb20ba36abb0b6181d613217c3f1cb18a8dd..3c2c6016d2f322a57c7fcadf274c7c8ef6b35616 100644
+--- a/openlens/optical_system.py
++++ b/openlens/optical_system.py
+@@ -729,11 +729,6 @@ class OpticalSystem:
+         # them from it), so set each child's position and rebuild. This format
+         # is flat - it stores a list of elements and cannot represent a nested
+         # assembly tree - so a nested assembly still comes back flattened.
+-        node_tree = data.get("node_tree")
+-        if node_tree:
+-            system._restore_node_tree(node_tree, lens_lookup)
+-            return system
+-
+         saved_positions = [elem_data.get("position") for elem_data in elements_data]
+         if any(position is not None for position in saved_positions):
+             for node, saved in zip(system.root.children, saved_positions):

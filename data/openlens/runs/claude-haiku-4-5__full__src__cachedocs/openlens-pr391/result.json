@@ -1,0 +1,193 @@
+{
+ "id": "openlens-pr391",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 110,
+  "units_kept": 110,
+  "chars": 87433
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.21,
+ "detected": true,
+ "n_tests": 14,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 1901,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 7835,
+  "output_tokens_details": {
+   "thinking_tokens": 6772
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1901,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 7835,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 1901,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1901
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0454562,
+ "model_seconds": 32.9,
+ "seconds": 37.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_boolean_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_custom_default": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_invalid_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_large_int_overflow": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_nan_infinity_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_negative_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_valid_numeric": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_valid_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestSafeFloatConversion::test_zero_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "safe_float_conversion"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestValidateConicConstant::test_boundaries": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_conic_constant"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestValidateConicConstant::test_non_finite": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_conic_constant"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestValidateConicConstant::test_outside_lower_bound": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_conic_constant"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestValidateConicConstant::test_outside_upper_bound": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationError",
+    "validate_conic_constant"
+   ]
+  },
+  "tests/_generated/test_openlens_pr391.py::TestValidateConicConstant::test_valid_typical_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "validate_conic_constant"
+   ]
+  }
+ }
+}

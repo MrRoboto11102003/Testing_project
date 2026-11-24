@@ -1,0 +1,47 @@
+{
+ "id": "openlens-pr742",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 659,
+ "issue_title": "bug: the lens comparator raises a bare IndexError when a CSV is exported before anything was compared",
+ "issue_body": "## Summary\n\n`LensComparator.export_to_csv()` indexes `self.results[0]` without checking\nthat anything has been compared, so exporting before running a comparison\nraises a bare `IndexError: list index out of range`. The sibling methods\n(`generate_comparison_table()`, `get_best_overall()`) both handle the empty\ncase with a friendly message.\n\n## Impact\n\n- A user who exports a comparison before running one gets an unhandled\n  `IndexError` instead of the \"No lenses to compare\" message the rest of the\n  class returns.\n- The export also truncates the target file before the crash: the file is\n  opened for writing first, so an existing CSV is emptied and then the\n  exception leaves it empty.\n\n## Reproduction\n\n```python\nimport sys, tempfile, os\nsys.path.insert(0, \"/home/philip/Workspace/openLens\")\nfrom openlens.lens_comparator import LensComparator\n\ncomparator = LensComparator()\nout = os.path.join(tempfile.mkdtemp(), \"out.csv\")\ntry:\n    comparator.export_to_csv(out)\n    print(\"exported\")\nexcept Exception as exc:\n    print(\"raised:\", type(exc).__name__, exc)\nprint(\"the (empty) output file exists:\", os.path.exists(out))\n```\n\nOutput:\n\n```\nraised: IndexError list index out of range\nthe (empty) output file exists: True\n```\n\n## Root cause\n\n- `openlens/lens_comparator.py:230-231`:\n  ```python\n  with open(filename, \"w\", newline=\"\") as f:\n      writer = csv.DictWriter(f, fieldnames=self.results[0].to_dict().keys())\n  ```\n  `self.results[0]` is indexed unguarded, and the file is already truncated\n  when the exception is raised.\n\n## Expected behaviour\n\nExporting with nothing compared returns the same \"No lenses to compare\"\nmessage the other methods return, and an existing file is left untouched.\n\n## Suggested fix\n\nReturn early with the same message when `self.results` is empty (or raise a\ndomain-specific error), and write through `atomic_write_text` so a failed\nexport cannot truncate an existing CSV. Add a test for the empty case.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/659",
+ "pr": 742,
+ "pr_title": "fix(comparator): return a message instead of IndexError for an empty export",
+ "pr_body": "## Description\n`LensComparator.export_to_csv()` indexed `self.results[0]` without checking that a comparison had run, so exporting an empty comparison raised a bare `IndexError`. Worse, the file was opened for writing first: an existing CSV was truncated and then left empty by the crash.\n\n## What changed\n- `openlens/lens_comparator.py`\n  - `export_to_csv()` returns `\"No lenses to compare\"` (the same message `generate_comparison_table()` uses) before touching the file.\n  - The CSV is written through `atomic_write_text(..., newline=\"\")`, so a serialisation failure leaves the previous file intact and csv keeps its own line endings.\n- `openlens/atomic.py`: `atomic_write_text()` gained an optional `newline` argument (default `None`, unchanged for existing callers).\n- `tests/test_lens_comparator.py`: an empty export returns the message and creates no file; an existing file is untouched; a serialisation failure keeps the previous CSV.\n\n## Testing\n- Full suite: 2860 tests, OK (skipped=35)\n- `black --line-length=100`, `ruff`, `flake8`, `mypy`\n- Verified all three new tests fail against the old truncating/unguarded implementation.\n\nCloses #659\n",
+ "fix_commit": "eef7b41497c868a7013cc1b8b4a9fb13061ae96c",
+ "merged_at": "2026-10-23T09:46:38Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/atomic.py",
+  "openlens/lens_comparator.py"
+ ],
+ "test_files": [
+  "tests/test_lens_comparator.py"
+ ],
+ "target_symbols": [
+  "openlens/atomic.py::_temp_path",
+  "openlens/atomic.py::atomic_write_text",
+  "openlens/lens_comparator.py::LensComparator.export_to_csv"
+ ],
+ "fail_to_pass": [
+  "tests/test_lens_comparator.py::TestComparisonEdgeCases::test_a_failed_export_keeps_the_previous_csv",
+  "tests/test_lens_comparator.py::TestComparisonEdgeCases::test_export_without_results_leaves_an_existing_file_untouched",
+  "tests/test_lens_comparator.py::TestComparisonEdgeCases::test_export_without_results_returns_the_friendly_message"
+ ],
+ "pass_to_pass": [
+  "tests/test_lens_comparator.py::TestComparisonEdgeCases::test_empty_comparator",
+  "tests/test_lens_comparator.py::TestComparisonEdgeCases::test_identical_lenses",
+  "tests/test_lens_comparator.py::TestComparisonEdgeCases::test_single_lens_comparison",
+  "tests/test_lens_comparator.py::TestLensComparator::test_add_lens",
+  "tests/test_lens_comparator.py::TestLensComparator::test_clear_comparator",
+  "tests/test_lens_comparator.py::TestLensComparator::test_compare_multiple_lenses",
+  "tests/test_lens_comparator.py::TestLensComparator::test_compare_two_lenses",
+  "tests/test_lens_comparator.py::TestLensComparator::test_comparison_result_to_dict",
+  "tests/test_lens_comparator.py::TestLensComparator::test_comparison_table",
+  "tests/test_lens_comparator.py::TestLensComparator::test_find_best_lens",
+  "tests/test_lens_comparator.py::TestLensComparator::test_highlight_differences"
+ ],
+ "patch_lines": 32
+}

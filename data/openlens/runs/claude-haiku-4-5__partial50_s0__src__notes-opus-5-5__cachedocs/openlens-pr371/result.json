@@ -1,0 +1,214 @@
+{
+ "id": "openlens-pr371",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs",
+ "context": {
+  "mode": "partial",
+  "keep": 0.5,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 54,
+  "chars": 54193,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 5973
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.25,
+ "detected": true,
+ "n_tests": 16,
+ "n_catching": 1,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4649,
+  "cache_read_input_tokens": 12724,
+  "output_tokens": 8172,
+  "output_tokens_details": {
+   "thinking_tokens": 5752
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4649,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8172,
+    "cache_read_input_tokens": 12724,
+    "cache_creation_input_tokens": 4649,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4649
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0514394,
+ "model_seconds": 44.3,
+ "seconds": 52.2,
+ "tests": {
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_basic_design_returns_optical_system": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_cemented_interface_condition": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_crown_lens_equiconvex_shape": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_design_wavelength_is_d_line": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "WAVELENGTH_D_LINE"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_different_flint_materials": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_equal_abbe_numbers_same_material": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_error_on_missing_crown_material": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_error_on_missing_flint_material": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_error_on_zero_focal_length": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_flint_lens_negative_power": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_lens_diameters_match_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_lens_thicknesses_scaled_by_diameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_negative_focal_length_design": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_new_system_id_each_call": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_refractive_indices_from_catalog": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner",
+    "get_material_database"
+   ]
+  },
+  "tests/_generated/test_openlens_pr371.py::TestAchromaticDoubletDesignerCementedDoublet::test_system_has_two_elements_cemented": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AchromaticDoubletDesigner"
+   ]
+  }
+ }
+}

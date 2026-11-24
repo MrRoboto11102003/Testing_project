@@ -1,0 +1,86 @@
+# Notes: `OpticalSystem.calculate_back_focal_length(self, n_overrides=None) -> Optional[float]`
+
+## 1. Purpose
+- Returns the paraxial back focal length, `BFL = -A/C`, from the system ABCD matrix built by the private `_calculate_system_matrix`.
+- BFL is the distance from the **last surface vertex** to focus, in mm.
+
+## 2. Inputs
+- `n_overrides`: `None` (default) or a dict that maps **element index (int)** to a refractive index.
+  - For element `i`, the index used is `n_overrides[i]` only if `n_overrides` is truthy **and** `i in n_overrides`.
+  - Otherwise the index is `element.lens.refractive_index`.
+  - An empty dict `{}` is falsy, so it is ignored (same as `None`).
+  - Indices not in the dict fall back to the lens value.
+  - No validation is done. Wrong keys are silently ignored.
+- The matrix reads:
+  - `lens.get_effective_radius_1()` and `lens.get_effective_radius_2()`. These live in the `lens` module, which is not shown. For plain spherical lenses they should equal the radii.
+  - `lens.thickness`.
+  - `self.air_gaps[i].thickness`.
+- Wavelength is **not** used. `refractive_index_at` is never called. Element `position` values are not used either; only gap thicknesses matter.
+
+## 3. Raises
+- Nothing raised explicitly.
+- A non-numeric override would cause a natural `TypeError`. Do not test this.
+
+## 4. Returns and guarantees
+- Empty system (no elements): `_calculate_system_matrix` returns `None`, so the method returns `None`.
+- `abs(C) < 1e-10` (afocal, or every surface flat): returns `None`.
+- Otherwise returns the float `-A / C`. It can be negative for diverging systems.
+
+How the matrix is built:
+- Ray vector is `(y, n·θ)`. Start at identity, with `n_current = 1.0`.
+- For each element `i`:
+  1. **Surface 1:** if `R1` is finite and not 0, set `P1 = (n - 1)/R1`, then `C -= P1*A` and `D -= P1*B`. Flat (inf) surfaces are skipped.
+  2. **Glass:** set `d = thickness/n`; if `n` is 0, `d = thickness`. Then `A += d*C` and `B += d*D`.
+  3. **Surface 2:** if `R2` is finite and not 0, set `P2 = (1 - n)/R2` and apply as in step 1.
+  4. **Air gap:** if `i < len(elements)-1` and `i < len(air_gaps)`, propagate by `air_gaps[i].thickness`.
+
+## 5. Side effects
+- None. The system, the lenses and `n_overrides` are not mutated.
+- `modified_at` is unchanged.
+
+## 6. Branches and edge cases, with exact values
+Build lenses with explicit `refractive_index` and radii. Do not rely on Lens defaults or material lookup.
+
+| Case | Setup (`n=1.5`, `t=5`) | BFL |
+|---|---|---|
+| Empty | `OpticalSystem()` | `None` |
+| Biconvex | `R1=100`, `R2=-100` | `11800/119 ≈ 99.159664` (EFL = 12000/119 ≈ 100.840) |
+| Plano-convex | `R1=100`, `R2=float('inf')` | `590/3 ≈ 196.66667` |
+| Biconcave | `R1=-100`, `R2=100` | `-12200/121 ≈ -100.82645` |
+| Both flat | `R1=R2=inf` | `None` (C == 0) |
+| Two biconvex, gap 10 | lens above, `add_lens(l2, air_gap_before=10)` | `10036.5/222.2325 ≈ 45.16216` |
+
+- Comparing the two-lens case to a single lens shows that the gap matters. With `air_gap_before=0` (cemented) the result is different again.
+- Override example:
+  - Biconvex lens with `refractive_index=1.6`, called with `n_overrides={0: 1.5}`: gives `11800/119`.
+  - The same lens with no override gives a different value. Compute it with the formulas above:
+    - `P = 0.006`, `d = 3.125`.
+    - `A = 1 - 0.01875 = 0.98125`.
+    - `C = -0.006 - 0.006*0.98125 = -0.0118875`.
+    - BFL `≈ 82.5447`.
+- An override for a missing index (`{5: 2.0}`) gives the same result as no override.
+- Mutating `system.air_gaps[0].thickness` directly changes the result, because the matrix reads gap thickness and not positions.
+
+## 7. Rules from comments and docstrings
+- The reduced distance `d/n` inside glass is intentional ("NOT a bug"). Air-to-air results equal the classic `(y, θ)` chain.
+- Non-finite radii carry no power. Per a comment, `Lens` maps `R == 0` to inf; that code lives in `lens.py` and cannot be seen here.
+- `calculate_chromatic_aberration` uses this same matrix with per-line `n_overrides`, and gets `bfl_d` the same way.
+
+## 8. Testing hints
+- Build the system like this:
+  ```python
+  from openlens.lens import Lens
+  from openlens.optical_system import OpticalSystem
+  s = OpticalSystem()
+  s.add_lens(Lens(radius_of_curvature_1=100, radius_of_curvature_2=-100,
+                  thickness=5, diameter=25, refractive_index=1.5))
+  ```
+- Compare floats with `pytest.approx(..., rel=1e-9)`.
+- Use the exact fractions above as expected values (e.g. `11800/119`).
+- Cross-checks:
+  - Single lens: `-A/C` should be consistent with EFL. Here `get_system_focal_length()` for a single lens uses the Lens's own `calculate_focal_length` (not seen), so do not assert it equals 12000/119 exactly.
+  - Multi-lens: `get_system_focal_length()` equals `-1/C` from the same matrix.
+- Pitfalls:
+  - Do not pass `wavelength`- or material-only lenses and assume an index; always set `refractive_index`.
+  - Keep `diameter` comfortably large relative to the sag, because Lens validation (not seen) might reject extreme geometry.
+  - The result does not depend on where the first element sits.

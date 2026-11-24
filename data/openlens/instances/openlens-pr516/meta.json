@@ -1,0 +1,38 @@
+{
+ "id": "openlens-pr516",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 445,
+ "issue_title": "LensRayTracer 2D: trace_parallel_rays ignores x_offset of a shifted lens",
+ "issue_body": "**Where:** `src/tracer_2d.py:463-479`\n\n`trace_parallel_rays()` computes starting heights using `lens_x=0.0` rather than the tracer's `x_offset`. For a non-zero field angle, a shifted lens receives rays at different heights than requested.\n\n**Repro:** a 0-height 5 degree ray for a flat lens at `x_offset=50` hits the front surface at `y=4.3744 mm` instead of `y=0`.\n\n**Fix:** project the bundle onto `self.front_vertex_x` and place starts relative to that vertex.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/445",
+ "pr": 516,
+ "pr_title": "fix(analysis): reference the parallel-ray bundle to the front vertex",
+ "pr_body": "## Description\n\nfix(analysis): reference the parallel-ray bundle to the front vertex\n\n`trace_parallel_rays()` built its bundle against a hard-coded `lens_x = 0.0` and a\nstart plane at `-RAY_START_OFFSET_MM`, whatever the tracer's `x_offset` was. The\nback-projection that places a ray at its requested height at the front surface\ntherefore used the wrong reference plane, so a lens placed anywhere but the\norigin received its fan at the wrong heights:\n\n```\n0-height, 5\u00b0 ray, flat lens at x_offset=50\n  \u2192 arrives at y = 4.3744 mm instead of y = 0\n```\n\nBoth the bundle reference **and** the start plane now move with the front\nvertex, so the ray still begins in front of the lens and the requested heights\nare the heights it receives.\n\nThe system tracer already did this correctly (`start_x = first_pos -\nRAY_START_OFFSET_MM`, `tracer_2d.py:591`); this brings the single-lens tracer in\nline with it.\n\n### Both halves are load-bearing\n\nFixing only the bundle reference while leaving the start plane at the origin\nstill fails a test, so this is not a one-line change that happens to pass.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #445\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after \u2014\n      **27 failures across 8 tests** on the original `tracer_2d.py` (many via\n      `subTest`)\n- [x] Verified by reverting:\n  - the original hard-coded origin \u2192 **27 fail**\n  - bundle fixed but start plane left at the origin \u2192 **1 still fails**\n- [x] `python3 -m unittest tests.test_tracer2d_parallel_offset` \u2014 8 tests, OK\n- [x] `python3 -m unittest tests.test_tracer2d_parallel_offset tests.test_ray_tracer tests.test_system_tracer tests.test_ray_tracer_3d tests.test_interactive_ray_tracer tests.test_aberrations` \u2014 110 tests, OK\n- [x] Full suite: `Ran 1802 tests`, `FAILED (errors=6, skipped=31)` \u2014 the same\n      six pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 229 files unchanged\n- [x] `flake8 src/tracer_2d.py tests/test_tracer2d_parallel_offset.py` \u2014 clean\n- [x] Coverage includes: the issue's zero-height repro, the unshifted case\n      still working, a height sweep across four offsets and five heights, the\n      result being independent of the offset, a curved lens tracing identically\n      when translated along the axis, and rays starting in front of the lens\n      for both positive and negative offsets\n\n### Four mistakes in my own test, each masking the bug\n\nAll four made the test fail for the wrong reason before it caught anything:\n\n- **The 2D `Ray` is not the 3D one.** It has `x`/`y` and `angle_rad`, not\n  `origin`/`direction`.\n- **`ray.x`/`ray.y` are where the ray *ended up*.** The arrival height has to\n  be read from `path[0]`/`path[1]`; reading the ray's current position measures\n  the wrong span entirely.\n- **`num_rays=1` forces `height = 0`** and ignores `ray_height_range` entirely,\n  so the height sweep silently tested only the zero ray. It needs `num_rays=2`.\n- **A curved front surface is struck at its sag, not at the vertex.** Measuring\n  arrival at the intersection leaves a residual proportional to the sag that is\n  *geometry, not a bug* \u2014 I nearly \"fixed\" that by loosening the tolerance. The\n  bundle is referenced to the vertex plane, so the test back-projects to the\n  vertex, which is both correct and what the fix actually guarantees.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "accce87aad3bf55f1717a178352e798aaa2c5081",
+ "merged_at": "2026-10-18T10:05:48Z",
+ "port_method": "reverse_apply",
+ "src_files": [
+  "openlens/tracer_2d.py"
+ ],
+ "test_files": [
+  "tests/test_tracer2d_parallel_offset.py"
+ ],
+ "target_symbols": [
+  "openlens/tracer_2d.py::LensRayTracer.trace_parallel_rays"
+ ],
+ "fail_to_pass": [
+  "tests/test_tracer2d_parallel_offset.py::TestParallelRaysArriveAtTheRequestedHeight::test_a_curved_lens_shifted_along_the_axis_matches_the_unshifted_one",
+  "tests/test_tracer2d_parallel_offset.py::TestParallelRaysArriveAtTheRequestedHeight::test_a_zero_height_ray_is_on_axis_for_a_shifted_lens",
+  "tests/test_tracer2d_parallel_offset.py::TestParallelRaysArriveAtTheRequestedHeight::test_every_requested_height_lands_where_asked",
+  "tests/test_tracer2d_parallel_offset.py::TestParallelRaysArriveAtTheRequestedHeight::test_the_result_does_not_depend_on_the_offset",
+  "tests/test_tracer2d_parallel_offset.py::TestSystemTracerAgreement::test_a_single_element_system_matches_the_lens_tracer"
+ ],
+ "pass_to_pass": [
+  "tests/test_tracer2d_parallel_offset.py::TestParallelRaysArriveAtTheRequestedHeight::test_a_negative_offset_still_starts_in_front",
+  "tests/test_tracer2d_parallel_offset.py::TestParallelRaysArriveAtTheRequestedHeight::test_a_zero_height_ray_is_on_axis_at_the_origin_too",
+  "tests/test_tracer2d_parallel_offset.py::TestParallelRaysArriveAtTheRequestedHeight::test_rays_still_start_in_front_of_the_lens"
+ ],
+ "patch_lines": 10
+}

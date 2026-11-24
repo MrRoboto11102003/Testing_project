@@ -1,0 +1,172 @@
+diff --git a/tests/test_lens.py b/tests/test_lens.py
+index c79c96d..eeb55cd 100644
+--- a/tests/test_lens.py
++++ b/tests/test_lens.py
+@@ -9,7 +9,11 @@ serialization, independent of the CLI manager in lens_editor.
+ import unittest
+ 
+ from src.lens import Lens
+-from src.validation import ValidationError, validate_radius
++from src.validation import (
++    ValidationError,
++    validate_radius,
++    check_physical_feasibility,
++)
+ 
+ 
+ class TestLensConstruction(unittest.TestCase):
+@@ -33,6 +37,43 @@ class TestLensConstruction(unittest.TestCase):
+         """Two lenses never share an id (uuid4)"""
+         self.assertNotEqual(Lens().id, Lens().id)
+ 
++    def test_default_lens_is_feasible(self):
++        """Default geometry has positive edge thickness (surfaces do not cross)"""
++        lens = Lens()
++        edge = lens.calculate_edge_thickness()
++        self.assertIsNotNone(edge)
++        self.assertGreater(edge, 0)
++        feasible, message = check_physical_feasibility(
++            lens.radius_of_curvature_1,
++            lens.radius_of_curvature_2,
++            lens.thickness,
++            lens.diameter,
++        )
++        self.assertTrue(feasible)
++        self.assertIsNone(message)
++
++    def test_edge_thickness_none_when_aperture_overhangs(self):
++        """|R| < D/2 gives undefined sag, so edge thickness is None"""
++        lens = Lens(
++            radius_of_curvature_1=20.0,
++            radius_of_curvature_2=-20.0,
++            thickness=5.0,
++            diameter=50.0,
++        )
++        self.assertIsNone(lens.calculate_edge_thickness())
++
++    def test_edge_thickness_negative_when_surfaces_cross(self):
++        """R=86.63/-109.97, t=5, D=50 crosses inside the aperture"""
++        lens = Lens(
++            radius_of_curvature_1=86.63,
++            radius_of_curvature_2=-109.97,
++            thickness=5.0,
++            diameter=50.0,
++        )
++        edge = lens.calculate_edge_thickness()
++        self.assertIsNotNone(edge)
++        self.assertLess(edge, 0)
++
+ 
+ class TestLensOptics(unittest.TestCase):
+     """Lensmaker equation and derived quantities"""
+diff --git a/tests/test_lens_editor.py b/tests/test_lens_editor.py
+index d40ffb2..212f217 100755
+--- a/tests/test_lens_editor.py
++++ b/tests/test_lens_editor.py
+@@ -11,6 +11,7 @@ import tempfile
+ from datetime import datetime
+ import sys
+ 
++from src.constants import DEFAULT_DIAMETER
+ from src.lens import Lens
+ from src.lens_editor import LensManager
+ 
+@@ -25,7 +26,7 @@ class TestLens(unittest.TestCase):
+         self.assertEqual(lens.radius_of_curvature_1, 100.0)
+         self.assertEqual(lens.radius_of_curvature_2, -100.0)
+         self.assertEqual(lens.thickness, 5.0)
+-        self.assertEqual(lens.diameter, 50.0)
++        self.assertEqual(lens.diameter, DEFAULT_DIAMETER)
+         self.assertAlmostEqual(lens.refractive_index, 1.5168, places=4)
+         self.assertEqual(lens.lens_type, "Biconvex")
+         self.assertEqual(lens.material, "BK7")
+diff --git a/tests/test_optimizer_advanced.py b/tests/test_optimizer_advanced.py
+index 9ffcc4a..155a654 100644
+--- a/tests/test_optimizer_advanced.py
++++ b/tests/test_optimizer_advanced.py
+@@ -90,6 +90,38 @@ class TestAdvancedOptimizer(unittest.TestCase):
+         merit = optimizer.merit_function.evaluate(sys_bad)
+         self.assertGreater(merit, 1000.0)
+ 
++    def test_vertex_collapse_penalty(self):
++        """Designs with crossed surfaces (edge <= 0) get a hard penalty."""
++        crossed_lens = Lens(
++            radius_of_curvature_1=86.63,
++            radius_of_curvature_2=-109.97,
++            thickness=5.0,
++            diameter=50.0,
++            refractive_index=1.5,
++        )
++        sys_crossed = OpticalSystem("Crossed System")
++        sys_crossed.add_lens(crossed_lens)
++
++        optimizer = LensOptimizer(sys_crossed, [], [])
++        merit = optimizer.merit_function.evaluate(sys_crossed)
++        self.assertGreaterEqual(merit, 1e8)
++
++    def test_thin_center_penalty(self):
++        """Designs with non-positive center thickness get a hard penalty."""
++        flat_lens = Lens(
++            radius_of_curvature_1=100.0,
++            radius_of_curvature_2=-100.0,
++            thickness=-2.0,
++            diameter=25.0,
++            refractive_index=1.5,
++        )
++        sys_flat = OpticalSystem("Flat System")
++        sys_flat.add_lens(flat_lens)
++
++        optimizer = LensOptimizer(sys_flat, [], [])
++        merit = optimizer.merit_function.evaluate(sys_flat)
++        self.assertGreaterEqual(merit, 1e8)
++
+     def test_coma_target(self):
+         """Test that coma target can be evaluated"""
+         targets = [
+diff --git a/tests/test_validation.py b/tests/test_validation.py
+index a4fcd87..c8cd103 100644
+--- a/tests/test_validation.py
++++ b/tests/test_validation.py
+@@ -264,6 +264,42 @@ class TestPhysicalFeasibility(unittest.TestCase):
+         self.assertIsNotNone(message)
+         self.assertIn("thin", message.lower())
+ 
++    def test_check_intersecting_surfaces_infeasible(self):
++        """Surfaces crossing inside the aperture are infeasible (edge <= 0)"""
++        feasible, message = check_physical_feasibility(
++            radius1=86.63, radius2=-109.97, thickness=5.0, diameter=50.0
++        )
++        self.assertFalse(feasible)
++        self.assertIsNotNone(message)
++        self.assertIn("intersect", message.lower())
++
++    def test_check_aperture_overhang_infeasible(self):
++        """Aperture wider than a surface radius is infeasible (no real sag)"""
++        feasible, message = check_physical_feasibility(
++            radius1=20.0, radius2=-20.0, thickness=5.0, diameter=50.0
++        )
++        self.assertFalse(feasible)
++        self.assertIsNotNone(message)
++        self.assertIn("overhang", message.lower())
++
++    def test_check_default_lens_feasible(self):
++        """Default geometry (R=+-100, t=5, D=40) has positive edge thickness"""
++        from src.constants import (
++            DEFAULT_RADIUS_1,
++            DEFAULT_RADIUS_2,
++            DEFAULT_THICKNESS,
++            DEFAULT_DIAMETER,
++        )
++
++        feasible, message = check_physical_feasibility(
++            radius1=DEFAULT_RADIUS_1,
++            radius2=DEFAULT_RADIUS_2,
++            thickness=DEFAULT_THICKNESS,
++            diameter=DEFAULT_DIAMETER,
++        )
++        self.assertTrue(feasible)
++        self.assertIsNone(message)
++
+ 
+ class TestValidationErrors(unittest.TestCase):
+     """Test ValidationError exception"""

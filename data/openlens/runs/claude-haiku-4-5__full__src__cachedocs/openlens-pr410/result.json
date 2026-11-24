@@ -1,0 +1,236 @@
+{
+ "id": "openlens-pr410",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 109,
+  "chars": 99855
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 0.41,
+ "detected": true,
+ "n_tests": 22,
+ "n_catching": 1,
+ "n_false_alarms": 2,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4909,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 11732,
+  "output_tokens_details": {
+   "thinking_tokens": 8470
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4909,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11732,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 4909,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4909
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0709572,
+ "model_seconds": 55.1,
+ "seconds": 61.5,
+ "tests": {
+  "tests/_generated/test_openlens_pr410.py::TestDeriveCoolingRate::test_cooling_rate_initial_at_floor": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestDeriveCoolingRate::test_cooling_rate_negative_iterations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestDeriveCoolingRate::test_cooling_rate_non_positive_initial_temperature": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestDeriveCoolingRate::test_cooling_rate_reaches_floor_at_max_iterations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestDeriveCoolingRate::test_cooling_rate_valid_range": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestDeriveCoolingRate::test_cooling_rate_zero_iterations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGeneticAlgorithm::test_genetic_algorithm_basic_execution": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGeneticAlgorithm::test_genetic_algorithm_callback_invoked": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGeneticAlgorithm::test_genetic_algorithm_crossover_produces_valid_offspring": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGeneticAlgorithm::test_genetic_algorithm_handles_nan_merits": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGeneticAlgorithm::test_genetic_algorithm_mutation_respects_bounds": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGeneticAlgorithm::test_genetic_algorithm_tournament_select": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGeneticAlgorithm::test_genetic_algorithm_zero_generations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGlobalOptimizerInitialization::test_different_seeds_produce_different_sequences": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGlobalOptimizerInitialization::test_init_creates_private_rng": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestGlobalOptimizerInitialization::test_rng_reproducibility_with_seed": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "GlobalOptimizer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr410.py::TestSimulatedAnnealing::test_simulated_annealing_basic_execution": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestSimulatedAnnealing::test_simulated_annealing_callback_invoked": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestSimulatedAnnealing::test_simulated_annealing_custom_cooling_rate": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestSimulatedAnnealing::test_simulated_annealing_non_positive_temperature_clamped": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestSimulatedAnnealing::test_simulated_annealing_starting_merit_captured": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr410.py::TestSimulatedAnnealing::test_simulated_annealing_zero_max_iterations": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

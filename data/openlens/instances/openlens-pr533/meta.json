@@ -1,0 +1,68 @@
+{
+ "id": "openlens-pr533",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 473,
+ "issue_title": "Validation: clear_aperture args never validated; bool/huge ints/np.float32 mishandled",
+ "issue_body": "**Where:** `src/validation.py:573-621`, `:62`, `:952-973`\n\n1. `validate_lens_parameters` accepts `clear_aperture_1/2` but never validates or returns them. `validate_lens_parameters(50,-50,5,25,1.5, clear_aperture_1=-5, clear_aperture_2=1e9)` returns normally.\n2. `_validate_number` calls `math.isnan` on huge ints, raising `OverflowError` instead of `ValidationError` (`validate_radius(10**400)`). `safe_float_conversion` in the same file already guards this.\n3. `validate_lens_data_schema` (used by JSON import in `startup.py:379`) checks `isinstance(x, (int, float))`, so `true` is accepted as a radius or thickness.\n4. `np.float32` is rejected with \"got float32\".\n\n**Fix:** call `validate_clear_aperture(...)` for both apertures and return them; use `numbers.Real`, `float()` inside `try/except OverflowError` and reject `bool` explicitly.",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/473",
+ "pr": 533,
+ "pr_title": "fix(validation): reject what validation says it rejects",
+ "pr_body": "## Description\n\nfix(validation): reject what validation says it rejects\n\nFour defects that had accumulated in the same module, each independently\nsilent.\n\n### 1. `validate_lens_parameters` accepted the clear apertures and ignored them\n\n```python\nvalidate_lens_parameters(50, -50, 5, 25, 1.5, clear_aperture_1=-5, clear_aperture_2=1e9)\n# returned normally\n```\n\nThey were documented in the docstring, then neither validated nor returned. A caller\nasking for validation got **neither an error nor the value**. Both are now checked\nagainst the validated diameter and returned.\n\n### 2. `_validate_number` leaked `OverflowError`\n\nIt called `math.isnan` on a value that could not be a float yet, so `validate_radius(10**400)`\nraised `OverflowError` instead of `ValidationError` \u2014 the one exception type every\ncaller of this module knows how to handle. The file's own `safe_float_conversion`\ndocuments precisely this trap.\n\n### 3. The JSON schema accepted `true` as a radius\n\n`isinstance(x, (int, float))` is satisfied by `True`, because `bool` subclasses `int`.\nA hand-edited or generated import file could set a radius or a thickness to `True`.\n\n### 4. `numpy.float32` was rejected\n\n```\nradius must be a number, got float32\n```\n\n`float32` is a number that every downstream calculation handles fine, and that\nround-trips through JSON as a plain one. `_validate_number` now accepts `numbers.Real`,\nwhich is what `float32` actually registers as.\n\n## Type of Change\n\n- [x] Bug fix (non-breaking change which fixes an issue)\n\n## Related Issues\n\nCloses #473\n\n## How Has This Been Tested?\n\n- [x] Added a regression test that fails before this change and passes after\n- [x] Verified by reverting **each part separately**:\n\n  | Reverted | Failures (of 34) |\n  | --- | --- |\n  | no clear-aperture validation | 6 |\n  | `isinstance((int, float))` restored | 4 errors |\n  | the `OverflowError` guard removed | 9 errors |\n  | `bool` accepted in the schema again | 6 |\n\n- [x] `python3 -m unittest tests.test_validation_gaps` \u2014 34 tests, OK\n- [x] `test_validation` + `test_validation_gaps` + `test_lens` \u2014 107 tests, OK\n- [x] Full suite: `Ran 2081 tests`, `FAILED (errors=6, skipped=34)` \u2014 the same six\n      pre-existing `tests/gui_flows/test_*` loader errors, no new failures\n- [x] `black --line-length=100 src/ tests/ --check` \u2014 246 files unchanged\n- [x] `flake8` \u2014 **no new findings**\n- [x] Coverage includes: the issue's repro, each surface validated independently, the\n      apertures returned when valid and `None` when absent, **the key always present**\n      (a caller reading it must not get a `KeyError` on the happy path), an aperture\n      exceeding the diameter rejected, `10**400` reported as a `ValidationError` at all\n      four entry points with a message that says *why*, a large-but-representable int\n      still accepted, every numeric field rejecting both `True` and `False`, optional\n      numeric fields rejecting `bool`, `float32` accepted through every entry point,\n      and `str`/`None`/`complex`/`Decimal` all still rejected\n\n### Three of my test assumptions were wrong, and the tests caught them\n\nI wrote the tests while implementing and three asserted things that are not true:\n\n- **`Decimal` is not a `numbers.Real`.** It registers as `numbers.Number`. Since the\n  fix widens `(int, float)` to `numbers.Real`, taking `Number` instead would have\n  silently accepted it \u2014 so `test_decimal_is_still_rejected` now pins that it stays out.\n- **`parabolic_sag_1` is not a declared schema field**, so the optional-field test now\n  uses `wavelength` and `temperature`.\n- **A 29 mm aperture under a 30 mm lens is legal** (`value > diameter + EPSILON`). I\n  had assumed otherwise. The test that was meant to check the ceiling now checks the\n  ordering property instead: a bad diameter is reported *before* the aperture is\n  considered, which is what \"uses the validated diameter\" actually means.\n\n### One place I deliberately did not widen\n\n`Decimal` is the obvious candidate for \"a number Python has that isn't int/float\", and\nthe issue did not ask for it. Accepting it would mean a value whose arithmetic behaves\ndifferently from `float` flowing into the tracer unconverted. It stays rejected, with\na test saying so.\n\n## Checklist\n\n- [x] My code follows the style guidelines\n- [x] I have performed a self-review\n- [x] I have commented my code, particularly in hard-to-understand areas\n- [ ] I have made corresponding changes to the documentation\n- [ ] My changes generate no new warnings\n- [x] I have added tests that prove my fix is effective\n- [x] New and existing unit tests pass locally with my changes",
+ "fix_commit": "38c49984a6e33ee427c028157115dfad8f243563",
+ "merged_at": "2026-10-18T22:29:28Z",
+ "port_method": "partial_hunks:6/8",
+ "src_files": [
+  "openlens/validation.py"
+ ],
+ "test_files": [
+  "tests/test_validation_gaps.py"
+ ],
+ "target_symbols": [
+  "openlens/validation.py::_validate_number",
+  "openlens/validation.py::validate_groove_pitch",
+  "openlens/validation.py::validate_lens_data_schema",
+  "openlens/validation.py::validate_lenses_json_schema",
+  "openlens/validation.py::validate_radius"
+ ],
+ "fail_to_pass": [
+  "tests/test_validation_gaps.py::TestBooleansAreNotNumbers::test_a_boolean_radius_is_rejected",
+  "tests/test_validation_gaps.py::TestBooleansAreNotNumbers::test_every_numeric_field_rejects_a_boolean",
+  "tests/test_validation_gaps.py::TestBooleansAreNotNumbers::test_optional_numeric_fields_reject_a_boolean_too",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_a_negative_front_aperture_is_rejected",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_absent_apertures_are_none",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_an_aperture_narrower_than_the_lens_is_fine",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_an_aperture_wider_than_the_lens_is_rejected",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_an_oversized_rear_aperture_is_rejected",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_each_surface_is_validated_independently",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_the_aperture_bound_uses_the_validated_diameter",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_the_apertures_are_returned",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_the_issue_repro",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_the_key_is_always_present",
+  "tests/test_validation_gaps.py::TestHugeIntegersRaiseValidationError::test_a_huge_int_does_not_raise_overflow_error",
+  "tests/test_validation_gaps.py::TestHugeIntegersRaiseValidationError::test_overflow_error_is_never_leaked",
+  "tests/test_validation_gaps.py::TestHugeIntegersRaiseValidationError::test_the_message_explains_the_value_is_too_large",
+  "tests/test_validation_gaps.py::TestHugeIntegersRaiseValidationError::test_validate_lens_parameters_reports_it_as_a_validation_error",
+  "tests/test_validation_gaps.py::TestHugeIntegersRaiseValidationError::test_validate_radius_reports_it_as_a_validation_error",
+  "tests/test_validation_gaps.py::TestHugeIntegersRaiseValidationError::test_validate_thickness_reports_it_as_a_validation_error",
+  "tests/test_validation_gaps.py::TestRealNumbersAreAccepted::test_a_float32_passes_through_validate_lens_parameters",
+  "tests/test_validation_gaps.py::TestRealNumbersAreAccepted::test_a_float32_radius_is_accepted",
+  "tests/test_validation_gaps.py::TestRealNumbersAreAccepted::test_a_float32_thickness_is_accepted",
+  "tests/test_validation_gaps.py::TestRealNumbersAreAccepted::test_the_error_is_gone"
+ ],
+ "pass_to_pass": [
+  "tests/test_validation_gaps.py::TestBooleansAreNotNumbers::test_a_string_field_still_accepts_its_string",
+  "tests/test_validation_gaps.py::TestBooleansAreNotNumbers::test_the_direct_validator_rejects_a_boolean",
+  "tests/test_validation_gaps.py::TestBooleansAreNotNumbers::test_valid_numbers_still_pass",
+  "tests/test_validation_gaps.py::TestClearAperturesAreActuallyValidated::test_a_bad_diameter_is_reported_before_the_aperture",
+  "tests/test_validation_gaps.py::TestHugeIntegersRaiseValidationError::test_a_large_but_representable_int_still_works",
+  "tests/test_validation_gaps.py::TestRealNumbersAreAccepted::test_complex_numbers_are_still_rejected",
+  "tests/test_validation_gaps.py::TestRealNumbersAreAccepted::test_decimal_is_still_rejected",
+  "tests/test_validation_gaps.py::TestRealNumbersAreAccepted::test_none_is_still_rejected",
+  "tests/test_validation_gaps.py::TestRealNumbersAreAccepted::test_strings_are_still_rejected",
+  "tests/test_validation_gaps.py::TestTheSharedFirstStageStaysShared::test_infinity_and_nan_are_still_rejected",
+  "tests/test_validation_gaps.py::TestTheSharedFirstStageStaysShared::test_the_return_value_is_a_plain_float"
+ ],
+ "patch_lines": 50
+}

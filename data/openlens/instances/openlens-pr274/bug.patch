@@ -1,0 +1,569 @@
+diff --git a/openlens/aberrations.py b/openlens/aberrations.py
+index 2b85534a68340d9448510899fac59c782fb64567..9f017f56dae88145c3e598f7da5f4d4392168831 100644
+--- a/openlens/aberrations.py
++++ b/openlens/aberrations.py
+@@ -254,9 +254,7 @@ class AberrationsCalculator:
+         spot_rms = self._calculate_spot_rms()
+ 
+         if self.is_system:
+-            field_data = self._calculate_field_metrics_system(
+-                field_angle_deg, wavelength_nm=wavelength_nm
+-            )
++            field_data = self._calculate_field_metrics_system(field_angle_deg)
+             if field_data is None:
+                 # Leave the values None rather than substituting zeros: the
+                 # caller needs to be able to tell "no coma" from "the trace
+@@ -883,13 +881,12 @@ class AberrationsCalculator:
+             system = OpticalSystem(name=getattr(self.lens, "name", "singlet"))
+             system.add_lens(self.lens)
+         # Temporarily set lens indices to the requested wavelength.
+-        saved = [
+-            (element.lens, element.lens.wavelength, element.lens.refractive_index)
+-            for element in system.elements
+-        ]
++        saved = []
+         try:
+             for element in system.elements:
+-                element.lens.update_refractive_index(wavelength_nm=wavelength_nm)
++                lens = element.lens
++                saved.append((lens, lens.wavelength, lens.refractive_index))
++                lens.update_refractive_index(wavelength_nm=wavelength_nm)
+ 
+             sensor = WavefrontSensor(system)
+             wavefront = sensor.get_pupil_wavefront(
+@@ -904,7 +901,9 @@ class AberrationsCalculator:
+             logger.warning("Wavefront trace failed: %s", e)
+             return None
+         finally:
+-            self._restore_wavelength_after_trace(saved)
++            for lens, wl, n in saved:
++                lens.wavelength = wl
++                lens.refractive_index = n
+ 
+         valid = np.isfinite(w_map)
+         if int(np.count_nonzero(valid)) < 10:
+@@ -1037,11 +1036,8 @@ class AberrationsCalculator:
+         """
+         try:
+             if self.is_system:
+-                from .ray_tracer import SystemRayTracer3D, Ray3D
+-                from .vector3 import vec3
++                from .ray_tracer import SystemRayTracer3D
+ 
+-                if not self.target.elements:
+-                    return None
+                 tracer = SystemRayTracer3D(self.target)
+ 
+                 # Trace Marginal Ray (near edge of pupil)
+@@ -1052,15 +1048,8 @@ class AberrationsCalculator:
+                     return None
+                 m_focus = ray_m.origin.x - ray_m.origin.y * (ray_m.direction.x / ray_m.direction.y)
+ 
+-                # Paraxial reference: a dedicated ray at y = 0.001 mm.
+-                # (A mid-fan ray sits at ~D/6 and already carries SA,
+-                # underestimating LSA by ~10%.)
+-                ep_x = self.target.elements[0].position
+-                start_x = ep_x - 50.0
+-                direction = vec3(1.0, 0.0, 0.0)
+-                origin = vec3(ep_x, 0.001, 0.0) - direction * ((ep_x - start_x) / direction.x)
+-                ray_p = Ray3D(origin, direction)
+-                tracer.trace_ray(ray_p)
++                # Trace Paraxial Ray (near axis)
++                ray_p = rays_m[len(rays_m) // 2 + 1]  # Slightly off center
+ 
+                 if ray_p.terminated or abs(ray_p.direction.y) < 1e-9:
+                     return None
+@@ -1163,7 +1152,6 @@ class AberrationsCalculator:
+         self,
+         object_distance: Optional[float] = None,
+         field_angle: float = 5.0,
+-        wavelength_nm: float = WAVELENGTH_GREEN,
+         **kwargs,
+     ) -> str:
+         """
+@@ -1172,7 +1160,6 @@ class AberrationsCalculator:
+         Args:
+             object_distance: Distance to object (mm). None for infinity
+             field_angle: Off-axis angle in degrees
+-            wavelength_nm: Wavelength in nm evaluated throughout
+ 
+         Returns:
+             Formatted string with aberration summary
+@@ -1180,9 +1167,7 @@ class AberrationsCalculator:
+         # Handle backward compatibility
+         field_angle_deg = kwargs.get("field_angle_deg", field_angle)
+ 
+-        results = self.calculate_all_aberrations(
+-            object_distance, field_angle_deg, wavelength_nm=wavelength_nm
+-        )
++        results = self.calculate_all_aberrations(object_distance, field_angle_deg)
+ 
+         if results.get("error"):
+             return f"Error: {results['error']}"
+@@ -1273,22 +1258,13 @@ INTERPRETATION:
+         return summary
+ 
+     def _calculate_spherical_aberration_seidel(self, focal_length: float) -> float:
+-        """Third-order Seidel longitudinal SA for a single spherical lens.
+-
+-        Standard thin-lens form (Kingslake/Smith): with curvatures
+-        c1 = 1/R1, c2 = 1/R2 (0 for flat, so plano lenses work), shape
+-        factor B = (c1+c2)/(c1-c2) and conjugate factor C = -1 (object at
+-        infinity), LSA = -(y^2/8f)([(n/(n-1))^2 + (n+2)/(n(n-1)^2)
+-        (B + 2(n^2-1)/(n+2) C)^2]). Last-resort fallback when exact
+-        tracing fails; validated to agree with the exact trace within
+-        ~7% over an aperture x bending sweep (D = 10-40 mm).
+-        """
+-        c1 = 0.0 if not math.isfinite(self.radius_1) else 1.0 / self.radius_1
+-        c2 = 0.0 if not math.isfinite(self.radius_2) else 1.0 / self.radius_2
+-        if abs(c1 - c2) < EPSILON:
++        """Calculate third-order Seidel spherical aberration for a single lens"""
++        # Spherical aberration S1 = (y^4 / f^3) * [(n/(n-1))^2 + (n+2)/(n(n-1)^2) * (B + (2(n^2-1)/n+2) * C)^2]
++        # B = (R2 + R1) / (R2 - R1)
++        if abs(self.radius_2 - self.radius_1) < EPSILON:
+             B = 0.0
+         else:
+-            B = (c1 + c2) / (c1 - c2)
++            B = (self.radius_2 + self.radius_1) / (self.radius_2 - self.radius_1)
+ 
+         C = -1.0  # Object at infinity
+         n = self.n
+@@ -1311,17 +1287,15 @@ def analyze_lens_quality(lens: Any, field_angle: float = 5.0, **kwargs) -> Dict[
+     Args:
+         lens: Lens object
+         field_angle: Field angle for off-axis aberrations (degrees)
+-        wavelength_nm: Wavelength in nm evaluated throughout (kwarg)
+ 
+     Returns:
+         Dictionary with quality assessment
+     """
+     # Handle backward compatibility
+     field_angle = kwargs.get("field_angle_deg", field_angle)
+-    wavelength_nm = kwargs.get("wavelength_nm", WAVELENGTH_GREEN)
+ 
+     calc = AberrationsCalculator(lens)
+-    results = calc.calculate_all_aberrations(field_angle=field_angle, wavelength_nm=wavelength_nm)
++    results = calc.calculate_all_aberrations(field_angle=field_angle)
+ 
+     if results.get("error"):
+         return {"quality_score": 0, "rating": "Error", "issues": [results["error"]]}
+diff --git a/openlens/analysis/geometric.py b/openlens/analysis/geometric.py
+index 312694a801674855b29beffcd779a66c95c1ebba..4e9f7711fbab9732e3857dfd7f4cf33ddc4db9f8 100644
+--- a/openlens/analysis/geometric.py
++++ b/openlens/analysis/geometric.py
+@@ -1,4 +1,4 @@
+-from typing import List, Dict, Any, Optional
++from typing import List, Dict, Any
+ import math
+ 
+ from ..vector3 import vec3
+@@ -8,27 +8,6 @@ from ..constants import NM_TO_MM, WAVELENGTH_GREEN
+ from .paraxial import resolve_image_plane_x
+ 
+ 
+-def _sagittal_focus_on_chief_ray(chief_ray: Ray3D, sag_ray: Ray3D) -> Optional[float]:
+-    """X-coordinate where a sagittal fan ray meets the chief ray.
+-
+-    The sagittal focus is the intersection of the skew sagittal ray with
+-    the chief ray (not with the z=0 plane, which coincides with the chief
+-    only on axis). Skew lines rarely intersect exactly, so this returns
+-    the chief-ray parameter at closest approach. Returns None for
+-    (near-)parallel rays where no focus exists.
+-    """
+-    pc, dc = chief_ray.origin, chief_ray.direction.normalize()
+-    ps, ds = sag_ray.origin, sag_ray.direction.normalize()
+-    w0 = pc - ps
+-    b = dc.dot(ds)
+-    denom = 1.0 - b * b
+-    if abs(denom) < 1e-12:
+-        return None
+-    s = (b * ds.dot(w0) - dc.dot(w0)) / denom
+-    focus = pc + dc * s
+-    return focus.x
+-
+-
+ class GeometricTraceAnalysis:
+     """
+     Geometric analysis tools using real ray tracing for the full Optical System.
+@@ -77,45 +56,6 @@ class GeometricTraceAnalysis:
+         Returns:
+             Dictionary with 'pupil_coords' (normalized -1 to 1) and 'ray_errors_mm' (mm).
+         """
+-        # Trace at the requested wavelength (indices restored on exit), so
+-        # the wavelength argument controls the physics, not just labels.
+-        saved_state = self._apply_wavelength(wavelength_nm)
+-        try:
+-            return self._calculate_ray_fan_traced(
+-                field_angle_deg, wavelength_nm, num_points, pupil_axis
+-            )
+-        finally:
+-            self._restore_lens_state(saved_state)
+-
+-    def _snapshot_lens_state(self) -> list:
+-        """Save (lens, wavelength, index) for every system element."""
+-        return [
+-            (element.lens, element.lens.wavelength, element.lens.refractive_index)
+-            for element in self.system.elements
+-        ]
+-
+-    @staticmethod
+-    def _restore_lens_state(saved: list) -> None:
+-        """Restore lens state saved by _snapshot_lens_state."""
+-        for lens, wavelength, refractive_index in saved:
+-            lens.wavelength = wavelength
+-            lens.refractive_index = refractive_index
+-
+-    def _apply_wavelength(self, wavelength_nm: float) -> list:
+-        """Point all element indices at wavelength_nm; return restore state."""
+-        saved = self._snapshot_lens_state()
+-        for element in self.system.elements:
+-            element.lens.update_refractive_index(wavelength_nm=wavelength_nm)
+-        return saved
+-
+-    def _calculate_ray_fan_traced(
+-        self,
+-        field_angle_deg: float,
+-        wavelength_nm: float,
+-        num_points: int,
+-        pupil_axis: str,
+-    ) -> Dict[str, Any]:
+-        """Ray-fan body: traces with the currently set lens indices."""
+         wl_mm = wavelength_nm * NM_TO_MM
+         image_plane_x = self._get_image_plane_x(wavelength_nm)
+ 
+@@ -220,23 +160,6 @@ class GeometricTraceAnalysis:
+             Dictionary with arrays for field angles, tangential/sagittal focus
+             shift, and distortion %.
+         """
+-        # Trace at the requested wavelength (indices restored on exit).
+-        saved_state = self._apply_wavelength(wavelength_nm)
+-        try:
+-            return self._calculate_curvature_traced(
+-                max_field_angle_deg, num_points, wavelength_nm, kwargs
+-            )
+-        finally:
+-            self._restore_lens_state(saved_state)
+-
+-    def _calculate_curvature_traced(
+-        self,
+-        max_field_angle_deg: float,
+-        num_points: int,
+-        wavelength_nm: float,
+-        kwargs: Dict[str, Any],
+-    ) -> Dict[str, Any]:
+-        """Field-curvature body: traces with the currently set lens indices."""
+         # Backward compatibility: accept max_field_angle as alias
+         if "max_field_angle" in kwargs:
+             max_field_angle_deg = kwargs.pop("max_field_angle")
+@@ -328,11 +251,12 @@ class GeometricTraceAnalysis:
+             self.tracer.trace_ray(ray_sag)
+ 
+             if not ray_sag.terminated:
+-                x_sag_focus = _sagittal_focus_on_chief_ray(chief_ray, ray_sag)
+-                if x_sag_focus is None:
+-                    sag_focus_shifts_mm.append(float("nan"))
+-                else:
++                if abs(ray_sag.direction.z) > 1e-9:
++                    u = -ray_sag.origin.z / ray_sag.direction.z
++                    x_sag_focus = ray_sag.origin.x + u * ray_sag.direction.x
+                     sag_focus_shifts_mm.append(x_sag_focus - image_plane_x)
++                else:
++                    sag_focus_shifts_mm.append(0.0)
+             else:
+                 sag_focus_shifts_mm.append(float("nan"))
+ 
+diff --git a/openlens/image_simulator.py b/openlens/image_simulator.py
+index fdf62054589f134d8e257ae180669dc4b49884f5..ab0877a012cb62a356c6267ffca72ac879cbc263 100644
+--- a/openlens/image_simulator.py
++++ b/openlens/image_simulator.py
+@@ -99,7 +99,6 @@ class ImageSimulator:
+         object_distance: float,
+         image_distance: Optional[float] = None,
+         wavelength: float = WAVELENGTH_D_LINE,
+-        pixel_pitch_mm: float = 0.01,
+     ) -> Dict[str, Any]:
+         """
+         Simulate image formation through the optical system.
+@@ -109,7 +108,6 @@ class ImageSimulator:
+             object_distance: Distance from lens to object
+             image_distance: Distance from lens to image (None for auto)
+             wavelength: Wavelength in nm
+-            pixel_pitch_mm: Sensor pixel pitch in mm (for vignetting scale)
+ 
+         Returns:
+             Dictionary with simulated image and metrics
+@@ -128,9 +126,7 @@ class ImageSimulator:
+         )
+ 
+         # Apply diffraction
+-        diffracted_image = self._apply_diffraction(
+-            aberrated_image, wavelength, pixel_pitch_mm=pixel_pitch_mm
+-        )
++        diffracted_image = self._apply_diffraction(aberrated_image, wavelength)
+ 
+         # Apply chromatic aberration if color image
+         if len(diffracted_image.shape) == 3:
+@@ -141,11 +137,7 @@ class ImageSimulator:
+             final_image = diffracted_image
+ 
+         # Apply vignetting
+-        final_image = self._apply_vignetting(
+-            final_image,
+-            image_distance_mm=image_distance,
+-            pixel_pitch_mm=pixel_pitch_mm,
+-        )
++        final_image = self._apply_vignetting(final_image)
+ 
+         # Calculate metrics
+         metrics = self._calculate_image_metrics(input_image, final_image)
+@@ -372,10 +364,8 @@ class ImageSimulator:
+ 
+         return result
+ 
+-    def _apply_diffraction(
+-        self, image: np.ndarray, wavelength: float, pixel_pitch_mm: float = 0.01
+-    ) -> np.ndarray:
+-        """Apply diffraction-limited blur (Gaussian fit to the Airy disk)."""
++    def _apply_diffraction(self, image: np.ndarray, wavelength: float) -> np.ndarray:
++        """Apply diffraction-limited blur (PSF)."""
+         if not SCIPY_AVAILABLE:
+             # Fallback: return image without diffraction simulation
+             return image
+@@ -389,10 +379,8 @@ class ImageSimulator:
+         f = self._system_focal_length()
+         airy_radius = 1.22 * wavelength * 1e-6 * f / diameter
+ 
+-        # Gaussian matched to the Airy FWHM, converted with the true pitch
+-        # (mm per pixel) instead of an assumed 1 um pixel.
+-        sigma_mm = airy_radius * AIRY_RADIUS_TO_GAUSSIAN_SIGMA
+-        sigma_pixels = sigma_mm / pixel_pitch_mm if pixel_pitch_mm > 0 else 0.0
++        # Convert to pixels (assume 1 pixel = 1 micron)
++        sigma_pixels = airy_radius * 1000 / 2.355  # FWHM to sigma
+ 
+         return gaussian_filter(image, sigma=_spatial_only(image, max(0.1, sigma_pixels)))
+ 
+@@ -466,69 +454,25 @@ class ImageSimulator:
+ 
+         return result
+ 
+-    def _apply_vignetting(
+-        self,
+-        image: np.ndarray,
+-        image_distance_mm: Optional[float] = None,
+-        pixel_pitch_mm: float = 0.01,
+-    ) -> np.ndarray:
+-        """Apply natural (cos^4) illumination falloff toward the sensor edges.
+-
+-        Relative illumination follows E(r)/E(0) = cos^4(theta) with
+-        theta = atan(r / L), where r is the physical off-axis distance on
+-        the sensor (pixels times pixel_pitch_mm) and L the lens-to-image
+-        distance. For L much larger than the sensor the factor is ~1
+-        everywhere (correct: negligible falloff); it never forces the
+-        corners to zero for arbitrary fields of view.
+-
+-        Args:
+-            image: Input image array.
+-            image_distance_mm: Lens-to-image distance in mm. Falls back to
+-                the optical system's focal length, or no falloff if unknown.
+-            pixel_pitch_mm: Sensor pixel pitch in mm (default 10 um).
+-
+-        Returns:
+-            Vignetted image array (same shape).
+-        """
+-        import math
+-
+-        if image_distance_mm is None or not math.isfinite(image_distance_mm):
+-            image_distance_mm = self._vignetting_fallback_distance()
+-        if image_distance_mm is None or image_distance_mm <= 0 or pixel_pitch_mm <= 0:
+-            return image
+-
++    def _apply_vignetting(self, image: np.ndarray) -> np.ndarray:
++        """Apply vignetting (brightness falloff at edges)."""
+         h, w = image.shape[:2]
+         y, x = np.ogrid[:h, :w]
+         cy, cx = h / 2, w / 2
+ 
+-        # Physical off-axis distance on the sensor (mm).
+-        r_mm = np.sqrt((x - cx) ** 2 + (y - cy) ** 2) * pixel_pitch_mm
++        # Radial distance from center
++        r = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
++        r_max = np.sqrt(cx**2 + cy**2)
++        r_norm = r / r_max
+ 
+-        # Natural illumination law (cos^4 of the chief-ray angle).
+-        cos_theta = image_distance_mm / np.sqrt(image_distance_mm**2 + r_mm**2)
+-        vignette = cos_theta**4
++        # Cos^4 falloff
++        vignette = np.cos(r_norm * np.pi / 2) ** 4
+ 
+         if len(image.shape) == 3:
+             vignette = vignette[:, :, np.newaxis]
+ 
+         return image * vignette
+ 
+-    def _vignetting_fallback_distance(self) -> Optional[float]:
+-        """Best-effort lens-to-image distance for vignetting scale."""
+-        system = self.optical_system
+-        for attr in ("effective_focal_length", "get_system_focal_length"):
+-            method = getattr(system, attr, None)
+-            if callable(method):
+-                try:
+-                    value = (
+-                        method(WAVELENGTH_GREEN) if attr == "effective_focal_length" else method()
+-                    )
+-                except TypeError:
+-                    continue
+-                if value is not None and np.isfinite(value) and abs(value) > 0:
+-                    return abs(float(value))
+-        return None
+-
+     def _calculate_image_metrics(
+         self, original: np.ndarray, simulated: np.ndarray
+     ) -> Dict[str, float]:
+@@ -550,35 +494,28 @@ class ImageSimulator:
+                     else original
+                 )
+ 
+-        # PSNR (valid for float images normalized to [0, 1];
+-        # uint8 inputs would need 20*log10(255) instead of 10*log10(1/MSE))
++        # PSNR
+         mse = np.mean((original - simulated) ** 2)
+         if mse > 0:
+             psnr = 10 * np.log10(1.0 / mse)
+         else:
+             psnr = float("inf")
+ 
+-        # Global SSIM-like similarity (single-window formula, NOT MSSIM)
+-        global_ssim = self._calculate_global_ssim(original, simulated)
++        # SSIM (simplified)
++        ssim = self._calculate_ssim(original, simulated)
+ 
+-        # Nyquist spectral ratio (content-dependent image spectrum, NOT
+-        # the optical OTF/MTF)
+-        nyquist_spectral_ratio = self._calculate_nyquist_spectral_ratio(simulated)
++        # MTF at Nyquist
++        mtf_nyquist = self._calculate_mtf_nyquist(simulated)
+ 
+         return {
+             "psnr": psnr,
+-            "global_ssim": global_ssim,
+-            "nyquist_spectral_ratio": nyquist_spectral_ratio,
++            "ssim": ssim,
++            "mtf_nyquist": mtf_nyquist,
+             "sharpness": self._calculate_sharpness(simulated),
+         }
+ 
+-    def _calculate_global_ssim(self, img1: np.ndarray, img2: np.ndarray) -> float:
+-        """Global SSIM-formula similarity (heuristic, not windowed MSSIM).
+-
+-        Applies the SSIM equation once over the whole images instead of
+-        averaging local windows (mean structural similarity), so it is a
+-        rough similarity score, not the standard MSSIM metric.
+-        """
++    def _calculate_ssim(self, img1: np.ndarray, img2: np.ndarray) -> float:
++        """Calculate structural similarity index (simplified)."""
+         c1 = 0.01**2
+         c2 = 0.03**2
+ 
+@@ -594,14 +531,8 @@ class ImageSimulator:
+ 
+         return float(ssim)
+ 
+-    def _calculate_nyquist_spectral_ratio(self, image: np.ndarray) -> float:
+-        """High-frequency image-energy ratio (heuristic, not optical MTF).
+-
+-        Returns the image-spectrum energy in a ring near Nyquist relative
+-        to DC. It depends on image content (a blank image scores ~0, noise
+-        scores high) and must not be confused with the lens OTF/MTF, which
+-        is a property of the optics alone (see analysis.psf_mtf).
+-        """
++    def _calculate_mtf_nyquist(self, image: np.ndarray) -> float:
++        """Calculate MTF at Nyquist frequency."""
+         if len(image.shape) == 3:
+             image = np.mean(image, axis=2)
+ 
+diff --git a/openlens/optical_system.py b/openlens/optical_system.py
+index 4113bb20ba36abb0b6181d613217c3f1cb18a8dd..b689aa4d49b0a54aa8d8598fe76f4c2c12e22a02 100644
+--- a/openlens/optical_system.py
++++ b/openlens/optical_system.py
+@@ -826,13 +826,7 @@ class OpticalSystem:
+             return None
+ 
+     def calculate_chromatic_aberration(self) -> Dict[str, Any]:
+-        """Calculate system longitudinal chromatic aberration using standard F, d, C lines.
+-
+-        For each line the system matrix is rebuilt with wavelength-correct
+-        indices, giving both the back focal length (BFL = -A/C, the
+-        observable focus position) and the effective focal length
+-        (EFL = -1/C). The ``f_*`` keys are true EFLs, not copies of BFL.
+-        """
++        """Calculate system longitudinal chromatic aberration using standard F, d, C lines."""
+         # Standard Fraunhofer lines in nm
+         lines = {
+             "F": WAVELENGTH_F_LINE,  # Blue
+@@ -840,18 +834,10 @@ class OpticalSystem:
+             "C": WAVELENGTH_C_LINE,  # Red
+         }
+ 
+-        bfls: Dict[str, Optional[float]] = {}
+-        efls: Dict[str, Optional[float]] = {}
++        bfls = {}
+         for line, wl in lines.items():
+             n_map = {i: el.lens.refractive_index_at(wl) for i, el in enumerate(self.elements)}
+-            matrix = self._calculate_system_matrix(n_overrides=n_map)
+-            if matrix and abs(matrix[2]) > 1e-10:
+-                A, B, C, D = matrix
+-                bfls[line] = -A / C
+-                efls[line] = -1.0 / C
+-            else:
+-                bfls[line] = None
+-                efls[line] = None
++            bfls[line] = self.calculate_back_focal_length(n_overrides=n_map)
+ 
+         if bfls["F"] is not None and bfls["C"] is not None:
+             longitudinal = bfls["C"] - bfls["F"]
+@@ -860,9 +846,9 @@ class OpticalSystem:
+                 "bfl_F": bfls["F"],
+                 "bfl_d": bfls["d"],
+                 "bfl_C": bfls["C"],
+-                "f_F": efls["F"],
+-                "f_d": efls["d"],
+-                "f_C": efls["C"],
++                "f_F": bfls["F"],
++                "f_d": bfls["d"],
++                "f_C": bfls["C"],
+                 "corrected": abs(longitudinal) < 0.1,
+             }
+         return {"longitudinal": 0.0, "corrected": False}
+diff --git a/openlens/tracer_3d.py b/openlens/tracer_3d.py
+index 3c17c14e397814c953683be8c0a36e4aab3c06c2..da05a52155aebef727020226cc7ee3743f69a0e4 100644
+--- a/openlens/tracer_3d.py
++++ b/openlens/tracer_3d.py
+@@ -564,13 +564,20 @@ class LensRayTracer3D:
+             intersection = self._intersect_sphere(ray, center, abs(R), (R > 0))
+ 
+         if intersection is None:
+-            # No forward intersection with this surface (the ray line misses
+-            # the sphere/paraboloid/plane entirely). This is a miss however
+-            # the ray got here: report MISSED with state unchanged so the
+-            # caller terminates the ray, exactly like the 2D tracer. (A ray
+-            # that has somehow crossed the surface already must NOT be
+-            # fabricated into a transmitted ray: returning REFRACTED here
+-            # would leave origin/direction stale while flipping n to air.)
++            if surface_type == "back" and not is_flat:
++                dist_sq = (ray.origin - center).magnitude_sq()
++                R_abs = abs(R)
++                already_exited = False
++
++                if R < 0 and dist_sq > R_abs**2:
++                    already_exited = True
++                elif R > 0 and dist_sq < R_abs**2:
++                    already_exited = True
++
++                if already_exited:
++                    ray.n = default_n2
++                    return RefractionResult.REFRACTED
++
+             return RefractionResult.MISSED
+ 
+         v_to_i = intersection - vertex

@@ -1,0 +1,45 @@
+{
+ "id": "openlens-pr411",
+ "repo": "pmaasz/openLens",
+ "base_ref": "openlens-v0.8.0",
+ "base_commit": "0497546bbc7a7747deaeebfe50097fd99fd7695d",
+ "issue": 346,
+ "issue_title": "Simplex convergence is scale-blind; zero variables reports false success",
+ "issue_body": "**File:** `src/optimizer.py:420, 456-457, 509-521`\n\n```python\nmerit_range = merit_values[-1] - merit_values[0]\nif merit_range < tolerance:      # tolerance=1e-6 ABSOLUTE\n```\n\nWith geometry penalties at `1e8` (`:239, 251, 255, 265, 284, 290`) a `1e-6` absolute spread is far\nbelow floating-point resolution at that magnitude, so the run always burns the full `max_iterations`\nwhile claiming convergence semantics. Symmetrically, with `len(self.variables) == 0` the simplex has\none vertex, `merit_range == 0`, and the loop breaks immediately.\n\n**Repro (verified):** `GlobalOptimizer(sys, [], [target]).optimize()` returns `success=True`,\n`\"Converged after 1 iterations\"` without evaluating or changing anything.\n\n**Fix:** use a relative criterion; reject an empty variable list up front with `ValueError`.\n",
+ "issue_url": "https://github.com/pmaasz/openLens/issues/346",
+ "pr": 411,
+ "pr_title": "fix(optimizer): make the simplex convergence test scale-blind",
+ "pr_body": "Closes #346\n\n## Two defects\n\n**1. The convergence test was absolute.**\n\n```python\nmerit_range = merit_values[-1] - merit_values[0]\nif merit_range < tolerance:      # tolerance=1e-6 ABSOLUTE\n```\n\nGeometry penalties reach `1e8`, where the spacing between adjacent floats is already **~4e-8**. An absolute `1e-6` spread therefore sits below the representation floor and cannot fire while the merit is large.\n\n**2. An empty variable list \"converged\" instantly.**\n\nWith `len(self.variables) == 0` the simplex has one vertex, `merit_range` is identically 0, and the loop broke on iteration 1 having evaluated and changed nothing:\n\n```\nGlobalOptimizer(sys, [], [target]).optimize()\n-> success=True, \"Converged after 1 iterations\"\n```\n\n## Fix\n\nThe threshold now scales with the merit's own magnitude:\n\n```\nmerit_range <= max(tolerance * max|merit|, MIN_MERIT_RANGE)\n```\n\nAt merit `1e8` a spread of 100 counts as convergence; at merit ~1 the threshold is `1e-6` exactly as before, so ordinary runs are untouched. The `MIN_MERIT_RANGE` floor keeps the test usable when the merit is near zero and the product underflows.\n\nAn empty variable list now raises `ValueError` up front.\n\n## Honest scoping of claim 1\n\nThe measurable effect is **wasted work**, not a wrong answer:\n\n```\nbefore: 21 iterations\nafter:   7 iterations      (same optimum, same message)\n```\n\nI could not construct a case where the reported *outcome* changes. In the scenario I could build, the out-of-bounds abort path fires before the convergence break, and a run that escapes the penalty region drops to order-1 merits where the absolute test worked anyway. Claim 2 is unambiguous and independently valuable.\n\n## Tests\n\n14 tests, **10 fail without the change**: the scale-blind threshold at 1e8 (accepting a spread of 50, rejecting 5e5), unchanged semantics for order-1 merits, the zero-merit floor, negative merits, the 3\u00d7 iteration reduction, all four empty-variable-list paths, and that a single variable still works fine.\n",
+ "fix_commit": "6c58e43bfa02d8fab424839989e9a4da932707a6",
+ "merged_at": "2026-10-06T20:50:26Z",
+ "port_method": "partial_hunks:2/4",
+ "src_files": [
+  "openlens/optimizer.py"
+ ],
+ "test_files": [
+  "tests/test_optimizer_convergence_scale.py"
+ ],
+ "target_symbols": [
+  "openlens/optimizer.py::LensOptimizer._calculate_gradient",
+  "openlens/optimizer.py::LensOptimizer.optimize_simplex"
+ ],
+ "fail_to_pass": [
+  "tests/test_optimizer_convergence_scale.py::TestConvergenceIsScaleBlind::test_a_real_spread_on_order_one_merits_is_not_converged",
+  "tests/test_optimizer_convergence_scale.py::TestConvergenceIsScaleBlind::test_large_merits_get_a_scaled_threshold",
+  "tests/test_optimizer_convergence_scale.py::TestConvergenceIsScaleBlind::test_large_merits_still_reject_a_real_spread",
+  "tests/test_optimizer_convergence_scale.py::TestConvergenceIsScaleBlind::test_negative_merits_use_absolute_magnitude",
+  "tests/test_optimizer_convergence_scale.py::TestConvergenceIsScaleBlind::test_order_one_merits_keep_the_old_semantics",
+  "tests/test_optimizer_convergence_scale.py::TestConvergenceIsScaleBlind::test_penalised_run_wastes_fewer_iterations",
+  "tests/test_optimizer_convergence_scale.py::TestConvergenceIsScaleBlind::test_zero_merit_uses_the_absolute_floor"
+ ],
+ "pass_to_pass": [
+  "tests/test_optimizer_convergence_scale.py::TestEmptyVariableListRejected::test_global_optimize_with_no_variables_raises",
+  "tests/test_optimizer_convergence_scale.py::TestEmptyVariableListRejected::test_one_variable_is_still_fine",
+  "tests/test_optimizer_convergence_scale.py::TestEmptyVariableListRejected::test_simplex_with_no_variables_raises",
+  "tests/test_optimizer_convergence_scale.py::TestEmptyVariableListRejected::test_the_message_explains_why",
+  "tests/test_optimizer_convergence_scale.py::TestOrdinaryOptimizationUnaffected::test_normal_run_still_converges",
+  "tests/test_optimizer_convergence_scale.py::TestOrdinaryOptimizationUnaffected::test_optimisation_still_improves_the_merit",
+  "tests/test_optimizer_convergence_scale.py::TestOrdinaryOptimizationUnaffected::test_tolerance_is_honoured_when_tightened"
+ ],
+ "patch_lines": 42
+}

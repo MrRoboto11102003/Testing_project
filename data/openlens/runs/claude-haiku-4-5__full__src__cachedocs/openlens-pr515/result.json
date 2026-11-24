@@ -1,0 +1,190 @@
+{
+ "id": "openlens-pr515",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__full__src__cachedocs",
+ "context": {
+  "mode": "full",
+  "keep": 1.0,
+  "seed": 0,
+  "with_source": true,
+  "units_total": 109,
+  "units_kept": 109,
+  "chars": 89714
+ },
+ "level": "unit",
+ "cache_docs": true,
+ "max_thinking": null,
+ "with_source": true,
+ "notes": null,
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 14,
+ "n_catching": 12,
+ "n_false_alarms": 2,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 2667,
+  "cache_read_input_tokens": 24702,
+  "output_tokens": 9604,
+  "output_tokens_details": {
+   "thinking_tokens": 7578
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 2667,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 9604,
+    "cache_read_input_tokens": 24702,
+    "cache_creation_input_tokens": 2667,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 2667
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.0558332,
+ "model_seconds": 45.3,
+ "seconds": 57.7,
+ "tests": {
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_backward_compatibility_field_angle_deg_kwarg": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_custom_field_angle_parameter": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_default_field_angle_is_five_degrees": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_multi_element_system_displays_element_count": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_multiple_calls_with_same_params_are_consistent": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_object_distance_finite_value": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_object_distance_none_for_infinity": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_output_format_uses_box_drawing_characters": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_returns_string": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_single_lens_displays_name_and_material": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_summary_contains_title_and_main_sections": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_summary_includes_all_optical_metrics": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_unavailable_metrics_handled_gracefully": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr515.py::TestGetAberrationSummary::test_wavelength_nm_parameter_accepted": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "AberrationsCalculator"
+   ]
+  }
+ }
+}

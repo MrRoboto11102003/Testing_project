@@ -1,0 +1,23 @@
+diff --git a/openlens/lens.py b/openlens/lens.py
+index bb4732f57ec5262153dce15e05e7982da3a94690..3d5e06e7aa30273fe5712b08ab896bc7c04ad8c7 100644
+--- a/openlens/lens.py
++++ b/openlens/lens.py
+@@ -1,4 +1,3 @@
+-import copy
+ import logging
+ import math
+ import sqlite3
+@@ -545,11 +544,11 @@ class Lens:
+ 
+     def get_coating_1(self) -> List[Dict[str, Any]]:
+         """Coating stack of surface 1 ([] = uncoated)."""
+-        return copy.deepcopy(self.coating_1) if self.coating_1 else []
++        return list(self.coating_1) if self.coating_1 else []
+ 
+     def get_coating_2(self) -> List[Dict[str, Any]]:
+         """Coating stack of surface 2 ([] = uncoated)."""
+-        return copy.deepcopy(self.coating_2) if self.coating_2 else []
++        return list(self.coating_2) if self.coating_2 else []
+ 
+     def set_coating(self, surface: int, layers) -> None:
+         """Set the coating stack of one surface.
