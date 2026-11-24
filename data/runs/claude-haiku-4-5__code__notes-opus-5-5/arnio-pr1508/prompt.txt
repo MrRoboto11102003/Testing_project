@@ -1,0 +1,623 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.pipeline.pipeline.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.pipeline.pipeline
+def pipeline(
+    frame: ArFrame,
+    steps: list[tuple],
+    *,
+    return_metadata: bool = False,
+    dry_run: bool = False,
+    verbose: bool = False,
+    track_lineage: bool = False,
+) -> ArFrame | tuple[ArFrame, dict[str, Any]] | tuple[ArFrame, LineageReport]:
+    """Apply a list of cleaning steps sequentially.
+
+    Each step is a tuple of (step_name,) or (step_name, kwargs_dict).
+    For mapping-based steps (`cast_types`, `rename_columns`), the kwargs dict
+    can be used directly as the mapping or passed as {"mapping": {...}}.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    steps : list[tuple]
+        List of steps to apply. Each step is (name,) or (name, kwargs).
+    return_metadata : bool, default False
+        When True, also return a metadata dictionary with per-step timing
+        information in execution order.
+
+        Cannot be combined with ``track_lineage=True``.  If you need both
+        row-level lineage and per-step timings, run the pipeline twice: once
+        with ``track_lineage=True`` and once with ``return_metadata=True``.
+
+    verbose : bool, default False
+        Enable lightweight diagnostic logging through the ``arnio`` logger.
+        Logs step index, step name, execution path, elapsed execution
+        time, and row-count changes for each pipeline step.
+
+    dry_run : bool, default False
+        Validates pipeline structure and step execution without
+        returning transformed output.
+
+    track_lineage : bool, default False
+        When True, inject a hidden sentinel column to track which original row
+        indices are dropped by each step, then return ``(ArFrame, LineageReport)``
+        instead of a bare ``ArFrame``.  The sentinel column is always stripped
+        from the returned frame before it is handed back to the caller.
+
+        When the same step name appears more than once in the pipeline, all
+        drops from every invocation of that step are merged under the single
+        key in ``LineageReport.dropped_by_step``, in sorted order.
+
+        **Incompatible with** ``return_metadata=True``.  Combining both raises
+        ``ValueError``.
+
+        **Input column constraint**: the input frame must not already contain a
+        column named ``__arnio_lineage_id__``.  If it does, ``pipeline`` raises
+        ``ValueError`` before any steps are executed.
+
+        **Custom step contract**: custom Python steps that are used with
+        ``track_lineage=True`` must not drop or rename the sentinel column
+        ``__arnio_lineage_id__``.  If a custom step removes the sentinel, a
+        ``PipelineStepError`` is raised immediately after that step completes.
+
+        Cannot be combined with ``return_metadata=True``.
+
+    Returns
+    -------
+    ArFrame
+        Data frame with all steps applied sequentially (default).
+    tuple[ArFrame, LineageReport]
+        Frame and lineage report when ``track_lineage=True``.
+    tuple[ArFrame, dict]
+        Frame and metadata dict when ``return_metadata=True``.
+
+    Raises
+    ------
+    TypeError
+        If any parameter has an unexpected type.
+    ValueError
+        If ``track_lineage=True`` and ``return_metadata=True`` are both set.
+        If ``track_lineage=True`` and the input frame already contains a column
+        named ``__arnio_lineage_id__``.
+        If step format is invalid.
+    UnknownStepError
+        If step name is not registered.
+    PipelineStepError
+        If a custom step removes the internal lineage sentinel column while
+        ``track_lineage=True`` is active.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> cleaned = ar.pipeline(frame, [
+    ...     ("drop_nulls", {"subset": ["age"]}),
+    ...     ("strip_whitespace",),
+    ...     ("drop_duplicates", {"keep": "first"}),
+    ... ])
+
+    Row lineage tracking:
+
+    >>> result, lineage = ar.pipeline(frame, [
+    ...     ("drop_nulls",),
+    ...     ("drop_duplicates",),
+    ... ], track_lineage=True)
+    >>> lineage.dropped_by_step
+    {"drop_nulls": [1, 4], "drop_duplicates": [7]}
+    >>> lineage.total_dropped
+    3
+    """
+    if not isinstance(frame, ArFrame):
+        raise TypeError("frame must be an ArFrame")
+    if not isinstance(return_metadata, bool):
+        raise TypeError(
+            f"return_metadata must be a bool, got {type(return_metadata).__name__!r}"
+        )
+    if not isinstance(dry_run, bool):
+        raise TypeError(f"dry_run must be a bool, got {type(dry_run).__name__!r}")
+    if not isinstance(verbose, bool):
+        raise TypeError(f"verbose must be a bool, got {type(verbose).__name__!r}")
+    if not isinstance(track_lineage, bool):
+        raise TypeError(
+            f"track_lineage must be a bool, got {type(track_lineage).__name__!r}"
+        )
+
+    # Fix 1: reject the track_lineage + return_metadata combination upfront
+    # rather than silently ignoring return_metadata.
+    if track_lineage and return_metadata:
+        raise ValueError(
+            "track_lineage=True and return_metadata=True cannot be used together. "
+            "Run the pipeline twice if you need both row-level lineage and "
+            "per-step timings: once with track_lineage=True and once with "
+            "return_metadata=True."
+        )
+
+    with _REGISTRY_LOCK:
+        python_step_registry = dict(_PYTHON_STEP_REGISTRY)
+        namespaced_builtin_steps = _get_namespaced_builtin_steps(python_step_registry)
+        deprecated_step_aliases = dict(_DEPRECATED_STEP_ALIASES)
+
+    _validate_pipeline_step_container(steps)
+
+    _validate_pipeline_steps(
+        steps,
+        python_step_registry,
+        deprecated_step_aliases,
+    )
+
+    result = frame
+    working_frame = frame
+
+    # --- lineage tracking setup -------------------------------------------
+    # Inject a hidden int64 sentinel column (values 0..n-1) so we can track
+    # exactly which original row indices survive each row-dropping step.
+    # The C++ engine treats it as an ordinary column and filters/deduplicates
+    # it correctly alongside all other columns.
+    #
+    # Fix 3a: guard against sentinel column name collision in the input frame.
+    # DataFrame.insert would raise a raw pandas ValueError; we replace that
+    # with a clear Arnio-level error before any steps run.
+    #
+    # Fix 2: accumulate drops per step name using a dict[str, list[int]] where
+    # repeated step names extend (not overwrite) the existing list.
+    _lineage_dropped_by_step: dict[str, list[int]] = {}
+    _lineage_current_ids: set[int] = set()
+    if track_lineage:
+        _input_df = to_pandas(frame)
+        if _LINEAGE_SENTINEL_COL in _input_df.columns:
+            raise ValueError(
+                f"track_lineage=True requires that the input frame does not already "
+                f"contain a column named {_LINEAGE_SENTINEL_COL!r}.  "
+                f"Please rename or drop that column before calling pipeline()."
+            )
+        _sentinel_df = _input_df.copy()
+        _sentinel_df.insert(0, _LINEAGE_SENTINEL_COL, range(len(_sentinel_df)))
+        _sentinel_frame = from_pandas(_sentinel_df)
+        result = _sentinel_frame
+        working_frame = _sentinel_frame
+        _lineage_current_ids = set(range(len(_sentinel_df)))
+    # -----------------------------------------------------------------------
+
+    step_timings: list[dict[str, Any]] = []
+    applied_steps: list[str] = []
+    row_counts: list[dict[str, int | str]] = []
+    total_steps = len(steps)
+    total_pipeline_start = perf_counter()
+    _step_diagnostics: list[dict] = []
+    for step_index, step in enumerate(steps):
+        if len(step) == 1:
+            name = step[0]
+            kwargs = {}
+        elif len(step) == 2:
+            name, kwargs = step[0], step[1]
+            if not isinstance(kwargs, dict):
+                raise ValueError(
+                    f"Invalid step kwargs for {name!r}: {kwargs!r}. Expected a dict"
+                )
+        else:
+            raise ValueError(
+                f"Invalid step format: {step}. Expected (name,) or (name, kwargs)"
+            )
+
+        name = _resolve_step_name(name, deprecated_step_aliases)
+        name = namespaced_builtin_steps.get(name, name)
+
+        # --- lineage: sentinel compatibility for drop_duplicates -----------
+        # The sentinel column has a unique value per row.  Without this fix,
+        # drop_duplicates would see every row as distinct and drop nothing.
+        # We auto-restrict its subset to user-visible columns only.
+        if track_lineage and name == "drop_duplicates":
+            _user_cols = [
+                c
+                for c in to_pandas(working_frame).columns
+                if c != _LINEAGE_SENTINEL_COL
+            ]
+            kwargs = {
+                **kwargs,
+                "subset": [
+                    c
+                    for c in kwargs.get("subset", _user_cols)
+                    if c != _LINEAGE_SENTINEL_COL
+                ],
+            }
+        # ------------------------------------------------------------------
+
+        if name in _STEP_REGISTRY:
+            # C++ backed step - fast path
+            fn = _STEP_REGISTRY[name]
+            rows_before = result.shape[0]
+            columns_before = working_frame.shape[1]
+
+            started_at = perf_counter()
+            try:
+                if name == "rename_columns" and (
+                    "mapping" not in kwargs or not isinstance(kwargs["mapping"], dict)
+                ):
+                    step_result = fn(working_frame, mapping=kwargs)
+
+                elif name == "cast_types":
+                    reserved_kwargs = {"mapping", "errors"}
+                    has_reserved_kwargs = any(
+                        key in kwargs for key in reserved_kwargs - {"mapping"}
+                    )
+                    if "mapping" in kwargs and isinstance(kwargs["mapping"], dict):
+                        step_result = fn(working_frame, **kwargs)
+                    elif has_reserved_kwargs:
+                        raise ValueError(
+                            "cast_types shorthand mapping cannot be mixed with "
+                            "reserved keyword arguments. Use "
+                            "{'mapping': {...}, ...} form instead."
+                        )
+                    else:
+                        step_result = fn(working_frame, kwargs)
+
+                else:
+                    step_result = fn(working_frame, **kwargs)
+
+            except Exception:
+                elapsed_sec = perf_counter() - started_at
+                if return_metadata:
+                    step_timings.append(
+                        {
+                            "step": name,
+                            "seconds": round(elapsed_sec, 9),
+                            "dry_run": dry_run,
+                        }
+                    )
+                    row_counts.append(
+                        {
+                            "step": name,
+                            "before": rows_before,
+                            "after": rows_before,
+                            "dry_run": dry_run,
+                        }
+                    )
+
+                raise
+
+            columns_after = step_result.shape[1]
+            if not dry_run:
+                result = step_result
+            working_frame = step_result
+
+            elapsed_sec = perf_counter() - started_at
+            elapsed_ms = elapsed_sec * 1000
+
+            if verbose:
+                execution_path = f"{fn.__module__}.{fn.__name__}"
+
+                logger.info(
+                    "[%s/%s] %s | path=%s | rows: %s -> %s | %.2fms",
+                    step_index + 1,
+                    total_steps,
+                    name,
+                    execution_path,
+                    rows_before,
+                    step_result.shape[0],
+                    elapsed_ms,
+                )
+
+            if return_metadata:
+                applied_steps.append(name)
+                row_counts.append(
+                    {
+                        "step": name,
+                        "before": rows_before,
+                        "after": rows_before if dry_run else step_result.shape[0],
+                        "dry_run": dry_run,
+                    }
+                )
+                step_timings.append(
+                    {
+                        "step": name,
+                        "seconds": round(elapsed_sec, 9),
+                        "dry_run": dry_run,
+                    }
+                )
+                _step_diagnostics.append(
+                    {
+                        "name": name,
+                        "status": "success",
+                        "runtime_ms": round(elapsed_ms, 3),
+                        "rows_before": rows_before,
+                        "rows_after": rows_before if dry_run else step_result.shape[0],
+                        "rows_affected": (
+                            0 if dry_run else rows_before - step_result.shape[0]
+                        ),
+                        "columns_before": columns_before,
+                        "columns_after": columns_after,
+                    }
+                )
+        elif name in python_step_registry:
+            # Pure Python step - slower but contributor-friendly
+            started_at = perf_counter()
+            rows_before = result.shape[0]
+
+            fn = python_step_registry[name]
+
+            # Isolate genuine custom steps from internal core library functions
+            is_builtin = _is_builtin_python_step(name, fn)
+            if is_builtin:
+                df = to_pandas(working_frame)
+            else:
+                df = _to_writable_pipeline_dataframe(working_frame)
+            signature = inspect.signature(fn)
+            call_kwargs = dict(kwargs)
+            if "context" in signature.parameters and "context" not in call_kwargs:
+                call_kwargs["context"] = PipelineContext(
+                    step_name=name,
+                    step_index=step_index,
+                    total_steps=total_steps,
+                    dry_run=dry_run,
+                )
+
+            columns_before = working_frame.shape[1]
+            try:
+                returned = fn(df, **call_kwargs)
+            except Exception as e:
+                elapsed_sec = perf_counter() - started_at
+                if return_metadata:
+                    step_timings.append(
+                        {
+                            "step": name,
+                            "seconds": round(elapsed_sec, 9),
+                            "dry_run": dry_run,
+                        }
+                    )
+                    row_counts.append(
+                        {
+                            "step": name,
+                            "before": rows_before,
+                            "after": rows_before,
+                            "dry_run": dry_run,
+                        }
+                    )
+
+                if is_builtin:
+                    raise
+                raise PipelineStepError(name, e) from e
+
+            if returned is None:
+                raise TypeError(
+                    f"Custom pipeline step '{name}' returned None. "
+                    "Steps must return a pandas DataFrame."
+                )
+            if not isinstance(returned, pd.DataFrame):
+                raise TypeError(
+                    f"Custom pipeline step '{name}' returned "
+                    f"{type(returned).__name__!r} instead of a pandas DataFrame. "
+                    "Steps must return a pandas DataFrame."
+                )
+            step_result = from_pandas(returned)
+            columns_after = step_result.shape[1]
+            if not dry_run:
+                result = step_result
+            working_frame = step_result
+
+            elapsed_sec = perf_counter() - started_at
+            elapsed_ms = elapsed_sec * 1000
+
+            if verbose:
+                step_name = getattr(fn, "__name__", name)
+                execution_path = f"{fn.__module__}.{step_name}"
+
+                logger.info(
+                    "[%s/%s] %s | path=%s | rows: %s -> %s | %.2fms",
+                    step_index + 1,
+                    total_steps,
+                    name,
+                    execution_path,
+                    rows_before,
+                    step_result.shape[0],
+                    elapsed_ms,
+                )
+
+            if return_metadata:
+                applied_steps.append(name)
+                row_counts.append(
+                    {
+                        "step": name,
+                        "before": rows_before,
+                        "after": rows_before if dry_run else step_result.shape[0],
+                        "dry_run": dry_run,
+                    }
+                )
+                step_timings.append(
+                    {
+                        "step": name,
+                        "seconds": round(elapsed_sec, 9),
+                        "dry_run": dry_run,
+                    }
+                )
+                _step_diagnostics.append(
+                    {
+                        "name": name,
+                        "status": "success",
+                        "runtime_ms": round(elapsed_ms, 3),
+                        "rows_before": rows_before,
+                        "rows_after": rows_before if dry_run else step_result.shape[0],
+                        "rows_affected": (
+                            0 if dry_run else rows_before - step_result.shape[0]
+                        ),
+                        "columns_before": columns_before,
+                        "columns_after": columns_after,
+                    }
+                )
+        else:
+            available = list(_STEP_REGISTRY.keys()) + list(python_step_registry.keys())
+            raise UnknownStepError(name, available)
+
+        # --- per-step lineage diff ----------------------------------------
+        # After each step (C++ or Python), check which sentinel IDs survived.
+        # Non-dropping steps produce an empty diff naturally — no special-casing.
+        #
+        # Fix 3b: detect custom steps that removed the sentinel column and raise
+        # a clear PipelineStepError rather than letting a raw KeyError surface.
+        #
+        # Fix 2: extend rather than overwrite when the same step name appears
+        # more than once; keep the merged list in sorted order.
+        if track_lineage:
+            _after_pdf = to_pandas(working_frame)
+            if _LINEAGE_SENTINEL_COL not in _after_pdf.columns:
+                raise PipelineStepError(
+                    name,
+                    KeyError(
+                        f"Custom pipeline step '{name}' removed the internal lineage "
+                        f"sentinel column {_LINEAGE_SENTINEL_COL!r}.  Custom steps "
+                        f"must not drop or rename this column when track_lineage=True."
+                    ),
+                )
+            _surviving_ids: set[int] = set(_after_pdf[_LINEAGE_SENTINEL_COL].tolist())
+            _newly_dropped = sorted(_lineage_current_ids - _surviving_ids)
+            if name in _lineage_dropped_by_step:
+                # Same step name used more than once: merge and re-sort so the
+                # combined list remains ordered by original index.
+                _lineage_dropped_by_step[name] = sorted(
+                    _lineage_dropped_by_step[name] + _newly_dropped
+                )
+            else:
+                _lineage_dropped_by_step[name] = _newly_dropped
+            _lineage_current_ids = _surviving_ids
+        # ------------------------------------------------------------------
+
+    # --- lineage return path -----------------------------------------------
+    # Strip the hidden sentinel column from the result before returning so
+    # callers never see it, then build and return the LineageReport.
+    if track_lineage:
+        _result_pdf = to_pandas(result)
+        result = from_pandas(_result_pdf.drop(columns=[_LINEAGE_SENTINEL_COL]))
+        _lineage_report = LineageReport(
+            dropped_by_step=_lineage_dropped_by_step,
+            total_dropped=sum(
+                len(indices) for indices in _lineage_dropped_by_step.values()
+            ),
+        )
+        return result, _lineage_report
+    # -----------------------------------------------------------------------
+
+    if return_metadata:
+        return result, {
+            "applied_steps": applied_steps,
+            "row_counts": row_counts,
+            "step_timings": step_timings,
+            "execution_summary": {
+                "total_runtime_ms": round(
+                    (perf_counter() - total_pipeline_start) * 1000, 3
+                ),
+                "steps": _step_diagnostics,
+            },
+        }
+    return result
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.pipeline.pipeline
+
+# Notes: `arnio.pipeline.pipeline(frame, steps, *, return_metadata=False, dry_run=False, verbose=False, track_lineage=False)`
+
+## 1. Purpose
+- Applies a list of steps to an `ArFrame` in order and returns the final frame.
+- Steps can be C++-backed cleaning functions, built-in Python steps, or user-registered Python steps.
+- Optionally returns timing/row metadata (`return_metadata`) or row-drop lineage (`track_lineage`).
+
+## 2. Inputs
+- `frame`: must be an `ArFrame`. A pandas DataFrame is rejected.
+- `steps`: must be a `list`. Each element is `(name,)` or `(name, kwargs_dict)`.
+- `name` can be:
+  - a C++ registry name: `drop_nulls`, `drop_columns`, `select_columns`, `keep_rows_with_nulls`, `fill_nulls`, `validate_columns_exist`, `drop_duplicates`, `drop_constant_columns`, `drop_empty_columns`, `clip_numeric`, `winsorize_outliers`, `normalize_minmax`, `strip_whitespace`, `hash_columns`, `parse_bool_strings`, `normalize_case`, `normalize_unicode`, `rename_columns`, `cast_types`, `round_numeric_columns`, `combine_columns`, `slugify_column_names`, `trim_column_names`, `clean_column_names`;
+  - a built-in Python step: `standardize_missing_tokens`, `coalesce_columns`, `normalize_whitespace`, `filter_rows`, `drop_columns_matching`, `rename_columns_matching`, `safe_divide_columns`, `replace_values`;
+  - any name added with `ar.register_step`;
+  - `"builtin:<name>"` for any built-in name above. It resolves to the plain name, which is the name used in metadata and lineage keys;
+  - a deprecated alias. The table is empty by default and only the private `_register_deprecated_step_alias` fills it. Using an alias emits `DeprecationWarning("Pipeline step 'old' is deprecated; use 'new' instead.")`.
+- The flags must be real `bool`. `1` and `None` are rejected (`isinstance(x, bool)`).
+- A user step registered as `"mystep"` is **not** reachable as `"builtin:mystep"`; that raises `UnknownStepError`.
+
+## 3. Raises (checks run in this order)
+1. `TypeError("frame must be an ArFrame")`, e.g. `pipeline(pd.DataFrame(), [])`.
+2. `TypeError("return_metadata must be a bool, got 'int'")` for `return_metadata=1`.
+   - The same template applies, in this order, to `dry_run`, `verbose` and `track_lineage`, e.g. `"dry_run must be a bool, got 'str'"`.
+3. `ValueError` when both `track_lineage=True` and `return_metadata=True`. The message starts with `"track_lineage=True and return_metadata=True cannot be used together."`
+4. Container checks (all `TypeError`):
+   - `None` → `"steps must be a list of step tuples, got None"`.
+   - `str`/`bytes`: `"steps must be a list of step tuples, got str. Each step must be (name,) or (name, kwargs), for example [(\"drop_nulls\",)]."` (the example uses literal double quotes).
+   - A tuple: `steps=("drop_nulls",)` → `"steps must be a list of step tuples, got bare step tuple ('drop_nulls',). Use [('drop_nulls',)] instead."`
+   - Other types: `{}` → `"steps must be a list of step tuples, got dict. "` (note the trailing space).
+5. Per-step validation. **Every step is checked before any step runs**, in list order, so the first bad step wins. All are `ValueError` except the last:
+   - Not a tuple, or length not 1–2: `"Invalid step format: ['drop_nulls']. Expected (name,) or (name, kwargs)"`. Applies to `["drop_nulls"]` and to `()`.
+   - Name not a string: `(1,)` → `"Invalid pipeline step name: 1. Expected a string"`.
+   - Kwargs not a dict: `("drop_nulls", [1])` → `"Invalid step kwargs for 'drop_nulls': [1]. Expected a dict"`.
+   - Unknown name: `UnknownStepError(name, sorted(available))`. Its message format lives in `arnio.exceptions` (not shown), so assert only the type, or that the name appears in `str(e)`.
+   - Example: `[("drop_nulls",), ("bogus",)]` raises before `drop_nulls` executes.
+6. `ValueError` when `track_lineage=True` and the input already has column `__arnio_lineage_id__`. This happens after step validation. Message: `"track_lineage=True requires that the input frame does not already contain a column named '__arnio_lineage_id__'.  Please rename or drop that column before calling pipeline()."` (two spaces before "Please").
+7. `cast_types` with a reserved key but no dict `mapping`: `("cast_types", {"a": "int64", "errors": "raise"})` → `ValueError("cast_types shorthand mapping cannot be mixed with reserved keyword arguments. Use {'mapping': {...}, ...} form instead.")`.
+8. Exceptions inside steps:
+   - C++ steps and built-in Python steps: the exception propagates unchanged (e.g. whatever `cleaning.select_columns` raises for a missing column).
+   - Custom (user-registered) steps: the exception is wrapped as `PipelineStepError(name, e)`, with `__cause__ is e`.
+9. Bad custom-step return values (`TypeError`, **not** wrapped):
+   - `None` → `"Custom pipeline step 'x' returned None. Steps must return a pandas DataFrame."`
+   - A list → `"Custom pipeline step 'x' returned 'list' instead of a pandas DataFrame. Steps must return a pandas DataFrame."`
+10. With `track_lineage=True`, any step that removes or renames the sentinel raises `PipelineStepError(name, KeyError(...))`. This includes C++ steps such as `select_columns(["a"])` or `drop_columns(["__arnio_lineage_id__"])`.
+
+## 4. Returns and guarantees
+- **Default:** returns the last step's result.
+  - With `steps=[]`, it returns **the input object itself** (`pipeline(f, []) is f`).
+- **`return_metadata=True`:** returns `(frame, meta)` where:
+  - `meta["applied_steps"]` is a list of canonical names.
+  - `meta["row_counts"]` is a list of `{"step", "before", "after", "dry_run"}`.
+  - `meta["step_timings"]` is a list of `{"step", "seconds", "dry_run"}`.
+  - `meta["execution_summary"]` is `{"total_runtime_ms": float, "steps": [...]}`. Each entry in `steps` is `{"name", "status": "success", "runtime_ms", "rows_before", "rows_after", "rows_affected", "columns_before", "columns_after"}`.
+  - `rows_affected = before - after`.
+  - Field values:
+    - `before` is the row count of the current *result* frame.
+    - `after` is the step output's row count.
+    - `columns_*` come from the working frame and the step output.
+  - With `steps=[]`, all lists are empty.
+- **`track_lineage=True`:** returns `(frame, LineageReport)`.
+  - `dropped_by_step` has one key per canonical step name, in order of first appearance. Every step gets a key, with `[]` if it dropped nothing.
+  - Values are sorted original 0-based positions. Repeated names are merged and re-sorted.
+  - `total_dropped` is the sum of list lengths.
+  - The returned frame is new (rebuilt via pandas), without the sentinel, with the original column order.
+
+## 5. Side effects
+- The input frame is not mutated. Custom steps receive a deep-copied, writable pandas `DataFrame` subclass, so in-place edits do not leak back.
+- The step registry is not changed.
+- `verbose=True` logs one INFO record per step on logger `"arnio"`, in this form: `"[1/2] drop_nulls | path=arnio.cleaning.drop_nulls | rows: 3 -> 2 | 0.01ms"`.
+  - For custom steps, `path` is `f"{fn.__module__}.{fn.__name__}"`.
+
+## 6. Branches and edge cases
+- **`dry_run=True`:**
+  - Steps still execute and chain on each other's output (the working frame advances), but the returned frame is the **input object itself** (`res is f`).
+  - In metadata, `before` is always the input row count, and `after == before`, `rows_affected == 0`, `"dry_run": True`.
+  - With `track_lineage`, drops are **still recorded** (computed from the working frame), and the returned frame equals the input data.
+- **`rename_columns` shorthand:** `("rename_columns", {"a": "b"})` uses the kwargs dict as the mapping. `{"mapping": {"a": "b"}}` also works.
+- **`cast_types` forms:**
+  - `{"mapping": {...}, "errors": ...}` is passed as kwargs.
+  - Otherwise the whole dict is the mapping, e.g. `("cast_types", {"a": "float64"})`.
+  - Avoid `errors="report"`: it returns a `CastReport`, which has no `.shape`, so the call fails.
+- **`drop_duplicates` with lineage:** the subset is auto-restricted to non-sentinel columns, or the sentinel is filtered out of a user-given subset. Duplicates are therefore detected normally.
+- **`context` injection:** if a step function has a `context` parameter and kwargs contain no `"context"`, it receives `PipelineContext(step_name=<canonical name>, step_index=<0-based>, total_steps=len(steps), dry_run=dry_run)`.
+
+## 7. Rules from comments and docstrings
+- Lineage and metadata are mutually exclusive.
+- The sentinel is never visible in the output.
+- Custom steps must not drop or rename the sentinel.
+- Drops from repeated step names are merged under one key, in sorted order.
+
+## 8. Testing hints
+- Build inputs with `f = ar.from_pandas(pd.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "y"]}))`.
+  - `("drop_duplicates",)` gives 2 rows. Lineage is then `{"drop_duplicates": [1]}`, `total_dropped == 1`.
+- Inspect results with `ar.to_pandas(res)`, `res.shape` and `res.columns`.
+- For nulls, use `None` in a string column. The exact null semantics of `drop_nulls` live in C++, so prefer `drop_duplicates` and `drop_columns` for exact counts.
+- Register custom steps in a fixture and clean up with `ar.reset_steps()` (or `ar.unregister_step`). Global registry state leaks between tests otherwise.
+- Import `PipelineStepError` and `UnknownStepError` from `arnio.exceptions`.
+- Never assert exact timing values. Only check that they exist and are `>= 0` floats.
+- Use `pytest.raises(..., match=re.escape(msg))`, because the messages contain `(`, `[`, `.` and `{`.
+- Verbose logs: use `caplog.set_level(logging.INFO, logger="arnio")`, then check that `"[1/1] drop_duplicates"` and `"rows: 3 -> 2"` appear in `caplog.text`.
+- With `track_lineage`, avoid steps that rename or select columns (`select_columns`, `clean_column_names`, `slugify_column_names`). They touch the sentinel and raise `PipelineStepError`.

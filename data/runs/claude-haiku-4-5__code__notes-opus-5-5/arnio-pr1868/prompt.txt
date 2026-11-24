@@ -1,0 +1,663 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.quality.ColumnProfile.to_dict, arnio.quality.DataQualityReport.score_breakdown, arnio.quality.DataQualityReport.to_dict, arnio.quality.DataQualityReport.to_json.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.quality.ColumnProfile.to_dict
+    def to_dict(self, *, redact_sample_values: bool = False) -> dict[str, Any]:
+        """Return a JSON-friendly dictionary."""
+        redact_sample_values = _validate_bool_option(
+            redact_sample_values, "redact_sample_values"
+        )
+        sample_values = (
+            ["[REDACTED]" for _ in self.sample_values]
+            if redact_sample_values
+            else [_clean_scalar(value) for value in self.sample_values]
+        )
+        top_values = (
+            [
+                {"value": "[REDACTED]", "count": c, "ratio": r}
+                for _value, c, r in self.top_values
+            ]
+            if redact_sample_values and self.top_values is not None
+            else (
+                [
+                    {"value": _clean_scalar(v), "count": c, "ratio": r}
+                    for v, c, r in self.top_values
+                ]
+                if self.top_values is not None
+                else None
+            )
+        )
+        return {
+            "name": self.name,
+            "dtype": self.dtype,
+            "semantic_type": self.semantic_type,
+            "row_count": self.row_count,
+            "null_count": self.null_count,
+            "null_ratio": self.null_ratio,
+            "unique_count": self.unique_count,
+            "unique_ratio": self.unique_ratio,
+            "empty_string_count": self.empty_string_count,
+            "whitespace_count": self.whitespace_count,
+            "suggested_dtype": self.suggested_dtype,
+            "email_validity_ratio": self.email_validity_ratio,
+            "url_validity_ratio": self.url_validity_ratio,
+            "min": _clean_scalar(self.min),
+            "max": _clean_scalar(self.max),
+            "mean": self.mean,
+            "std": self.std,
+            **(
+                {
+                    "q25": _clean_scalar(self.q25),
+                    "q50": _clean_scalar(self.q50),
+                    "q75": _clean_scalar(self.q75),
+                    "q95": _clean_scalar(self.q95),
+                    "iqr": _clean_scalar(self.iqr),
+                    "outlier_lower_bound": _clean_scalar(self.outlier_lower_bound),
+                    "outlier_upper_bound": _clean_scalar(self.outlier_upper_bound),
+                    "outlier_count": self.outlier_count,
+                    "outlier_ratio": self.outlier_ratio,
+                }
+                if _is_numeric_dtype(self.dtype)
+                else {}
+            ),
+            "sample_values": sample_values,
+            "warnings": list(self.warnings),
+            "top_values": top_values,
+            "top_values_is_approximate": self.top_values_is_approximate,
+            "top_values_sample_count": self.top_values_sample_count,
+            "top_values_sample_ratio": self.top_values_sample_ratio,
+            "histogram": (
+                [
+                    {
+                        "bucket_start": _clean_scalar(start),
+                        "bucket_end": _clean_scalar(end),
+                        "count": count,
+                        "ratio": ratio,
+                    }
+                    for start, end, count, ratio in self.histogram
+                ]
+                if self.histogram is not None
+                else None
+            ),
+        }
+
+# arnio.quality.DataQualityReport.score_breakdown
+    def score_breakdown(self) -> dict[str, float]:
+        """Return a breakdown of the individual penalty scores."""
+        return {
+            "null_penalty": self.score_components.get("null_penalty", 0.0),
+            "duplicate_penalty": self.score_components.get("duplicate_penalty", 0.0),
+            "type_mismatch_penalty": self.score_components.get(
+                "type_mismatch_penalty", 0.0
+            ),
+            "final_score": self.quality_score,
+        }
+
+# arnio.quality.DataQualityReport.to_dict
+    def to_dict(
+        self,
+        *,
+        redact_sample_values: bool = False,
+        exclude_columns: list[str] | set[str] | tuple[str, ...] | None = None,
+    ) -> dict[str, Any]:
+        """Return a JSON-friendly dictionary representation."""
+        redact_sample_values = _validate_bool_option(
+            redact_sample_values, "redact_sample_values"
+        )
+
+        if exclude_columns is None:
+            exclude_columns = set()
+
+        elif not isinstance(exclude_columns, (list, tuple, set)):
+            raise TypeError("exclude_columns must be a list, tuple, set, or None")
+
+        else:
+            if not all(isinstance(column, str) for column in exclude_columns):
+                raise TypeError("exclude_columns must contain only string column names")
+
+            exclude_columns = set(exclude_columns)
+
+        unknown_exclude_columns = sorted(exclude_columns - set(self.columns))
+        if unknown_exclude_columns:
+            available_columns = ", ".join(self.columns) or "<none>"
+            raise KeyError(
+                "Unknown exclude_columns: "
+                f"{unknown_exclude_columns}. Available columns: {available_columns}"
+            )
+
+        def _redact_reason(reason: str | None) -> str | None:
+            if not reason or not exclude_columns:
+                return reason
+            for col in exclude_columns:
+                reason = reason.replace(f"'{col}'", "'[REDACTED]'")
+            return reason
+
+        return {
+            "row_count": self.row_count,
+            "column_count": self.column_count,
+            "memory_usage": self.memory_usage,
+            "duplicate_rows": self.duplicate_rows,
+            "duplicate_ratio": self.duplicate_ratio,
+            "quality_score": self.quality_score,
+            "score_components": self.score_components,
+            "columns": {
+                name: self.columns[name].to_dict(
+                    redact_sample_values=redact_sample_values
+                )
+                for name in sorted(self.columns)
+                if name not in exclude_columns
+            },
+            "suggestions": [
+                {
+                    "step": s[0],
+                    "kwargs": _filtered_suggestion_kwargs(s[1], exclude_columns),
+                    "confidence_score": getattr(s, "confidence_score", None),
+                    "confidence_reason": _redact_reason(
+                        getattr(s, "confidence_reason", None)
+                    ),
+                }
+                for s in sorted(
+                    self.suggestions,
+                    key=lambda item: (
+                        item[0],
+                        json.dumps(item[1], sort_keys=True, default=str),
+                    ),
+                )
+            ],
+        }
+
+# arnio.quality.DataQualityReport.to_json
+    def to_json(
+        self,
+        *,
+        indent: int | None = None,
+        redact_sample_values: bool = False,
+        exclude_columns: list[str] | set[str] | tuple[str, ...] | None = None,
+        output: Any | None = None,
+    ) -> str | None:
+        """Return the report as a JSON string.
+
+        Example:
+        report.to_json(indent=2)
+        """
+
+        json_out = json.dumps(
+            self.to_dict(
+                redact_sample_values=redact_sample_values,
+                exclude_columns=exclude_columns,
+            ),
+            indent=indent,
+        )
+
+        if output is None:
+            return json_out
+
+        if not hasattr(output, "write"):
+            raise TypeError("output must be a writable text stream")
+
+        output.write(json_out)
+        return None
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.quality.ColumnProfile.to_dict
+
+# Notes: `ColumnProfile.to_dict(self, *, redact_sample_values: bool = False) -> dict`
+
+## 1. Purpose
+- Returns a JSON-friendly `dict` for one column profile.
+- It optionally replaces sample values and top-value labels with `"[REDACTED]"`.
+- Quantile and outlier keys appear only for numeric dtypes.
+
+## 2. Inputs
+- `self`: a frozen `ColumnProfile` dataclass. There are two ways to get one:
+  - Construct it directly: `ColumnProfile(name, dtype, semantic_type, row_count, null_count, null_ratio, unique_count, unique_ratio, ...)`.
+  - Take it from a report: `ar.profile(frame).columns["col"]`.
+- `redact_sample_values` is keyword-only.
+  - It is validated by `_validate_bool_option`: it must be exactly a `bool` (checked with `isinstance(v, bool)`).
+  - `1`, `0`, `None` and `"yes"` are all rejected.
+
+## 3. Raises
+- `TypeError("redact_sample_values must be a bool")`, e.g. `cp.to_dict(redact_sample_values=1)` or `=None`.
+  - This check runs first, before anything else.
+- Passing the argument positionally, e.g. `cp.to_dict(True)`, raises Python's own `TypeError` (the parameter is keyword-only).
+- Malformed `histogram` entries raise `ValueError` from tuple unpacking.
+  - Each entry must be a 4-tuple `(start, end, count, ratio)`.
+  - Each `top_values` entry must be a 3-tuple `(value, count, ratio)`.
+- Construction pitfall (raised by `__post_init__`, not by `to_dict`):
+  - `row_count`, `null_count`, `unique_count`, `empty_string_count` and `whitespace_count` must be Python `int`, not `bool` and not `np.int64`.
+    - Wrong type: `TypeError("{field} must be an integer, got {type}")`.
+    - Negative value: `ValueError("{field} cannot be negative: {v}")`.
+  - `null_ratio` and `unique_ratio` must be finite numbers in [0, 1].
+    - Out of range: `ValueError("{field} must be a finite ratio between 0.0 and 1.0: {v}")`.
+  - The same ratio rule applies to `email_validity_ratio`, `url_validity_ratio` and `top_values_sample_ratio` when they are not None.
+
+## 4. Returns and guarantees
+The result is a new `dict` on every call. Key order is exact (Python dicts keep insertion order).
+- These 17 keys always come first, in this order:
+  `name, dtype, semantic_type, row_count, null_count, null_ratio, unique_count, unique_ratio, empty_string_count, whitespace_count, suggested_dtype, email_validity_ratio, url_validity_ratio, min, max, mean, std`
+- These 9 keys follow **only if `dtype in {"int64", "float64"}`** (exact string match):
+  `q25, q50, q75, q95, iqr, outlier_lower_bound, outlier_upper_bound, outlier_count, outlier_ratio`
+  - Any other dtype omits these keys entirely, even if `q25` etc. are set. Examples: `"string"`, `"bool"`, `"int32"`, `"Int64"`.
+  - The keys are absent, not set to None.
+- These 7 keys always come last:
+  `sample_values, warnings, top_values, top_values_is_approximate, top_values_sample_count, top_values_sample_ratio, histogram`
+- Total key count: **33 for numeric dtypes, 24 otherwise**.
+
+How each value is produced:
+- Passed through `_clean_scalar`:
+  - `min` and `max`
+  - `q25`, `q50`, `q75`, `q95`, `iqr`, `outlier_lower_bound`, `outlier_upper_bound`
+  - each element of `sample_values`
+  - each top-value `value`
+  - each histogram `bucket_start` and `bucket_end`
+- Rules of `_clean_scalar`:
+  - If `pd.isna(v)` is true, return `None`. This covers None, `float("nan")`, `np.nan`, `pd.NA` and `pd.NaT`.
+  - Otherwise, if `v` has `.item()`, unwrap it to a Python scalar (`np.int64(3)` becomes `3` of type `int`; `np.float64` becomes `float`).
+  - If the result is a non-finite float, return `None` (`float("inf")` and `np.float64(-np.inf)` both become `None`).
+  - Anything else is returned unchanged.
+- Returned raw, not cleaned (a NaN or inf stays as it is):
+  - `mean`, `std`
+  - `outlier_count`, `outlier_ratio`
+  - all count and ratio fields
+  - top-value `count` and `ratio`
+  - histogram `count` and `ratio`
+- `top_values`:
+  - `None` stays `None`.
+  - Otherwise it becomes a list of dicts `{"value": ..., "count": c, "ratio": r}` in the original order.
+- `histogram`:
+  - `None` stays `None`.
+  - Otherwise it becomes a list of dicts `{"bucket_start", "bucket_end", "count", "ratio"}` in that key order.
+- `warnings` is a new list: `list(self.warnings)`. It is equal to the original but not the same object.
+- `sample_values` is a new list built by a list comprehension.
+
+Redaction (`redact_sample_values=True`):
+- `sample_values` becomes `["[REDACTED]"] * len(self.sample_values)`, so the length is preserved and `[]` stays `[]`.
+- Each top-value `"value"` becomes `"[REDACTED]"`; `count` and `ratio` are kept.
+- If `top_values` is None, it stays None.
+- `min`, `max` and histogram edges are **not** redacted. All other fields are identical to the unredacted output.
+
+## 5. Side effects
+- None. The profile object, its `sample_values` list and its `warnings` list are not mutated.
+
+## 6. Branches and edge cases
+- Numeric versus non-numeric dtype: `dtype="float64"` gives 33 keys including `"q25"`; `dtype="string"` gives 24 keys and `"q25" not in d`.
+- `top_values=None` (the default) gives `d["top_values"] is None` for both redact settings.
+- `top_values=[("a", 2, 0.5)]`:
+  - `redact_sample_values=False` gives `[{"value": "a", "count": 2, "ratio": 0.5}]`.
+  - `redact_sample_values=True` gives `[{"value": "[REDACTED]", "count": 2, "ratio": 0.5}]`.
+- `sample_values=[np.int64(1), float("nan"), float("inf"), "x"]` gives `[1, None, None, "x"]`, and `type(d["sample_values"][0]) is int`.
+- `min=np.float64(np.inf)` gives `None`; `min=np.int64(7)` gives `7` as an `int`.
+- `mean=float("nan")` gives `d["mean"]` as NaN (not None). Test with `math.isnan`.
+- `histogram=[(0.0, 1.0, 3, 0.75)]` gives `[{"bucket_start": 0.0, "bucket_end": 1.0, "count": 3, "ratio": 0.75}]`.
+- `histogram=None` gives `None`.
+- Defaults for an otherwise minimal profile:
+  - `empty_string_count=0`, `whitespace_count=0`
+  - `sample_values=[]`, `warnings=[]`
+  - `top_values_is_approximate=False`
+  - `suggested_dtype`, `email_validity_ratio`, `url_validity_ratio`, `min`, `max`, `mean`, `std`, `top_values_sample_count`, `top_values_sample_ratio` and `histogram` all `None`
+
+## 7. Rules from docstrings and comments
+- The method is documented as "JSON-friendly".
+- The `_clean_scalar` docstring says non-finite floats map to `None` so that `json.dumps(..., allow_nan=False)` never raises on report output.
+- For string columns, `min`, `max` and `mean` are string-length statistics (from `profile`).
+
+## 8. Testing hints
+- Construct directly for full control. Import it with `from arnio.quality import ColumnProfile` (it is also likely available as `ar.ColumnProfile`). Use Python ints and floats for the validated fields:
+  ```python
+  cp = ColumnProfile(name="a", dtype="int64", semantic_type="numeric", row_count=4,
+                     null_count=0, null_ratio=0.0, unique_count=4, unique_ratio=1.0,
+                     min=np.int64(1), sample_values=[np.int64(1)], warnings=["w"])
+  ```
+- Pin the exact order with `list(cp.to_dict().keys()) == [...]` for both the numeric and the string case.
+- Check the numeric unwrapping with `type(...) is int`.
+- Check the copy: `d["warnings"] == cp.warnings` and `d["warnings"] is not cp.warnings`.
+- Check JSON safety: after cleaning `sample_values` and `min`, `json.dumps(d, allow_nan=False)` succeeds when `mean` and `std` are finite or None.
+- Via the public API:
+  ```python
+  rep = ar.profile(ar.from_pandas(pd.DataFrame({"x": [1, 2, 3, 4], "s": ["a", "b", "a", "c"]})))
+  d = rep.columns["x"].to_dict()
+  ```
+  - The exact dtype strings come from the C++ core. Assert `d["dtype"] == frame.dtypes["x"]` rather than hardcoding `"int64"`.
+  - For an int64 column, expect `d["min"] == 1` with type `int`, `d["max"] == 4` and `d["mean"] == 2.5`.
+  - String columns get a `top_values` list (e.g. `("a", 2, 0.5)` first) and no `q25` key.
+- Do not hand-compute histogram or quantile values in profile-based tests; use the directly constructed objects for exact values.
+
+### arnio.quality.DataQualityReport.score_breakdown
+
+# Notes: `DataQualityReport.score_breakdown()`
+
+## 1. Purpose
+- Returns a fixed 4-key dict of the report's quality-score penalties plus the final score.
+- It reads `self.score_components` and `self.quality_score` and computes nothing.
+
+## 2. Inputs
+- `self` only; the method takes no arguments.
+- Exact body:
+  ```python
+  return {
+      "null_penalty": self.score_components.get("null_penalty", 0.0),
+      "duplicate_penalty": self.score_components.get("duplicate_penalty", 0.0),
+      "type_mismatch_penalty": self.score_components.get("type_mismatch_penalty", 0.0),
+      "final_score": self.quality_score,
+  }
+  ```
+- `score_components` defaults to `{}` and is **not validated** by `__post_init__`.
+- `quality_score` defaults to `100.0`. `__post_init__` checks it is a finite number in [0, 100], not a bool.
+
+## 3. Raises
+- The method itself raises nothing for a normally built report.
+- Constructing the report can raise `ValueError("quality_score must be a finite value between 0.0 and 100.0: 150.0")`. Trigger: `DataQualityReport(..., quality_score=150.0)`.
+- If `score_components` is not a dict (e.g. `None`, which is accepted at construction), `.get` raises `AttributeError`. This is an untested corner; avoid it.
+
+## 4. Returns and guarantees
+- Returns a new `dict` on every call, with keys in this order: `["null_penalty", "duplicate_penalty", "type_mismatch_penalty", "final_score"]`.
+- Penalty values are returned verbatim from `score_components`. There is no sign flip, `abs`, or rounding.
+- If a penalty key is missing, its value is `0.0`, a positive float zero.
+- `final_score` is `self.quality_score` as stored. It is **not** recomputed from the components.
+- Extra keys in `score_components` (e.g. `"foo": -1.0`) are ignored and never appear in the result.
+
+## 5. Side effects
+- None. The report is frozen, and neither `score_components` nor `quality_score` is mutated.
+- Mutating the returned dict does not affect `report.score_components`. The returned dict is a new object, not `score_components` itself.
+
+## 6. How `profile()` fills these fields (`_calculate_quality_score`)
+- If `row_count == 0` or there are no columns, the result is `(100.0, {})`. `score_breakdown()` then returns all `0.0` penalties and `final_score` `100.0`.
+- `duplicate_penalty = round(min(duplicate_ratio*100, 20), 2)`. It is capped at 20.
+- `null_penalty = round(min(mean(column null_ratio)*100, 40), 2)`. It is capped at 40.
+- `type_mismatch_penalty = round(min(frac_cols_with_suggested_dtype*100, 40), 2)`. It is capped at 40.
+  - Only columns with dtype `"string"` can get a `suggested_dtype`: all-bool-like → `"bool"`, all-integer-like → `"int64"`, finite numeric → `"float64"`.
+- Each penalty is stored as a **negative** number, and **only if > 0**. Zero penalties are absent from `score_components`, so the breakdown shows `0.0` for them, never `-0.0`.
+- `quality_score = round(100 - dup - null - mismatch, 2)`.
+
+## 7. Rules from docstrings
+- "Return a breakdown of the individual penalty scores."
+- Consequently, penalties appear as negative deltas, and `final_score` equals the overall score.
+
+## 8. Testing hints
+Direct construction is the most robust approach because it is fully deterministic and does not depend on the C++ core:
+```python
+from arnio.quality import DataQualityReport
+r = DataQualityReport(row_count=10, column_count=1, memory_usage=0,
+        duplicate_rows=1, duplicate_ratio=0.1, columns={},
+        quality_score=72.5,
+        score_components={"duplicate_penalty": -10.0, "null_penalty": -17.5, "foo": -3.0})
+assert r.score_breakdown() == {"null_penalty": -17.5, "duplicate_penalty": -10.0,
+                               "type_mismatch_penalty": 0.0, "final_score": 72.5}
+assert list(r.score_breakdown()) == ["null_penalty","duplicate_penalty","type_mismatch_penalty","final_score"]
+```
+
+Useful assertions:
+- **Defaults:** `DataQualityReport(row_count=0, column_count=0, memory_usage=0, duplicate_rows=0, duplicate_ratio=0.0, columns={}).score_breakdown()` equals `{"null_penalty": 0.0, "duplicate_penalty": 0.0, "type_mismatch_penalty": 0.0, "final_score": 100.0}`.
+- **No recomputation:** with components that are inconsistent with the score (e.g. `score_components={}` and `quality_score=55.0`), `final_score` is `55.0`.
+- **Sign preserved:** a stored `-10.0` comes back as `-10.0`, not `10.0`.
+- **Extra keys:** extra component keys are absent from the output, and the output always has exactly 4 keys.
+- **Missing keys:** a missing key gives exactly `0.0`. Positive values (e.g. `{"null_penalty": 5.0}`) also pass through unchanged.
+
+End-to-end via `ar.profile`:
+- These cases assume `from_pandas` maps int → `"int64"` and Python str → `"string"`. That mapping is done by the C++ core, so it is not verifiable here.
+- **Duplicates:** `ar.profile(ar.from_pandas(pd.DataFrame({"a":[1,1,2,3,4,5,6,7,8,9]})))`. Duplicate ratio is 0.1, so the result is `{"null_penalty":0.0,"duplicate_penalty":-10.0,"type_mismatch_penalty":0.0,"final_score":90.0}`.
+- **Capped duplicates:** `{"a":[1,1,2,3]}` has duplicate ratio 0.25, which is capped to `-20.0`, giving `final_score` `80.0`.
+- **Type mismatch:** `{"s":["1","2","3"]}` gets `suggested_dtype` `"int64"`, so `type_mismatch_penalty` is `-40.0` (capped) and `final_score` is `60.0`.
+- **Empty frame:** an empty frame with 0 rows gives all zeros and `final_score` `100.0`.
+- **Nulls:** null-penalty cases depend on how the C++ core round-trips NaN/None. Prefer direct construction for those.
+
+Pitfalls:
+- Do not assert positive penalties from `profile()`: they are negative.
+- Use `==` with exact floats only when they come from `round(..., 2)` values like the ones above. Otherwise use `pytest.approx`.
+
+### arnio.quality.DataQualityReport.to_dict
+
+# Notes: `DataQualityReport.to_dict(self, *, redact_sample_values=False, exclude_columns=None)`
+
+## 1. Purpose
+- Returns a JSON-friendly `dict` view of a whole-frame quality report.
+- It can redact sample and top values, and it can omit chosen columns, including their names inside suggestion kwargs and reasons.
+
+## 2. Inputs
+- `redact_sample_values`: must be a real `bool`. `1`, `0` and `None` are rejected.
+- `exclude_columns`:
+  - `None` becomes an empty set.
+  - Only `list`, `tuple` or `set` is accepted. `str`, `frozenset`, `dict` and generators are rejected.
+  - Every element must be a `str`.
+  - The value is converted to a `set`, so duplicates are fine.
+  - Every name must be a key of `self.columns`.
+  - An empty list is valid and means no exclusion.
+
+## 3. Raises
+Checks run in this order:
+1. `TypeError("redact_sample_values must be a bool")`, e.g. `rep.to_dict(redact_sample_values=1)`.
+2. `TypeError("exclude_columns must be a list, tuple, set, or None")`, e.g. `rep.to_dict(exclude_columns="a")`.
+3. `TypeError("exclude_columns must contain only string column names")`, e.g. `exclude_columns=["a", 1]`.
+4. `KeyError(f"Unknown exclude_columns: {sorted_unknown}. Available columns: {', '.join(self.columns)}")`.
+   - "Available" lists names in `self.columns` **insertion order**, not sorted.
+   - It shows `<none>` if the report has no columns.
+   - Example: columns `b`, `a` and `exclude_columns=["z","y"]` gives `Unknown exclude_columns: ['y', 'z']. Available columns: b, a`.
+   - Use `pytest.raises(KeyError, match=re.escape("Unknown exclude_columns: ['z']"))`. `str(KeyError)` adds quotes around the message, so use `re.escape` with a substring match.
+- Ordering example: `to_dict(redact_sample_values="x", exclude_columns=5)` raises the redact TypeError.
+
+## 4. Returns and guarantees
+The result is a new `dict` with keys in exactly this order:
+`row_count, column_count, memory_usage, duplicate_rows, duplicate_ratio, quality_score, score_components, columns, suggestions`.
+
+**Top-level fields**
+- Top-level numbers are copied as-is. They are **not** recomputed when columns are excluded; `column_count` stays the same.
+- `score_components` is the **same object** as `self.score_components`. It is not copied: `d["score_components"] is rep.score_components` is True.
+
+**`columns`**
+- It maps `{name: ColumnProfile.to_dict(redact_sample_values=...)}`.
+- Keys are **sorted** and excluded names are skipped.
+
+**`ColumnProfile.to_dict` key order**
+- Order: `name, dtype, semantic_type, row_count, null_count, null_ratio, unique_count, unique_ratio, empty_string_count, whitespace_count, suggested_dtype, email_validity_ratio, url_validity_ratio, min, max, mean, std`.
+- Then, **only if dtype is `"int64"` or `"float64"`**: `q25, q50, q75, q95, iqr, outlier_lower_bound, outlier_upper_bound, outlier_count, outlier_ratio`.
+- Then `sample_values, warnings, top_values, top_values_is_approximate, top_values_sample_count, top_values_sample_ratio, histogram`.
+- A string column dict therefore has no `"q25"` key at all.
+
+**`ColumnProfile.to_dict` value handling**
+- `_clean_scalar` behaviour:
+  - NaN, None, inf and -inf become `None`.
+  - Numpy scalars become Python scalars via `.item()`.
+- Where `_clean_scalar` is applied:
+  - It is applied to `min`, `max`, `q*`, `iqr`, the bounds, each sample value, each top value and the histogram edges.
+  - It is **not** applied to `mean`, `std`, `outlier_count` or `outlier_ratio`, which are passed through.
+- `sample_values`:
+  - With redaction, this is `["[REDACTED]"] * len(sample_values)`, so the length is preserved.
+  - Otherwise each value is cleaned.
+- `top_values`:
+  - `None` stays `None`; numeric columns from `profile()` have `None`.
+  - Otherwise it is a list of `{"value", "count", "ratio"}` dicts.
+  - With redaction, `value` is `"[REDACTED]"` while counts and ratios are kept.
+- `histogram`: `None`, or a list of `{"bucket_start", "bucket_end", "count", "ratio"}` dicts.
+- `warnings` is a new list copy.
+
+**`suggestions`**
+- Sorting:
+  - The list is sorted by `(step, json.dumps(original_kwargs, sort_keys=True, default=str))`.
+  - So `"cast_types"` comes before `"drop_duplicates"`, which comes before `"strip_whitespace"`, regardless of input order.
+- Each item is a dict `{"step", "kwargs", "confidence_score", "confidence_reason"}`.
+- For plain 2-tuples (not `CleaningSuggestion`), `confidence_score` and `confidence_reason` are both `None`.
+
+**Suggestion `kwargs` filtering**
+- The output is a new dict with keys sorted alphabetically.
+- Any kwarg **key** equal to an excluded column is dropped. Example: cast_types `{"n":"int64","m":"float64"}` with `exclude_columns=["n"]` gives `{"m":"float64"}`.
+- For keys `subset` or `columns` whose value is a list, tuple, set or ndarray, excluded items are removed and the result is a list.
+- For key `"cast_types"` whose value is a dict, excluded keys are removed.
+- Value normalisation:
+  - None, str, bool and int pass through.
+  - A float stays a float if finite, otherwise it becomes `None`.
+  - A dict gets `str` keys and is processed recursively.
+  - A set or frozenset becomes a sorted list.
+  - A tuple or ndarray becomes a list.
+  - A `date` becomes `.isoformat()`.
+  - A numpy scalar becomes `.item()`.
+  - Anything else becomes `str(value)`.
+
+**Suggestion `confidence_reason` redaction**
+- This only happens when `exclude_columns` is non-empty.
+- Each literal `'col'` (with single quotes) becomes `'[REDACTED]'` via plain `str.replace`. Unquoted occurrences are untouched.
+
+**Overall**
+- With default args, the whole result from a `profile()` report should be `json.dumps`-able.
+
+## 5. Side effects
+- Nothing on the report is mutated.
+- The only aliasing is that the returned dict shares the `score_components` object with the report.
+
+## 6. Branches and edge cases
+- **Empty report** (`columns={}`):
+  - The result has `"columns": {}`.
+  - `exclude_columns=["x"]` raises KeyError containing `Available columns: <none>`.
+- **Plain tuple suggestion**: `suggestions=[("drop_duplicates", {"keep": "first"})]` gives `confidence_score` None.
+- **`CleaningSuggestion`**: `confidence_score` is a float (e.g. 0.95) and the reason string is kept unchanged when there are no exclusions.
+- **Strip reason**: the `strip_whitespace` reason contains no quoted column names, so it is unchanged by redaction. Its `subset` list is filtered.
+
+## 7. Rules from comments and docstrings
+- The method is documented as returning a "JSON-friendly dictionary representation".
+- `_clean_scalar` exists so that `json.dumps(..., allow_nan=False)` never fails on report output.
+
+## 8. Testing hints
+- For deterministic tests, build the report by hand: `from arnio.quality import DataQualityReport, ColumnProfile, CleaningSuggestion`.
+  ```python
+  cp = lambda n, dt="string", **kw: ColumnProfile(name=n, dtype=dt, semantic_type="text", row_count=3,
+        null_count=0, null_ratio=0.0, unique_count=2, unique_ratio=0.5, **kw)
+  rep = DataQualityReport(row_count=3, column_count=2, memory_usage=10, duplicate_rows=1,
+        duplicate_ratio=0.333333, columns={"b": cp("b", sample_values=["x","y"]), "a": cp("a","int64", q25=1.0)},
+        score_components={"duplicate_penalty": -20.0},
+        suggestions=[CleaningSuggestion("strip_whitespace", {"subset": ["b","a"]}, 0.95, "r"),
+                     CleaningSuggestion("cast_types", {"a": "int64"}, 0.95, "Column 'a' conforms perfectly to int64 structure.")])
+  ```
+  Expected results for this report:
+  - `list(d["columns"]) == ["a","b"]`.
+  - `"q25" in d["columns"]["a"]` and `"q25" not in d["columns"]["b"]`.
+  - `[s["step"] for s in d["suggestions"]] == ["cast_types","strip_whitespace"]`.
+  - With `exclude_columns=["a"]`:
+    - cast kwargs are `{}`.
+    - the cast reason is `"Column '[REDACTED]' conforms perfectly to int64 structure."`.
+    - strip subset is `["b"]`.
+    - `column_count` is still 2.
+- Via the public API you can use `ar.profile(ar.from_pandas(df))`. However, the dtype strings come from the C++ core (`frame.dtypes`); assert on `rep.columns[...]` values rather than hard-coding them.
+- `ColumnProfile.__post_init__` requires the ratios to be in [0, 1] and the counts to be non-negative ints. `DataQualityReport` requires `quality_score` in [0, 100].
+- Use `==` on lists and dicts. Don't assume dict output order equals insertion order for `columns`, which are sorted.
+
+### arnio.quality.DataQualityReport.to_json
+
+# Notes: `DataQualityReport.to_json`
+
+## 1. Purpose
+- `to_json` serialises the report to a JSON string with `json.dumps(self.to_dict(...), indent=indent)`.
+- If `output` is given, it writes that string to the stream instead and returns `None`.
+
+## 2. Inputs (all keyword-only)
+- **`indent`** (default `None`)
+  - Passed straight to `json.dumps` and never validated.
+  - `None` gives one line with separators `", "` and `": "`.
+  - An int or str pretty-prints.
+- **`redact_sample_values`** (default `False`)
+  - Must be a real `bool`, checked in `to_dict` by `_validate_bool_option`.
+  - `1` and `"yes"` are rejected.
+- **`exclude_columns`** (default `None`)
+  - Accepts `None`, `list`, `tuple` or `set` of `str`.
+  - `frozenset` and a plain `str` are rejected, because the check is `isinstance(x, (list, tuple, set))`.
+  - The value is converted to a `set`.
+- **`output`** (default `None`)
+  - Any object that has a `write` attribute.
+  - It is called once as `output.write(json_out)`.
+  - No newline is appended.
+- The keyword arguments are not passed to `json.dumps`, so it runs with its defaults:
+  - `sort_keys=False`, so dict insertion order is kept.
+  - `allow_nan=True`.
+  - No `default=` hook.
+
+## 3. Raises (in this order)
+1. `TypeError("redact_sample_values must be a bool")`
+   - Example: `r.to_json(redact_sample_values=1)`.
+2. `TypeError("exclude_columns must be a list, tuple, set, or None")`
+   - Example: `r.to_json(exclude_columns="a")`.
+3. `TypeError("exclude_columns must contain only string column names")`
+   - Example: `r.to_json(exclude_columns=[1])`.
+4. `KeyError` for unknown excluded columns.
+   - Template: `"Unknown exclude_columns: {sorted_unknown}. Available columns: {', '.join(self.columns) or '<none>'}"`.
+   - The unknown names are sorted; the available names keep `self.columns` insertion order.
+   - Example: `r.to_json(exclude_columns=["zz"])` with columns a, b gives `"Unknown exclude_columns: ['zz']. Available columns: a, b"`.
+   - `str(KeyError)` adds quotes, so assert on `exc.value.args[0]`.
+5. `TypeError("output must be a writable text stream")`
+   - Example: `r.to_json(output=123)`.
+   - This check happens after serialisation. If any earlier error is raised, nothing is written.
+
+## 4. Returns and guarantees
+- With `output=None`, it returns a `str` exactly equal to `json.dumps(r.to_dict(redact_sample_values=..., exclude_columns=...), indent=indent)`.
+- With `output` given, it returns `None`, and the stream receives that same string.
+- **Top-level key order:** `row_count, column_count, memory_usage, duplicate_rows, duplicate_ratio, quality_score, score_components, columns, suggestions`.
+- **`columns`:**
+  - Ordered by sorted column name.
+  - Excluded names are removed.
+- **Per-column key order:** `name, dtype, semantic_type, row_count, null_count, null_ratio, unique_count, unique_ratio, empty_string_count, whitespace_count, suggested_dtype, email_validity_ratio, url_validity_ratio, min, max, mean, std`.
+  - Only if `dtype` is `"int64"` or `"float64"`, these keys follow: `q25, q50, q75, q95, iqr, outlier_lower_bound, outlier_upper_bound, outlier_count, outlier_ratio`.
+  - String or bool columns do not have these keys at all.
+  - The remaining keys are `sample_values, warnings, top_values, top_values_is_approximate, top_values_sample_count, top_values_sample_ratio, histogram`.
+- **Value encodings:**
+  - `top_values` is a list of `{"value","count","ratio"}` objects, or `null`.
+  - `histogram` is a list of `{"bucket_start","bucket_end","count","ratio"}` objects, or `null`.
+- **`_clean_scalar` handling:**
+  - Applied to `min`, `max`, the quantiles, `sample_values`, top-values values and histogram edges.
+  - NaN and ±inf become `null`; numpy scalars become Python scalars.
+  - `mean` and `std` are NOT cleaned. `mean=float("nan")` serialises as the bare token `NaN`.
+- **`suggestions`:**
+  - Sorted by `(step, json.dumps(kwargs, sort_keys=True, default=str))`.
+  - Each entry is `{"step","kwargs","confidence_score","confidence_reason"}`.
+  - Plain-tuple suggestions get `null` for both confidence fields.
+  - The `kwargs` keys are sorted.
+- **Fields that `exclude_columns` does not change:** `row_count`, `column_count`, `memory_usage`, `duplicate_*`, `quality_score` and `score_components`.
+
+## 5. Side effects
+- None on the report, which is a frozen dataclass.
+- Only `output.write` is called. No files are written.
+
+## 6. Branches and edge cases
+- **`redact_sample_values=True`:**
+  - Every `sample_values` item becomes `"[REDACTED]"`.
+  - Each top-value `"value"` becomes `"[REDACTED]"`, while `count` and `ratio` are kept.
+  - `min`/`max` (string lengths) and `histogram` are not redacted.
+- **`exclude_columns`, effect on suggestion `kwargs`:**
+  - A kwargs key equal to an excluded name is dropped. A `cast_types` suggestion's kwargs is `{col: dtype}`, so excluded columns disappear from it.
+  - `subset` and `columns` lists are filtered, which can leave `[]` (the suggestion itself stays).
+- **`exclude_columns`, effect on `confidence_reason`:** the substring `'col'` (with single quotes) is replaced by `'[REDACTED]'`. This only happens when the exclude set is non-empty.
+- **`exclude_columns=[]` or `set()`:** behaves exactly like `None`.
+- **Report with no columns:** gives `"columns": {}`. Any non-empty `exclude_columns` then raises `KeyError` with `Available columns: <none>`.
+
+## 7. Docstring
+- The docstring only shows the example `report.to_json(indent=2)`.
+
+## 8. Testing hints
+- Build reports directly to avoid depending on the C++ core:
+  ```python
+  from arnio.quality import DataQualityReport, ColumnProfile, CleaningSuggestion
+  col = ColumnProfile(name="a", dtype="string", semantic_type="text", row_count=2,
+      null_count=0, null_ratio=0.0, unique_count=2, unique_ratio=1.0,
+      sample_values=["x", "y"], top_values=[("x", 1, 0.5), ("y", 1, 0.5)])
+  r = DataQualityReport(row_count=2, column_count=1, memory_usage=10,
+      duplicate_rows=0, duplicate_ratio=0.0, columns={"a": col})
+  ```
+- For this report, `r.to_json()` starts with `'{"row_count": 2, "column_count": 1, "memory_usage": 10, "duplicate_rows": 0, "duplicate_ratio": 0.0, "quality_score": 100.0, "score_components": {}, "columns": {"a": {"name": "a", '`.
+- It ends with `'"suggestions": []}'`.
+- **Strong, safe invariants:**
+  - `r.to_json() == json.dumps(r.to_dict())`.
+  - `json.loads(r.to_json(indent=2)) == r.to_dict()` (when there is no NaN).
+  - `"\n" in r.to_json(indent=2)` and `"\n" not in r.to_json()`.
+- **Stream output:** use `io.StringIO()`. Assert that the return value is `None` and that `buf.getvalue() == r.to_json()`.
+- **Pin orderings:**
+  - Use columns `{"b":..., "a":...}` and check that `list(json.loads(s)["columns"]) == ["a", "b"]`.
+  - Check that top-level `list(json.loads(s))` matches the key order above.
+- **Numeric vs string columns:** a `dtype="int64"` column has a `"q25"` key; a `dtype="string"` column does not.
+- **Suggestions:**
+  - Add `CleaningSuggestion("strip_whitespace", {"subset": ["a", "b"]}, 0.95, "r")`.
+  - With `exclude_columns=["a"]`, the JSON kwargs become `{"subset": ["b"]}`, and column `"a"` is absent from `columns`.
+  - `column_count` stays at its original value.
+- **When going through `ar.profile(ar.from_pandas(df))`:** the exact dtype strings, memory usage and suggestions depend on the C++ conversion. Prefer the relative invariants above over hard-coded full strings.

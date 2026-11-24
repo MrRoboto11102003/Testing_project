@@ -1,0 +1,246 @@
+{
+ "id": "openlens-pr244",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 15326,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 13701
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.74,
+ "detected": false,
+ "n_tests": 19,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 6877,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8531,
+  "output_tokens_details": {
+   "thinking_tokens": 5644
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 6877,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 8531,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 6877,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 6877
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.056418,
+ "model_seconds": 45.4,
+ "seconds": 52.3,
+ "tests": {
+  "tests/_generated/test_openlens_pr244.py::TestFromTranslation::test_from_translation_basic_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestFromTranslation::test_from_translation_distinct_values_catch_index_errors": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestFromTranslation::test_from_translation_returns_fresh_independent_objects": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestFromTranslation::test_from_translation_stores_negative_and_float_unchanged": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestFromTranslation::test_from_translation_zero_equals_identity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyPoint::test_multiply_point_identity_unchanged": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyPoint::test_multiply_point_non_symmetric_matrix_catches_transposition": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyPoint::test_multiply_point_returns_new_vector": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyPoint::test_multiply_point_row_3_ignored_no_perspective_divide": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyPoint::test_multiply_point_specific_coordinates_verify_indexing": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyPoint::test_multiply_point_translation_applied": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyPoint::test_multiply_point_translation_to_origin": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyVector::test_multiply_vector_identity_unchanged": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyVector::test_multiply_vector_non_symmetric_matrix_linear_transformation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyVector::test_multiply_vector_returns_new_vector": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyVector::test_multiply_vector_translation_column_has_no_effect": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyVector::test_multiply_vector_translation_ignored": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyVector::test_multiply_vector_vs_multiply_point_translation_difference": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr244.py::TestMultiplyVector::test_multiply_vector_zero_vector_gives_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Matrix4x4",
+    "Vector3"
+   ]
+  }
+ }
+}

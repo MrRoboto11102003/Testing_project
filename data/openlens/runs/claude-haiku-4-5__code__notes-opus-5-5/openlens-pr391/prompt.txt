@@ -1,0 +1,247 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.validation.safe_float_conversion, openlens.validation.validate_conic_constant.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.validation.safe_float_conversion
+def safe_float_conversion(
+    value: Union[str, int, float], default: float = 0.0, param_name: str = "value"
+) -> Tuple[bool, float]:
+    """
+    Safely convert a value to float.
+
+    Args:
+        value: Value to convert
+        default: Default value if conversion fails
+        param_name: Parameter name for logging
+
+    Returns:
+        Tuple[bool, float]: (success, converted_value)
+
+    Note:
+        This function's contract is that it never raises. ``float()`` on a
+        large int raises OverflowError rather than returning inf, so a JSON
+        integer literal such as ``10**400`` used to escape - as did anything
+        TypeError could reach.
+    """
+    # Reject booleans explicitly (bool is subclass of int in Python)
+    if isinstance(value, bool):
+        return False, default
+
+    if isinstance(value, (int, float)):
+        try:
+            result = float(value)
+        except (ValueError, OverflowError, TypeError):
+            return False, default
+        if math.isnan(result) or math.isinf(result):
+            return False, default
+        return True, result
+
+    if isinstance(value, str):
+        try:
+            result = float(value)
+        except (ValueError, OverflowError, TypeError):
+            return False, default
+        if math.isnan(result) or math.isinf(result):
+            return False, default
+        return True, result
+
+    return False, default
+
+# openlens.validation.validate_conic_constant
+def validate_conic_constant(conic_constant: float, param_name: str = "conic constant") -> float:
+    """Validate a conic constant.
+
+    The optical range of interest is small, but hyperbolic surfaces are
+    commonly written with values below -1.  Keep a generous finite bound so
+    a typo still fails loudly without rejecting unusual prescriptions.
+
+    Args:
+        conic_constant: Conic constant (K).
+        param_name: Parameter name for error messages.
+
+    Returns:
+        The validated conic constant.
+
+    Raises:
+        ValidationError: If the value is not finite or outside [-100, 100].
+    """
+    value = _validate_number(conic_constant, param_name)
+    if value < -100.0 or value > 100.0:
+        raise ValidationError(f"{param_name} must be between -100 and 100, got {value}")
+    return value
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.validation.safe_float_conversion
+
+# Notes: `openlens.validation.safe_float_conversion`
+
+## 1. Purpose
+- Converts a value to `float` without ever raising.
+- Returns a `(success, value)` tuple: `(True, float_value)` on success, `(False, default)` on any failure.
+
+## 2. Inputs
+- `value` is checked in this exact order:
+  1. `isinstance(value, bool)` gives `(False, default)` immediately. This covers `True` and `False`.
+  2. `isinstance(value, (int, float))` tries `float(value)`, then the finite check.
+  3. `isinstance(value, str)` tries `float(value)` with Python's normal string parsing, then the finite check.
+  4. Anything else gives `(False, default)`.
+- `default` (default `0.0`) is returned **as is** on failure, with no conversion and no validation. `default=None` gives `(False, None)`, and an object passed as `default` comes back as the identical object (`is`).
+- `param_name` (default `"value"`) is **unused**. Nothing is logged or raised, and no message is produced.
+
+## 3. Raises
+- Nothing. The docstring states the contract "never raises".
+- `float()` errors (`ValueError`, `OverflowError`, `TypeError`) are caught in both the numeric and string branches.
+- Assert no exception for odd inputs: `None`, `[]`, `{}`, `object()`, `b"1"`, `10**400`.
+
+## 4. Returns and guarantees
+- The result is always a 2-element `tuple` (not a list), shaped `(bool, ...)`.
+- On success the second item has type `float`, even for int input: `safe_float_conversion(5)` returns `(True, 5.0)` and `type(r[1]) is float`.
+- On success the value is `float(value)` exactly.
+- On failure the second item is `default` itself.
+- The value is never NaN or inf on success. The finite check runs on both the numeric and string paths.
+
+## 5. Side effects
+- None. No logging, no mutation, no global state.
+
+## 6. Branches and edge cases (concrete results)
+- `(3.5)` → `(True, 3.5)`
+- `(7)` → `(True, 7.0)`
+- `(-0.25)` → `(True, -0.25)`
+- `(0)` → `(True, 0.0)`. Zero is valid.
+- `(True)` / `(False)` → `(False, 0.0)`
+- `(True, default=9.0)` → `(False, 9.0)`
+- `(float('nan'))` → `(False, 0.0)`
+- `(float('inf'), 1.5)` → `(False, 1.5)`
+- `(float('-inf'))` → `(False, 0.0)`
+- `(10**400)` → `(False, 0.0)`. The `OverflowError` is caught.
+- `(10**300)` → `(True, 1e300)`
+- String cases:
+  - `"3.5"` → `(True, 3.5)`
+  - `"  42  "` → `(True, 42.0)`. Surrounding whitespace is allowed by `float()`.
+  - `"1e3"` → `(True, 1000.0)`
+  - `"-2"` → `(True, -2.0)`
+  - `"1_000"` → `(True, 1000.0)`. Python's `float` accepts underscores.
+- `"abc"`, `""`, `"   "`, `"1,5"` → `(False, default)`
+- `"nan"`, `"inf"`, `"-Infinity"`, `"1e400"` → `(False, default)`. They parse to a non-finite value and are then rejected.
+- `"True"` → `(False, default)`. It is a string, and `float("True")` fails.
+- Other types:
+  - `None` → `(False, 0.0)`
+  - `[1.0]` → `(False, 0.0)`
+  - `b"1"` → `(False, 0.0)`. Bytes are not handled.
+  - `Decimal("1.5")` and `Fraction(1, 2)` → `(False, 0.0)`. They are not int, float or str subclasses, unlike `_validate_number`, which accepts `numbers.Real`.
+- numpy values:
+  - `numpy.float64(2.5)` → `(True, 2.5)`. It subclasses `float`.
+  - `numpy.float32(2.5)` and `numpy.int64(3)` → `(False, 0.0)`. They are not int or float subclasses.
+  - Testing numpy is optional and riskier. Prefer the stdlib cases.
+
+## 7. Rules from the docstring and comments
+- Booleans are rejected explicitly, because `bool` subclasses `int`.
+- It must never raise. Large ints such as `10**400` used to escape through `OverflowError`, as did anything `TypeError` could reach.
+
+## 8. Testing hints
+- Import with `from openlens.validation import safe_float_conversion`.
+- Compare whole tuples, e.g. `assert safe_float_conversion("2.5") == (True, 2.5)`. Also check `isinstance(result, tuple)` and `len(result) == 2`.
+- Check `result[0] is True` / `is False`. This catches a regression that returns a truthy non-bool.
+- Pass a non-zero default on every failure case (e.g. `default=-1.0`) so a regression that returns `0.0` or a converted value is caught.
+- Pass a sentinel default and check identity with `res[1] is sentinel` to confirm it is returned unconverted.
+- Check the success type: `type(safe_float_conversion(5)[1]) is float`.
+- Pitfalls:
+  - Do not expect a `ValidationError` or any exception.
+  - Do not expect `" 42 "` to fail; it succeeds.
+  - Do not use `pytest.approx` with NaN.
+  - `param_name` has no observable effect, so do not assert logging.
+
+### openlens.validation.validate_conic_constant
+
+# Notes: `openlens.validation.validate_conic_constant`
+
+## 1. Purpose
+- Validates a conic constant K. It must be a real, finite number in the closed range [-100, 100].
+- Returns the value converted to a Python `float`.
+- The docstring says the bound is generous on purpose: hyperbolic surfaces often have K < -1, but a typo should still fail loudly.
+
+## 2. Inputs
+- `conic_constant`: any `numbers.Real` except `bool`.
+  - Accepted: `int`, `float`, `fractions.Fraction`, `numpy.float32`, `numpy.float64`, `numpy.int64`.
+  - Rejected: `str`, `None`, `complex`, `decimal.Decimal`, `bool`. `Decimal` is not registered as `numbers.Real`.
+- `param_name: str = "conic constant"`: used verbatim as the prefix of every error message.
+- Step 1 is the private helper `_validate_number(value, param_name)`, which runs these checks in order:
+  1. Is it a `bool`?
+  2. Is it a `numbers.Real`?
+  3. Does `float(value)` succeed? An `OverflowError` or `ValueError` here is caught.
+  4. Is the result NaN or ±inf?
+- Step 2 is the range check: `value < -100.0 or value > 100.0` raises. Both ends are inclusive and valid.
+
+## 3. Raises
+All errors are `openlens.validation.ValidationError`. It subclasses `Exception` directly, not `ValueError`. With the default `param_name`, checks run in this order:
+
+| Call | Exact message |
+|---|---|
+| `validate_conic_constant(True)` | `conic constant must be a number, got bool` |
+| `validate_conic_constant("1")` | `conic constant must be a number, got str` |
+| `validate_conic_constant(None)` | `conic constant must be a number, got NoneType` |
+| `validate_conic_constant(1j)` | `conic constant must be a number, got complex` |
+| `validate_conic_constant(10**400)` | `conic constant must be a finite number, got a value too large to represent (int)` |
+| `validate_conic_constant(float('nan'))` | `conic constant must be a finite number, got nan` |
+| `validate_conic_constant(float('inf'))` | `conic constant must be a finite number, got inf` |
+| `validate_conic_constant(-float('inf'))` | `conic constant must be a finite number, got -inf` |
+| `validate_conic_constant(150)` | `conic constant must be between -100 and 100, got 150.0` |
+| `validate_conic_constant(-100.5)` | `conic constant must be between -100 and 100, got -100.5` |
+
+- Message templates:
+  - Type: `f"{param_name} must be a number, got {type(value).__name__}"`
+  - Range: `f"{param_name} must be between -100 and 100, got {value}"`
+- In the range message, `{value}` is the **float-converted** value. An int input of `150` therefore prints `150.0`.
+- The bounds print as `-100` and `100`, because they are int literals inside the f-string text.
+- In the NaN/inf message, `{value}` is the **original** input.
+- A custom name changes the prefix: `validate_conic_constant(200, "K1")` gives `K1 must be between -100 and 100, got 200.0`.
+- The `10**400` case chains the original error: `__cause__` is an `OverflowError`.
+
+## 4. Returns and guarantees
+- Always returns a built-in `float`, never the input object:
+  - `validate_conic_constant(-1)` returns `-1.0` with `type(...) is float`.
+  - `validate_conic_constant(np.float32(0.5))` returns `0.5` with `type(...) is float`.
+  - `validate_conic_constant(Fraction(1, 4))` returns `0.25`.
+- The numeric value is unchanged. Values are never clamped or rounded.
+- Boundary values are accepted:
+  - `-100` returns `-100.0`.
+  - `100` returns `100.0`.
+  - `100.0` returns `100.0`.
+  - `0` returns `0.0`.
+  - `-0.0` returns `-0.0`.
+
+## 5. Side effects
+- None: no logging, no global state, no I/O.
+
+## 6. Branches and edge cases
+- Bool is rejected before the Real check (`False` is an int subclass): `validate_conic_constant(False)` raises "got bool".
+- Valid typical values pass through:
+  - Sphere: `0` returns `0.0`.
+  - Parabola: `-1` returns `-1.0`.
+  - Hyperbola: `-2.5` returns `-2.5`.
+  - Oblate: `0.3` returns `0.3`.
+- Values just outside the range fail:
+  - `100.0000001` and `-100.000001` raise the range error.
+  - `1e300` raises the range error, not the finiteness error.
+- Values just inside the range pass: `99.999` and `-99.999` are returned unchanged.
+
+## 7. Rules stated in comments or docstrings
+- The docstring's "Raises" section says: "If the value is not finite or outside [-100, 100]". Both bounds are inclusive.
+- `_validate_number` deliberately accepts numpy scalars (e.g. `float32`) because they are `numbers.Real`.
+- `float()` overflow on a huge int is reported as a `ValidationError`, never as a raw `OverflowError`.
+- Inside the module, `validate_lens_parameters` calls this function with `param_name` set to `"conic constant 1"` and `"conic constant 2"`. For example, `validate_lens_parameters(50, -50, 5, 25, 1.5, conic_constant_1=101)` raises `conic constant 1 must be between -100 and 100, got 101.0`.
+
+## 8. Testing hints
+- Import with `from openlens.validation import validate_conic_constant, ValidationError`.
+- Match messages with `pytest.raises(ValidationError, match=re.escape(msg))`. Messages contain `.` and `(`/`)`, so escape them.
+- Test both boundaries for acceptance (`-100`, `100`) and a value just past each for rejection. These cases catch `<`/`<=` regressions and bound changes (e.g. ±10, ±1000).
+- Assert `type(result) is float` for an int input. This catches a regression that returns the raw input.
+- Assert the exact `got 150.0` text for an int input of 150. If the code formatted the original input instead, the message would read `got 150`.
+- Do not use `pytest.raises(ValueError)`: `ValidationError` is not a `ValueError`.
+- Do not expect `Decimal` to be accepted; it raises `... got Decimal`.

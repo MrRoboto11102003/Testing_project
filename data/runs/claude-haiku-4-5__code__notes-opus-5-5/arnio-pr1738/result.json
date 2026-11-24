@@ -1,0 +1,196 @@
+{
+ "id": "arnio-pr1738",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 17081,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 14015
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 5,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 6312,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10680,
+  "output_tokens_details": {
+   "thinking_tokens": 9526
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 6312,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10680,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 6312,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 6312
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.06603300000000001,
+ "model_seconds": 49.2,
+ "seconds": 57.7,
+ "tests": {
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_field_structure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_nullable_must_be_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_parameters_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_required_if_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_severity_type_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_severity_value_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestPhoneNumber::test_unique_must_be_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "PhoneNumber"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_bare_string_rejected": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_empty_sequence_rejected": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_invalid_format_rejected": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_multiple_sorted": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_non_sequence_rejected": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_non_string_item_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_allowed_schemes_single": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1738.py::TestURL::test_field_structure_default": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "URL"
+   ]
+  }
+ }
+}

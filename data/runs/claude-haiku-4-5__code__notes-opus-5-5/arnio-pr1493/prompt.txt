@@ -1,0 +1,160 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.integrations.duckdb.register_duckdb.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.integrations.duckdb.register_duckdb
+def register_duckdb(
+    frame: ArFrame,
+    conn: duckdb.DuckDBPyConnection,
+    name: str,
+) -> None:
+    """Register an ArFrame as a DuckDB relation.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        The frame to register.
+    conn : duckdb.DuckDBPyConnection
+        An open DuckDB connection.
+    name : str
+        The relation name to use in SQL queries.
+
+    Raises
+    ------
+    TypeError
+        If frame is not an ArFrame or name is not a string.
+    ValueError
+        If name is empty or whitespace-only.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import arnio as ar
+    >>> frame = ar.read_csv("data.csv")
+    >>> conn = duckdb.connect()
+    >>> ar.register_duckdb(frame, conn, "my_table")
+    >>> conn.execute("SELECT * FROM my_table").fetchdf()
+    """
+    if not isinstance(frame, ArFrame):
+        raise TypeError("frame must be an ArFrame")
+    if not isinstance(name, str):
+        raise TypeError("name must be a string")
+    if not name or not name.strip():
+        raise ValueError("name must not be empty or whitespace-only")
+
+    register = getattr(conn, "register", None)
+
+    if not callable(register):
+        raise TypeError(
+            "conn must be a DuckDB connection with a callable register() method"
+        )
+
+    df = to_pandas(frame)
+    conn.register(name, df)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.integrations.duckdb.register_duckdb
+
+# Notes: `arnio.integrations.duckdb.register_duckdb(frame, conn, name) -> None`
+
+## 1. Purpose
+- Validates its arguments, converts `frame` to a pandas DataFrame with `to_pandas(frame)`, and calls `conn.register(name, df)`.
+- The result is a DuckDB view named `name` that SQL can query.
+- It returns `None`.
+
+## 2. Inputs
+- **`frame`**
+  - Must pass `isinstance(frame, ArFrame)`, so subclasses are accepted.
+  - A `pd.DataFrame` is rejected; it is **not** auto-converted.
+- **`conn`**
+  - Any object whose `getattr(conn, "register", None)` is callable.
+  - It is duck-typed: the function never checks that `conn` is a real DuckDB connection.
+  - This means `unittest.mock.Mock()` / `MagicMock()` work, because their `.register` attribute is callable.
+- **`name`**
+  - Must pass `isinstance(name, str)`. `bool`, `int`, `None` and `bytes` are rejected.
+  - Must be non-empty and contain at least one non-whitespace character.
+  - It is **not stripped or normalised**: `" t "` is passed to `conn.register` exactly as `" t "`.
+- There are no defaults; all three parameters are required and positional-or-keyword.
+
+## 3. Raises (checks run in exactly this order)
+1. `TypeError("frame must be an ArFrame")`
+   - Trigger: `register_duckdb(pd.DataFrame({"a":[1]}), Mock(), "t")`
+   - Also fires for `register_duckdb(None, None, None)`, because the frame check comes first.
+2. `TypeError("name must be a string")`
+   - Trigger: `register_duckdb(f, Mock(), 123)`, `name=None`, or `name=b"t"`.
+3. `ValueError("name must not be empty or whitespace-only")`
+   - Trigger: `name=""`, `"   "`, `"\t\n"`.
+4. `TypeError("conn must be a DuckDB connection with a callable register() method")`
+   - Trigger: `conn=None`, `conn=object()`, or `types.SimpleNamespace(register=5)`.
+   - This check comes **after** the name checks. So `register_duckdb(f, None, "")` raises the **ValueError**, not the conn TypeError.
+- Anything raised by `to_pandas` or by `conn.register` propagates unchanged; nothing is wrapped.
+  - Example: `Mock(register=Mock(side_effect=RuntimeError("x")))` makes the call raise `RuntimeError("x")`.
+- No ArnioError subclass is ever raised directly by this function.
+
+## 4. Returns and guarantees
+- The function always returns `None`. It does **not** return whatever `conn.register` returns.
+  - With `Mock(register=Mock(return_value=42))`, the result is still `None`.
+- `conn.register` is called exactly once, with **two positional args**: `(name, df)`.
+  - `df` is `to_pandas(frame)`, using the default `copy=False`.
+- Not visible from this module (they live in `arnio.convert` and the C++ core):
+  - the exact dtypes and null representation of `df`;
+  - whether `df` shares memory with the frame.
+- To assert on `df`, compare it with `ar.to_pandas(frame)` using `pd.testing.assert_frame_equal`. Do not hard-code dtypes.
+- Implementation detail: it calls `conn.register(...)` again rather than calling the `register` it looked up with `getattr`.
+  - The two are the same object for normal objects and mocks.
+
+## 5. Side effects
+- `frame` is not mutated.
+- `conn` gets the side effect of its `register` method. On real DuckDB, a view `name` is created; registering the same name again replaces it (that is DuckDB behaviour).
+- No files are written and no global state is changed.
+- The `duckdb` import is only for type checking. The module itself does not need duckdb installed.
+
+## 6. Branches and edge cases
+- **Valid call:** `register_duckdb(f, m, "t")` → `m.register.assert_called_once()`, and `m.register.call_args.args[0] == "t"`.
+- **Name with surrounding spaces:** `"  t  "` is accepted and forwarded verbatim.
+- **Single non-space character:** `"x"` and `"0"` are accepted. Note that `"0"` is truthy.
+- **Zero-row frame:** made with `ar.from_pandas(pd.DataFrame({"a": pd.Series([], dtype="int64")}))`.
+  - It passes validation and `register` is still called.
+  - With real duckdb, `SELECT COUNT(*) FROM t` → `0`.
+- **On any validation failure:** `register` is never called. Check with `m.register.assert_not_called()` inside or after `pytest.raises`.
+
+## 7. Rules from the docstring
+- `TypeError` if `frame` is not an ArFrame, or if `name` is not a string.
+- `ValueError` if `name` is empty or whitespace-only.
+- Intended usage:
+  ```python
+  ar.register_duckdb(frame, conn, "my_table")
+  conn.execute("SELECT * FROM my_table").fetchdf()
+  ```
+
+## 8. Testing hints
+- **Import:** `from arnio.integrations.duckdb import register_duckdb`.
+  - The docstring uses `ar.register_duckdb`, but top-level export cannot be confirmed from this module. Prefer the explicit import.
+- **Build frames** with `ar.from_pandas(pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]}))`.
+- **Most tests can use `unittest.mock.MagicMock()` as `conn`**, so they do not depend on duckdb.
+  - Assert `m.register.call_args.args == (name, ANY)`, then check `df` separately:
+    ```python
+    name_arg, df = m.register.call_args.args
+    assert isinstance(df, pd.DataFrame)
+    pd.testing.assert_frame_equal(df, ar.to_pandas(f))
+    ```
+  - Check positional args. The call passes no kwargs, so `call_args.kwargs == {}`.
+- **Real DuckDB tests:** guard them with `duckdb = pytest.importorskip("duckdb")` and `conn = duckdb.connect()`.
+  - Compare values (e.g. `fetchall()` → `[(1, 'x'), (2, 'y'), (3, 'z')]` with `ORDER BY a`), not dtypes.
+  - `fetchdf()` dtypes may differ from the source frame.
+  - Always use `ORDER BY` when checking row order.
+- **Check-order tests:** use exact messages via `pytest.raises(TypeError, match=...)`.
+  - Escape the parentheses for the conn message: `match=r"callable register\(\) method"`.
+  - `bad frame + bad name` → frame message.
+  - `bad name type + bad conn` → name message.
+  - `empty name + conn=None` → ValueError.
+- **Pitfalls:**
+  - A `pd.DataFrame` passed as `frame` raises; it is not accepted.
+  - `Mock(spec=[])` has no `register`, so it triggers the conn TypeError. A plain `object()` does too.
+  - `name=True` raises "name must be a string".

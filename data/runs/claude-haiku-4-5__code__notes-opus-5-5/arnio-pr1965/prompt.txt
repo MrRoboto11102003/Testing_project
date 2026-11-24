@@ -1,0 +1,438 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.schema.validate.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.schema.validate
+def validate(
+    frame: ArFrame,
+    schema: Schema | dict[str, Field],
+    max_errors: int | None = None,
+) -> ValidationResult:
+    """Validate an ArFrame against a schema.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input frame. Must be a single in-memory ArFrame. Chunked validation
+        is not currently supported by this function.
+    schema : Schema or dict[str, Field]
+        Validation schema.
+
+    max_errors : int | None
+        Maximum number of validation issues to return.
+        Validation stops once this limit is reached.
+
+    Returns
+    -------
+    ValidationResult
+        Validation result containing all issues and bad row indexes.
+
+    Raises
+    ------
+    TypeError
+        If schema.unique is provided but is not a list or tuple of strings.
+
+    Examples
+    --------
+    >>> schema = ar.Schema({"email": ar.Email(nullable=False)})
+    >>> result = ar.validate(frame, schema)
+    >>> result.passed
+    """
+    if not isinstance(frame, ArFrame):
+        raise TypeError(
+            "validate() expects a single ArFrame. Chunked validation is not "
+            "currently supported; validate each chunk explicitly or materialize "
+            "the data before validation."
+        )
+
+    schema = schema if isinstance(schema, Schema) else Schema(schema)
+    if max_errors is not None:
+        if isinstance(max_errors, bool) or not isinstance(max_errors, int):
+            raise TypeError("max_errors must be an int or None")
+
+        if max_errors <= 0:
+            raise ValueError("max_errors must be >= 1")
+
+    df = to_pandas(frame)
+    dtypes = frame.dtypes
+    issues: list[ValidationIssue] = []
+
+    def reached_limit() -> bool:
+        return max_errors is not None and len(issues) >= max_errors
+
+    for name, field_def in schema.fields.items():
+        if name not in df.columns:
+            issues.append(
+                ValidationIssue(
+                    column=name,
+                    rule="required_column",
+                    message=f"Missing required column: {name}",
+                    severity=field_def.severity,
+                )
+            )
+
+            if reached_limit():
+                issues = issues[:max_errors]
+
+                return ValidationResult(
+                    row_count=len(df),
+                    issue_count=len(issues),
+                    issues=issues,
+                    bad_rows=sorted(
+                        {
+                            issue.row_index
+                            for issue in issues
+                            if issue.row_index is not None
+                        }
+                    ),
+                )
+
+            continue
+        column_issues = _validate_column(
+            df,
+            df[name],
+            dtypes.get(name),
+            name,
+            field_def,
+        )
+
+        remaining = None if max_errors is None else max_errors - len(issues)
+        if remaining is not None:
+            column_issues = column_issues[:remaining]
+
+        issues.extend(column_issues)
+
+        if reached_limit():
+            issues = issues[:max_errors]
+
+            return ValidationResult(
+                row_count=len(df),
+                issue_count=len(issues),
+                issues=issues,
+                bad_rows=sorted(
+                    {issue.row_index for issue in issues if issue.row_index is not None}
+                ),
+            )
+
+    if schema.strict:
+        expected = set(schema.fields)
+
+        for name in df.columns:
+            if name not in expected:
+                issues.append(
+                    ValidationIssue(
+                        column=str(name),
+                        rule="unexpected_column",
+                        message=f"Unexpected column: {name}",
+                    )
+                )
+
+                if reached_limit():
+                    issues = issues[:max_errors]
+
+                    return ValidationResult(
+                        row_count=len(df),
+                        issue_count=len(issues),
+                        issues=issues,
+                        bad_rows=sorted(
+                            {
+                                issue.row_index
+                                for issue in issues
+                                if issue.row_index is not None
+                            }
+                        ),
+                    )
+
+    if schema.unique is not None:
+        if not isinstance(schema.unique, (list, tuple)):
+            raise TypeError(
+                "Schema 'unique' must be a list or tuple of strings (e.g., ['column_name']), "
+                f"got {type(schema.unique).__name__}."
+            )
+
+        for item in schema.unique:
+            if not isinstance(item, str):
+                raise TypeError(
+                    f"Schema 'unique' members must be strings, got {type(item).__name__} for element {item!r}."
+                )
+
+        if len(schema.unique) == 0:
+            issues.append(
+                ValidationIssue(
+                    column=None,
+                    rule="composite_unique",
+                    message="Composite unique columns cannot be empty",
+                )
+            )
+            if reached_limit():
+                issues = issues[:max_errors]
+
+                return ValidationResult(
+                    row_count=len(df),
+                    issue_count=len(issues),
+                    issues=issues,
+                    bad_rows=sorted(
+                        {
+                            issue.row_index
+                            for issue in issues
+                            if issue.row_index is not None
+                        }
+                    ),
+                )
+
+        else:
+            missing_cols = [c for c in schema.unique if c not in df.columns]
+            if missing_cols:
+                for col in missing_cols:
+                    issues.append(
+                        ValidationIssue(
+                            column=col,
+                            rule="missing_column",
+                            message=f"Column {col!r} not found",
+                        )
+                    )
+
+                    if reached_limit():
+                        issues = issues[:max_errors]
+
+                        return ValidationResult(
+                            row_count=len(df),
+                            issue_count=len(issues),
+                            issues=issues,
+                            bad_rows=sorted(
+                                {
+                                    issue.row_index
+                                    for issue in issues
+                                    if issue.row_index is not None
+                                }
+                            ),
+                        )
+            else:
+                duplicate_mask = df.duplicated(
+                    subset=list(schema.unique),
+                    keep=False,
+                )
+
+                if duplicate_mask.any():
+                    for index in df[duplicate_mask].index:
+                        issues.append(
+                            ValidationIssue(
+                                column=None,
+                                rule="composite_unique",
+                                message=(
+                                    "Duplicate rows found for columns"
+                                    f" {list(schema.unique)}"
+                                ),
+                                row_index=int(index) + 1,
+                            )
+                        )
+
+                        if reached_limit():
+                            issues = issues[:max_errors]
+
+                            return ValidationResult(
+                                row_count=len(df),
+                                issue_count=len(issues),
+                                issues=issues,
+                                bad_rows=sorted(
+                                    {
+                                        issue.row_index
+                                        for issue in issues
+                                        if issue.row_index is not None
+                                    }
+                                ),
+                            )
+
+    if schema.rules:
+        for rule_fn in schema.rules:
+            rule_name = getattr(rule_fn, "__name__", type(rule_fn).__name__)
+            try:
+                result = rule_fn(df)
+                if not isinstance(result, list):
+                    raise TypeError(
+                        f"Rule {rule_name!r} must return a list of "
+                        f"ValidationIssue, got {type(result).__name__!r}"
+                    )
+                for item in result:
+                    if not isinstance(item, ValidationIssue):
+                        raise TypeError(
+                            f"Rule {rule_name!r} returned a non-ValidationIssue "
+                            f"item: {type(item).__name__!r}"
+                        )
+                issues.extend(result)
+                if reached_limit():
+                    issues = issues[:max_errors]
+
+                    return ValidationResult(
+                        row_count=len(df),
+                        issue_count=len(issues),
+                        issues=issues,
+                        bad_rows=sorted(
+                            {
+                                issue.row_index
+                                for issue in issues
+                                if issue.row_index is not None
+                            }
+                        ),
+                    )
+
+            except KeyError as e:
+                issues.append(
+                    ValidationIssue(
+                        column=str(e).strip("'"),
+                        rule="missing_column",
+                        message=f"Cross-field rule referenced a missing column: {e}",
+                    )
+                )
+                if reached_limit():
+                    issues = issues[:max_errors]
+
+                    return ValidationResult(
+                        row_count=len(df),
+                        issue_count=len(issues),
+                        issues=issues,
+                        bad_rows=sorted(
+                            {
+                                issue.row_index
+                                for issue in issues
+                                if issue.row_index is not None
+                            }
+                        ),
+                    )
+
+    bad_rows = sorted(
+        {issue.row_index for issue in issues if issue.row_index is not None}
+    )
+    return ValidationResult(
+        row_count=len(df),
+        issue_count=len(issues),
+        issues=issues,
+        bad_rows=bad_rows,
+    )
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.schema.validate
+
+# Notes: `arnio.schema.validate(frame, schema, max_errors=None)`
+
+## 1. Purpose
+- Checks an `ArFrame` against a `Schema` (or a `{col: Field}` dict).
+- Returns a `ValidationResult` that holds row-level `ValidationIssue`s.
+- It never raises because data is invalid. It only raises on bad arguments, bad rules or failing custom validators.
+
+## 2. Inputs
+- `frame`: must be an `ArFrame` instance. A pandas DataFrame, a list or a generator raises TypeError.
+- `schema`: a `Schema`, or a dict that is wrapped as `Schema(dict)`.
+  - The wrapped dict uses `strict=False`, `unique=None`, `rules=None`.
+  - `Schema.__post_init__` validates it: keys must be str and values must be `Field`.
+- `max_errors`: `None` or an int `>= 1`. `bool` is rejected.
+- Internally:
+  - `df = ar.to_pandas(frame)`.
+  - `dtypes = frame.dtypes` is a dict of dtype strings produced by the C++ core. I cannot see the core. Assume values such as `"int64"`, `"float64"`, `"string"`, `"bool"`, and check `frame.dtypes` in the test.
+
+## 3. Raises (checks run in this order)
+1. Non-ArFrame `frame`, e.g. `ar.validate(pd.DataFrame(), {})` raises TypeError:
+   `"validate() expects a single ArFrame. Chunked validation is not currently supported; validate each chunk explicitly or materialize the data before validation."`
+2. Schema construction from a dict, e.g. `{"a": 1}` raises TypeError:
+   `"Schema value for column 'a' must be a Field instance such as ar.Int64(), got int"`.
+   A non-str key raises `"Schema field names must be strings, got 'int': 1"`.
+3. `max_errors=True` or `"3"` raises TypeError `"max_errors must be an int or None"`.
+4. `max_errors=0` or `-1` raises ValueError `"max_errors must be >= 1"`.
+   - Example of the order: `validate(frame, {"a": 1}, max_errors=0)` raises the Schema TypeError, not the max_errors error.
+5. Rule callables (each is called with the pandas `df`). `rule_name` is the callable's `__name__`, so a lambda gives `'<lambda>'`.
+   - A rule returning a non-list, e.g. `lambda df: None`, raises TypeError: `"Rule '<lambda>' must return a list of ValidationIssue, got 'NoneType'"`.
+   - A list containing a non-issue raises TypeError: `"Rule '<lambda>' returned a non-ValidationIssue item: 'int'"`.
+   - A `KeyError` raised by the rule is NOT propagated (see section 6).
+6. Custom validator (`ar.Custom`):
+   - If `fn` raises, you get `ArnioError(f"Custom validator {name!r} failed for column {col!r} with value {value!r}: {exc}")`.
+   - If `fn` returns something other than True, False, None or `pd.NA`, you get TypeError `"Custom validator 'x' returned 'int' (1); validators must return True (pass) or False (fail)."`.
+
+## 4. Returns and guarantees
+- `ValidationResult(row_count=len(df), issue_count=len(issues), issues=[...], bad_rows=sorted unique non-None row_index)`.
+- **`row_index` is 1-based**: `int(pandas_index) + 1`. The first data row is `1`.
+- Issue-level checks have `row_index=None` and do not appear in `bad_rows`. These are: dtype, required_column, unexpected_column, missing_column, empty composite_unique and unknown-semantic.
+- `passed` is True when no issue has `severity=="error"`. A result containing only `"warning"` issues has `passed=True`.
+- Severity per issue type:
+  - Field-level issues use `field.severity`.
+  - These always use `"error"`: strict `unexpected_column`, `required_if` `missing_column`, composite `unique` issues and the rule `KeyError` issue.
+- Issue order:
+  1. Schema fields in insertion order. Within each field the checks run in this order: dtype, nullable, required_if, unique, allowed, (datetime format/min/max) or (numeric/min/max), pattern, semantic, min_length, max_length. Rows within a check are in index order.
+  2. Strict unexpected columns, in df column order.
+  3. Composite unique.
+  4. Rules, with their issues appended exactly as returned.
+- `issue.value` is the raw pandas value and may be a numpy scalar. Use `issue.to_dict()["value"]` or `==` comparisons.
+
+## 5. Side effects
+- None. The frame is not mutated.
+- The custom-validator registry is only read.
+
+## 6. Branches and edge cases (messages are exact; `n` is the column name)
+- **Missing schema column**: `rule="required_column"`, `"Missing required column: n"`, `column="n"`. No other checks run for that column.
+- **dtype mismatch**: `f"Column 'n' has dtype {actual!r}; expected {dtype!r}"`, for example `"Column 'a' has dtype 'string'; expected 'int64'"`.
+  - It is skipped when `field.dtype is None` (Custom fields, plain `Field()`).
+  - It is skipped for `dtype="datetime"` on a `"string"` column.
+  - The suffix `". Values appear safely convertible to 'int64'"` is added only when all of these hold: the actual dtype is `"string"`, the field is int64/float64, and the non-null values parse.
+    - For int64 the values must match `^-?\d+$`.
+    - It is suppressed when there are no non-null values.
+    - It is suppressed for identifier-like names (`id`, `*_id`, `uuid`, `zip`, `zipcode`, `zip_code`) when a value matches `^0\d+$`, such as `"01"`.
+- **Null definition**: `isna()`. For object/string columns it also includes values that strip to `""`, so `" "` counts as null.
+  - Null rows are excluded from every later check (unique, allowed, min, pattern, ...).
+- **`nullable=False`**: one issue per null row, `rule="nullable"`, `"Column 'n' contains null or empty values"`.
+- **`required_if=(c, v)`**:
+  - If `c` is absent from the frame, one issue: `column=c`, `rule="missing_column"`, `"Column 'c' not found"`.
+  - Otherwise one issue per row where `df[c]==v` and the value is null: `rule="required_if"`, `"Column 'n' is required when 'c' == 'v'"` (uses the repr of `v`).
+- **`unique=True` (field)**: every occurrence of a duplicated non-null value is flagged, `"Column 'n' contains duplicate values"`. For `[1,1,2]` the result is rows 1 and 2.
+- **`allowed`**: `"Column 'n' contains values outside the allowed set"`. `case_sensitive=False` uses casefold matching, and only applies when `field.dtype=="string"`.
+- **`min`/`max`** (non-datetime):
+  - Non-numeric values give `rule="numeric"`, `"Column 'n' contains non-numeric values"`.
+  - Then `rule="min"`, `f"Column 'n' has values below {min}"`, and `rule="max"`, `"... above {max}"`. Bounds are inclusive: `min=0` does not flag `0`.
+- **`pattern`**: uses fullmatch, `"Column 'n' has values that do not match the pattern"`.
+- **`semantic`**: `rule` is the semantic name (e.g. `"email"`, `"date"`, `"url:https"`), message `f"Column 'n' contains invalid {semantic} values"`.
+  - Country, language, timezone and currency use set membership.
+  - `CurrencyCode(allowed=...)` skips the ISO check.
+  - `Date(min/max)` gives `rule="min"`, `"Column 'n' has date values before 2024-01-01"`, or `"after ..."`.
+  - An unregistered custom validator gives `rule="custom"`, `"Custom validator 'x' is not registered"`.
+  - A custom validator that fails gives `"Column 'n' contains values that failed the 'x' validator"`.
+- **datetime**:
+  - Unparseable values give `rule="format"`, `"Column 'n' does not match the required datetime format"`.
+  - Bounds give `min`/`max` issues, `"Column 'n' has values below 2024-01-01 00:00:00"`.
+- **`min_length`/`max_length`**:
+  - `rule="min_length"`, `"Column 'n' has values shorter than 3"`.
+  - `rule="max_length"`, `"Column 'n' has values longer than 5"`.
+- **`strict=True`**: one issue per extra column, `rule="unexpected_column"`, `"Unexpected column: x"`.
+- **`Schema(unique=[])`**: one issue, `column=None`, `rule="composite_unique"`, `"Composite unique columns cannot be empty"`.
+- **`Schema(unique=["a","z"])` with `z` absent**: one issue per missing column, `rule="missing_column"`, `"Column 'z' not found"`. No duplicate check runs.
+- **Composite duplicates**: one issue per row in each duplicate group (`keep=False`), `column=None`, `rule="composite_unique"`, `"Duplicate rows found for columns ['a', 'b']"`.
+- **Rule raising `KeyError('x')`**: one issue, `column="x"`, `rule="missing_column"`, `"Cross-field rule referenced a missing column: 'x'"`.
+- **`max_errors=k`**:
+  - The result is truncated to exactly `k` issues and returned immediately. Later fields, strict, unique and rules are not evaluated.
+  - `issue_count==k`, and `bad_rows` is built only from the kept issues.
+  - If there are fewer than `k` issues, the result is not truncated.
+
+## 7. Rules from docstrings
+- The validated input must be a single in-memory ArFrame. For chunked data, use `validate_chunked`.
+- "Validation stops once this limit is reached" (`max_errors`).
+
+## 8. Testing hints
+- Build inputs with `ar.from_pandas(pd.DataFrame({...}))`. Equivalent calls are `schema.validate(frame)` and `ar.validate(frame, {"a": ar.Int64()})`.
+- Example: `{"age": [5, -1, 200]}` with `ar.Int64(min=0, max=150)` gives two issues:
+  - `("min", row 2, value -1)`
+  - `("max", row 3, value 200)`
+  - `bad_rows == [2, 3]`.
+- Pitfall: row indices are 1-based. Always assert `row_index` and `bad_rows` against `idx+1`.
+- Pitfall: do not hard-code a dtype string the C++ core might report differently. Use `frame.dtypes["a"]` in the expected message, or use clearly matching types (an int column with `Int64()` should give no dtype issue).
+- Pitfall: the `value` of a null issue may be `None`, `NaN` or `""`, depending on the conversion. Assert on `row_index` and `rule`, not on `value`.
+- Pitfall: an `ar.Email()` field on a column containing `None` gives no nullable issue unless `nullable=False`.
+- Distinguish the outcomes with `result.passed`, `issue_count`, `[(i.rule, i.row_index) for i in result.issues]`, and exact `message` strings.
+- Test the boundaries:
+  - `min` is inclusive.
+  - Whitespace-only strings count as null.
+  - Warnings-only results have `passed is True`.
+  - The ordering when `max_errors` truncates.
+- Use the `Schema` keyword arguments for strict, unique and rules: `ar.Schema(fields, strict=True, unique=["a","b"], rules=[fn])`.

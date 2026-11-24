@@ -1,0 +1,2326 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.export_formats.OpticStudioExporter.export_lens, openlens.export_formats.OpticStudioExporter.export_system, openlens.export_formats.PrescriptionExporter.export_prescription, openlens.export_formats.SVGExporter.export_lens, openlens.export_formats.SVGExporter.export_system, openlens.export_formats.ZemaxExporter.export_lens, openlens.export_formats.ZemaxSystemExporter.export_system, openlens.io.export.ISO10110Generator.generate_svg, openlens.io.step_export.StepExporter.export, openlens.material_database.MaterialDatabase.export_material, openlens.material_database.MaterialDatabase.get_material, openlens.material_database.MaterialDatabase.save_database, openlens.stl_export.STLExporter.write_binary_stl.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.export_formats.OpticStudioExporter.export_lens
+    @staticmethod
+    def export_lens(lens: Lens, filename: str):
+        """
+        Export single lens to OpticStudio text prescription format.
+        This is a human-readable format that can be imported into OpticStudio.
+        """
+        with atomic_write_text(filename) as f:
+            # Header
+            f.write("# OpenLens Export - OpticStudio Format\n")
+            f.write(f"# Lens: {lens.name}\n")
+            f.write("#" + "=" * 60 + "\n\n")
+
+            # System info
+            f.write("SYSTEM PRESCRIPTION DATA\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"Title: {lens.name}\n")
+            f.write("Units: Millimeters\n")
+            f.write("Type: Sequential\n")
+            f.write("\n")
+
+            # Lens data
+            f.write("LENS DATA SUMMARY\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"Material: {lens.material}\n")
+            f.write(f"Refractive Index (d-line): {lens.refractive_index:.6f}\n")
+            f.write(f"Outer Diameter: {lens.diameter:.4f} mm\n")
+            f.write(
+                f"Clear Aperture 1/2: "
+                f"{lens.get_clear_aperture_1():.4f} / {lens.get_clear_aperture_2():.4f} mm\n"
+            )
+            f.write(f"Bevel 1/2 (45 deg): {lens.bevel_1:.4f} / {lens.bevel_2:.4f} mm\n")
+            f.write(f"Coating 1/2: {lens.coating_label(1)} / {lens.coating_label(2)}\n")
+
+            focal_length = lens.calculate_focal_length()
+            if focal_length:
+                f.write(f"Effective Focal Length: {focal_length:.4f} mm\n")
+            f.write("\n")
+
+            # Surface data table
+            f.write("SURFACE DATA DETAIL\n")
+            f.write("-" * 40 + "\n")
+            f.write(
+                f"{'Surface':<10} {'Type':<12} {'Radius':<14} {'Thickness':<12} "
+                f"{'Glass':<10} {'Diameter':<10}\n"
+            )
+            f.write("-" * 70 + "\n")
+
+            # Object surface
+            f.write(
+                f"{'OBJ':<10} {'STANDARD':<12} {'Infinity':<14} {'Infinity':<12} "
+                f"{'':<10} {'':<10}\n"
+            )
+
+            # Stop surface (entrance pupil at front surface)
+            f.write(
+                f"{'STO':<10} {'STANDARD':<12} {'Infinity':<14} {'0.0000':<12} {'':<10} "
+                f"{lens.diameter:<10.4f}\n"
+            )
+
+            # Front surface
+            r1_str = (
+                f"{lens.radius_of_curvature_1:.4f}"
+                if abs(lens.radius_of_curvature_1) < 1e10
+                else "Infinity"
+            )
+            f.write(
+                f"{'1':<10} {'STANDARD':<12} {r1_str:<14} {lens.thickness:<12.4f} "
+                f"{lens.material:<10} {lens.get_clear_aperture_1():<10.4f}\n"
+            )
+
+            # Back surface
+            r2_str = (
+                f"{lens.radius_of_curvature_2:.4f}"
+                if abs(lens.radius_of_curvature_2) < 1e10
+                else "Infinity"
+            )
+            f.write(
+                f"{'2':<10} {'STANDARD':<12} {r2_str:<14} {'100.0000':<12} {'':<10} "
+                f"{lens.get_clear_aperture_2():<10.4f}\n"
+            )
+
+            # Image surface
+            f.write(f"{'IMA':<10} {'STANDARD':<12} {'Infinity':<14} {'':<12} {'':<10} {'':<10}\n")
+
+            f.write("\n")
+            f.write("# End of OpenLens Export\n")
+
+# openlens.export_formats.OpticStudioExporter.export_system
+    @staticmethod
+    def export_system(system: OpticalSystem, filename: str):
+        """Export optical system to OpticStudio format"""
+        with atomic_write_text(filename) as f:
+            # Header
+            f.write("# OpenLens Export - OpticStudio Format\n")
+            f.write(f"# System: {system.name}\n")
+            f.write("#" + "=" * 60 + "\n\n")
+
+            f.write("SYSTEM PRESCRIPTION DATA\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"Title: {system.name}\n")
+            f.write("Units: Millimeters\n")
+            f.write("Type: Sequential\n")
+            f.write(f"Number of Elements: {len(system.elements)}\n")
+
+            total_length = system.get_total_length()
+            if total_length:
+                f.write(f"Total Length: {total_length:.4f} mm\n")
+
+            system_fl = system.get_system_focal_length()
+            if system_fl:
+                f.write(f"System Focal Length: {system_fl:.4f} mm\n")
+            f.write("\n")
+
+            # Surface data
+            f.write("SURFACE DATA DETAIL\n")
+            f.write("-" * 40 + "\n")
+            f.write(
+                f"{'Surface':<10} {'Type':<12} {'Radius':<14} {'Thickness':<12} {'Glass':<10}\n"
+            )
+            f.write("-" * 60 + "\n")
+
+            # Object
+            f.write(f"{'OBJ':<10} {'STANDARD':<12} {'Infinity':<14} {'Infinity':<12} {'':<10}\n")
+
+            image_distance = _image_distance(system)
+            surf_num = 1
+            for i, elem in enumerate(system.elements):
+                lens = elem.lens
+
+                # Air gap before lens
+                gap_before = _gap_before(system, i)
+                if gap_before > 0:
+                    f.write(
+                        f"{surf_num:<10} {'STANDARD':<12} {'Infinity':<14} "
+                        f"{gap_before:<12.4f} {'':<10}\n"
+                    )
+                    surf_num += 1
+
+                # Front surface
+                r1_str = (
+                    f"{lens.radius_of_curvature_1:.4f}"
+                    if abs(lens.radius_of_curvature_1) < 1e10
+                    else "Infinity"
+                )
+                f.write(
+                    f"{surf_num:<10} {'STANDARD':<12} {r1_str:<14} "
+                    f"{lens.thickness:<12.4f} {lens.material:<10}\n"
+                )
+                surf_num += 1
+
+                # Back surface. An intermediate element ends at the next gap
+                # row, so its own thickness is zero; only the last surface
+                # carries the distance to the image.
+                back_thickness = 0.0 if i + 1 < len(system.elements) else image_distance
+                r2_str = (
+                    f"{lens.radius_of_curvature_2:.4f}"
+                    if abs(lens.radius_of_curvature_2) < 1e10
+                    else "Infinity"
+                )
+                f.write(
+                    f"{surf_num:<10} {'STANDARD':<12} {r2_str:<14} "
+                    f"{back_thickness:<12.4f} {'':<10}\n"
+                )
+                surf_num += 1
+
+            # Image
+            f.write(f"{'IMA':<10} {'STANDARD':<12} {'Infinity':<14} {'':<12} {'':<10}\n")
+
+            f.write("\n")
+            f.write("# End of OpenLens Export\n")
+
+# openlens.export_formats.PrescriptionExporter.export_prescription
+    @staticmethod
+    def export_prescription(lens: Lens, filename: str):
+        """Export lens prescription (industry standard format)"""
+        with atomic_write_text(filename) as f:
+            f.write("LENS PRESCRIPTION\n")
+            f.write("=" * 60 + "\n\n")
+            f.write(f"Lens Name: {lens.name}\n")
+            f.write(f"Lens Type: {lens.lens_type}\n\n")
+
+            f.write("OPTICAL PARAMETERS:\n")
+            f.write(f"  Radius of Curvature 1: {lens.radius_of_curvature_1:.3f} mm\n")
+            f.write(f"  Radius of Curvature 2: {lens.radius_of_curvature_2:.3f} mm\n")
+            f.write(f"  Center Thickness: {lens.thickness:.3f} mm\n")
+            f.write(f"  Clear Aperture: {lens.diameter:.3f} mm\n")
+            f.write(f"  Material: {lens.material}\n")
+            f.write(f"  Refractive Index: {lens.refractive_index:.4f}\n")
+
+            f_length = lens.calculate_focal_length()
+            if f_length:
+                f.write(f"  Focal Length: {f_length:.3f} mm\n")
+
+            f.write("\n")
+            f.write("Generated by OpenLens\n")
+
+# openlens.export_formats.SVGExporter.export_lens
+    @staticmethod
+    def export_lens(
+        lens: Lens,
+        filename: str,
+        width: int = 400,
+        height: int = 300,
+        show_rays: bool = False,
+        show_labels: bool = True,
+    ):
+        """
+        Export lens cross-section as SVG.
+
+        Args:
+            lens: Lens object to export
+            filename: Output SVG filename
+            width: SVG width in pixels
+            height: SVG height in pixels
+            show_rays: Whether to show ray paths (simplified)
+            show_labels: Whether to show dimension labels
+        """
+        # Calculate scaling
+        margin = 40
+        available_width = width - 2 * margin
+        available_height = height - 2 * margin
+
+        # Scale to fit lens
+        max_dimension = max(lens.thickness * 2, lens.diameter)
+        scale = min(available_width, available_height) / max_dimension * 0.8
+
+        # Center position
+        cx = width / 2
+        cy = height / 2
+
+        # Scaled lens dimensions
+        thickness = lens.thickness * scale
+        half_diameter = (lens.diameter / 2) * scale
+
+        # Calculate surface positions
+        front_x = cx - thickness / 2
+        back_x = cx + thickness / 2
+
+        with atomic_write_text(filename) as f:
+            # SVG header
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            f.write(
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+                f'height="{height}" viewBox="0 0 {width} {height}">\n'
+            )
+            f.write("  <defs>\n")
+            f.write("    <style>\n")
+            f.write("      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }\n")
+            f.write("      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }\n")
+            f.write("      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }\n")
+            f.write("      .ray { stroke: #ff6600; stroke-width: 1.5; fill: none; }\n")
+            f.write(
+                "      .label { font-family: Arial, sans-serif; font-size: 12px; fill: #333333; }\n"
+            )
+            f.write(
+                "      .title { font-family: Arial, sans-serif; font-size: 14px; "
+                "font-weight: bold; fill: #333333; }\n"
+            )
+            f.write("    </style>\n")
+            f.write("  </defs>\n")
+            f.write("\n")
+
+            # Background
+            f.write(f'  <rect width="{width}" height="{height}" fill="white"/>\n')
+            f.write("\n")
+
+            # Title
+            f.write(
+                f'  <text x="{width/2}" y="25" class="title" text-anchor="middle">'
+                f"{escape(str(lens.name))}</text>\n"
+            )
+            f.write("\n")
+
+            # Optical axis
+            f.write(
+                f'  <line x1="{margin}" y1="{cy}" x2="{width-margin}" y2="{cy}" class="axis"/>\n'
+            )
+            f.write("\n")
+
+            # Generate lens outline path
+            r1 = lens.radius_of_curvature_1
+            r2 = lens.radius_of_curvature_2
+
+            # Calculate sag (surface deviation from flat)
+            def calc_sag(radius, half_d):
+                if abs(radius) > 1e9:
+                    return 0
+                try:
+                    return abs(radius) - math.sqrt(radius * radius - half_d * half_d)
+                except ValueError as e:
+                    logger.debug("Sag calculation failed: %s", e)
+                    return 0
+
+            sag1 = calc_sag(r1, lens.diameter / 2) * scale
+            sag2 = calc_sag(r2, lens.diameter / 2) * scale
+
+            # Front surface edge x positions
+            if abs(r1) > 1e9:  # Flat
+                front_top_x = front_x
+                front_bot_x = front_x
+            elif r1 > 0:  # Convex front
+                front_top_x = front_x + sag1
+                front_bot_x = front_x + sag1
+            else:  # Concave front
+                front_top_x = front_x - sag1
+                front_bot_x = front_x - sag1
+
+            # Back surface edge x positions
+            if abs(r2) > 1e9:  # Flat
+                back_top_x = back_x
+                back_bot_x = back_x
+            elif r2 < 0:  # Convex back (negative radius)
+                back_top_x = back_x - sag2
+                back_bot_x = back_x - sag2
+            else:  # Concave back
+                back_top_x = back_x + sag2
+                back_bot_x = back_x + sag2
+
+            # Build path for lens outline
+            top_y = cy - half_diameter
+            bot_y = cy + half_diameter
+
+            # Start path
+            path_parts = []
+
+            # Front surface (top to bottom)
+            if abs(r1) > 1e9:  # Flat surface
+                path_parts.append(f"M {front_top_x:.2f} {top_y:.2f}")
+                path_parts.append(f"L {front_bot_x:.2f} {bot_y:.2f}")
+            else:
+                # Curved surface using quadratic bezier approximation
+                # Control point for quadratic bezier
+                if r1 > 0:  # Convex
+                    ctrl_x = front_x
+                else:  # Concave
+                    ctrl_x = front_top_x + sag1 * 2
+
+                path_parts.append(f"M {front_top_x:.2f} {top_y:.2f}")
+                path_parts.append(f"Q {ctrl_x:.2f} {cy:.2f} {front_bot_x:.2f} {bot_y:.2f}")
+
+            # Bottom edge
+            path_parts.append(f"L {back_bot_x:.2f} {bot_y:.2f}")
+
+            # Back surface (bottom to top)
+            if abs(r2) > 1e9:  # Flat surface
+                path_parts.append(f"L {back_top_x:.2f} {top_y:.2f}")
+            else:
+                if r2 < 0:  # Convex back
+                    ctrl_x = back_x
+                else:  # Concave back
+                    ctrl_x = back_bot_x - sag2 * 2
+
+                path_parts.append(f"Q {ctrl_x:.2f} {cy:.2f} {back_top_x:.2f} {top_y:.2f}")
+
+            # Close path
+            path_parts.append("Z")
+
+            path_d = " ".join(path_parts)
+
+            # Draw lens
+            f.write(f'  <path d="{path_d}" class="lens-fill"/>\n')
+            f.write(f'  <path d="{path_d}" class="lens-stroke"/>\n')
+            f.write("\n")
+
+            # Optional rays
+            if show_rays:
+                ray_y_positions = [-half_diameter * 0.7, 0, half_diameter * 0.7]
+                for ray_y in ray_y_positions:
+                    # Simplified parallel rays
+                    f.write(
+                        f'  <line x1="{margin}" y1="{cy + ray_y}" x2="{front_top_x}" '
+                        f'y2="{cy + ray_y}" class="ray"/>\n'
+                    )
+                f.write("\n")
+
+            # Labels
+            if show_labels:
+                # Diameter label
+                f.write(
+                    f'  <text x="{margin + 10}" y="{cy - half_diameter - 5}" '
+                    f'class="label">∅{lens.diameter:.1f}mm</text>\n'
+                )
+
+                # Thickness label
+                f.write(
+                    f'  <text x="{cx}" y="{cy + half_diameter + 20}" class="label" '
+                    f'text-anchor="middle">t={lens.thickness:.1f}mm</text>\n'
+                )
+
+                # Material label
+                f.write(
+                    f'  <text x="{cx}" y="{height - 15}" class="label" text-anchor="middle">'
+                    f"{escape(str(lens.material))} "
+                    f"(n={lens.refractive_index:.4f})</text>\n"
+                )
+
+                # Focal length
+                fl = lens.calculate_focal_length()
+                if fl:
+                    f.write(
+                        f'  <text x="{width - margin - 10}" y="{cy - 10}" class="label" '
+                        f'text-anchor="end">f={fl:.1f}mm</text>\n'
+                    )
+
+            f.write("\n")
+            f.write("</svg>\n")
+
+# openlens.export_formats.SVGExporter.export_system
+    @staticmethod
+    def export_system(system: OpticalSystem, filename: str, width: int = 600, height: int = 300):
+        """Export optical system as SVG diagram"""
+        margin = 40
+
+        with atomic_write_text(filename) as f:
+            # SVG header
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">\n')
+            f.write("  <defs>\n")
+            f.write("    <style>\n")
+            f.write("      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }\n")
+            f.write("      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }\n")
+            f.write("      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }\n")
+            f.write(
+                "      .title { font-family: Arial, sans-serif; font-size: 14px; "
+                "font-weight: bold; }\n"
+            )
+            f.write("    </style>\n")
+            f.write("  </defs>\n")
+
+            # Background
+            f.write(f'  <rect width="{width}" height="{height}" fill="white"/>\n')
+
+            # Title
+            f.write(
+                f'  <text x="{width/2}" y="25" class="title" text-anchor="middle">'
+                f"{escape(str(system.name))}</text>\n"
+            )
+
+            # Optical axis
+            cy = height / 2
+            f.write(
+                f'  <line x1="{margin}" y1="{cy}" x2="{width-margin}" y2="{cy}" class="axis"/>\n'
+            )
+
+            # Calculate total system length for scaling
+            total_length = system.get_total_length() or 100
+
+            # Get max diameter for vertical scaling
+            max_diameter = max((elem.lens.diameter for elem in system.elements), default=50)
+
+            available_width = width - 2 * margin
+            available_height = height - 2 * margin
+
+            scale_x = available_width / total_length * 0.8
+            scale_y = available_height / max_diameter * 0.8
+            scale = min(scale_x, scale_y)
+
+            # Draw each lens element
+            x_pos = margin + 20
+            for i, elem in enumerate(system.elements):
+                lens = elem.lens
+
+                # Add air gap
+                x_pos += _gap_before(system, i) * scale
+
+                # Lens dimensions
+                t = lens.thickness * scale
+                h = lens.diameter / 2 * scale
+
+                # Simple rectangle for each lens (simplified)
+                f.write(
+                    f'  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" '
+                    f'class="lens-fill"/>\n'
+                )
+                f.write(
+                    f'  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" '
+                    f'class="lens-stroke"/>\n'
+                )
+
+                x_pos += t
+
+            f.write("</svg>\n")
+
+# openlens.export_formats.ZemaxExporter.export_lens
+    @staticmethod
+    def export_lens(lens: Lens, filename: str):
+        """Export single lens to Zemax format"""
+        with atomic_write_text(filename) as f:
+            f.write("! OpenLens Export\n")
+            f.write(f"! {lens.name}\n")
+            f.write("VERS 140000\n")
+            f.write("MODE SEQ\n")
+            f.write("\n")
+
+            # Surface 0 (object)
+            f.write("SURF 0\n")
+            f.write("  TYPE STANDARD\n")
+            f.write("  CURV 0.0\n")
+            f.write("  DISZ INFINITY\n")
+            f.write("\n")
+
+            # Surface 1 (front)
+            f.write("SURF 1\n")
+            f.write("  TYPE STANDARD\n")
+            # A parabolic surface is CONI -1 at its vertex radius, not a
+            # standard sphere at the nominal radius.
+            f.write(f"  CURV {_zemax_curv(lens.get_effective_radius_1())}\n")
+            conic = _zemax_conic(lens.is_parabolic_1, lens.conic_constant_1)
+            if conic is not None:
+                f.write(f"  CONI {conic:g}\n")
+            f.write(f"  DISZ {lens.thickness}\n")
+            f.write(f"  DIAM {_zemax_diam(lens.get_clear_aperture_1())}\n")
+            f.write(f"  GLAS {_zemax_material(lens.material)}\n")
+            f.write(f"  WAVE {lens.wavelength:g}\n")
+            coat1 = lens.coating_label(1)
+            if coat1 != "Uncoated":
+                f.write(f"  COAT {coat1}\n")
+            f.write("\n")
+
+            # Surface 2 (back)
+            f.write("SURF 2\n")
+            f.write("  TYPE STANDARD\n")
+            f.write(f"  CURV {_zemax_curv(lens.get_effective_radius_2())}\n")
+            conic = _zemax_conic(lens.is_parabolic_2, lens.conic_constant_2)
+            if conic is not None:
+                f.write(f"  CONI {conic:g}\n")
+            f.write(f"  DIAM {_zemax_diam(lens.get_clear_aperture_2())}\n")
+            coat2 = lens.coating_label(2)
+            if coat2 != "Uncoated":
+                f.write(f"  COAT {coat2}\n")
+            f.write("  DISZ 100.0\n")
+            f.write("\n")
+
+            # Image surface
+            f.write("SURF 3\n")
+            f.write("  TYPE STANDARD\n")
+            f.write("\n")
+
+# openlens.export_formats.ZemaxSystemExporter.export_system
+    @staticmethod
+    def export_system(system: OpticalSystem, filename: str) -> None:
+        """Write the system prescription to a .zmx file."""
+        stop = system.get_aperture_stop()
+        stop_gap = stop["gap_index"] if stop is not None else None
+        stop_dia = stop.get("diameter") if stop is not None else None
+
+        with atomic_write_text(filename) as f:
+            f.write("! OpenLens System Export\n")
+            f.write(f"! {system.name}\n")
+            f.write("VERS 140000\n")
+            f.write("MODE SEQ\n")
+            f.write("\n")
+
+            f.write("SURF 0\n")
+            f.write("  TYPE STANDARD\n")
+            f.write("  CURV 0.0\n")
+            f.write("  DISZ INFINITY\n")
+            f.write("\n")
+
+            surf = 1
+            gaps = list(system.air_gaps)
+            for i, element in enumerate(system.elements):
+                lens = element.lens
+                # Front surface carries the center thickness.
+                f.write(f"SURF {surf}\n")
+                f.write("  TYPE STANDARD\n")
+                f.write(f"  CURV {_zemax_curv(lens.get_effective_radius_1())}\n")
+                conic = _zemax_conic(lens.is_parabolic_1, lens.conic_constant_1)
+                if conic is not None:
+                    f.write(f"  CONI {conic:g}\n")
+                f.write(f"  DISZ {lens.thickness}\n")
+                f.write(f"  DIAM {_zemax_diam(lens.get_clear_aperture_1())}\n")
+                f.write(f"  GLAS {_zemax_material(lens.material)}\n")
+                f.write(f"  WAVE {lens.wavelength:g}\n")
+                if any(abs(value) > EPSILON for value in (element.decenter_y, element.decenter_z)):
+                    f.write(f"  DECE {element.decenter_y:g} {element.decenter_z:g}\n")
+                if any(
+                    abs(value) > EPSILON
+                    for value in (element.tilt_x, element.tilt_y, element.tilt_z)
+                ):
+                    f.write(f"  TILT {element.tilt_x:g} {element.tilt_y:g} {element.tilt_z:g}\n")
+                coat = lens.coating_label(1)
+                if coat != "Uncoated":
+                    f.write(f"  COAT {coat}\n")
+                f.write("\n")
+                surf += 1
+
+                # Back surface carries the distance to the next surface:
+                # stop plane, next front vertex, or image.
+                if stop_gap is not None and stop_gap == i:
+                    back_disz = stop["position"] - (element.position + lens.thickness)
+                    stop_remainder = gaps[i].thickness - back_disz
+                elif i < len(gaps):
+                    back_disz = gaps[i].thickness
+                    stop_remainder = None
+                else:
+                    back_disz = 100.0
+                    stop_remainder = None
+                f.write(f"SURF {surf}\n")
+                f.write("  TYPE STANDARD\n")
+                f.write(f"  CURV {_zemax_curv(lens.get_effective_radius_2())}\n")
+                conic = _zemax_conic(lens.is_parabolic_2, lens.conic_constant_2)
+                if conic is not None:
+                    f.write(f"  CONI {conic:g}\n")
+                f.write(f"  DIAM {_zemax_diam(lens.get_clear_aperture_2())}\n")
+                coat = lens.coating_label(2)
+                if coat != "Uncoated":
+                    f.write(f"  COAT {coat}\n")
+                f.write(f"  DISZ {back_disz}\n")
+                f.write("\n")
+                surf += 1
+
+                if stop_remainder is not None:
+                    f.write(f"SURF {surf}\n")
+                    f.write("  TYPE STANDARD\n")
+                    f.write("  STOP\n")
+                    f.write("  CURV 0.0\n")
+                    if stop_dia:
+                        f.write(f"  DIAM {_zemax_diam(stop_dia)}\n")
+                    f.write(f"  DISZ {stop_remainder}\n")
+                    f.write("\n")
+                    surf += 1
+
+            f.write(f"SURF {surf}\n")
+            f.write("  TYPE STANDARD\n")
+            f.write("\n")
+
+# openlens.io.export.ISO10110Generator.generate_svg
+    def generate_svg(self, filename: str, width: int = 800, height: int = 600):
+        """Generate SVG file."""
+        svg_content = self._render_svg(width, height)
+        with atomic_write_text(filename) as f:
+            f.write(svg_content)
+
+# openlens.io.step_export.StepExporter.export
+    def export(self, filename: str, housing: Optional[list] = None) -> dict:
+        """Export the current system to a STEP file.
+
+        Safe to call repeatedly on one exporter: the entity buffer is reset
+        first. It used to be created only in __init__, so a second export
+        appended a fresh context and a second copy of every solid to the
+        first export's lines - 48 entities after one call, 96 after two, with
+        two MANIFOLD_SOLID_BREPs in one file.
+
+        Args:
+            filename: Output path.
+            housing: Optional iterable of housing-part dicts with keys
+                ``name``, ``z0``, ``z1``, ``r_inner``, ``r_outer`` (all mm)
+                describing annular tube solids (spacers, barrel, retainers).
+                See ``mechanical_designer.suggest_housing``.
+
+        Returns:
+            A summary dict: ``shapes`` (solids written), ``skipped`` (count of
+            parts that could not be exported) and ``skipped_parts`` (their
+            names). Previously this returned None, so callers ignoring the
+            result are unaffected. A malformed part used to be logged at
+            DEBUG, which is invisible at default verbosity - the drawing came
+            out with silently missing solids and nothing said so.
+
+        Raises:
+            ValueError: If a lens has a parabolic or general conic surface.
+                A ``SPHERICAL_SURFACE`` cannot pass through the modelled rim,
+                so the solid would not close. Refusing leaves no file: the
+                buffer is only written once every part has been built.
+        """
+        # Start from a clean buffer and a clean id sequence.
+        self.writer = StepWriter()
+        self.axis_id = 0
+        self.dir_z = 0
+        self.dir_x = 0
+        self.dir_y = 0
+        self.origin = 0
+        self.axis2_placement = 0
+        self.context = 0
+        self.uncertainty = 0
+        self.related_context = 0
+        self.geom_context = 0
+        self.length_unit = 0
+        self.application_context = 0
+        self._solid_index = 0
+
+        # Standard setup entities
+        self._create_context()
+
+        shape_ids = []
+        skipped: list = []
+
+        # Export each lens
+        if hasattr(self.system, "elements") and hasattr(self.system, "air_gaps"):
+            for elem, placement in zip(self.system.elements, self._element_placements()):
+                solid_id = self._export_lens_solid(elem.lens, 0.0, placement)
+                if solid_id:
+                    shape_ids.append(solid_id)
+        elif hasattr(self.system, "radius_of_curvature_1"):
+            # Single lens
+            solid_id = self._export_lens_solid(self.system, 0.0)
+            if solid_id:
+                shape_ids.append(solid_id)
+        else:
+            # Fallback for dict or other objects
+            try:
+                # Try to use it as a single lens if it has necessary attributes
+                solid_id = self._export_lens_solid(self.system, 0.0)
+                if solid_id:
+                    shape_ids.append(solid_id)
+            except (AttributeError, KeyError) as e:
+                skipped.append("system")
+                logger.warning(
+                    "STEP solid export skipped - object exposes neither a lens "
+                    "nor elements/air_gaps: %s",
+                    e,
+                )
+
+        # Export housing parts (spacers, barrel, retainers) as tube solids.
+        for part in housing or []:
+            name = str(part.get("name", "part")) if isinstance(part, dict) else "part"
+            try:
+                solid_id = self._export_tube_solid(
+                    name,
+                    float(part["z0"]),
+                    float(part["z1"]),
+                    float(part["r_inner"]),
+                    float(part["r_outer"]),
+                )
+                if solid_id:
+                    shape_ids.append(solid_id)
+                else:
+                    # _export_tube_solid rejected the dimensions; it has already
+                    # logged, but the part still has to be counted.
+                    skipped.append(name)
+            except (KeyError, TypeError, ValueError) as e:
+                skipped.append(name)
+                logger.warning(
+                    "STEP housing part %r skipped - malformed or missing "
+                    "z0/z1/r_inner/r_outer: %s",
+                    name,
+                    e,
+                )
+
+        # Create Root Product Definition if needed
+        # For simplicity, we just leave the geometric entities in the file.
+        # Most viewers will find the MANIFOLD_SOLID_BREP entities.
+        # But properly we should link them to a PRODUCT.
+
+        self._create_product_structure(shape_ids)
+
+        # Write file
+        with atomic_write_text(filename) as f:
+            f.write(self.writer.generate())
+
+        # Surface the omissions. A mechanical drawing that silently lost its
+        # barrel and spacers is worse than one that says so.
+        if skipped:
+            logger.warning(
+                "STEP export wrote %d solid(s) but skipped %d part(s): %s",
+                len(shape_ids),
+                len(skipped),
+                ", ".join(skipped),
+            )
+        return {"shapes": len(shape_ids), "skipped": len(skipped), "skipped_parts": skipped}
+
+# openlens.material_database.MaterialDatabase.export_material
+    def export_material(self, material_name: str, output_file: str):
+        """Export material data to file"""
+        mat = self.get_material(material_name)
+        if mat:
+            atomic_write_json(output_file, mat.to_dict())
+
+# openlens.material_database.MaterialDatabase.get_material
+    def get_material(self, name: str) -> Optional[MaterialProperties]:
+        """Get material by name.
+
+        The exact uppercased key wins, then any spacing/punctuation variant:
+        "Fused Silica", "fused-silica" and "FUSEDSILICA" all name the same
+        glass. Without the second step a display name missed the catalog
+        entirely, which was silent - ``refractive_index_at`` fell back to the
+        stored index (no dispersion) and ``update_refractive_index`` stored
+        the BK7 fallback (a lens that was not BK7 became 1.5168).
+        """
+        material = self.materials.get(name.upper())
+        if material is not None:
+            return material
+        key = self._normalised_keys().get(_material_key(name))
+        if key is None:
+            return None
+        return self.materials.get(key)
+
+# openlens.material_database.MaterialDatabase.save_database
+    def save_database(self) -> None:
+        """Save materials to JSON file"""
+        # The user data directory may not exist yet. ensure_parent_dir reports
+        # an unwritable directory instead of raising, which is the same contract
+        # the database path uses.
+        ensure_parent_dir(self.db_path)
+        data = {name: mat.to_dict() for name, mat in self.materials.items()}
+        atomic_write_json(self.db_path, data)
+
+# openlens.stl_export.STLExporter.write_binary_stl
+    def write_binary_stl(self, filename: str):
+        """Write triangles to binary STL file"""
+        with atomic_write_bytes(filename) as f:
+            # Header (80 bytes)
+            header = b"openlens STL export" + b" " * (80 - 19)
+            f.write(header)
+
+            # Number of triangles
+            f.write(struct.pack("<I", len(self.triangles)))
+
+            # Write each triangle
+            for triangle in self.triangles:
+                p1, p2, p3 = triangle
+
+                normal = self.calculate_normal(p1, p2, p3)
+
+                f.write(struct.pack("<fff", normal[0], normal[1], normal[2]))
+                f.write(struct.pack("<fff", p1[0], p1[1], p1[2]))
+                f.write(struct.pack("<fff", p2[0], p2[1], p2[2]))
+                f.write(struct.pack("<fff", p3[0], p3[1], p3[2]))
+                f.write(struct.pack("<H", 0))
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.export_formats.OpticStudioExporter.export_lens
+
+# Notes: `openlens.export_formats.OpticStudioExporter.export_lens(lens, filename)`
+
+## 1. Purpose
+- Static method. Writes a human-readable "OpticStudio"-style text prescription for a single `Lens` to `filename`.
+- Returns `None`.
+- The file is written through `openlens.atomic.atomic_write_text(filename)`, so the target is only replaced if writing succeeds.
+
+## 2. Inputs
+- `lens`: a `Lens`. There is no validation. The function reads these attributes and methods:
+  - `name`, `material`, `refractive_index`, `diameter`, `bevel_1`, `bevel_2`
+  - `radius_of_curvature_1`, `radius_of_curvature_2`, `thickness`
+  - `get_clear_aperture_1()`, `get_clear_aperture_2()`, `coating_label(1)`, `coating_label(2)`, `calculate_focal_length()`
+- `filename`: a path, either `str` or `tmp_path / "x.txt"`.
+  - `atomic_write_text` uses its defaults: `encoding='utf-8'`, `newline=None`.
+  - Its internals are in `openlens.atomic`, which was not shown.
+- Lens defaults (`DEFAULT_RADIUS_1` etc.) live in `openlens.lens`, which was not shown. Pass every value explicitly, for example `Lens(name="T", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0, material="BK7")`.
+- Build expected numbers from the lens's own attributes, not from your inputs. `refractive_index`, the clear apertures and the focal length are computed inside `Lens`.
+
+## 3. Raises
+- The function contains no explicit `raise`.
+- Errors can only come from attribute access, from `Lens` methods, or from the file writer. For example, writing to a non-existent directory raises an `OSError` from `atomic_write_text`; the exact behaviour is not shown, so don't test it.
+
+## 4. Returns and guarantees
+- Returns `None`. The file content is exactly the following, with each item on its own line ending in `"\n"`:
+
+```
+# OpenLens Export - OpticStudio Format
+# Lens: {lens.name}
+#============================================================      <- "#" + 60 "="
+                                                                   <- blank line
+SYSTEM PRESCRIPTION DATA
+----------------------------------------                           <- 40 "-"
+Title: {lens.name}
+Units: Millimeters
+Type: Sequential
+
+LENS DATA SUMMARY
+----------------------------------------
+Material: {lens.material}
+Refractive Index (d-line): {lens.refractive_index:.6f}
+Outer Diameter: {lens.diameter:.4f} mm
+Clear Aperture 1/2: {ca1:.4f} / {ca2:.4f} mm
+Bevel 1/2 (45 deg): {lens.bevel_1:.4f} / {lens.bevel_2:.4f} mm
+Coating 1/2: {lens.coating_label(1)} / {lens.coating_label(2)}
+Effective Focal Length: {fl:.4f} mm      <- ONLY if fl is truthy
+                                         <- blank
+SURFACE DATA DETAIL
+----------------------------------------
+<header row>
+----------------------------------------------------------------------   <- 70 "-"
+<OBJ row>
+<STO row>
+<row 1>
+<row 2>
+<IMA row>
+                                         <- blank
+# End of OpenLens Export
+```
+
+### Table rows
+Each row is an exact f-string. Columns are separated by single spaces, and trailing padding is kept.
+
+- Header: `f"{'Surface':<10} {'Type':<12} {'Radius':<14} {'Thickness':<12} {'Glass':<10} {'Diameter':<10}\n"`
+- OBJ: `f"{'OBJ':<10} {'STANDARD':<12} {'Infinity':<14} {'Infinity':<12} {'':<10} {'':<10}\n"`
+- STO: `f"{'STO':<10} {'STANDARD':<12} {'Infinity':<14} {'0.0000':<12} {'':<10} {lens.diameter:<10.4f}\n"`
+  - This uses the mechanical **diameter**, not the clear aperture.
+- Row 1: `f"{'1':<10} {'STANDARD':<12} {r1_str:<14} {lens.thickness:<12.4f} {lens.material:<10} {lens.get_clear_aperture_1():<10.4f}\n"`
+- Row 2: `f"{'2':<10} {'STANDARD':<12} {r2_str:<14} {'100.0000':<12} {'':<10} {lens.get_clear_aperture_2():<10.4f}\n"`
+  - The thickness column is always the literal `100.0000`.
+  - The Glass column is blank.
+- IMA: `f"{'IMA':<10} {'STANDARD':<12} {'Infinity':<14} {'':<12} {'':<10} {'':<10}\n"`
+
+### Radius strings
+- `r1_str = f"{lens.radius_of_curvature_1:.4f}"` if `abs(r1) < 1e10`, otherwise `"Infinity"`. `r2_str` follows the same rule.
+- These are the **nominal** `radius_of_curvature_*` values, not `get_effective_radius_*`. Parabolic and conic settings do not change the table.
+
+### Other content rules
+- `lens.name` and `lens.material` are written verbatim: no escaping, no truncation.
+- A material longer than 10 characters simply widens its column.
+
+## 5. Side effects
+- Creates or replaces `filename`.
+- The lens is not mutated by this code. Whether `Lens` methods cache anything is not visible.
+
+## 6. Branches and edge cases
+- **Focal-length line.** It is written only if `lens.calculate_focal_length()` is truthy.
+  - `None` or `0.0` omits the line, and the blank line follows `Coating 1/2:` directly.
+  - A negative focal length (diverging lens) **is** written, e.g. `-xx.xxxx`.
+- **Radius threshold.** `abs(r) < 1e10` prints the number; `abs(r) >= 1e10` prints `Infinity`.
+  - Example: `radius_of_curvature_1=1e10` gives `Infinity`, while `9e9` gives `9000000000.0000`.
+  - This only applies if the `Lens` setter stores the value unchanged; check the stored value via `lens.radius_of_curvature_1`.
+  - Plano surfaces given as `float('inf')` print `Infinity`. The importer builds Lenses with `inf` radii, so `inf` is accepted.
+- **Negative radius** prints with a sign: `-50.0000`.
+- **Coatings.** For an uncoated lens, use `lens.coating_label(1)` for the expected value. The API doc says it returns e.g. `"Uncoated"`.
+
+## 7. Rules from comments
+- The STO row's comment says: "entrance pupil at front surface". That is why the stop sits at thickness `0.0000` with the full diameter.
+
+## 8. Testing hints
+- **How to read the file.** Read with `open(path, encoding="utf-8").read().splitlines()`.
+  - Text mode with universal newlines, plus `splitlines`, avoids Windows `\r\n` issues.
+  - Do **not** `.strip()` table rows if you compare exact padding. Instead, rebuild the expected row with the identical f-string using the lens's own values.
+- **Exact lines worth asserting:**
+  - `lines[0] == "# OpenLens Export - OpticStudio Format"`
+  - `lines[1] == f"# Lens: {lens.name}"`
+  - `lines[2] == "#" + "="*60`
+  - `lines[3] == ""`
+  - `"Units: Millimeters"` is present.
+  - The last line is `"# End of OpenLens Export"`.
+- **Content checks:**
+  - `f"Refractive Index (d-line): {lens.refractive_index:.6f}"` (6 decimals; the others use 4).
+  - `f"Clear Aperture 1/2: {lens.get_clear_aperture_1():.4f} / {lens.get_clear_aperture_2():.4f} mm"`.
+  - Row 2 contains `"100.0000"`.
+  - The STO row ends with `f"{lens.diameter:<10.4f}"`.
+- **Distinguish clear aperture from diameter.** Use `clear_aperture_1=20.0`, `clear_aperture_2=18.0` with `diameter=25.0`. Assert that row 1 ends with `f"{20.0:<10.4f}"`, row 2 with `f"{18.0:<10.4f}"`, and STO with `25.0000`.
+  - This assumes `get_clear_aperture_*` returns the set value; assert via the getters.
+- **Bevel check.** Set `bevel_1=0.5`, `bevel_2=0.25`, then expect `"Bevel 1/2 (45 deg): 0.5000 / 0.2500 mm"`.
+- **Line counts.** With the focal-length line present the file has 33 lines; without it, 32. Count it yourself before asserting, or assert presence or absence of the `Effective Focal Length:` prefix instead.
+- **Focal-length value.** Compute the expected value as `lens.calculate_focal_length()`; never hardcode lensmaker results.
+- **Pitfalls:**
+  - `refractive_index` depends on the lens wavelength and material handling, which is code you cannot see. Read it back from the lens.
+  - The surface table never uses the effective radius, so a parabolic lens still shows its nominal radius.
+
+### openlens.export_formats.OpticStudioExporter.export_system
+
+# Notes: `openlens.export_formats.OpticStudioExporter.export_system(system, filename)`
+
+## 1. Purpose
+- Writes a human-readable "OpticStudio-style" sequential surface table for a multi-element `OpticalSystem` to a text file.
+- Returns `None`.
+
+## 2. Inputs
+- `system`: an `OpticalSystem`. The function reads these members:
+  - `.name`, `.elements` (each has `.lens`), `.air_gaps` (each has `.thickness`)
+  - `get_total_length()`, `get_system_focal_length()`, `calculate_back_focal_length()`
+  - `getattr(system, "image_plane_x_mm", None)`
+- Per lens it reads `radius_of_curvature_1/2` (nominal radii, not the effective ones), `thickness` and `material`.
+- `filename`: a path (str). It is written through `atomic_write_text(filename)`, which defaults to utf-8 with `newline=None`. The atomic module is not shown; its docs say the target is replaced only on success.
+- Nothing is validated in this function.
+
+## 3. Raises
+- The function raises nothing explicitly. Errors come from:
+  - the system/lens methods, or
+  - the file write (for example, a missing directory; the behaviour of `atomic_write_text` is not visible).
+- If an exception happens inside the `with` block, the target file is not replaced.
+
+## 4. Returns / exact file content
+The function returns `None`. Lines are written in this exact order (`\n` endings):
+```
+# OpenLens Export - OpticStudio Format
+# System: {system.name}
+#============================================================   ("#" + 60 "=")
+<blank>
+SYSTEM PRESCRIPTION DATA
+----------------------------------------                        (40 "-")
+Title: {system.name}
+Units: Millimeters
+Type: Sequential
+Number of Elements: {len(system.elements)}
+Total Length: {total_length:.4f} mm        <- only if get_total_length() is truthy (nonzero)
+System Focal Length: {fl:.4f} mm           <- only if get_system_focal_length() is truthy (not None/0)
+<blank>
+SURFACE DATA DETAIL
+----------------------------------------                        (40 "-")
+f"{'Surface':<10} {'Type':<12} {'Radius':<14} {'Thickness':<12} {'Glass':<10}"
+------------------------------------------------------------    (60 "-")
+f"{'OBJ':<10} {'STANDARD':<12} {'Infinity':<14} {'Infinity':<12} {'':<10}"
+... element rows ...
+f"{'IMA':<10} {'STANDARD':<12} {'Infinity':<14} {'':<12} {'':<10}"
+<blank>
+# End of OpenLens Export
+```
+- Every table row ends with padding spaces before `\n`, because the last column is `<10`. For example, the header ends in `"Glass     "`.
+- The name is **not** XML-escaped; `<&` is written verbatim.
+
+**Element rows.** `surf_num` starts at 1 and increments after every row. For each element `i`:
+1. **Gap row**, written only if `gap_before > 0`:
+   - `gap_before` is `0.0` for `i == 0`, or when `i-1 >= len(air_gaps)`. Otherwise it is `system.air_gaps[i-1].thickness`.
+   - Row: `f"{surf_num:<10} {'STANDARD':<12} {'Infinity':<14} {gap:<12.4f} {'':<10}"`
+2. **Front row**: `f"{surf_num:<10} {'STANDARD':<12} {r1_str:<14} {lens.thickness:<12.4f} {lens.material:<10}"`
+3. **Back row**: `f"{surf_num:<10} {'STANDARD':<12} {r2_str:<14} {back:<12.4f} {'':<10}"`
+   - `back` is `0.0` for every element except the last one, which gets `image_distance`.
+- `r_str` is `f"{R:.4f}"` if `abs(R) < 1e10`, else `"Infinity"`. So `inf` and `1e10` both give `"Infinity"`, and `-50` gives `"-50.0000"`.
+- The material is never truncated. Names longer than 10 characters widen the row.
+
+**Example front row** (surf 1, R1=50, t=5, BK7):
+`"1          STANDARD     50.0000        5.0000       BK7       "`
+
+**`image_distance`** (from `_image_distance`, computed once before the loop, even with 0 elements):
+- If `system.image_plane_x_mm` exists, converts with `float()`, and is finite: `max(0.0, plane - get_total_length())`.
+- Otherwise, `bfl = system.calculate_back_focal_length()`. If `bfl` is `None` or not finite, the result is `0.0`; else `max(0.0, bfl)`.
+- A virtual image (negative distance) is therefore clamped to `0.0000`.
+
+## 5. Side effects
+- Creates or overwrites `filename`.
+- Does not mutate `system` or the lenses.
+
+## 6. Branches / edge cases
+- **First element:** never gets a gap row, whatever value `air_gap_before` had in `add_lens`.
+- **Zero-thickness gap:** produces no row, so `surf_num` does not advance.
+- **Single element:** its back row carries `image_distance`. For multiple elements, all back rows except the last show `0.0000`.
+- **Zero elements:** `Number of Elements: 0`, then OBJ is followed directly by IMA. The Total Length line is skipped if the total is 0/falsy, and the System Focal Length line is skipped if the focal length is None. Whether the empty system's methods behave this way is in `optical_system` (not shown), so check them rather than assume.
+- **Detector plane:**
+  - `image_plane_x_mm = total + 20` gives a last back thickness of `20.0000`.
+  - A plane below `total` gives `0.0000`.
+  - A non-numeric value (if the attribute accepts it) falls back to the BFL path.
+- **Surface count:** rows between OBJ and IMA = `2*N + (number of gaps i>=1 with thickness > 0)`. Numbering is consecutive from 1.
+
+## 7. Rules from comments/docstrings
+- "An intermediate element ends at the next gap row, so its own thickness is zero; only the last surface carries the distance to the image."
+- "`air_gaps[i]` is the gap *after* element i", so the gap before element i is `air_gaps[i-1]`. Before a fix, the code used `elem.air_gap_before`, which raised `AttributeError`.
+- "A configured detector plane wins over the paraxial fallback". The result is clamped at zero ("a virtual image cannot be represented as a negative thickness").
+
+## 8. Testing hints
+- **Build:**
+  ```python
+  s = OpticalSystem(name="Sys")
+  s.add_lens(Lens(name="A", radius_of_curvature_1=50, radius_of_curvature_2=-50,
+                  thickness=5, diameter=25, material="BK7"))
+  s.add_lens(Lens(...), air_gap_before=10)
+  ```
+  Pass explicit lens values, because the defaults are not visible.
+- **Write and read:** use `tmp_path`; read with `open(p, encoding="utf-8").read().splitlines()`. Text mode normalises Windows `\r\n`. Don't compare raw bytes.
+- **Use the exporter's own formulas for expected values.** Don't hard-code optics:
+  - `f"{s.get_total_length():.4f}"`, `s.get_system_focal_length()`
+  - `s.air_gaps[0].thickness`, `s.calculate_back_focal_length()`
+  - How `add_lens` fills `air_gaps` is not shown. Assert gap rows against `s.air_gaps[i-1].thickness`, not the literal 10.
+- **Pin `image_distance` deterministically:**
+  ```python
+  s.image_plane_x_mm = s.get_total_length() + 20.0
+  ```
+  The last back row's thickness column is then `"20.0000"`. This could fail if `OpticalSystem` defines a validating property; that class is not shown.
+- **Rebuild expected rows** with the identical f-strings from section 4 and compare whole lines. If you `.strip()`, the trailing padding is lost; that is fine, but then compare the stripped versions on both sides.
+- **High-value regression checks:**
+  - an intermediate back row shows `0.0000`
+  - the gap row exists for `i >= 1` and is absent for `i == 0` and for zero gaps
+  - surface numbering is consecutive
+  - the `"Infinity"` threshold is `abs(R) < 1e10`
+  - nominal R1 is used, not the effective radius
+  - the `Number of Elements` count is correct
+  - the header and footer text is exact
+  - the `"#"+"="*60` and `"-"*40` / `"-"*60` rule lines are exact
+- Don't assert on the Total Length or Focal Length lines without first checking whether those values are truthy.
+
+### openlens.export_formats.PrescriptionExporter.export_prescription
+
+# Notes: `PrescriptionExporter.export_prescription(lens, filename)`
+
+## 1. Purpose
+- Writes a plain-text "lens prescription" for one `Lens` to `filename`.
+- Returns nothing. Callers observe it only through the file it writes.
+
+## 2. Inputs
+- `lens`: a `openlens.Lens`, or any object with these attributes:
+  - `name`, `lens_type`, `radius_of_curvature_1`, `radius_of_curvature_2`
+  - `thickness`, `diameter`, `material`, `refractive_index`
+  - a `calculate_focal_length()` method
+- `filename`: a path (str; `atomic_write_text(path: Any)` also accepts a `Path`). The function does no validation of its own.
+- The file is written through `atomic_write_text(filename)` with default `encoding='utf-8'` and `newline=None`. Its contents replace `path` only if the `with` block succeeds. Its internals are in `openlens.atomic`, which is not shown.
+
+## 3. Raises
+- The function raises nothing explicitly.
+- Errors from `atomic_write_text` propagate, for example a non-existent parent directory. The exact exception type comes from `openlens.atomic` (not shown), so assert only with `pytest.raises(Exception)`, if at all.
+- An attribute missing on `lens` raises `AttributeError`.
+- If any formatted value is `None` (e.g. `refractive_index`), the `:.3f`/`:.4f` format raises `TypeError`. A real `Lens` presumably always has numbers here.
+- If the block fails, the file is not replaced. The previous content is kept, or no file appears.
+
+## 4. Returns and guarantees
+- Returns `None`.
+- The file content is exactly this, with `\n` line endings in the written text:
+```
+LENS PRESCRIPTION
+============================================================      <- "=" * 60
+
+Lens Name: {lens.name}
+Lens Type: {lens.lens_type}
+
+OPTICAL PARAMETERS:
+  Radius of Curvature 1: {lens.radius_of_curvature_1:.3f} mm
+  Radius of Curvature 2: {lens.radius_of_curvature_2:.3f} mm
+  Center Thickness: {lens.thickness:.3f} mm
+  Clear Aperture: {lens.diameter:.3f} mm
+  Material: {lens.material}
+  Refractive Index: {lens.refractive_index:.4f}
+  Focal Length: {f:.3f} mm          <- only if f = lens.calculate_focal_length() is truthy
+
+Generated by OpenLens
+```
+- Line 3 is empty. That comes from `"=" * 60 + "\n\n"`.
+- There is an empty line after `Lens Type:`, from the trailing `\n\n` on that line.
+- There is one empty line before `Generated by OpenLens`.
+- The file ends with `"Generated by OpenLens\n"`.
+- The indentation under `OPTICAL PARAMETERS:` is two spaces.
+- "Clear Aperture" prints `lens.diameter`, **not** `get_clear_aperture_1()`. Setting `clear_aperture_1=10` on a 25 mm lens still prints `Clear Aperture: 25.000 mm`.
+- `name` and `material` are written verbatim, with no escaping or quoting. For example, `Fused Silica` stays unquoted and `<` stays `<`.
+
+## 5. Side effects
+- It creates or overwrites `filename`.
+- It does not mutate `lens`, as far as this code shows. `calculate_focal_length` is in `lens.py`, which is not shown.
+
+## 6. Branches and edge cases
+- **Focal length line is present** when `calculate_focal_length()` returns a non-zero float. This includes negative values: a diverging lens gives e.g. `  Focal Length: -50.123 mm`.
+- **Focal length line is absent** when it returns `None` or `0.0`. The line after `Refractive Index:` is then the blank line.
+- **Infinite radius:** `f"{float('inf'):.3f}"` gives `"inf"`, so the line is `  Radius of Curvature 1: inf mm`. Whether `Lens` stores a flat surface as `inf` depends on `lens.py`, which is not shown. Build the expected string from `lens.radius_of_curvature_1`.
+- **Negative radius** prints with a sign, e.g. `-100.000`.
+- **Rounding:** `.3f` and `.4f` use Python's float formatting. `100.0` prints `100.000`; `1.5168` prints `1.5168`.
+
+## 7. Rules from comments and docstrings
+- The only docstring is "Export lens prescription (industry standard format)". It states nothing beyond the code.
+
+## 8. Testing hints
+- Use `tmp_path`, e.g. `p = tmp_path / "rx.txt"`, then call `PrescriptionExporter.export_prescription(lens, str(p))`.
+- Read it back with `p.read_text(encoding="utf-8")`. Text mode normalises line endings, which matters on Windows, where `newline=None` may write `\r\n`. Do not compare raw bytes against `\n`.
+- Build the lens explicitly, e.g. `Lens(name="T", radius_of_curvature_1=100.0, radius_of_curvature_2=-100.0, thickness=5.0, diameter=25.0, material="BK7")`.
+- Compute expected values from the object rather than hard-coding physics:
+  - `f"  Refractive Index: {lens.refractive_index:.4f}"`
+  - `f"  Focal Length: {lens.calculate_focal_length():.3f} mm"`
+  - `f"Lens Type: {lens.lens_type}"`. `Lens` may normalise or derive `lens_type` and `refractive_index`.
+- Good exact assertions:
+  - `lines[0] == "LENS PRESCRIPTION"`
+  - `lines[1] == "=" * 60`
+  - `lines[2] == ""`
+  - `lines[3] == "Lens Name: T"`
+  - `"  Radius of Curvature 1: 100.000 mm" in lines`
+  - `"  Center Thickness: 5.000 mm" in lines`
+  - `"  Clear Aperture: 25.000 mm" in lines`
+  - `text.endswith("\nGenerated by OpenLens\n")`
+- Check line order too, e.g. that `Material` comes right after `Clear Aperture`.
+- To test the omitted focal-length line without relying on `Lens` physics, use a stub, e.g. a `types.SimpleNamespace` with all the attributes and `calculate_focal_length=lambda: None`. Then:
+  - assert no line starts with `"  Focal Length"`
+  - assert the line after `Refractive Index` is `""`
+- Stub with `lambda: 0.0` to cover the falsy-zero case, and `lambda: -50.0` to check `  Focal Length: -50.000 mm` appears.
+- The file is overwritten, not appended. Write twice with different names and assert only the second name is present.
+- Pitfalls:
+  - Do not assume `Lens` defaults; its constants are not visible.
+  - Do not strip lines before comparing, because the two-space indent is part of the format.
+  - Do not expect "Clear Aperture" to reflect `clear_aperture_1`.
+
+### openlens.export_formats.SVGExporter.export_lens
+
+# Notes: `SVGExporter.export_lens(lens, filename, width=400, height=300, show_rays=False, show_labels=True)`
+
+## 1. Purpose
+- Writes a 2D cross-section drawing of one `Lens` as an SVG text file.
+- The drawing contains a title, a dashed optical axis, a filled and stroked outline path, optional rays and optional labels.
+- Returns `None`.
+
+## 2. Inputs
+- `lens`: a `Lens`. The function reads these attributes:
+  - `thickness`, `diameter`, `name`, `material`
+  - `radius_of_curvature_1`, `radius_of_curvature_2` (the raw property values, not the "effective" radii)
+  - `refractive_index`
+  - `calculate_focal_length()`
+- How `Lens` stores, validates or sign-converts radii and the index is in `openlens/lens.py`, which is not shown. Build expected values from the lens's own properties, not from constructor arguments.
+- `filename`: path. It is written through `atomic_write_text(filename)` with the defaults `encoding='utf-8'` and `newline=None`.
+- `width`, `height`: numbers, not validated. They are interpolated with plain `{}` formatting, so ints print as `400` and `300`.
+- `show_rays`, `show_labels`: truthiness only.
+
+## 3. Raises
+- No explicit `raise` statements.
+- `ZeroDivisionError` if `max(thickness*2, diameter) == 0`. This happens before the file is opened. `Lens` probably rejects such values first; that is unverified.
+- Any I/O error comes from `atomic_write_text` (separate module, not shown). The docstring says the target is replaced only on success.
+- Negative or zero available space (e.g. `width=80`) gives `scale <= 0`. No error is raised.
+
+## 4. Returns and guarantees
+Geometry, with `margin=40`:
+- `scale = min(width-80, height-80) / max(lens.thickness*2, lens.diameter) * 0.8`
+- `cx = width/2`, `cy = height/2`
+- `t = thickness*scale`, `h = (diameter/2)*scale`
+- `front_x = cx - t/2`, `back_x = cx + t/2`
+- `top_y = cy - h`, `bot_y = cy + h`
+
+Sag, per surface:
+- `sag = abs(r) - sqrt(r*r - (D/2)**2)`, then multiplied by `scale`.
+- Sag is 0 if `abs(r) > 1e9`.
+- Sag is also 0 when `r*r < (D/2)**2`; the `ValueError` is caught. In that case the surface is still treated as curved.
+
+Edge x positions:
+- Front: flat (`abs(r1) > 1e9`) gives `front_x`. If `r1 > 0`, it is `front_x + sag1`. If `r1 <= 0`, it is `front_x - sag1`.
+- Back: flat gives `back_x`. If `r2 < 0`, it is `back_x - sag2`. Otherwise it is `back_x + sag2`.
+
+Path `d`: the parts are joined with single spaces and every number is formatted `:.2f`. Parts in order:
+1. Front flat: `M fx top_y`, then `L fx bot_y`.
+   Front curved: `M ftop top_y`, then `Q ctrl cy fbot bot_y`. Here `ctrl = front_x` if `r1 > 0`, else `front_top_x + 2*sag1`.
+2. Bottom edge: `L back_bot bot_y`.
+3. Back flat: `L back_top top_y`.
+   Back curved: `Q ctrl cy back_top top_y`. Here `ctrl = back_x` if `r2 < 0`, else `back_bot_x - 2*sag2`.
+4. `Z`.
+
+Worked example: `width=400, height=300`, thickness 5, diameter 50, `r1=100`, `r2=-100`.
+- `scale` = 3.52, `cx` = 200, `cy` = 150, `front_x` = 191.2, `back_x` = 208.8, `h` = 88, `sag` ≈ 11.1775.
+- Resulting path: `M 202.38 62.00 Q 191.20 150.00 202.38 238.00 L 197.62 238.00 Q 208.80 150.00 197.62 62.00 Z`
+
+File content, in order (each line ends `\n`):
+1. `<?xml version="1.0" encoding="UTF-8"?>`
+2. `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">`
+3. A `<defs><style>` block with classes `.lens-fill`, `.lens-stroke`, `.axis`, `.ray`, `.label`, `.title`. These are always present.
+4. Background: `  <rect width="400" height="300" fill="white"/>`
+5. Title: `  <text x="200.0" y="25" class="title" text-anchor="middle">{escape(str(lens.name))}</text>`
+   - `x` is `width/2`, which is always a float.
+   - `xml.sax.saxutils.escape` converts only `&`, `<` and `>`.
+6. Axis: `  <line x1="40" y1="150.0" x2="360" y2="150.0" class="axis"/>`
+7. Outline, two lines with the same `d`:
+   - `  <path d="{d}" class="lens-fill"/>`
+   - `  <path d="{d}" class="lens-stroke"/>`
+8. Optional rays and labels (see section 6).
+9. A blank line, then `</svg>` and a final newline.
+
+## 5. Side effects
+- Creates or replaces `filename` atomically.
+- Does not mutate `lens`. It only calls getters and `calculate_focal_length()`.
+
+## 6. Branches and edge cases
+- **`show_rays=True`:** adds exactly 3 lines of the form `<line x1="40" y1="{cy+ray_y}" x2="{front_top_x}" y2="{cy+ray_y}" class="ray"/>`.
+  - `ray_y` takes the values `-h*0.7`, `0`, `h*0.7`.
+  - These numbers use raw float repr, not `.2f`. For example `y1` may be `88.40000000000001`, so do not assert it exactly.
+  - Default (`show_rays=False`): the substring `class="ray"` is absent.
+- **`show_labels=True` (default):** adds these lines:
+  - `<text x="50" y="{cy-h-5}" class="label">∅{diameter:.1f}mm</text>`, e.g. `∅50.0mm`.
+  - `t={thickness:.1f}mm`, e.g. `t=5.0mm`, at `x="{cx}"`.
+  - `{escape(material)} (n={refractive_index:.4f})`, e.g. `BK7 (n=1.5168)` if the index is 1.5168.
+  - Only if `calculate_focal_length()` is truthy: `<text x="350" y="140.0" class="label" text-anchor="end">f={fl:.1f}mm</text>`. Nothing is written when it is `None` or `0`.
+- **`show_labels=False`:** no `class="label"` text and no `∅`. The `.label {` CSS rule stays in the file.
+- **Flat surfaces:** use `L` segments instead of `Q`. Whether `Lens` accepts `inf` or 1e12 radii is unknown (lens module not shown).
+- **`r` smaller than half the diameter:** a `Q` segment is still drawn, with the control point and endpoints all at `front_x`. `Lens` may reject such a lens at construction.
+
+## 7. Rules from comments
+- Front: `r1 > 0` is convex and `r1 < 0` is concave.
+- Back: `r2 < 0` is convex and `r2 >= 0` is concave.
+- Curved surfaces are drawn as quadratic Béziers, not arcs. The `_generate_arc_path` and `_get_surface_x` helpers are not used here.
+
+## 8. Testing hints
+- **Writing and reading:** use `tmp_path / "l.svg"`. Read it back with `open(p, encoding="utf-8").read()` in text mode, because `newline=None` writes `\r\n` on Windows and `∅` is non-ASCII.
+- **Building the lens:** pass explicit `thickness`/`diameter`, since the default constants are unseen. Then check `lens.thickness`, `lens.diameter` and the radii properties first, and compute expected strings from those values with the formulas above.
+- **Robust assertions:**
+  - `text.startswith('<?xml')` and `text.rstrip().endswith('</svg>')`.
+  - `'width="400" height="300" viewBox="0 0 400 300"'` is present.
+  - `text.count('class="lens-fill"/>') == 1` and the same for `class="lens-stroke"/>`.
+  - Both `<path>` lines carry an identical `d`.
+  - `text.count('class="ray"') == 3` with rays on, `0` with rays off.
+  - `>A &amp; B<` appears for `name="A & B"`.
+  - `f"n={lens.refractive_index:.4f}"` appears.
+  - `x1="40"` and `x2="360"` appear on the axis line.
+- **Custom size:** `width=600, height=400` gives title `x="300.0"`, axis `x2="560"` and `y1="200.0"`, with `scale = 320/maxdim*0.8`.
+- **Focal-length label:** compare it against `lens.calculate_focal_length()` computed in the test. Do not hardcode the value.
+- **Pitfalls:**
+  - `cy` prints as `150.0`, not `150`.
+  - `.2f` is used only inside the path `d`; everywhere else floats are printed raw.
+
+### openlens.export_formats.SVGExporter.export_system
+
+# Notes: `openlens.export_formats.SVGExporter.export_system`
+
+## 1. Purpose
+- Writes a simplified SVG diagram of an `OpticalSystem` to `filename`.
+- Each lens is drawn as two plain rectangles (fill and stroke), placed left to right with the air gaps between them.
+- Returns `None`.
+
+## 2. Inputs
+- `system: OpticalSystem`. The function reads:
+  - `system.name`
+  - `system.elements`, specifically each `elem.lens.thickness` and `elem.lens.diameter`
+  - `system.air_gaps`, through `_gap_before`
+  - `system.get_total_length()`
+- `filename: str`: the path written through `atomic_write_text(filename)` (utf-8, from `openlens.atomic`).
+- `width: int = 600`, `height: int = 300`. Neither is validated. Both are interpolated with plain f-strings, so `600` prints as `600` and `600.0` prints as `600.0`.
+- `margin = 40` is a hard-coded local.
+- Element `position`, decenter and tilt are ignored. Placement uses only the gaps and the thicknesses.
+- `_gap_before(system, i)`:
+  - returns `0.0` when `i <= 0` or when `i-1 >= len(system.air_gaps)`;
+  - otherwise returns `system.air_gaps[i-1].thickness`.
+  - `air_gaps[k]` is the gap *after* element k.
+
+## 3. Raises
+There are no explicit raises. Possible failures:
+- `ZeroDivisionError` if every element has `diameter == 0`, which makes `max_diameter == 0`. Lens validation probably prevents building such a lens, so this is unlikely to be reachable.
+- I/O errors from `atomic_write_text` for an unwritable path. The exact type is defined in another module; it is probably `OSError`.
+- Any exception raised inside the `with` block (for example from `get_total_length`) means the target file is **not** replaced. This follows `atomic_write_text`'s documented contract: it replaces the file only on success.
+
+## 4. Returns and output text
+The function returns `None`. The file content is exactly the following lines, each ending in `\n`, with no blank lines anywhere:
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">
+  <defs>
+    <style>
+      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }
+      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }
+      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }
+      .title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; }
+    </style>
+  </defs>
+  <rect width="{width}" height="{height}" fill="white"/>
+  <text x="{width/2}" y="25" class="title" text-anchor="middle">{escape(str(system.name))}</text>
+  <line x1="40" y1="{cy}" x2="{width-40}" y2="{cy}" class="axis"/>
+  ...two rect lines per element...
+</svg>
+```
+
+Header details:
+- There is **no `viewBox`** on `<svg>`, unlike `export_lens`.
+- The `.title` rule has no `fill:` and there is no `.ray` or `.label` class.
+- With the defaults:
+  - the title has `x="300.0"` (true division);
+  - `cy = height/2`, so `y1="150.0"`;
+  - `x2="560"` (an int).
+
+Per element `i`, the function writes two lines, fill first and then stroke:
+```
+  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" class="lens-fill"/>
+  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" class="lens-stroke"/>
+```
+The values come from this arithmetic, in this exact operation order:
+- `total_length = system.get_total_length() or 100`, so `0`/`None` becomes `100`.
+- `max_diameter = max(elem.lens.diameter ...)`, defaulting to `50` when there are no elements.
+- `scale = min((width-80) / total_length * 0.8, (height-80) / max_diameter * 0.8)`
+- `x_pos` starts at `60`. For each element, `x_pos += _gap_before(system, i) * scale` is applied first, and then `x_pos += t` after the element is drawn.
+- `t = lens.thickness * scale`
+- `h = lens.diameter / 2 * scale`
+- The first element's `x` is `60 + 0.0*scale`, which is the float `60.0` and prints as `"60.0"`.
+
+Number formatting:
+- All numbers use the default `str(float)` repr. Nothing is rounded.
+
+## 5. Side effects
+- The function creates or overwrites `filename`.
+- The system and its lenses are not mutated.
+
+## 6. Branches and edge cases
+- **No elements** (`OpticalSystem()`):
+  - no element `<rect>` lines are written; only the background rect remains;
+  - `max_diameter` defaults to 50;
+  - `</svg>` immediately follows the axis line.
+- **`get_total_length()` returns 0 or None:** the value 100 is used instead. What an empty or single system returns is defined in `optical_system` and is not visible here.
+- **Gaps:** element 0 never gets a gap. Element i>0 is shifted by `air_gaps[i-1].thickness * scale`. A gap of 0 shifts nothing, so the next rect's `x` equals the previous `x + t`.
+- **Scale choice:** the vertical limit wins for tall, thin systems and the horizontal limit wins for long systems.
+- **Name escaping:** the name passes through `xml.sax.saxutils.escape`, which escapes only `&`, `<`, `>`.
+  - Example: `"A&B<C>"` becomes `A&amp;B&lt;C&gt;`.
+  - Quotes are **not** escaped.
+
+## 7. Rules from comments and docstrings
+- The `_gap_before` docstring says gaps live in `system.air_gaps`, not on the element. The gap before element i is `air_gaps[i-1]`, and the first element has gap 0.
+- The comment "Simple rectangle for each lens (simplified)" states the intent: element curvature is not drawn.
+
+## 8. Testing hints
+- Build the input like this:
+  ```python
+  s = OpticalSystem(name="Sys")
+  s.add_lens(Lens(thickness=5, diameter=25))
+  s.add_lens(Lens(thickness=4, diameter=20), air_gap_before=10)
+  ```
+  - Pass `thickness` and `diameter` explicitly, because the default constants are not shown here.
+  - Write to `tmp_path / "s.svg"` and read the file back with `encoding="utf-8"`.
+- **Do not hard-code floats.** Recompute the expected values in the test with the identical expressions and order shown in section 4. For example, `(300-80)/25*0.8` may not be exactly `7.04`.
+  - Take `total_length` from `s.get_total_length()`.
+  - Take gap values from `s.air_gaps[k].thickness`. How `add_lens` fills `air_gaps` is not visible here.
+  - Then build the strings with the same f-string patterns, e.g. `f'x="{x}"'`.
+- Robust assertions:
+  - `text.count("<rect") == 1 + 2*len(s.elements)`;
+  - `class="lens-fill"` comes before `class="lens-stroke"` for each element;
+  - `"viewBox" not in text`;
+  - `text.endswith("</svg>\n")`;
+  - `text.startswith('<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300">\n')`;
+  - `'<line x1="40" y1="150.0" x2="560" y2="150.0" class="axis"/>'` is present;
+  - the title `x="300.0"` is present.
+- Custom sizes: `width=800, height=400` gives `x="400.0"`, `x2="760"` and `cy="200.0"`.
+- Positional checks:
+  - the first element's rect starts with `x="60.0"`;
+  - the second element's `x` is `60.0 + t0 + gap0*scale`, computed in that order.
+- Use a name with `&` and `<` to check escaping, and a name with `"` to check that it passes through literally.
+- Pitfalls to avoid:
+  - Assuming a `viewBox`.
+  - Assuming element `position` is used.
+  - Rounding to 2 decimals.
+  - Expecting blank lines; this function, unlike `export_lens`, writes none.
+
+### openlens.export_formats.ZemaxExporter.export_lens
+
+# Notes: `openlens.export_formats.ZemaxExporter.export_lens(lens, filename)`
+
+## 1. Purpose
+- Static method that writes one `Lens` as a simplified sequential Zemax `.zmx` text file.
+- The file has four surfaces: OBJ (0), front (1), back (2) and image (3).
+- It returns `None`. The only output is the file.
+
+## 2. Inputs
+- `lens`: a `Lens`. The method reads these members:
+  - `name`, `thickness`, `material`, `wavelength`
+  - `is_parabolic_1/2`, `conic_constant_1/2`
+  - `get_effective_radius_1/2()`, `get_clear_aperture_1/2()`, `coating_label(1/2)`
+- `filename`: a path (str; `atomic_write_text` takes `Any`, so a `pathlib.Path` probably works).
+  - The file is written through `atomic_write_text(filename)` with `encoding='utf-8'` and `newline=None`.
+- No validation is done on any input.
+
+## 3. Raises
+- The method raises nothing explicitly. Errors from attribute access or formatting propagate:
+  - a lens without the attributes above raises `AttributeError`;
+  - `lens.wavelength = None` raises `TypeError`, because `f"{None:g}"` is invalid.
+- A missing target directory makes the error come from `atomic_write_text` (module not shown). That module's docstring says the target is replaced only on success.
+
+## 4. Returns / exact file content
+Returns `None`. Every line ends in `\n`. A blank line follows each block, including the last one. Template:
+```
+! OpenLens Export
+! {lens.name}
+VERS 140000
+MODE SEQ
+
+SURF 0
+  TYPE STANDARD
+  CURV 0.0
+  DISZ INFINITY
+
+SURF 1
+  TYPE STANDARD
+  CURV {_zemax_curv(lens.get_effective_radius_1())}
+  CONI {k:g}                 <- only if conic present (see below)
+  DISZ {lens.thickness}      <- plain str(), e.g. "5.0"
+  DIAM {lens.get_clear_aperture_1() / 2.0}   <- semi-diameter, plain str(), e.g. "12.5"
+  GLAS {material}
+  WAVE {lens.wavelength:g}
+  COAT {lens.coating_label(1)}   <- only if label != "Uncoated"
+
+SURF 2
+  TYPE STANDARD
+  CURV {_zemax_curv(lens.get_effective_radius_2())}
+  CONI {k:g}                 <- optional
+  DIAM {lens.get_clear_aperture_2() / 2.0}
+  COAT {lens.coating_label(2)}   <- optional
+  DISZ 100.0
+
+SURF 3
+  TYPE STANDARD
+
+```
+- The file therefore ends with `"SURF 3\n  TYPE STANDARD\n\n"`.
+- Line order differs between the two surfaces:
+  - SURF 1 is `CURV, [CONI], DISZ, DIAM, GLAS, WAVE, [COAT]`.
+  - SURF 2 is `CURV, [CONI], DIAM, [COAT], DISZ 100.0`. SURF 2 has no GLAS and no WAVE line.
+- Surface indentation is exactly two spaces.
+
+Private helpers:
+- **`_zemax_curv(r)`**
+  - Returns `"0.0"` if `r == 0`, `abs(r) > 1e10`, or `r` is not finite.
+  - Otherwise returns `f"{1.0/r}"` (repr of the float). Examples: `100` → `"0.01"`, `-50` → `"-0.02"`, `-100` → `"-0.01"`.
+- **`_zemax_conic(is_parabolic, k)`**
+  - Parabolic surface → `-1.0`, written as `CONI -1`.
+  - Otherwise, if `abs(k) > EPSILON` → `k`. Example: `-0.5` gives `CONI -0.5`.
+  - Otherwise → `None`, and no CONI line is written.
+  - The `EPSILON` value is in `constants`, which is not shown. Use clearly nonzero values such as `-0.5`.
+- **`_zemax_material(m)`**
+  - `name = (m or "BK7").strip() or "BK7"`.
+  - If the name contains any whitespace it is wrapped in double quotes. Examples:
+    - `"BK7"` → `GLAS BK7`
+    - `"  N-BK7 "` → `GLAS N-BK7`
+    - `"Fused Silica"` → `GLAS "Fused Silica"`
+    - `""` or `None` → `GLAS BK7`
+- **`lens.name`** is written raw. There is no escaping or quoting.
+
+## 5. Side effects
+- The method creates or replaces `filename`.
+- It does not mutate the lens.
+- It changes no global state.
+
+## 6. Branches / edge cases
+| Case | How to reach it | Observable result |
+|---|---|---|
+| Spherical surfaces | Default lens with conic 0 | No `CONI` line anywhere |
+| Front conic | `lens.conic_constant_1 = -0.5` | `  CONI -0.5` right after SURF 1's CURV |
+| Parabolic front | `lens.is_parabolic_1 = True` | `  CONI -1`. CURV uses `get_effective_radius_1()`, whose parabolic behaviour lives in `lens.py` (not shown) |
+| Flat surface | Radius `float('inf')` or `>1e10` | `  CURV 0.0` |
+| Coated surface | `lens.set_coating(1, layers)` with a label other than `"Uncoated"` | `  COAT <label>` as the last SURF 1 line; on SURF 2 it comes before `DISZ 100.0` |
+| Uncoated | Default lens | No COAT lines |
+| Material with a space | `lens.material = "Fused Silica"` | `  GLAS "Fused Silica"` |
+
+## 7. Rules from comments and docstrings
+- A parabolic surface is written as CONI -1 at its vertex radius, not as a sphere at the nominal radius.
+- Zemax DIAM is a semi-diameter, so the full aperture is halved. A 25 mm lens is written as `DIAM 12.5`.
+- Glass names that contain whitespace are quoted, and the importer strips the quotes again.
+
+## 8. Testing hints
+- Use `tmp_path`: `p = tmp_path / "l.zmx"`, then `ZemaxExporter.export_lens(lens, str(p))`.
+- Read the file back with `p.read_text(encoding="utf-8")` and `.splitlines()`.
+  - Do **not** compare raw bytes. On Windows, text mode turns `\n` into `\r\n`.
+- Compute expected values from the lens instead of hard-coding Lens-internal defaults:
+  - `f"  CURV {1.0/lens.get_effective_radius_1()}"`
+  - `f"  DIAM {lens.get_clear_aperture_1()/2.0}"`
+  - `f"  WAVE {lens.wavelength:g}"`
+  - `f"  DISZ {lens.thickness}"`
+  - The sign convention of R2 and the default for `clear_aperture=None` (likely the full diameter) live in `lens.py`, which is not shown.
+- Pin these exact values:
+  - header lines `! OpenLens Export`, `! <name>`, `VERS 140000`, `MODE SEQ`;
+  - SURF 0's `CURV 0.0` / `DISZ INFINITY`;
+  - `  DISZ 100.0` as the last SURF 2 line;
+  - SURF ids 0..3 and the exact line order inside each block;
+  - the total number of lines.
+- Explicit-aperture example: `Lens(diameter=25.0, clear_aperture_1=20.0)` should give `  DIAM 10.0` on SURF 1. The `Lens` constructor validates this; its exact behaviour is not shown.
+- A good regression check is that DIAM equals half the clear aperture and not the full aperture.
+- Assert that SURF 2 has no GLAS/WAVE lines and that only one `DISZ` appears in each of SURF 1 and SURF 2.
+- Optional round trip: `ZemaxSystemImporter.import_system(str(p))` should give one element named `"Element 1"`.
+  - Its thickness and radii should match the original, within approx for radii.
+  - Its diameter is the max of the two clear apertures.
+- Pitfalls:
+  - `DISZ`/`DIAM` use `str(float)`, so they print `5.0`, not `5`. A test that writes `"DISZ 5"` is wrong.
+  - Only `WAVE` and `CONI` use `:g`. `CURV` uses the full repr, so `1/3` would print `0.3333333333333333`.
+  - Set `material`, conic and parabolic flags on the instance after construction if the constructor might reject them. For parabolic lenses, also set a valid `parabolic_sag_*`, or check the result with `in` rather than an exact CURV value.
+
+### openlens.export_formats.ZemaxSystemExporter.export_system
+
+# Notes: `ZemaxSystemExporter.export_system(system, filename) -> None`
+
+## 1. Purpose
+- Writes a multi-element `OpticalSystem` to a text file in a simplified Zemax `.zmx` dialect.
+- Each element produces a front and a back `SURF` block.
+- An optional STOP surface is added inside the stop gap, and the file ends with an image surface.
+- Returns `None`.
+
+## 2. Inputs
+- **`system`**: an `OpticalSystem`. The function reads these attributes:
+  - `system.name`
+  - `system.elements`, a list of `LensElement` with `.lens`, `.position`, `.decenter_y/z` and `.tilt_x/y/z`
+  - `system.air_gaps`, a list of `AirGap` with `.thickness`
+  - `system.get_aperture_stop()`, which returns `None` or a dict with the keys `"gap_index"`, `"diameter"` (read with `.get`) and `"position"`
+- **`filename`**: a path. It is written through `atomic_write_text(filename)` (default `encoding="utf-8"`, `newline=None`).
+- There is no validation of either argument.
+
+## 3. Raises
+- The function raises nothing itself.
+- Errors from `atomic_write_text` can propagate, for example a missing parent directory. That code is in `openlens.atomic` and was not shown.
+- Per the `atomic_write_text` docs, the target file is replaced only on success.
+
+## 4. Output text (exact, `\n`-joined; `{}` = value)
+```
+! OpenLens System Export
+! {system.name}          <- raw, not escaped
+VERS 140000
+MODE SEQ
+<blank>
+SURF 0 / "  TYPE STANDARD" / "  CURV 0.0" / "  DISZ INFINITY" / <blank>
+```
+Surfaces are numbered sequentially from `surf = 1`.
+
+**Front surface of each element `i`** (lines in this order):
+- `SURF {n}`
+- `  TYPE STANDARD`
+- `  CURV {c1}`
+- optional `  CONI {k:g}`
+- `  DISZ {lens.thickness}`
+- `  DIAM {lens.get_clear_aperture_1()/2.0}`
+- `  GLAS {mat}`
+- `  WAVE {lens.wavelength:g}`
+- optional `  DECE {dy:g} {dz:g}`
+- optional `  TILT {tx:g} {ty:g} {tz:g}`
+- optional `  COAT {label}`
+- blank line
+
+**Back surface** (note that DISZ comes LAST and there is no GLAS/WAVE/DECE/TILT):
+- `SURF {n+1}`
+- `  TYPE STANDARD`
+- `  CURV {c2}`
+- optional `  CONI`
+- `  DIAM {ca2/2.0}`
+- optional `  COAT {label2}`
+- `  DISZ {back_disz}`
+- blank line
+
+**Stop surface** (only for the stop gap's element):
+- `SURF {m}`
+- `  TYPE STANDARD`
+- `  STOP`
+- `  CURV 0.0`
+- optional `  DIAM {stop_dia/2.0}`
+- `  DISZ {stop_remainder}`
+- blank line
+
+**End of file**: `SURF {last}\n  TYPE STANDARD\n\n`
+
+### Value formatting
+- **Numbers written with plain `{x}`** use Python's float `str`:
+  - DISZ thickness: `5.0` → `5.0`
+  - DIAM: `25.0` → `12.5`
+- **CURV `c`** comes from `_zemax_curv(lens.get_effective_radius_N())`:
+  - `"0.0"` if the radius is `== 0`, `abs > 1e10`, or non-finite (inf/nan).
+  - Otherwise `f"{1.0/radius}"`. Examples: R=50 → `0.02`, R=-50 → `-0.02`, R=3 → `0.3333333333333333`.
+  - For non-parabolic surfaces the effective radius is presumably the nominal radius (`Lens` code was not shown).
+- **CONI** comes from `_zemax_conic(is_parabolic, conic_constant)`:
+  - Parabolic → `-1.0`, printed as `CONI -1`.
+  - Otherwise, if `abs(conic) > EPSILON` it prints the conic, e.g. `-0.5` → `CONI -0.5`.
+  - Otherwise the line is omitted.
+  - The value of `EPSILON` is in `constants` and not shown; it is tiny.
+- **GLAS `mat`** comes from `_zemax_material`:
+  - `(material or "BK7").strip() or "BK7"`.
+  - If the name contains any whitespace it is wrapped in double quotes: `Fused Silica` → `"Fused Silica"`, `N-BK7` → `N-BK7`.
+- **DECE** is written iff `abs(dy) > EPSILON or abs(dz) > EPSILON`. Example: dy=1.5, dz=0 → `  DECE 1.5 0`.
+- **TILT** is written iff any tilt `> EPSILON`. Example: `  TILT 0 2 0`.
+- **COAT** is written iff `lens.coating_label(s) != "Uncoated"`.
+
+### `back_disz` for element `i` (`gaps = list(system.air_gaps)`)
+1. If a stop exists and `stop["gap_index"] == i`:
+   - `back_disz = stop["position"] - (element.position + lens.thickness)`
+   - `stop_remainder = gaps[i].thickness - back_disz`
+   - The stop surface is emitted after the back surface.
+2. Else if `i < len(gaps)`: `back_disz = gaps[i].thickness`.
+3. Else: `back_disz = 100.0`, written as `DISZ 100.0`.
+
+### Stop DIAM
+- Written only if `stop_dia` is truthy, so `None` or `0` means no DIAM line.
+
+## 5. Side effects
+- Creates or replaces `filename`.
+- Does not mutate `system` or its lenses.
+
+## 6. Branches and edge cases
+- **Empty system** (`OpticalSystem(name="E")`): the whole file is exactly
+  `"! OpenLens System Export\n! E\nVERS 140000\nMODE SEQ\n\nSURF 0\n  TYPE STANDARD\n  CURV 0.0\n  DISZ INFINITY\n\nSURF 1\n  TYPE STANDARD\n\n"`
+- **One element, no stop**: surfaces are SURF 1 (front), SURF 2 (back), SURF 3 (image).
+  - Whether `air_gaps` has an entry after the last element is defined in `optical_system` (not shown).
+  - The docstring of `_gap_before` says `air_gaps[i]` is the gap after element i. That suggests N elements → N-1 gaps, so the last back DISZ is `100.0`.
+  - Assert against `system.air_gaps` rather than assuming.
+- **Two elements with gap g**: SURF 2 has `DISZ {air_gaps[0].thickness}`, then SURF 3/4 for element 2, then image SURF 5.
+- **Stop set** with `system.set_aperture_stop(0, diameter=10.0)`:
+  - An extra block containing `  STOP` and `  DIAM 5.0` appears.
+  - Every later surface number shifts by +1.
+  - The back DISZ plus the stop DISZ equals `gaps[0].thickness`, up to float rounding.
+  - The stop's `position` rule lives in `OpticalSystem` (not shown). Read it from `system.get_aperture_stop()["position"]`.
+- **Flat surface** (radius `float('inf')`, if `Lens` accepts it): `CURV 0.0`.
+- **Parabolic** (`is_parabolic_1=True`): `CONI -1`.
+  - CURV uses `get_effective_radius_1()`, which may differ from the nominal radius (not shown). Compute the expected value from that method.
+
+## 7. Rules from comments and docstrings
+- The front surface carries the center thickness.
+- The back surface carries the distance to the next surface: the stop plane, the next front vertex, or the image.
+- DIAM is a semi-diameter, i.e. full aperture / 2.
+- The mechanical diameter is not exported; the importer rebuilds it as the max of the two apertures.
+
+## 8. Testing hints
+Build inputs with the public API:
+```python
+from openlens.lens import Lens
+from openlens.optical_system import OpticalSystem
+
+s = OpticalSystem(name="T")
+s.add_lens(Lens(name="A", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0,
+                thickness=5.0, diameter=25.0, material="BK7"))
+```
+
+How to check the output:
+- Read the file with `Path(p).read_text(encoding="utf-8").splitlines()`.
+  - `newline=None` text mode may write `\r\n` on Windows, so do not compare raw bytes.
+- Build expected strings from the objects instead of hardcoding them:
+  - `f"  WAVE {lens.wavelength:g}"`
+  - `f"  DIAM {lens.get_clear_aperture_1()/2.0}"`
+  - `f"  CURV {1.0/lens.get_effective_radius_1()}"`
+  - The default clear aperture probably equals the diameter, but that is not verified here.
+- For computed DISZ values (stop case), parse the float and compare with `pytest.approx`.
+- Strong checks worth writing:
+  - exact header lines
+  - exact SURF numbering sequence
+  - back block has DISZ as its last line
+  - front block has no DISZ after DIAM, and `GLAS` appears only on front surfaces
+  - `CONI` absent for spherical surfaces
+  - quoting of `"Fused Silica"`
+  - no `DECE`/`TILT` when alignment is zero
+  - `DECE 1.5 0` after `s.set_element_alignment(0, decenter_y=1.5)`
+  - image block is the final `SURF`
+  - count of `SURF ` lines = 2 + 2·N (+1 with a stop)
+- Round trip: `ZemaxSystemImporter.import_system(p)` should give back the radii, thicknesses and gaps.
+  - The refractive index comes from the catalog, and the name becomes `"Element k"`.
+  - Lens diameter equals the max clear aperture.
+- Pitfalls:
+  - `system.name` is written unescaped.
+  - Leading two spaces on every keyword line.
+  - `CONI -1`, not `-1.0`.
+  - `CURV` uses full float repr, not `:g`.
+
+### openlens.io.export.ISO10110Generator.generate_svg
+
+# Notes: `ISO10110Generator.generate_svg(filename, width=800, height=600)`
+
+## 1. Purpose
+- Renders an SVG "ISO 10110 drawing" of `self.system` (an `OpticalSystem`) and writes it to `filename` using `openlens.atomic.atomic_write_text`.
+- Returns `None`.
+
+## 2. Inputs
+- `self.system`: the object given to `ISO10110Generator(system)`. It is stored as-is and never copied or validated. The function reads:
+  - `.name`, `.id`, `.elements`
+  - `.get_aperture_stop()`, `.get_system_focal_length()`, `.calculate_back_focal_length()`
+- `filename`: a path passed straight to `atomic_write_text(filename)`. Its behaviour is defined in `openlens.atomic`, which is not shown. Its docstring says the file is replaced only on success.
+- `width`, `height`: not validated. They are put into f-strings exactly as given.
+  - Pass ints. `width=800.0` would print `"800.0"`.
+  - `center_y = height/2` is always a float, e.g. `300.0`.
+
+## 3. Raises
+- The SVG text is fully built before the file is opened. If rendering fails, the file is not created or changed.
+- If `get_aperture_stop()` returns a dict without `'gap_index'`: `KeyError`.
+- If the stop dict lacks `'position'` and the system has elements: `KeyError`.
+- If the stop `diameter` is truthy but not a number: `ValueError` or `TypeError` from the `:.2f` format.
+- Errors when writing the file (for example, the directory does not exist) come from `atomic_write_text`, which is not shown. Do not assert a specific exception type.
+
+## 4. Returns / file content
+- Returns `None`.
+- The file content is lines joined with `"\n"`. The last line is `</svg>`, with no trailing newline added here.
+- Read the file back in text mode (`Path.read_text(encoding="utf-8")`). Newline translation on Windows is not visible from this module.
+
+Line order:
+1. `<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">`, then `<defs>`, `<style>`.
+2. Five style lines. They are plain strings, not f-strings, so the doubled braces appear literally:
+   - `  .lens {{ fill: #E0E0E0; stroke: black; stroke-width: 2; opacity: 0.8; }}`
+   - `.axis`, `.text`, `.title`, `.table` follow in the same form.
+   - Then `</style>`, `</defs>`, `<rect width="100%" height="100%" fill="white"/>`.
+3. Title line: `<text x="20" y="30" class="title">ISO 10110 Drawing: {escape(name)}</text>`.
+   - `escape` only converts `&`, `<` and `>`. `"A&B"` becomes `A&amp;B`.
+4. `<text x="20" y="50" class="text">Date: YYYY-MM-DD</text>`, using `datetime.now()`.
+5. Only if a stop exists: `<text x="20" y="68" class="text">Aperture stop: gap {gap_index}[, Ø{dia:.2f}mm]</text>`.
+   - The `, Ø…mm` part is omitted when the diameter is `None` or `0`.
+6. Axis line: `<line x1="20" y1="300.0" x2="780" y2="300.0" class="axis"/>` (defaults shown).
+7. Stop marker, only if a stop exists and there are elements:
+   - A `<line …stroke-width="1.5"/>`.
+   - A `…text-anchor="middle">STOP</text>`.
+8. For each element `i`:
+   - `<path d="M x y L x y … Z" class="lens"/>`. Coordinates are `:.2f` and come from `LensGeometry.get_lens_polyline`.
+   - A label `<text x="{pos_x}" y="…" class="text" text-anchor="middle">L{i+1}</text>`. `pos_x` is not formatted.
+9. ISO table at `x=width-490`, `y=height-150`, width 470. For the defaults:
+   - `<rect x="310" y="450" width="470" height="{35+40*n}" fill="white" stroke="black" stroke-width="1"/>`, where `n` is the number of elements.
+   - Header line, then headers `Surf Radius Thick Mat Diam CA Coat Bev`. Header x positions are `x+10, +50, +110, +160, +210, +260, +310, +375`, all at `y+18`.
+   - Two rows per lens.
+     - Front row values: `surf_idx`, `R1:.2f`, `thickness:.2f`, escaped material, `diameter:.2f`, `get_clear_aperture_1():.2f`, escaped `coating_label(1)`, `bevel_1:.2f`.
+     - Back row values: `R2:.2f`, `-` for thickness, an empty material cell (`<text x="470" y="…" class="text"></text>` with defaults), then diameter, CA2, coat2, `bevel_2`.
+   - Surface numbers run 1, 2, 3, … across lenses.
+10. Title block at `(20, height-170)`, width 300.
+    - Height is `24+8*18+6 = 174`: `<rect x="20" y="430" width="300" height="174" fill="white" stroke="black" stroke-width="1.5"/>`.
+    - Then `TITLE BLOCK`.
+    - Then rows, each written as `<text x="28" …>Key:</text>` followed by `<text x="130" …>value</text>` (value escaped). The rows are:
+      - Title
+      - Dwg No (`system.id[:8].upper()+"-A"`)
+      - Material (`sorted(set(materials))` joined `", "`, or `—` if there are none)
+      - `Units: mm`
+      - Scale (`{scale:.2f} px/mm`)
+      - EFL / BFL (`{v:.2f} mm`, or `—` when the value is `None`)
+      - Surfaces (`2*len(elements)`)
+      - Date / Rev (`YYYY-MM-DD / A`)
+11. Notes block:
+    - `<text x="20" y="100" class="text" font-weight="bold">ISO 10110 NOTES</text>`.
+    - Eight notes at `y = 118, 133, …, 223`, each passed through `escape`.
+    - Note 0: `0/ General: all dimensions in mm; surfaces numbered front to back.`
+    - Note 4 when there is no tilt: `4/ Centering: TBD (assembly nominally centered).`
+    - Note 4 with tilt: `4/ Centering: ≤ {max_tilt*60:.1f}' element tilt (max over assembly).`
+      - `max_tilt` is the largest `abs(tilt_x)` or `abs(tilt_y)` over all elements. `tilt_z` is ignored.
+      - Example: `tilt_x=0.5` gives `≤ 30.0'`.
+    - Note 6: `6/ Coating: L1: {c1}/{c2}; L2: …` (entries joined `"; "`), or `6/ Coating: —.` when empty.
+      - The labels come from `Lens.coating_label`. Per the API doc an uncoated surface is probably `"Uncoated"`, but that code is not shown here.
+12. Dimensions, only if there are elements:
+    - The total track line.
+    - `{total_length:.2f} mm`, where `total_length = last.position + last.thickness`.
+    - The OD line.
+    - `<text x="…" y="300.00" class="text" text-anchor="end">Ø{max_diam:.2f}</text>`.
+13. `</svg>`.
+
+How the scale is computed:
+- Empty system: `10.0`.
+- Otherwise: `min((width-100)/max_x, (height-100)/max_diam) * 0.8`, where `max_x` is last position plus thickness. A value of 0 or less falls back to 10.
+- Example: one lens with diameter 25, thickness 5, position ≈0 gives `min(140, 20)*0.8 = 16.0`, shown as `Scale: 16.00 px/mm`.
+
+## 5. Side effects
+- Creates or overwrites `filename` (atomically, per the `atomic` module).
+- Does not mutate the system or its lenses (only getters are called).
+
+## 6. Branches
+- **Empty `OpticalSystem("Empty")`:**
+  - Scale is `10.00`.
+  - No `<path`, no `STOP`, no dimension lines, no `mm</text>` track text.
+  - Table rect `height="35"`; `Surfaces: 0`; `Material: —`; `6/ Coating: —.`.
+- **No stop set:** no `Aperture stop` text and no `STOP`.
+- **After `set_aperture_stop(...)`:** both appear.
+  - The stop dict is built in `optical_system`, which is not shown. Check for the substring `Aperture stop: gap ` rather than exact numbers, unless you also read `system.get_aperture_stop()` and format it yourself.
+- **Several lenses with the same material:** the material appears once. `BK7` + `F2` gives `BK7, F2`.
+
+## 7. Comment-stated rules
+- Notes are XML-escaped because coating layer names are free-form text. The exported SVG must stay well-formed XML.
+
+## 8. Testing hints
+- Use pytest `tmp_path`. Build the system with:
+  ```python
+  s = OpticalSystem("T")
+  s.add_lens(Lens(radius_of_curvature_1=50, radius_of_curvature_2=-50, thickness=5, diameter=25, material="BK7"))
+  ```
+- Good checks:
+  - Parse the file with `xml.etree.ElementTree.fromstring(text)`; it must be well-formed.
+  - Count `<path ` (one per lens) and the `L1`, `L2` labels.
+  - Check table cells `>50.00<`, `>-50.00<`, `>5.00<`, `>25.00<`, `>BK7<`.
+  - Check `>Surfaces:<` paired with `>2<`, `Scale: 16.00 px/mm` → really `>16.00 px/mm<`, `>Ø25.00<`, and the literal `{{`.
+- A name with `&` or `<` must show up escaped (`&amp;`, `&lt;`) in both the title and the title block.
+- Pitfalls:
+  - Do not hardcode the date. Compute `datetime.now().strftime("%Y-%m-%d")`, or only check the `Date: ` prefix.
+  - EFL/BFL values and polyline coordinates depend on other modules. Compare with `f"{s.get_system_focal_length():.2f} mm"` instead of literal numbers.
+  - The element position after `add_lens` is set by `optical_system` (not shown). Derive expected totals from `s.elements[-1].position + s.elements[-1].thickness`.
+  - The radius is printed with `:.2f`; a flat (infinite) radius prints as `inf`.
+  - Calling it twice overwrites the file; the second content replaces the first.
+
+### openlens.io.step_export.StepExporter.export
+
+# Notes: `openlens.io.step_export.StepExporter.export(filename, housing=None) -> dict`
+
+## 1. Purpose
+- Writes `self.system` (an OpticalSystem, a single Lens, or anything else) as an ISO 10303-21 STEP text file.
+- Also writes optional annular "housing" tube solids.
+- Returns a summary dict.
+
+## 2. Inputs
+- `self.system` is set by `StepExporter(system)`. Default is `None`. Dispatch, in order:
+  1. Has both `elements` and `air_gaps` (OpticalSystem): one lens solid per element, placed by element transform.
+  2. Else has `radius_of_curvature_1` (Lens): one solid, `placement=None` (local frame, z_offset 0).
+  3. Else (e.g. `None`, a dict): tries the lens path. `AttributeError`/`KeyError` is caught.
+- `filename`: path, written with `atomic_write_text` (text mode, so `\n` becomes `\r\n` on Windows; read back in text mode).
+- `housing`: iterable of dicts with keys `name`, `z0`, `z1`, `r_inner`, `r_outer`.
+  - Each numeric value goes through `float(...)`.
+  - `name` is `str(part.get("name","part"))`; a non-dict part gets the name `"part"`.
+  - `None` or `[]` means no housing.
+
+## 3. Raises
+- `ValueError` (from `_export_lens_solid`) when a lens surface is non-spherical:
+  - **Parabolic:** `is_parabolic_N` is true, `abs(parabolic_sag_N) >= EPSILON` and diameter is non-zero.
+  - **Conic:** `abs(conic_constant_N) > EPSILON` and the radius is not "flat". Flat means `abs(r) < 1e-10` or `abs(r) > 10000`; exactly 10000 is *not* flat.
+  - The front surface (1) is checked before the back (2).
+  - Message template:
+    `f"STEP export writes spherical and flat surfaces only; lens {name!r} has a {profile} {label} surface. At the rim (h={h:g} mm) the model sags {modelled_sag:.6f} mm but a sphere of radius {stored_radius:g} mm sags {sphere_sag:.6f} mm, so the exported rim would not lie on the exported surface."`
+  - `profile` is `"parabolic"` or `f"conic (K={k:g})"`. `label` is `"front"` or `"back"`.
+  - Use `pytest.raises(ValueError, match="spherical and flat surfaces only")` and `match="conic \\(K=-1\\) front"`.
+  - Example trigger: `Lens(radius_of_curvature_1=50.0, conic_constant_1=-1.0, ...)`.
+  - **No file is created** (the raise happens before writing). Check with `not path.exists()`.
+- Housing errors (`KeyError`/`TypeError`/`ValueError`) are caught and never propagate.
+
+## 4. Returns and guarantees
+- Returns `{"shapes": int, "skipped": int, "skipped_parts": list[str]}`. `skipped == len(skipped_parts)`.
+- `shapes` counts lens solids plus housing tubes written.
+- The state is reset at the start of every call (a new `StepWriter`, ids restart at `#1`). Calling export twice on one exporter gives identical DATA sections, not doubled ones.
+- File layout:
+  - `"ISO-10303-21;\nHEADER;\n..."`, ending with `"DATA;"`.
+  - Then entity lines joined by `\n`.
+  - Then `"\nENDSEC;\nEND-ISO-10303-21;"`.
+  - FILE_NAME contains the current timestamp, so do not compare the full header.
+- Context entities are always `#1`..`#11` (exact lines):
+```
+#1=DIRECTION('axis_z',(0.000000,0.000000,1.000000));
+#2=DIRECTION('axis_x',(1.000000,0.000000,0.000000));
+#3=DIRECTION('axis_y',(0.000000,1.000000,0.000000));
+#4=CARTESIAN_POINT('origin',(0.000000,0.000000,0.000000));
+#5=AXIS2_PLACEMENT_3D('global_axis',#4,#1,#2);
+#6=(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.));
+#7=UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-06),#6,'distance_accuracy_value','confusion accuracy');
+#8=APPLICATION_CONTEXT('core data for automotive mechanical design processes');
+#9=PRODUCT_CONTEXT('part definition',#8,'mechanical');
+#10=MECHANICAL_CONTEXT('3D Mechanical Context',#8);
+#11=(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT((#7))GLOBAL_UNIT_ASSIGNED_CONTEXT((#6))REPRESENTATION_CONTEXT('',''));
+```
+- Formatting rules:
+  - Floats are written `:.6f`; ints bare; `True`/`False` as `.T.`/`.F.`; `None` as `$`.
+  - Strings are always single-quoted. `'` is doubled, `\` is doubled, non-ASCII becomes `\X2\<HEX>\X0\`.
+  - References are written `#n`; lists/tuples become `(a,b)`.
+- If `shapes > 0`, the last entity is `ADVANCED_BREP_SHAPE_REPRESENTATION('lens_geom',(#a,#b,...),#11);`, listing the solid ids in creation order. If there are 0 shapes, this entity is omitted.
+
+## 5. Side effects
+- Writes/replaces `filename`.
+- Logs warnings for skipped parts.
+- Does not mutate the system or the housing dicts.
+
+## 6. Branches and edge cases
+- **`StepExporter().export(p)` (system None):**
+  - Returns `{"shapes":0,"skipped":1,"skipped_parts":["system"]}`.
+  - The file has exactly entities `#1`..`#11` and no BREP_SHAPE_REPRESENTATION.
+- **Spherical single lens** (e.g. `Lens(name="L", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0)`): 38 entities `#12`..`#49` plus `#50` product. Deterministic lines from this code:
+  - `#12=CARTESIAN_POINT('v1',(0.000000,0.000000,0.000000));`
+  - `#13=CARTESIAN_POINT('v2',(0.000000,0.000000,5.000000));`
+  - `#18=CIRCLE('circle1',#17,12.500000);`
+  - `#24=EDGE_CURVE('edge1',#22,#22,#18,.T.);`
+  - `#26=VECTOR('dir_z',#1,1.000000);`
+  - `#27=LINE('seam_line',#14,#26);`
+  - `#29=ORIENTED_EDGE(*,*,#24,.T.);`
+  - `#30=EDGE_LOOP('loop1',(#29));`
+  - `#33=CARTESIAN_POINT('center1',(0.000000,0.000000,50.000000));` (centre = z_offset + r1)
+  - `#35=SPHERICAL_SURFACE('sphere1',#34,50.000000);`
+  - `#36=CARTESIAN_POINT('center2',(0.000000,0.000000,-45.000000));` (r2<0: thick−|r2|; r2>0: thick+r2)
+  - `#38=SPHERICAL_SURFACE('sphere2',#37,50.000000);`
+  - `#40=CYLINDRICAL_SURFACE('cyl',#39,12.500000);`
+  - `#47=ADVANCED_FACE('face3',(#45,#46),#40,.T.);`
+  - `#48=CLOSED_SHELL('shell',(#42,#44,#47));`
+  - `#49=MANIFOLD_SOLID_BREP('L',#48);`
+  - `#50=ADVANCED_BREP_SHAPE_REPRESENTATION('lens_geom',(#49),#11);`
+  - Nested ids are allocated before their parent: VECTOR before LINE, ORIENTED_EDGE before EDGE_LOOP, FACE_BOUND before ADVANCED_FACE.
+  - The e1/e2/c1/c2 z values come from `Lens.get_sag_1/2` (not visible here). Do not assert them.
+- **Flat surface** (|R| > 10000, or a parabolic surface with sag 0): that side uses `PLANE('plane1',#<axis_c1>)` instead of 3 sphere entities. Each flat side saves 2 entities (one 1 entity instead of 3).
+- **Non-flat zero-conic** (K=0 with a parabolic flag false) exports as a normal sphere.
+- **Solid label** (`_solid_label`):
+  - `name`, plus ` (CA a/b, bevel x/y, coat c1/c2)` parts when present.
+  - CA appears if `clear_aperture_1`/`_2` is not None (a missing one shows the diameter).
+  - Bevel appears if either bevel ≠ 0.
+  - Coat appears if `lens.coating_label(n) != "Uncoated"`.
+  - The Lens attribute defaults are not visible here. For a plain Lens, assert only that `'L'` appears or that `MANIFOLD_SOLID_BREP('L` is present.
+- **Rotating placement** (element tilt in a system): adds `DIRECTION('element_axis_z_1',...)` and `DIRECTION('element_axis_x_1',...)` (counter per rotated solid). Otherwise `#1`/`#2` are reused.
+- **`edge_profile` set:** the rim becomes rim_p points, POLYLINE and SURFACE_OF_REVOLUTION. This depends on `LensGeometry`, which is not shown.
+- **Valid housing tube** (`{"name":"sp","z0":0.0,"z1":2.0,"r_inner":10.0,"r_outer":12.0}`):
+  - Adds 55 entities, ending in `MANIFOLD_SOLID_BREP('sp',#...)`.
+  - Lines include `CYLINDRICAL_SURFACE('sp_co',#..,12.000000)`, `'sp_ci'` with `10.000000`, and `CIRCLE('sp_to',#..,12.000000)`.
+  - The tube's shell is also named `'shell'`.
+- **Housing skip cases.** Each appends its name to `skipped_parts` and continues:
+  - Invalid dimensions (need `r_outer > r_inner > 0` and `z1 > z0`, e.g. r_inner == r_outer, z1 == z0, r_inner=0).
+  - A missing key (KeyError).
+  - A non-numeric value (`"abc"` → ValueError, `None` → TypeError).
+  - A non-dict part, e.g. `[1, 2]` → TypeError, name `"part"`.
+  - Dict without `name` → `"part"`.
+- **System only:** `shapes == len(system.elements)`, with one `MANIFOLD_SOLID_BREP` per element.
+
+## 7. Rules from the docstrings and comments
+- Repeat calls must not accumulate entities.
+- Names like `"50"`, `"Infinity"` and `"#3 doublet"` stay quoted text.
+- A refused lens leaves no file.
+- Skipped parts must be reported, not lost silently.
+
+## 8. Testing hints
+- Use `tmp_path / "out.step"` and read it with `read_text()`.
+- To get the DATA lines: `text.split("DATA;\n")[1].split("\nENDSEC;")[0].splitlines()`.
+- Pass floats for all lens dimensions. Ints may print as `50`, not `50.000000`.
+- Good checks:
+  - Counts such as `text.count("MANIFOLD_SOLID_BREP(")`.
+  - The exact context lines.
+  - The last entity line.
+  - That line ids are sequential `#1..#N`.
+  - A second export produces the same DATA lines.
+  - Name escaping: `Lens(name="it's")` gives `'it''s'`, and `name="50"` gives `'50'`.
+- Don't assert:
+  - The timestamp.
+  - Sag-dependent z values.
+  - Transformed coordinates for decentered elements (these depend on Matrix4x4 and OpticalNode, which are not shown).
+  - Lens defaults that are not shown here.
+
+### openlens.material_database.MaterialDatabase.export_material
+
+# Notes: `MaterialDatabase.export_material(self, material_name: str, output_file: str)`
+
+## 1. Purpose
+- Writes one catalog material to `output_file` as a JSON object (`MaterialProperties.to_dict()`).
+- If the name cannot be resolved, it silently does nothing.
+
+## 2. Inputs
+- `material_name: str` is resolved with `self.get_material(name)`:
+  1. First it tries the exact key `name.upper()` in `self.materials`. For example, `"bk7"` resolves to `"BK7"` and `"n-bk7"` resolves to `"N-BK7"`.
+  2. Otherwise it tries the alphanumeric-only uppercase form, `"".join(c for c in name.upper() if c.isalnum())`. That form is looked up in an alias map built from the catalog keys, and the first key wins.
+  - Alias examples:
+    - `"Fused Silica"`, `"fused-silica"` and `"fused_silica"` all resolve to `"FUSEDSILICA"`.
+    - `"n bk7"` and `"NBK7"` resolve to `"N-BK7"`.
+    - `"s lah79"` resolves to `"S-LAH79"`.
+    - `"E FD60"` resolves to `"E-FD60"`.
+- Built-in keys: `BK7, N-BK7, SF11, F2, FUSEDSILICA, S-LAH79, E-FD60`. Further keys come from the JSON file at `db_path` and from `add_material`.
+- `output_file`: a path. It is passed straight to `openlens.atomic.atomic_write_json(output_file, payload)` with the default `indent=2`. There is no validation, and `ensure_parent_dir` is not called.
+
+## 3. Raises
+- The function raises nothing itself.
+- A non-string name (e.g. `db.export_material(None, p)`) raises `AttributeError` from `None.upper()`.
+- Write failures, such as a missing parent directory or an unwritable path, come from `atomic_write_json` in `openlens.atomic`. That code is not shown, so the exact exception is unknown. Do not test it.
+
+## 4. Returns and guarantees
+- Always returns `None`, whether found or not.
+- When the material is found, the file holds the JSON of `dataclasses.asdict(mat)`.
+  - Keys, in field order: `name, catalog, nd, vd, B1, B2, B3, C1, C2, C3, D0, D1, D2, E0, E1, lambda_tk_um, thermal_expansion, transmission_data, transmission_thickness, density, climate_resistance, acid_resistance, alkali_resistance`. That is 23 keys.
+  - `name` is the stored material's own `name` (e.g. `"FUSEDSILICA"`), not the string the caller passed.
+  - `transmission_data` tuples become JSON lists of lists. For BK7 the value is `[[380, 0.95], [400, 0.97], …, [2500, 0.5]]` (10 entries). For N-BK7 it is `[]`.
+- BK7 values:
+  - `nd=1.5168`, `vd=64.17`, `catalog="Schott"`
+  - `B1=1.03961212`, `C3=103.560653`
+  - `D0=1.86e-6`, `lambda_tk_um=0.17`
+  - `thermal_expansion=7.1e-6`, `density=2.51`
+  - `alkali_resistance=2`, `climate_resistance=1`
+- N-BK7 values: `climate_resistance=2`, `acid_resistance=2`.
+- FUSEDSILICA values: `nd=1.45846`, `vd=67.82`, `C1=0.0684043**2`, `thermal_expansion=0.55e-6`, `climate_resistance=4`, `alkali_resistance=1`.
+- S-LAH79 has `catalog="Ohara"`. Its D0–E1 and `lambda_tk_um` are all `0.0`.
+- E-FD60 has `catalog="Hoya"`.
+
+## 5. Side effects
+- Writes or overwrites only `output_file`.
+- Does not write `db_path` (it does not call `save_database`).
+- Does not mutate `self.materials` or the index cache. It may build the internal alias map, which is not observable.
+- If the material is not found, no file is created and an existing `output_file` is left untouched.
+
+## 6. Branches
+- **Found (exact key)**: `db.export_material("BK7", p)` writes the file and `json.load` gives `["name"] == "BK7"`.
+- **Found (alias)**: `db.export_material("Fused Silica", p)` writes the file with `["name"] == "FUSEDSILICA"`.
+- **Not found**: `db.export_material("Unobtainium", p)` returns `None` and `p` does not exist afterwards.
+  - `""` is also not found, because the empty key matches nothing.
+  - A pre-existing file at `p` keeps its old content.
+- **Custom material**: after `db.add_material(MaterialProperties(name="MyGlass", catalog="Custom", nd=1.6, vd=40.0), save=False)`, `export_material("myglass", p)` writes `name == "MyGlass"` with defaults:
+  - `B1 = 0.0`
+  - `thermal_expansion = 7.1e-6`
+  - `transmission_thickness = 10.0`
+  - `density = 2.51`
+  - `transmission_data = []`
+  - resistances `= 1`
+- **Overwrite**: exporting `"BK7"` then `"SF11"` to the same path leaves SF11 data (`nd == 1.78472`).
+
+## 7. Rules from docstrings
+- The docstring says "Export material data to file".
+- `get_material` treats spacing, punctuation and case variants as the same glass.
+
+## 8. Testing hints
+- Always build the database as `MaterialDatabase(db_path=str(tmp_path / "materials.json"))`, pointing at a non-existent file.
+  - `MaterialDatabase()` with no argument reads the user's real catalog.
+  - Use `add_material(..., save=False)` to avoid writing `db_path`.
+- Read the output back with `json.load(open(p, encoding="utf-8"))` and compare values.
+  - Do not assert the exact text, whitespace or indent, because `atomic_write_json` internals are not shown.
+  - Compare floats with `==` against the literal values above (a JSON round-trip of a Python float is exact) or with `pytest.approx`.
+- Round-trip checks:
+  - For N-BK7 (empty transmission), `MaterialProperties.from_dict(json.load(...)) == db.get_material("N-BK7")` holds.
+  - For BK7 it does NOT hold, because the loaded data has lists instead of tuples. Compare `[tuple(x) for x in d["transmission_data"]]` instead.
+- Assert `export_material(...) is None` in both branches.
+- Assert `not (tmp_path / "materials.json").exists()` after an export, to show the catalog was not saved.
+- Use a write target in an existing directory (`tmp_path / "out.json"`).
+
+### openlens.material_database.MaterialDatabase.get_material
+
+# Notes: `MaterialDatabase.get_material(self, name: str) -> Optional[MaterialProperties]`
+
+## 1. Purpose
+- Looks up a material by name. It tries the exact uppercased key first. If that misses, it tries a punctuation-, space- and case-insensitive alias.
+- It returns the stored `MaterialProperties` object, or `None` if no match is found.
+
+## 2. Inputs
+- `name`: must be a `str`. The function does no other validation.
+- **Step 1 (exact):** `self.materials.get(name.upper())`.
+- **Step 2 (alias):** normalise `name` with the private helper `_material_key(name)`:
+  ```python
+  "".join(c for c in name.upper() if c.isalnum())
+  ```
+  - It uppercases the name, then keeps only alphanumeric characters (Unicode `isalnum`).
+  - So spaces, `-`, `_`, `.` and similar are dropped.
+  - Examples: `"Fused Silica"` → `"FUSEDSILICA"`; `"n_bk7"` → `"NBK7"`; `"S-LAH79"` → `"SLAH79"`.
+- **Alias table (`_normalised_keys()`):**
+  - Built lazily into `self._alias_keys` the first time it is needed.
+  - Maps `_material_key(catalog_key)` → `catalog_key` for every key in `self.materials`, in insertion order.
+  - It uses `setdefault`, so the **first key wins** when two keys normalise to the same string.
+  - The table is reset to `None` by `clear_cache()`, which `add_material` and `_load_database` call. `get_refractive_index` also resets it on every cache miss.
+
+## 3. Raises
+- A non-str `name` raises `AttributeError` from `.upper()`.
+  - Example: `db.get_material(None)` → `AttributeError: 'NoneType' object has no attribute 'upper'`.
+  - Example: `db.get_material(7)` → `AttributeError` (`'int' object has no attribute 'upper'`).
+- Nothing else raises, and the function does not log.
+
+## 4. Returns and guarantees
+- On a hit it returns **the same object** stored in `self.materials`; it does not make a copy.
+  - Example: `db.get_material("bk7") is db.materials["BK7"]` is `True`.
+- On a miss it returns `None`. It never falls back to BK7; that fallback exists only in `get_refractive_index`.
+- Built-in keys, loaded before any JSON file: `BK7`, `N-BK7`, `SF11`, `F2`, `FUSEDSILICA`, `S-LAH79`, `E-FD60`.
+- Useful built-in field values:
+
+  | Key | `nd` | `vd` | `catalog` |
+  |---|---|---|---|
+  | BK7 | 1.5168 | 64.17 | "Schott" |
+  | N-BK7 | 1.5168 | 64.17 | "Schott" |
+  | SF11 | 1.78472 | 25.68 | "Schott" |
+  | F2 | 1.62004 | 36.37 | "Schott" |
+  | FUSEDSILICA | 1.45846 | 67.82 | "Schott" |
+  | S-LAH79 | 2.00330 | 28.27 | "Ohara" |
+  | E-FD60 | 1.52249 | 59.48 | "Hoya" |
+
+- The returned object's `.name` equals the key for all built-ins (e.g. `"FUSEDSILICA"`, `"N-BK7"`).
+
+## 5. Side effects
+- It may populate `self._alias_keys`; this happens only when the exact lookup misses.
+- It does not change `materials` or `_index_cache`, does no file I/O, and does not log.
+
+## 6. Branches and edge cases
+- **Exact hit:**
+  - `"BK7"`, `"bk7"` and `"n-bk7"` → the BK7 / N-BK7 objects.
+  - When the exact lookup hits, the alias table is not built: `db._alias_keys` stays `None` on a fresh db.
+- **Alias hit:**
+  - `"Fused Silica"`, `"fused-silica"`, `"fused_silica"` → FUSEDSILICA.
+  - `"NBK7"`, `"n bk7"` → N-BK7.
+  - `"slah79"`, `"S LAH 79"` → S-LAH79.
+  - `"e.fd.60"` → E-FD60.
+- **Miss:** `"Unobtainium"`, `""` and `"   "` → `None`. All built-in keys normalise to non-empty strings.
+- **First key wins:**
+  ```python
+  db.add_material(MaterialProperties(name="BK-7", catalog="Custom", nd=1.6, vd=50), save=False)
+  ```
+  - The new material is stored under key `"BK-7"`.
+  - `get_material("bk-7")` is the new object (exact hit).
+  - `get_material("bk 7")` and `get_material("BK_7")` return the **built-in BK7** (nd 1.5168), because the alias `"BK7"` → `"BK7"` was registered first.
+- **New material reachable by alias after `add_material`** (the cache is cleared):
+  - Add a material named `"My Glass"` (key `"MY GLASS"`).
+  - Then `get_material("my-glass")` and `get_material("MYGLASS")` return it.
+- **Stale alias table after direct dict mutation** (a quirk of current behaviour):
+  - If the table was already built (e.g. after `get_material("fused silica")`), then `db.materials["MY GLASS"] = mat` without `clear_cache()` leaves the table stale.
+  - `get_material("MYGLASS")` → `None`, while `get_material("my glass")` → `mat` (exact hit).
+  - After `db.clear_cache()`, `get_material("MYGLASS")` → `mat`.
+- **Alias pointing to a deleted key:**
+  - Build the table, then `del db.materials["F2"]` without `clear_cache()`.
+  - `get_material("F 2")` → `None`, because the final `self.materials.get(key)` misses.
+- **Non-uppercase key inserted directly** (`db.materials["abc"] = m`, then `clear_cache()`):
+  - `get_material("abc")` misses the exact step (it looks for `"ABC"`).
+  - It then hits via the alias `"ABC"` → `"abc"`, and returns `m`.
+
+## 7. Rules from docstrings/comments
+- "The exact uppercased key wins, then any spacing/punctuation variant: "Fused Silica", "fused-silica" and "FUSEDSILICA" all name the same glass."
+- Alias table: "The first catalog key wins, so the built-in glasses keep their names when an imported catalog repeats one under different punctuation."
+- `has_material(name)` is exactly `get_material(name) is not None`.
+
+## 8. Testing hints
+- **Isolate from the user's real catalog.** Always use `db = MaterialDatabase(str(tmp_path / "materials.json"))`.
+  - The file does not exist, so only built-ins load.
+  - Do not pass `""` as the path: it falls back to the default user path.
+- Use `add_material(..., save=False)` to avoid writing files.
+  - `save=True` with a tmp path is also safe, and writes JSON there.
+- **Catalogs loaded from JSON:** the keys are `name.upper()` of the JSON *dict key*, not the material's `name` field.
+  - Write `{"my glass": {...full MaterialProperties dict...}}`; it then loads as key `"MY GLASS"`.
+- Build `MaterialProperties` with the required args `name`, `catalog`, `nd`, `vd`; everything else has defaults.
+- **Prefer checks that pin behaviour down:**
+  - identity checks (`is db.materials[...]`);
+  - the `.name` / `.nd` of the result;
+  - `None` for misses;
+  - the first-key-wins example above.
+- **Do not assume:**
+  - that the result is a copy (it is the stored object);
+  - that unknown names give BK7 (they give `None`);
+  - that `get_material(None)` returns `None` (it raises `AttributeError`).
+- Avoid the singleton `get_material_database()`: it reads the user's real data path.
+
+### openlens.material_database.MaterialDatabase.save_database
+
+# Notes: `MaterialDatabase.save_database(self) -> None`
+
+## 1. Purpose
+- Writes the whole in-memory catalog (`self.materials`) to the JSON file at `self.db_path`.
+- The file is replaced atomically, and its old contents are discarded. The new contents are not merged with the old ones.
+
+## 2. Inputs
+- No parameters. It uses `self.db_path` and `self.materials`.
+- `self.db_path` is set in `__init__` as `db_path or str(default_materials_path())`.
+  - A falsy `db_path` (`None` or `""`) means the real per-user catalog file.
+- `self.materials` is a `Dict[str, MaterialProperties]`.
+  - A fresh instance holds 7 built-ins in this insertion order: `"BK7", "N-BK7", "SF11", "F2", "FUSEDSILICA", "S-LAH79", "E-FD60"`.
+  - Entries from an existing file at `db_path` follow, with keys set to `name.upper()`.
+
+## 3. Raises
+- The method has no checks of its own.
+- `ensure_parent_dir(self.db_path)` (in `openlens.paths`, not shown) creates the parent directory. Per the code comment, it reports an unwritable directory instead of raising.
+- `atomic_write_json(path, payload, indent=2)` (in `openlens.atomic`, not shown) does the write. Any `OSError` or `TypeError` propagates. Because the write is atomic, the target is left untouched on failure. The exact messages cannot be seen here, so do not assert on them.
+- Possible trigger: a non-JSON-serialisable field value, e.g. `db.materials["X"] = MaterialProperties("X","C",1.5,60, density={1})` (a set). This would likely raise `TypeError`; the exact behaviour depends on the unseen code.
+
+## 4. Returns and guarantees
+- Returns `None`.
+- The payload is `{key: mat.to_dict() for key, mat in self.materials.items()}`.
+  - Keys are the dict keys, not `mat.name`.
+  - Values are `dataclasses.asdict(mat)`, which holds all 23 fields: `name, catalog, nd, vd, B1..B3, C1..C3, D0, D1, D2, E0, E1, lambda_tk_um, thermal_expansion, transmission_data, transmission_thickness, density, climate_resistance, acid_resistance, alkali_resistance`.
+- The payload is serialised as JSON with `indent=2`. Whether keys are sorted, plus the exact whitespace, depends on the unseen `atomic_write_json`. Parse the file with `json.load`; do not compare raw text.
+- `transmission_data` tuples become JSON arrays, so the parsed value is `[[380, 0.95], ...]` (lists, not tuples).
+- Floats round-trip exactly. For example, FUSEDSILICA `C1 == 0.0684043**2`, and BK7 `B1 == 1.03961212`.
+
+## 5. Side effects
+- Creates the parent directory (via the helper) and creates or overwrites the file at `db_path`.
+- Does not mutate `self.materials`.
+- Does not clear `_index_cache`.
+- `add_material(m)` with the default `save=True` calls this method. `import_*_catalog` calls it once when `count > 0`.
+
+## 6. Branches / edge cases
+- **Fresh database, nothing loaded:** the file contains exactly the 7 built-in keys.
+- **After `db.add_material(MaterialProperties("myglass","Custom",1.6,40), save=False)`:** the file contains 8 keys, including `"MYGLASS"`. The value's `"name"` stays `"myglass"`.
+- **After `del db.materials["SF11"]`:** saving leaves `"SF11"` out of the file. On reload, SF11 reappears because built-ins load before the file.
+- **Modified built-in:** set `db.materials["BK7"].nd = 1.6`, then save, then reload with `MaterialDatabase(db_path=same)`. The reloaded `.materials["BK7"].nd` is `1.6`, because the file overrides the built-in.
+- **Key differs from name:** after `db.materials["FOO"] = MaterialProperties(name="bar", ...)`, the file key is `"FOO"` and `["FOO"]["name"] == "bar"`.
+- **Snapshot:** mutating a material after saving does not change the file until the next save.
+- **Missing parent directory:** a nested path such as `tmp_path/"a"/"b"/"m.json"` should get its directories created, via the unseen helper.
+
+## 7. Rules from comments
+- The user data directory may not exist yet. `ensure_parent_dir` reports an unwritable directory instead of raising, matching the contract used for the database path.
+- Imports batch their writes: one `save_database` per import rather than one per glass. A write failure from the import paths is meant to reach the caller (issue #474).
+
+## 8. Testing hints
+- **Always pass an explicit `db_path`**, e.g. `MaterialDatabase(db_path=str(tmp_path / "materials.json"))`. With `None` or `""`, the test would write the developer's real catalog.
+- Read the result with `json.load(open(path, encoding="utf-8"))`. Assert on:
+  - the set of keys;
+  - values such as `data["BK7"]["nd"] == 1.5168`, `data["SF11"]["vd"] == 25.68`, `data["FUSEDSILICA"]["climate_resistance"] == 4`;
+  - `data["BK7"]["transmission_data"][0] == [380, 0.95]`;
+  - `data["N-BK7"]["transmission_data"] == []`.
+- **Round trip:** reload from the same path and compare fields.
+  - Reloaded `transmission_data` items are lists, so `[list(t) for t in orig]` equals the reloaded value, but the original tuples do not.
+  - Compare individual fields, not whole dataclasses: `==` on a dataclass would fail on tuple vs list.
+- `save_database()` returns `None`.
+- The file exists after the call, and calling it twice overwrites the file cleanly. After the second save, the file reflects only the current `materials`.
+- To compare key order, use `list(data.keys())` against `list(db.materials.keys())`. This is only safe if `atomic_write_json` does not sort keys, which cannot be seen. Prefer set comparison.
+- Do not assert exact file text, indentation, or a trailing newline.
+
+### openlens.stl_export.STLExporter.write_binary_stl
+
+# Notes: `openlens.stl_export.STLExporter.write_binary_stl(self, filename)`
+
+## 1. Purpose
+- Serialises `self.triangles` into a **binary STL** file at `filename`.
+- Writes through `atomic_write_bytes` (from `openlens.atomic`), so the file is only replaced when the write succeeds.
+- Returns `None`.
+
+## 2. Inputs
+- `filename`: a path, passed straight to `openlens.atomic.atomic_write_bytes`.
+  - That function's signature takes `path: Any`, so `str` and `pathlib.Path` should both work. Its internals are not shown here.
+  - There is no validation in this method.
+- `self.triangles`: an iterable of triangles.
+  - Each triangle must unpack into exactly 3 points: `p1, p2, p3 = triangle`.
+  - Each point must support indexing `[0]`, `[1]`, `[2]` with numbers that `struct` can pack as float32.
+  - Tuples, lists and numpy floats all work.
+  - It starts as `[]` after `STLExporter()`. You can assign it directly.
+
+## 3. Raises
+No exception is raised explicitly. These come from Python or `struct`:
+- **Triangle with the wrong number of points** → `ValueError` from unpacking.
+  - `[((0,0,0),(1,0,0))]` → `"not enough values to unpack (expected 3, got 2)"`.
+  - 4 points → `"too many values to unpack (expected 3)"`.
+- **Point with fewer than 3 coordinates** → `IndexError`.
+  - The first failure is inside `calculate_normal`, which runs before packing.
+- **Non-numeric coordinate** (e.g. a string) → `TypeError` raised by the subtraction in `calculate_normal`.
+- **Finite coordinate beyond the float32 range** (e.g. `1e39`) → `OverflowError` from `struct.pack('<fff', ...)`.
+  - `float('inf')` packs without error.
+- **Degenerate (zero-area) triangle**: behaviour depends on `Vector3.normalize()` in `openlens.vector3`, which is not visible here. Do not test it.
+- **Nonexistent parent directory or other I/O errors**: behaviour depends on `atomic_write_bytes`. Do not assert it.
+- **Failure part-way through**: the docs say the target is replaced "only on success". The exception propagates; whether an old file survives is decided by the atomic module.
+
+## 4. Returns and guarantees
+The method returns `None`. The file layout is exact, all little-endian:
+
+| Section | Size | Content |
+|---|---|---|
+| Header | 80 bytes | `b"openlens STL export"` (19 bytes) followed by 61 ASCII spaces `b" "`. No NUL padding. |
+| Count | 4 bytes | `struct.pack("<I", len(self.triangles))` |
+| Each triangle | 50 bytes | see below |
+
+Each triangle record, in order:
+1. Normal: `"<fff"`.
+2. `p1`: `"<fff"`.
+3. `p2`: `"<fff"`.
+4. `p3`: `"<fff"`.
+5. Attribute: `"<H"` with value `0`.
+
+Further guarantees:
+- **Total file size** is `84 + 50*N`. An empty list gives an 84-byte file with count 0.
+- **Normal** is `calculate_normal(p1,p2,p3)`, i.e. `normalize((p2-p1) × (p3-p1))`.
+  - Example: `((0,0,0),(1,0,0),(0,1,0))` → normal `(0,0,1)`.
+  - Reversing the vertex order → `(0,0,-1)`.
+- **Normals are recomputed** from the vertices on every write. No stored normal is used.
+- **Triangle order** in the file equals the order of `self.triangles`.
+- **Vertex order** is kept exactly as given (p1, p2, p3).
+- **Precision**: values are stored as float32, so they read back float32-rounded.
+
+## 5. Side effects
+- Creates or overwrites `filename`.
+- Does not modify `self.triangles`.
+- No other state is changed.
+
+## 6. Branches and edge cases
+- **Empty `triangles`**: file is the header plus `b"\x00\x00\x00\x00"`, 84 bytes total.
+- **N triangles**: the loop writes N records; the count field equals N.
+- **Non-unit or scaled triangle**: the normal is still unit length.
+  - Example: `((0,0,0),(2,0,0),(0,3,0))` → `(0,0,1)`.
+- **Triangle in the XZ plane**: `((0,0,0),(0,0,1),(1,0,0))` → v1=(0,0,1), v2=(1,0,0), cross=(0,1,0).
+
+## 7. Rules from comments and docstrings
+- The docstring reads "Write triangles to binary STL file".
+- Atomic replacement is the documented intent of `atomic_write_bytes` ("replace path only on success").
+
+## 8. Testing hints
+Write a fixed triangle list to `tmp_path` and parse the bytes back:
+
+```python
+ex = STLExporter()
+ex.triangles = [((0.0,0.0,0.0),(1.0,0.0,0.0),(0.0,1.0,0.0))]
+p = tmp_path/"t.stl"; ex.write_binary_stl(str(p))
+data = p.read_bytes()
+assert data[:80] == b"openlens STL export" + b" "*61
+assert struct.unpack("<I", data[80:84])[0] == 1
+rec = struct.unpack("<12fH", data[84:134])   # normal, p1, p2, p3, attr
+```
+
+Things worth asserting:
+- `len(data) == 84 + 50*N`.
+- `attr == 0`.
+- The normal equals `(0,0,1)`; for the reversed winding it is `(0,0,-1)`.
+- Vertices come back in the same order.
+- Multiple triangles appear in list order.
+
+Pitfalls:
+- **Float32 precision**: use exactly representable values (0.5, 1.0, -2.25), or compare with `pytest.approx(rel=1e-6)`. `0.1` reads back as `0.10000000149011612`.
+- **Normals with irrational components** (e.g. 1/√2) also need `approx`.
+- **Return value**: the method returns `None`. The triangle count is returned by `export_lens_to_stl` and `export_lens_stl`, not by this method.
+- **Overwrite**: writing twice to the same path leaves only the second content, so the size reflects the second list.
+- **Integration check**: `n = export_lens_stl(Lens(), str(p))` → the count field in the file equals `n`, and the size is `84 + 50*n`.
+- **Header**: do not assume the header is NUL-padded or that it starts with `b"solid"`.

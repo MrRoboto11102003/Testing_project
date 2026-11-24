@@ -1,0 +1,115 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.preset_library.PresetLibrary.get_lens_copy.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.preset_library.PresetLibrary.get_lens_copy
+    def get_lens_copy(self, preset_name: str) -> Optional[Lens]:
+        """Get a copy of the lens from a preset.
+
+        Round-trips through ``Lens.to_dict``/``from_dict`` rather than
+        re-listing the fields by hand: the hand-rolled copy had drifted and
+        silently dropped coatings, model-glass settings, parabolic sags and
+        Fresnel groove parameters, so instantiating a preset produced a
+        different lens than the one described.
+        """
+        preset = self.get_preset(preset_name)
+        if preset is None:
+            return None
+
+        data = preset.lens.to_dict()
+        # A copy is a distinct object: give it its own identity.
+        data["id"] = uuid.uuid4().hex
+        return Lens.from_dict(data)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.preset_library.PresetLibrary.get_lens_copy
+
+# Notes: `PresetLibrary.get_lens_copy(preset_name)`
+
+## 1. Purpose
+- Returns an independent copy of the `Lens` stored in the named preset, built by a `Lens.to_dict()` → `Lens.from_dict()` round-trip.
+- The copy gets a fresh `"id"` (`uuid.uuid4().hex`).
+- Returns `None` if the preset name is unknown.
+
+## 2. Inputs
+- `preset_name`: looked up with `self.presets.get(preset_name)`, a plain dict lookup.
+  - The match is exact and case-sensitive.
+  - There is no stripping, normalisation or validation.
+- The key is the **preset name**, not the lens's own `name`. These differ for several built-ins:
+
+  | Preset name (key) | `lens.name` |
+  |---|---|
+  | `"25mm Plossl Eyepiece"` | `"25mm Plossl"` |
+  | `"Microscope 10x Objective"` | `"10x Objective"` |
+  | `"Laser Focusing Lens 532nm"` | `"532nm Focus"` |
+  | `"50mm Camera Lens Element"` | `"50mm Camera"` |
+  | `"UV Fused Silica Lens"` | `"UV Lens"` |
+
+  - So `get_lens_copy("25mm Plossl")` returns `None`.
+- These presets have the same preset and lens name: `"50mm Biconvex"`, `"100mm Plano-Convex"`, `"-50mm Biconcave"`, `"Abbe Condenser"`, and all 8 catalogue entries.
+  - Catalogue entries: `"Symmetric Biconvex"`, `"Kellner Eyepiece"`, `"4x Microscope Objective"`, `"Telescope Objective"`, `"Beam Expander Element"`, `"Edmund #45-166 (25mm PCX)"`, `"Edmund #45-168 (25mm PCX)"`, `"Thorlabs LA1509 (25mm PCX)"`.
+- In total a fresh `PresetLibrary()` holds 17 presets.
+
+## 3. Raises
+- The function raises nothing itself. An unknown name gives `None`, not `KeyError`.
+- An unhashable key raises `TypeError` from `dict.get`, e.g. `lib.get_lens_copy(["x"])`.
+- If a preset was added with a non-`Lens` object as `lens`, `.to_dict()` raises `AttributeError`, e.g. `lib.add_preset(LensPreset("X","c","d",lens=None)); lib.get_lens_copy("X")`.
+- Any error raised inside `Lens.to_dict`/`from_dict` is possible too. That code lives in `openlens.lens`, which is not shown here.
+
+## 4. Returns and guarantees
+- **Known name:** returns a **new** `Lens` instance.
+  - `copy is not lib.get_preset(name).lens`.
+  - `isinstance(copy, Lens)`.
+- **Unknown name:** returns `None`. Examples: `"nope"`, `""`, `"50mm biconvex"` (wrong case).
+- The copy should carry the same optical data as the preset lens. Expected values for built-ins:
+  - `"50mm Biconvex"`: R1=51.5, R2=-51.5, thickness=5.0, diameter=25.4, material="BK7", name="50mm Biconvex".
+  - `"Kellner Eyepiece"`: R1=15.0, R2=-30.0, t=7.0, D=20.0, "BK7".
+  - `"Beam Expander Element"`: R1=-20.0, R2=40.0, t=4.0, D=25.4, material "UVFS".
+  - `"Edmund #45-166 (25mm PCX)"`: R1=25.8, R2=FLAT_RADIUS, t=4.8, D=25.0, "N-BK7".
+  - `"Microscope 10x Objective"`: R1=8.0, R2=-12.0, t=6.0, D=12.0.
+  - `"Abbe Condenser"`: R1=20, R2=-20, t=16.0, D=30.0.
+- **Flat radius:** the flat-surface radius is `openlens.constants.FLAT_RADIUS`, whose value is not shown.
+  - Compare against the original (`copy.radius_of_curvature_2 == orig.radius_of_curvature_2`) or against `FLAT_RADIUS`.
+  - Do not hard-code `1e10` or `inf`.
+  - How `to_dict`/`from_dict` encode infinite or flat radii (cf. `json_safe_radii`, `decode_radius`) is in `lens.py`, not shown.
+- **Identity:** the dict's `"id"` is replaced by a 32-char lowercase hex string (`uuid4().hex`).
+  - The code implies `Lens` has an `id` that `to_dict` writes and `from_dict` reads. That is not verifiable here.
+  - If `copy.id` exists, it should differ from `orig.id` and differ between two calls.
+- **Full fidelity:** the docstring says the round-trip keeps coatings, model-glass settings, parabolic sags and Fresnel grooves. How fully it does this depends on `Lens.to_dict`/`from_dict`.
+
+## 5. Side effects
+- None on the library: `presets` and the preset's lens are not mutated.
+- Mutating the copy (e.g. `copy.thickness = 99`) must not change `lib.get_preset(name).lens.thickness`.
+- `uuid.uuid4` is called once per successful call. It is not called when the result is `None`.
+
+## 6. Branches
+- **Preset missing** → returns `None` at once: `PresetLibrary().get_lens_copy("Missing")`.
+- **Preset found** → returns a round-tripped Lens with a new id.
+- Works for user-added presets too:
+  ```python
+  lib.add_preset(LensPreset("Mine","Custom","d",Lens(name="L",radius_of_curvature_1=40.0,radius_of_curvature_2=-60.0,thickness=5.0,diameter=20.0)))
+  lib.get_lens_copy("Mine")  # -> Lens with R1 40.0, R2 -60.0
+  ```
+- `add_preset` overwrites by name, so a later preset with the same name is what gets copied.
+
+## 7. Rules from comments and docstring
+- "A copy is a distinct object: give it its own identity." The id must be new, never the original's.
+- The copy must equal the preset lens in all serialised fields. Do not re-list fields by hand; use the `to_dict`/`from_dict` round-trip.
+
+## 8. Testing hints
+- Use a fresh `PresetLibrary()` per test rather than `get_preset_library()`. The singleton is shared, so mutations would leak between tests.
+- **Strong check:** compare `copy.to_dict()` with `orig.to_dict()` after popping `"id"` from both.
+  - This assumes the round-trip is stable. If unsure, compare individual attributes with `pytest.approx`.
+- **Deterministic id:** monkeypatch `openlens.preset_library.uuid.uuid4` to return an object whose `.hex == "ab"*16`. Then assert `copy.to_dict()["id"] == "ab"*16`, assuming `to_dict` emits `"id"`.
+  - Two real calls should give different ids.
+- Check `copy is not orig`, and that mutating the copy leaves the original unchanged.
+- Check `None` for: a lens name instead of the preset name (`"25mm Plossl"`), the wrong case, and `""`.
+- **Refractive index:** for `"Laser Focusing Lens 532nm"` (wavelength=532.0) and `"UV Fused Silica Lens"` (355.0), compare `copy.refractive_index` to `orig.refractive_index` with `pytest.approx`.
+  - Don't hard-code index values; they come from the material database, which is not shown.
+- Avoid asserting exact float values for focal length. That uses Lens code that is not shown.

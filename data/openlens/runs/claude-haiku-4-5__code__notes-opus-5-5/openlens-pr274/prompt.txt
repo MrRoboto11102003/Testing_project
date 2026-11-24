@@ -1,0 +1,1270 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.aberrations.analyze_lens_quality, openlens.analysis.geometric.GeometricTraceAnalysis.calculate_field_curvature_distortion, openlens.analysis.geometric.GeometricTraceAnalysis.calculate_ray_fan, openlens.image_simulator.ImageSimulator.simulate_image, openlens.optical_system.OpticalSystem.calculate_chromatic_aberration, openlens.optical_system.OpticalSystem.load, openlens.tracer_3d.LensRayTracer3D.trace_surface.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.aberrations.analyze_lens_quality
+def analyze_lens_quality(lens: Any, field_angle: float = 5.0, **kwargs) -> Dict[str, Any]:
+    """
+    Convenience function to analyze lens quality.
+
+    Args:
+        lens: Lens object
+        field_angle: Field angle for off-axis aberrations (degrees)
+        wavelength_nm: Wavelength in nm evaluated throughout (kwarg)
+
+    Returns:
+        Dictionary with quality assessment
+    """
+    # Handle backward compatibility
+    field_angle = kwargs.get("field_angle_deg", field_angle)
+    wavelength_nm = kwargs.get("wavelength_nm", WAVELENGTH_GREEN)
+
+    calc = AberrationsCalculator(lens)
+    results = calc.calculate_all_aberrations(field_angle=field_angle, wavelength_nm=wavelength_nm)
+
+    if results.get("error"):
+        return {"quality_score": 0, "rating": "Error", "issues": [results["error"]]}
+
+    issues = []
+    score = 100
+
+    # Evaluate spherical aberration
+    sa = abs(results["spherical"])
+    if sa > SPHERICAL_ABERRATION_EXCELLENT:
+        issues.append(f"High spherical aberration ({sa:.4f} mm)")
+        score -= 40  # Major SA penalty
+    elif sa > (SPHERICAL_ABERRATION_EXCELLENT / 10):
+        issues.append(f"Moderate spherical aberration ({sa:.4f} mm)")
+        score -= 20  # Minor SA penalty
+
+    # Evaluate chromatic aberration
+    ca = results["chromatic"]
+    if ca > 0.5:  # Significant chromatic aberration
+        issues.append(f"High chromatic aberration ({ca:.4f} mm)")
+        score -= 40  # Major SA penalty
+    elif ca > 0.1:
+        issues.append(f"Moderate chromatic aberration ({ca:.4f} mm)")
+        score -= 20  # Minor SA penalty
+
+    # Evaluate distortion
+    dist = results["distortion"]
+    dist_abs = abs(dist)
+    if dist_abs > 5:
+        issues.append(f"High distortion ({dist_abs:.2f}%)")
+        score -= 15
+    elif dist_abs > 1:
+        issues.append(f"Moderate distortion ({dist_abs:.2f}%)")
+        score -= 5
+
+    # Evaluate astigmatism
+    ast = results["astigmatism"]
+    if ast > 1.0:  # Large astigmatism
+        issues.append(f"High astigmatism ({ast:.4f} mm)")
+        score -= 15  # Astigmatism penalty
+    elif ast > 0.1:  # Moderate astigmatism
+        issues.append(f"Moderate astigmatism ({ast:.4f} mm)")
+        score -= 5
+
+    # Determine rating
+    if score >= (QUALITY_EXCELLENT_THRESHOLD + 5):  # 90
+        rating = "Excellent"
+    elif score >= (QUALITY_GOOD_THRESHOLD + 5):  # 75
+        rating = "Good"
+    elif score >= (QUALITY_FAIR_THRESHOLD + 10):  # 60
+        rating = "Fair"
+    elif score >= (QUALITY_FAIR_THRESHOLD - 10):  # 40
+        rating = "Poor"
+    else:
+        rating = "Very Poor"
+
+    return {
+        "quality_score": score,
+        "rating": rating,
+        "issues": issues if issues else ["No significant aberrations detected"],
+        "aberrations": results,
+    }
+
+# openlens.analysis.geometric.GeometricTraceAnalysis.calculate_field_curvature_distortion
+    def calculate_field_curvature_distortion(
+        self,
+        max_field_angle_deg: float = 20.0,
+        num_points: int = 11,
+        wavelength_nm: float = WAVELENGTH_GREEN,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Calculate Field Curvature and Distortion.
+
+        Args:
+            max_field_angle_deg: Maximum semi-field angle in degrees.
+            num_points: Number of field points to sample.
+            wavelength_nm: Wavelength in nm.
+
+        Returns:
+            Dictionary with arrays for field angles, tangential/sagittal focus
+            shift, and distortion %.
+        """
+        # Trace at the requested wavelength (indices restored on exit).
+        saved_state = self._apply_wavelength(wavelength_nm)
+        try:
+            return self._calculate_curvature_traced(
+                max_field_angle_deg, num_points, wavelength_nm, kwargs
+            )
+        finally:
+            self._restore_lens_state(saved_state)
+
+# openlens.analysis.geometric.GeometricTraceAnalysis.calculate_ray_fan
+    def calculate_ray_fan(
+        self,
+        field_angle_deg: float = 0.0,
+        wavelength_nm: float = WAVELENGTH_GREEN,
+        num_points: int = 21,
+        pupil_axis: str = "y",
+    ) -> Dict[str, Any]:
+        """
+        Calculate Ray Fan (Transverse Ray Aberration).
+
+        Args:
+            field_angle_deg: Field angle in degrees.
+            wavelength_nm: Wavelength in nm.
+            num_points: Number of points across the pupil diameter.
+            pupil_axis: 'y' for Tangential (Meridional) fan, 'z' for Sagittal fan.
+
+        Returns:
+            Dictionary with 'pupil_coords' (normalized -1 to 1) and 'ray_errors_mm' (mm).
+        """
+        # Trace at the requested wavelength (indices restored on exit), so
+        # the wavelength argument controls the physics, not just labels.
+        saved_state = self._apply_wavelength(wavelength_nm)
+        try:
+            return self._calculate_ray_fan_traced(
+                field_angle_deg, wavelength_nm, num_points, pupil_axis
+            )
+        finally:
+            self._restore_lens_state(saved_state)
+
+# openlens.image_simulator.ImageSimulator.simulate_image
+    def simulate_image(
+        self,
+        input_image: np.ndarray,
+        object_distance: float,
+        image_distance: Optional[float] = None,
+        wavelength: float = WAVELENGTH_D_LINE,
+        pixel_pitch_mm: float = 0.01,
+    ) -> Dict[str, Any]:
+        """
+        Simulate image formation through the optical system.
+
+        Args:
+            input_image: Input image array (H, W, C) or (H, W)
+            object_distance: Distance from lens to object
+            image_distance: Distance from lens to image (None for auto)
+            wavelength: Wavelength in nm
+            pixel_pitch_mm: Sensor pixel pitch in mm (for vignetting scale)
+
+        Returns:
+            Dictionary with simulated image and metrics
+        """
+        # Calculate image distance if not provided
+        if image_distance is None:
+            image_distance = self._calculate_image_distance(object_distance, wavelength)
+
+        # Apply aberrations
+        aberrated_image = self._apply_aberrations(
+            input_image,
+            object_distance,
+            image_distance,
+            wavelength,
+            pixel_pitch_mm=pixel_pitch_mm,
+        )
+
+        # Apply diffraction
+        diffracted_image = self._apply_diffraction(
+            aberrated_image, wavelength, pixel_pitch_mm=pixel_pitch_mm
+        )
+
+        # Apply chromatic aberration if color image
+        if len(diffracted_image.shape) == 3:
+            final_image = self._apply_chromatic_aberration(
+                diffracted_image, object_distance, image_distance
+            )
+        else:
+            final_image = diffracted_image
+
+        # Apply vignetting
+        final_image = self._apply_vignetting(
+            final_image,
+            image_distance_mm=image_distance,
+            pixel_pitch_mm=pixel_pitch_mm,
+        )
+
+        # Calculate metrics
+        metrics = self._calculate_image_metrics(input_image, final_image)
+
+        return {
+            "output_image": final_image,
+            "magnification": -image_distance / object_distance,
+            "image_distance": image_distance,
+            "metrics": metrics,
+        }
+
+# openlens.optical_system.OpticalSystem.calculate_chromatic_aberration
+    def calculate_chromatic_aberration(self) -> Dict[str, Any]:
+        """Calculate system longitudinal chromatic aberration using standard F, d, C lines.
+
+        For each line the system matrix is rebuilt with wavelength-correct
+        indices, giving both the back focal length (BFL = -A/C, the
+        observable focus position) and the effective focal length
+        (EFL = -1/C). The ``f_*`` keys are true EFLs, not copies of BFL.
+        """
+        # Standard Fraunhofer lines in nm
+        lines = {
+            "F": WAVELENGTH_F_LINE,  # Blue
+            "d": WAVELENGTH_D_LINE,  # Yellow (Reference)
+            "C": WAVELENGTH_C_LINE,  # Red
+        }
+
+        bfls: Dict[str, Optional[float]] = {}
+        efls: Dict[str, Optional[float]] = {}
+        for line, wl in lines.items():
+            n_map = {i: el.lens.refractive_index_at(wl) for i, el in enumerate(self.elements)}
+            matrix = self._calculate_system_matrix(n_overrides=n_map)
+            if matrix and abs(matrix[2]) > 1e-10:
+                A, B, C, D = matrix
+                bfls[line] = -A / C
+                efls[line] = -1.0 / C
+            else:
+                bfls[line] = None
+                efls[line] = None
+
+        if bfls["F"] is not None and bfls["C"] is not None:
+            longitudinal = bfls["C"] - bfls["F"]
+            return {
+                "longitudinal": longitudinal,
+                "bfl_F": bfls["F"],
+                "bfl_d": bfls["d"],
+                "bfl_C": bfls["C"],
+                "f_F": efls["F"],
+                "f_d": efls["d"],
+                "f_C": efls["C"],
+                "corrected": abs(longitudinal) < 0.1,
+            }
+        return {"longitudinal": 0.0, "corrected": False}
+
+# openlens.optical_system.OpticalSystem.load
+    @staticmethod
+    def load(filename: str) -> Optional["OpticalSystem"]:
+        """Load optical system from JSON file.
+
+        The file is size-capped and every number is checked for NaN/Infinity:
+        ``json.load`` accepts the non-standard bare literals, and a NaN that
+        reaches the model compares false against every sanity threshold and
+        silently disables downstream checks.
+
+        A file written by an older version spells a flat surface as the bare
+        ``Infinity`` literal. Those radii are converted to the JSON spelling
+        (null) before the check, so such a file still loads while every other
+        non-finite value is still rejected.
+        """
+        try:
+            reject_oversized_file(filename)
+            with open(filename, "r") as f:
+                data = json.load(f)
+            data = json_safe_radii(data)
+            reject_non_finite_numbers(data, "optical system")
+            return OpticalSystem.from_dict(data)
+        except Exception as e:
+            logger.error("Error loading optical system: %s", e)
+            return None
+
+# openlens.tracer_3d.LensRayTracer3D.trace_surface
+    def trace_surface(
+        self, ray: Ray3D, surface_type: str, interaction: str = "refract"
+    ) -> RefractionResult:
+        """Trace ray interaction with a specific surface."""
+        if surface_type == "front":
+            center = self.front_center
+            is_flat = self.front_is_flat
+            is_parabolic = self.front_is_parabolic
+            is_conic = self.front_is_conic
+            conic_constant = self.conic_constant_1
+            vertex = self.front_vertex
+            R = self.R1
+            default_n1 = REFRACTIVE_INDEX_AIR
+            default_n2 = self.n
+        elif surface_type == "back":
+            center = self.back_center
+            is_flat = self.back_is_flat
+            is_parabolic = self.back_is_parabolic
+            is_conic = self.back_is_conic
+            conic_constant = self.conic_constant_2
+            vertex = self.back_vertex
+            R = self.R2
+            default_n1 = self.n
+            default_n2 = REFRACTIVE_INDEX_AIR
+        else:
+            return RefractionResult.MISSED
+
+        fresnel_facets = self.fresnel_facets_1 if surface_type == "front" else self.fresnel_facets_2
+        fresnel_hit = None
+        if fresnel_facets:
+            fresnel_hit = self._intersect_fresnel_surface(ray, surface_type)
+            if fresnel_hit is None:
+                return RefractionResult.MISSED
+            intersection, normal = fresnel_hit
+            is_flat = False
+            is_parabolic = False
+            is_conic = False
+        elif is_parabolic:
+            # R is the effective vertex radius (may be negative).
+            if abs(R) < EPSILON or abs(R) > 1e10:
+                normal = -self.optical_axis if surface_type == "front" else self.optical_axis
+                intersection = self._intersect_plane(ray, vertex, self.optical_axis)
+            else:
+                normal = None  # gradient-based: oriented outward below
+                intersection = self._intersect_paraboloid(ray, vertex, R, surface_type)
+        elif is_conic:
+            normal = None  # gradient-based: oriented outward below
+            intersection = self._intersect_conic(ray, vertex, R, conic_constant, surface_type)
+        elif is_flat:
+            normal = self.optical_axis
+            intersection = self._intersect_plane(ray, vertex, normal)
+        else:
+            intersection = self._intersect_sphere(ray, center, abs(R), (R > 0))
+
+        if intersection is None:
+            # No forward intersection with this surface (the ray line misses
+            # the sphere/paraboloid/plane entirely). This is a miss however
+            # the ray got here: report MISSED with state unchanged so the
+            # caller terminates the ray, exactly like the 2D tracer. (A ray
+            # that has somehow crossed the surface already must NOT be
+            # fabricated into a transmitted ray: returning REFRACTED here
+            # would leave origin/direction stale while flipping n to air.)
+            return RefractionResult.MISSED
+
+        v_to_i = intersection - vertex
+        proj = v_to_i.dot(self.optical_axis)
+        dist_sq = v_to_i.magnitude_sq() - proj**2
+
+        aperture_sq = self._aperture_sq_front if surface_type == "front" else self._aperture_sq_back
+        if dist_sq > aperture_sq:
+            return RefractionResult.MISSED
+
+        # Accumulate optical path for the segment just travelled in the
+        # current medium (air gap before the front surface, glass between
+        # the surfaces). Without this, Ray3D.optical_path_length would only
+        # contain the exit-propagation leg and every OPL difference (hence
+        # every wavefront map) would be wrong by ~millimetres of glass path.
+        segment = intersection - ray.origin
+        ray.optical_path_length += segment.magnitude() * ray.n
+
+        # A zero-length hit (t ~ 0) is legitimate and must still refract: in a
+        # cemented doublet the two surfaces share a vertex, so the ray has to
+        # change index at the point it is already standing on. This is why
+        # _intersect_sphere passes min_t=-EPSILON here while the 2D tracer
+        # rejects such hits outright.
+        #
+        # What must not happen is *recording* it. Appending unconditionally
+        # left consecutive identical path points separated by zero length, so
+        # anything deriving a direction or a segment length from consecutive
+        # path points divides by zero. A cemented doublet produced three such
+        # repeats. The refraction below is unaffected.
+        previous_origin = ray.origin
+        ray.origin = intersection
+        if not ray.path or (intersection - previous_origin).magnitude() > EPSILON:
+            ray.path.append(intersection)
+
+        if fresnel_hit is None and is_parabolic and normal is None:
+            # Paraboloid normal: gradient of F = x - (y²+z²)/(2R) - vx = 0,
+            # i.e. (1, -y/R, -z/R) in the local frame, oriented outward.
+            # (Planar fallback keeps the ∓axis normal assigned above.)
+            try:
+                local_hit = self._to_local_point(intersection, vertex)
+                ly, lz = local_hit.y, local_hit.z
+                if abs(R) < EPSILON:
+                    normal_local = vec3(1, 0, 0)
+                else:
+                    normal_local = vec3(1, -ly / R, -lz / R).normalize()
+                geometric = self.transform.multiply_vector(normal_local)
+            except Exception:
+                geometric = None
+            if geometric is None:
+                normal = -self.optical_axis if surface_type == "front" else self.optical_axis
+            else:
+                normal = self._outward_normal(geometric, surface_type)
+        elif fresnel_hit is None and is_conic and normal is None:
+            # Conic gradient in the vertex-local frame:
+            # ((1+K)x - R, y, z).
+            try:
+                local_hit = self._to_local_point(intersection, vertex)
+                local_hit = local_hit - self._to_local_point(vertex, vertex)
+                normal_local = vec3(
+                    (1.0 + conic_constant) * local_hit.x - R,
+                    local_hit.y,
+                    local_hit.z,
+                ).normalize()
+                geometric = self.transform.multiply_vector(normal_local)
+            except Exception:
+                geometric = None
+            if geometric is None:
+                normal = -self.optical_axis if surface_type == "front" else self.optical_axis
+            else:
+                normal = self._outward_normal(geometric, surface_type)
+        elif fresnel_hit is None and is_flat:
+            if surface_type == "front":
+                normal = -self.optical_axis
+            else:
+                normal = self.optical_axis
+        elif fresnel_hit is None:
+            normal = self._outward_normal(intersection - center, surface_type)
+
+        current_n = ray.n
+
+        if abs(current_n - default_n1) < 1e-3:
+            n1, n2 = default_n1, default_n2
+        elif abs(current_n - default_n2) < 1e-3:
+            n1, n2 = default_n2, default_n1
+        else:
+            n1, n2 = current_n, default_n2
+
+        if interaction == "reflect":
+            ray.reflect(normal, n1, n2)
+            return RefractionResult.REFLECTED
+        elif interaction == "refract":
+            return ray.refract_or_reflect(n1, n2, normal)
+
+        return RefractionResult.MISSED
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.aberrations.analyze_lens_quality
+
+# Notes: `openlens.aberrations.analyze_lens_quality(lens, field_angle=5.0, **kwargs)`
+
+## 1. Purpose
+- Runs `AberrationsCalculator(lens).calculate_all_aberrations(...)`.
+- Turns the result into a 0–100-style quality score, a rating string and a list of issue strings.
+
+## 2. Inputs
+- `lens`: a `Lens`.
+  - `AberrationsCalculator.__init__` reads `refractive_index`, `radius_of_curvature_1/2`, `thickness` and `diameter`.
+  - The object must NOT have an `elements` attribute, or it is treated as a system.
+  - No `entrance_pupil_mm` is passed, so the pupil is `lens.diameter`.
+- `field_angle` (float, default `5.0`, degrees).
+  - It is overridden by `kwargs["field_angle_deg"]` if present: `field_angle = kwargs.get("field_angle_deg", field_angle)`.
+- `kwargs["wavelength_nm"]`: defaults to `constants.WAVELENGTH_GREEN`. That value is not visible here; import it rather than hardcoding.
+- Other kwargs are ignored. There is no validation of any input.
+- The exact call made is: `calc.calculate_all_aberrations(field_angle=<angle>, wavelength_nm=<wl>)`.
+  - Both are keyword arguments; `object_distance_mm` keeps its default `None`.
+
+## 3. Raises
+- The function itself has no explicit `raise`.
+- `ValueError` cannot come from the object-distance check, because the distance is always `None`.
+- `TypeError` is possible if a traced metric comes back `None` (trace failed), because of `abs(None)` or `None > 1.0`:
+  - `results["distortion"]` is `None` → `abs(dist)` fails.
+  - `results["astigmatism"]` is `None` → `ast > 1.0` fails.
+- Don't rely on this in tests; it only happens for geometries whose trace fails.
+- Spherical and chromatic are never `None` for a singlet:
+  - Spherical falls back to Seidel.
+  - Chromatic is `|f|/abbe`.
+
+## 4. Returns
+**Error branch:** taken if `results.get("error")` is truthy (focal length is `None`). The result is exactly:
+```python
+{"quality_score": 0, "rating": "Error",
+ "issues": ["Cannot calculate focal length (zero optical power)"]}
+```
+- There is no `"aberrations"` key in this branch.
+- When `Lens.calculate_focal_length()` returns `None` is defined in `openlens.lens`, which is not visible here (presumably zero optical power).
+
+**Normal branch:** `{"quality_score": int, "rating": str, "issues": list[str], "aberrations": results}`.
+- `"aberrations"` is the very dict returned by `calculate_all_aberrations` (same object, unchanged).
+- `"issues"` is `["No significant aberrations detected"]` when no penalty applies.
+
+**Scoring:** start at 100 and apply the checks in this order (all comparisons strict `>`). Issues are appended in the same order.
+
+| Check | Penalty and issue text |
+|---|---|
+| `sa = abs(results["spherical"])`; `sa > SPHERICAL_ABERRATION_EXCELLENT` | −40, `f"High spherical aberration ({sa:.4f} mm)"` |
+| elif `sa > SPHERICAL_ABERRATION_EXCELLENT/10` | −20, `f"Moderate spherical aberration ({sa:.4f} mm)"` |
+| `ca = results["chromatic"]` (no abs); `ca > 0.5` | −40, `f"High chromatic aberration ({ca:.4f} mm)"` |
+| elif `ca > 0.1` | −20, `"Moderate chromatic aberration (...)"` |
+| `d = abs(results["distortion"])`; `d > 5` | −15, `f"High distortion ({d:.2f}%)"` |
+| elif `d > 1` | −5, `f"Moderate distortion ({d:.2f}%)"` |
+| `ast = results["astigmatism"]` (no abs); `ast > 1.0` | −15, `f"High astigmatism ({ast:.4f} mm)"` |
+| elif `ast > 0.1` | −5, `f"Moderate astigmatism ({ast:.4f} mm)"` |
+
+**Rating:** checked top-down with `>=`. The constants are in `openlens.constants` (not shown); the numbers in the comments imply EXCELLENT=85, GOOD=70, FAIR=50.
+
+| Condition | Comment value | Rating |
+|---|---|---|
+| `score >= QUALITY_EXCELLENT_THRESHOLD+5` | 90 | `"Excellent"` |
+| `score >= QUALITY_GOOD_THRESHOLD+5` | 75 | `"Good"` |
+| `score >= QUALITY_FAIR_THRESHOLD+10` | 60 | `"Fair"` |
+| `score >= QUALITY_FAIR_THRESHOLD-10` | 40 | `"Poor"` |
+| otherwise | — | `"Very Poor"` |
+
+- The minimum possible score is 100−40−40−15−15 = −10. The score is not clamped.
+
+## 5. Side effects
+- `calculate_all_aberrations` temporarily calls `lens.update_refractive_index(wavelength_nm=...)`.
+- In `finally` it restores `lens.wavelength` and `lens.refractive_index`, so the lens is unchanged afterwards.
+- A fresh calculator is used, so no cache persists between calls.
+
+## 6. Branches / real-lens facts
+**Chromatic for a singlet** is `abs(f)/V`.
+- `V` is looked up by `lens.material`: BK7 64.17, "Fused Silica" 67.8, "Crown Glass" 60.0, "Flint Glass" 36.0, SF11 25.76, Sapphire 72.0.
+- If the material is not in that table, `V` is estimated from the index: n<1.5→65, n<1.6→55, n<1.7→40, else 30.
+- That index is `lens.refractive_index` read at calculator construction, i.e. before the wavelength update.
+- `f` is computed at the requested wavelength.
+- Consequence for BK7: |f| > ~32.1 mm gives "High chromatic"; 6.4 < |f| < 32.1 gives "Moderate".
+
+**Field angle:**
+- With `field_angle=0`, coma and astigmatism are exactly `0.0`, so there is no astigmatism issue.
+- Distortion and field curvature still come from a ray trace.
+- The exact traced values are not predictable from this module.
+
+## 7. Comment-stated intent
+- The comments give the rating cut-offs 90/75/60/40.
+- Penalties are "major" (−40) and "minor" (−20) for spherical aberration, and the same pattern is reused for chromatic aberration.
+
+## 8. Testing hints
+**Best approach: monkeypatch the aberration call** for deterministic scoring.
+```python
+import openlens.aberrations as ab
+from openlens.lens import Lens
+fake = {"spherical": 0.0, "chromatic": 0.0, "distortion": 0.0, "astigmatism": 0.0}
+monkeypatch.setattr(ab.AberrationsCalculator, "calculate_all_aberrations",
+                    lambda self, **kw: (seen.update(kw), fake)[1])
+r = ab.analyze_lens_quality(Lens())
+```
+- With all four metrics at 0 the result is: score 100, `"Excellent"`, `["No significant aberrations detected"]`, and `r["aberrations"] is fake`.
+- The fake must accept keyword args; capture `kw` to assert `field_angle` and `wavelength_nm`.
+  - Default call: `field_angle=5.0`.
+  - `field_angle_deg=7` overrides `field_angle=3`.
+- Import `SPHERICAL_ABERRATION_EXCELLENT` and the `QUALITY_*` constants from `openlens.constants`; don't hardcode them. Use spherical values like `1.5*E` and `0.5*E`.
+
+**Boundaries:**
+- Values exactly at a threshold do not penalize (strict `>`):
+  - chromatic 0.5 → only −20 (because 0.5 > 0.1);
+  - chromatic 0.1 → no penalty;
+  - distortion 5 → −5; distortion 1 → none.
+- Negative values:
+  - Distortion −6 → "High distortion (6.00%)", because abs is applied.
+  - Chromatic −1 → no penalty (no abs).
+  - Spherical −x → penalized via abs, and the message shows the positive value.
+
+**Error path:** return `{"error": "boom"}` from the fake. Expect `{"quality_score": 0, "rating": "Error", "issues": ["boom"]}` and no `"aberrations"` key.
+- An empty-string `error` is falsy, so the normal path runs (and needs the four metric keys present).
+
+**Exact strings to check:**
+- Issue order: spherical, chromatic, distortion, astigmatism.
+- Formatting: `.4f mm` for spherical/chromatic/astigmatism, `.2f%` for distortion (no space before `%`).
+- Example: score 100−40−20−5−5 = 30 → `"Very Poor"`; score 60 → `"Fair"`; score 75 → `"Good"`.
+
+**Real (un-mocked) runs:**
+- Only assert structure, the restored lens index, and chromatic = `abs(r["aberrations"]["focal_length"])/64.17` for BK7.
+- Don't assert traced values or the exact score.
+
+### openlens.analysis.geometric.GeometricTraceAnalysis.calculate_field_curvature_distortion
+
+# Notes: `GeometricTraceAnalysis.calculate_field_curvature_distortion`
+
+## 1. Purpose
+- Samples field angles from 0 to `max_field_angle_deg` and real-ray-traces each one through `self.system`.
+- For each angle it reports:
+  - tangential focus shift relative to the image plane,
+  - sagittal focus shift relative to the image plane,
+  - percent distortion against `efl * tan(angle)`.
+
+## 2. Inputs
+- **`max_field_angle_deg`** (float, default `20.0`).
+  - The kwarg `max_field_angle=` is accepted as an alias. It is popped from kwargs and **overrides** the positional or default value.
+- **`num_points`** (int, default `11`). Angles come from the private `_linspace(0, max, num)`:
+  - If `num <= 1` (this includes `0` and negative values), the result is `[0]`. That is the int `0`, not `0.0`.
+  - Otherwise `step = max/(num-1)` and each angle is `0 + i*step`. The last value is `(num-1)*step`, which may differ from `max` by float rounding; use `pytest.approx`.
+- **`wavelength_nm`** (float, default `WAVELENGTH_GREEN`).
+  - Every element's lens gets `lens.update_refractive_index(wavelength_nm=...)` before tracing.
+  - The value is also passed to `resolve_image_plane_x`.
+- **`**kwargs`**: any key other than `max_field_angle` is rejected.
+- **`self.system`**: an `OpticalSystem`. The tracer (`SystemRayTracer3D`) is created in `__init__`.
+
+## 3. Raises
+- **`TypeError(f"Unexpected kwargs: {list(kwargs.keys())}")`**
+  - Example: `ga.calculate_field_curvature_distortion(foo=1)` gives the message `"Unexpected kwargs: ['foo']"`.
+  - With `max_field_angle=5, foo=1`, the message is still `"Unexpected kwargs: ['foo']"`, because the alias is popped first.
+  - Use `pytest.raises(TypeError, match=r"Unexpected kwargs: \['foo'\]")`.
+  - Order: the wavelength is applied first, then the kwargs check runs. Both happen inside `try`, so lens state is still restored when this error is raised.
+- **Empty system** (`OpticalSystem()` with no lenses):
+  - `self.system.elements[0].position` raises `IndexError`. This line runs before the loop.
+  - `resolve_image_plane_x` (another module, not visible) runs first and might raise something else.
+  - Only assert `pytest.raises(Exception)` here, if you test it at all.
+- Errors from `Lens.update_refractive_index` for bad wavelengths come from another module and are unknown; do not test them.
+
+## 4. Returns
+Returns a new dict with exactly these 7 keys:
+```
+"field_angles_deg"   -> the angles list
+"tan_focus_shift_mm" -> list[float]
+"sag_focus_shift_mm" -> list[float]
+"tan_focus_shift"    -> SAME list object as tan_focus_shift_mm (alias, `is`)
+"sag_focus_shift"    -> SAME list object as sag_focus_shift_mm
+"distortion_pct"     -> list[float]
+"image_plane_x_mm"   -> float
+```
+- All five lists have length `len(angles)`. When `num_points >= 2`, that equals `num_points`; otherwise it is 1.
+- **Image plane**: `image_plane_x = resolve_image_plane_x(system, wavelength_nm, tracer=self.tracer)`.
+  - This returns the configured detector plane if there is one, otherwise the paraxial focus.
+  - If it returns `None`, the value is `system.get_total_length() + 10.0`.
+- **Per angle `a`**:
+  - `tan_theta = tan(radians(a))`.
+  - The chief ray starts 50 mm before `elements[0].position` and aims through the point `(elements[0].position, 0, 0)` with direction `(1, tan_theta, 0)` normalised.
+  - **Distortion**:
+    - `efl = system.get_system_focal_length() or 100.0`, so `None` or `0` both become `100.0`.
+    - `paraxial = efl * tan_theta`.
+    - If `|paraxial| > 1e-6`: `100*(real_y_at_image_plane - paraxial)/paraxial`.
+    - Otherwise: exactly `0.0`.
+  - **Tangential focus**:
+    - A parallel ray is launched offset by `delta = 0.01 * elements[0].lens.diameter` in y at the first-lens plane.
+    - The x-intersection of its 2D (x, y) line with the chief ray's line is computed, and the result is `x_focus - image_plane_x`.
+    - If the slopes differ by `<= 1e-9`, the result is `0.0`, not NaN.
+    - If the ray terminated, the result is NaN.
+  - **Sagittal focus**:
+    - The ray is offset by `delta` in z.
+    - The result is the x of the chief-ray point at closest approach to the sagittal ray, minus `image_plane_x`.
+    - It is NaN if the rays are near-parallel (`|1 - b²| < 1e-12`) or if the ray terminated.
+
+## 5. Side effects
+- Each lens's `wavelength` and `refractive_index` are snapshotted before tracing and restored in `finally`, even if an exception is raised.
+- After the call, `lens.refractive_index` and `lens.wavelength` equal their pre-call values, including when a non-default `wavelength_nm` was used.
+- No files are written. Lens geometry and positions are not mutated.
+
+## 6. Branches and edge cases
+- **Chief ray terminated at an angle**: NaN is appended to all three lists for that angle, then the loop continues. Lengths stay equal.
+- **`num_points=1`**: `field_angles_deg == [0]`, and `distortion_pct == [0.0]`.
+- **`max_field_angle_deg=0, num_points=3`**: angles `[0.0, 0.0, 0.0]`, `distortion_pct == [0.0, 0.0, 0.0]`.
+- **Negative max** (e.g. `-10, 3`): angles `[0.0, -5.0, -10.0]`, i.e. descending.
+- **Alias**: `calculate_field_curvature_distortion(max_field_angle=10, num_points=3)` gives angles `[0.0, 5.0, 10.0]`.
+- **Defaults**: angles are approximately `[0, 2, 4, ..., 20]` (11 values).
+- **Angle 0**: distortion is always exactly `0.0`.
+
+## 7. Docstring and comment rules
+- "Trace at the requested wavelength (indices restored on exit)."
+- `max_field_angle` is a backward-compatibility alias.
+- The sagittal focus is measured on the chief ray, not on the z=0 plane.
+
+## 8. Testing hints
+Build a system like this:
+```python
+from openlens.lens import Lens
+from openlens.optical_system import OpticalSystem
+from openlens.analysis.geometric import GeometricTraceAnalysis
+lens = Lens(radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0,
+            thickness=5.0, diameter=25.0, material="BK7")
+sysm = OpticalSystem(); sysm.add_lens(lens)
+ga = GeometricTraceAnalysis(sysm)
+```
+- The sign convention and the exact focus value come from other modules. **Do not hard-code** focus shifts or `image_plane_x_mm` values.
+- Assertions that are safe to make:
+  - the key set,
+  - list lengths,
+  - aliases are identical objects (`res["tan_focus_shift"] is res["tan_focus_shift_mm"]`),
+  - the angle values,
+  - `distortion_pct[0] == 0.0`,
+  - `isinstance(res["image_plane_x_mm"], float)`,
+  - index and wavelength are restored after a call with `wavelength_nm=486.1`,
+  - index is still restored after the `TypeError`.
+- **Image-plane consistency**: for a `Lens` + `OpticalSystem`, call `resolve_image_plane_x(sysm, wl)` yourself and compare with `pytest.approx`. Use the same `wl`, since the default wavelengths match.
+- **On-axis symmetry**: the angle-0 tangential and sagittal shifts should agree closely, e.g. `pytest.approx(abs=1e-6)`. This is a reasonable check, but it relies on the rotational symmetry of the tracer.
+- Use `math.isnan` for NaN checks, not `==`.
+- Avoid huge angles (≥ 90°): `tan` blows up and the outcome is unpredictable.
+
+### openlens.analysis.geometric.GeometricTraceAnalysis.calculate_ray_fan
+
+# Notes: `GeometricTraceAnalysis.calculate_ray_fan`
+
+## 1. Purpose
+- Computes a transverse ray-aberration fan by real 3D ray tracing through the whole `OpticalSystem` at one wavelength.
+- Each error is the ray's image-plane intercept minus the chief ray's intercept, in mm, as a function of normalized pupil coordinate.
+
+## 2. Inputs
+- **Constructor:** `GeometricTraceAnalysis(system)` stores `self.system` and builds `self.tracer = SystemRayTracer3D(system)` once, at construction. Configure the system fully before constructing the analyzer.
+- **`field_angle_deg`** (float, default `0.0`)
+  - Ray direction is `vec3(1, tan(radians(angle)), 0).normalize()`, i.e. the field tilts in the X-Y (tangential) plane.
+  - All fan rays share this direction. There is no validation.
+- **`wavelength_nm`** (float, default `WAVELENGTH_GREEN`)
+  - Each element's lens gets `update_refractive_index(wavelength_nm=...)` before tracing.
+  - The trace uses `wavelength_nm * NM_TO_MM`.
+  - Validation, if any, happens inside `Lens.update_refractive_index`, which is not visible here.
+- **`num_points`** (int, default `21`). Pupil samples come from `_linspace(-1.0, 1.0, num_points)`:
+  - If `num <= 1` (including 0 or negative values), the result is `[-1.0]`, a single point.
+  - Otherwise `step = 2/(num-1)` and the values are `[-1.0 + i*step for i in range(num)]`.
+  - `num_points=3` gives exactly `[-1.0, 0.0, 1.0]`. `num_points=2` gives `[-1.0, 1.0]`.
+  - With 21 points, index 10 is exactly `0.0`, but other values such as `-0.9` carry float error. Use `pytest.approx` for them.
+- **`pupil_axis`** (str, default `'y'`)
+  - `'y'` gives a tangential fan: offsets go along Y and the error is in Y.
+  - **Any other value** (`'z'`, `'x'`, `'foo'`) gives a sagittal fan: offsets go along Z and the error is in Z.
+  - The value is echoed unchanged in the result.
+
+## 3. Raises
+- There is no explicit validation and no `raise` in this module's path.
+- **Empty system** (`OpticalSystem()` with no lenses) raises an exception:
+  - `elements[0]` would raise `IndexError`.
+  - `resolve_image_plane_x` (from another module) runs first and might raise something else.
+  - In a test, assert only `pytest.raises(Exception)`.
+- **Float `num_points > 1`** (e.g. `2.5`) raises `TypeError` from `range()` in `_linspace`.
+- Lens state is restored in a `finally` block, so it is restored even when an exception is raised.
+
+## 4. Returns and guarantees
+The result is a new `dict` on every call, with exactly these keys:
+- `"pupil_coords"`: the list of pupil coordinates whose ray gave a non-NaN error, in ascending order. It is a subset of the `_linspace` values.
+- `"ray_errors_mm"`: list of float errors, the same length as and aligned with `pupil_coords`.
+- `"ray_errors"` and `"transverse_aberration"`: the **same list object** as `ray_errors_mm` (`is`-identical).
+- `"axis"`: the `pupil_axis` argument as given.
+- `"field_angle_deg"`: the argument as given.
+- `"wavelength_nm"`: the argument as given, in nm and not converted.
+
+How the geometry is set up:
+- `max_r = elements[0].lens.diameter / 2`.
+- Each ray passes through `(elements[0].position, p*max_r, 0)` for the y fan, or `(elements[0].position, 0, p*max_r)` for the z fan.
+- Rays start at x = `elements[0].position - 50` and are back-propagated along the direction.
+
+How the reference (chief ray) is set up:
+- The chief ray passes through `(elements[0].position, 0, 0)`.
+- If it is not terminated and `|dir.x| > 1e-6`, its intercept at `image_plane_x` gives `ref_y`/`ref_z`. Otherwise both stay `0.0`.
+
+How `image_plane_x` is chosen:
+- `resolve_image_plane_x(system, wavelength_nm, tracer=self.tracer)` returns a configured detector plane if set, else the paraxial focus. That function is in another module.
+- If it returns `None`, the fallback is `system.get_total_length() + 10.0`.
+
+Which rays are kept:
+- A ray is kept only if it is not terminated and `|ray.direction.x| > 1e-6`.
+- Otherwise its error is NaN and the point is **dropped**, not stored as NaN. The result lists therefore never contain NaN.
+
+## 5. Side effects
+- The call snapshots `(lens, lens.wavelength, lens.refractive_index)` for every element.
+- It then sets the indices for `wavelength_nm`, traces, and in `finally` restores `lens.wavelength` and `lens.refractive_index` to the snapshot values.
+- After the call, each lens's `refractive_index` and `wavelength` equal their pre-call values, even when `wavelength_nm` differs from the lens wavelength.
+- Ray tracing goes through `self.tracer`, whose internal caching is not visible here. No files or globals are touched.
+
+## 6. Branches and edge cases
+- **p = 0 ray equals the chief ray.** It has an identical origin and direction, computed the same way. If it is not terminated, its error is **exactly `0.0`** for any field angle and either axis.
+- **Edge rays (p = ±1)** hit exactly the rim (`diameter/2`). Whether the tracer clips them is unseen behaviour. Do not assert `len(pupil_coords) == num_points`; assert `<=`.
+- **`num_points=1` or `0`** yields at most one point, `-1.0`.
+- **Chief ray terminated** (e.g. a huge field angle): the reference is 0 and errors become absolute intercepts.
+- **Any non-`'y'` axis** behaves as the sagittal fan. For example, `pupil_axis='x'` gives the same errors as `'z'`, with `axis == 'x'`.
+
+## 7. Rules from comments/docstrings
+- The wavelength argument "controls the physics, not just labels", and the indices are restored on exit.
+- `'y'` means tangential (meridional) and `'z'` means sagittal. Pupil coords are normalized to the range −1 to 1.
+- The entrance pupil is approximated as the first lens diameter, and the chief ray goes through the first surface centre.
+
+## 8. Testing hints
+Build a system like this:
+```python
+from openlens.lens import Lens
+from openlens.optical_system import OpticalSystem
+from openlens.analysis.geometric import GeometricTraceAnalysis
+sys_ = OpticalSystem(); sys_.add_lens(Lens())   # or create_doublet()
+g = GeometricTraceAnalysis(sys_)
+r = g.calculate_ray_fan(num_points=11)
+```
+
+Robust assertions on current code:
+- **Keys and aliases:** the key set is as listed above, and `r["ray_errors"] is r["ray_errors_mm"] is r["transverse_aberration"]`.
+- **Echoed metadata:** `r["axis"] == "y"`. `field_angle_deg` and `wavelength_nm` are echoed. Passing `wavelength_nm=486.1` gives back `486.1`.
+- **Lengths and order:** `len(pupil_coords) == len(ray_errors_mm) <= num_points`. The coords are a sorted subset of the linspace values. None of the values is NaN.
+- **Centre point:** `0.0` is in `pupil_coords` when `num_points` is odd, and its error `== 0.0` exactly. This holds both on-axis and at, e.g., 5°.
+- **On-axis symmetry** (rotationally symmetric single lens):
+  - `error(p) ≈ -error(-p)`; use `pytest.approx(abs=1e-9)` for any pair that both survive.
+  - The y fan equals the z fan elementwise (approx).
+- **Off-axis sagittal fan:** it is still odd, `error(p) ≈ -error(-p)`, by mirror symmetry in Z.
+- **Different wavelengths:** errors at 486.1 and 656.3 nm differ (not approx-equal) for a singlet. The lens `refractive_index` is unchanged after each call.
+- **Inputs not mutated:** lens wavelength and refractive index are unchanged after the call (see section 5).
+
+Pitfalls:
+- Do not assert the sign or magnitude of aberrations. They depend on the unseen tracer, sign conventions and focus search.
+- Do not rely on edge rays surviving.
+- Do not pass `num_points` as a float.
+- Do not expect NaN entries in the result.
+
+### openlens.image_simulator.ImageSimulator.simulate_image
+
+# Notes: `ImageSimulator.simulate_image(input_image, object_distance, image_distance=None, wavelength=WAVELENGTH_D_LINE, pixel_pitch_mm=0.01)`
+
+## 1. Purpose
+Runs an image through the simulated optics in this order:
+1. image distance (lens equation)
+2. aberration blur
+3. diffraction blur
+4. per-channel chromatic zoom (RGB only)
+5. cos⁴ vignetting
+6. quality metrics
+
+It returns a dict.
+
+## 2. Inputs
+- `input_image`: numpy array, `(H, W)` or `(H, W, C)`. Use **float** arrays with values in [0, 1].
+  - `gaussian_filter` keeps the input dtype, so integer input stays integer until the vignetting multiply.
+- `object_distance`: float in mm. Not validated.
+- `image_distance`: `None` means it is computed. Any value given is used as-is and returned unchanged (no `float()` conversion).
+- `wavelength`: nm. Forwarded to `refractive_index_at`, `get_aberrations` and the Airy radius.
+- `pixel_pitch_mm`: mm per pixel.
+  - `<= 0` disables aberration blur.
+  - It also gives diffraction sigma 0, which is floored to 0.1 px.
+  - It also skips vignetting.
+- `self.optical_system` (set in the constructor) is duck-typed. Attributes it uses:
+  - `.elements[i].lens.refractive_index` (read and written)
+  - `.lens.refractive_index_at(wl)`
+  - `.elements[0].lens.diameter`
+  - `get_system_focal_length()`
+  - optionally `get_aberrations(wl)`
+
+## 3. Raises
+Checks run in this order:
+1. **When `image_distance is None`:** `optical_system.elements` is accessed directly. A target without `.elements` raises `AttributeError`.
+2. **Focal length.** `get_system_focal_length()` is callable and returns falsy (`None` or `0`):
+   - `ValueError("OpticalSystem reports no focal length; cannot simulate an image through it.")`
+   - Raised from the image-distance step, or later from the diffraction step if `image_distance` was given.
+3. **No focal-length method.** None of `get_system_focal_length`, `calculate_focal_length` or `effective_focal_length` exists, or the last two return falsy:
+   - `TypeError(f"{type(system).__name__} is not a supported optical target for ImageSimulator.")`
+4. **No aperture** (scipy only, in diffraction). The pupil diameter check runs **before** the focal length is read there. It fails when there is no element with diameter > 0 and no positive `aperture_diameter` or `diameter` attribute:
+   - `ValueError("Optical target has no usable aperture; cannot size the diffraction spot.")`
+   - Trigger: `elements=[]` with `get_system_focal_length` returning 100 and `image_distance=50`.
+5. **`object_distance == 0`:** `ZeroDivisionError`. It comes from `1.0/object_distance`, or from the magnification `-image_distance/object_distance` even when `image_distance` is given.
+6. **No `get_aberrations` on the target:** `AberrationsCalculator` from `openlens.aberrations` is used. Its behaviour and errors are not visible here, so avoid it in tests.
+
+## 4. Returns
+A new dict with exactly 4 keys:
+
+- `"output_image"`: new ndarray with the same shape as the input.
+- `"magnification"`: `-image_distance / object_distance`.
+- `"image_distance"`:
+  - When computed: `abs(1/(1/f - 1/object_distance))`.
+  - If `abs(object_distance - f) < 0.001`: `float("inf")`, so magnification is `-inf`.
+- `"metrics"`: dict with keys `psnr`, `global_ssim`, `nyquist_spectral_ratio`, `sharpness`.
+  - `psnr = 10*log10(1/mse)`, or `inf` when `mse == 0`.
+  - `global_ssim`: global SSIM formula with `c1=1e-4`, `c2=9e-4`.
+  - `nyquist_spectral_ratio`:
+    - Mean FFT magnitude over the ring `|r - min(h,w)//4| <= 2`, divided by DC.
+    - Returns 0.0 if DC <= 0.
+    - On tiny images the ring includes DC, so use ≥ 16×16 images.
+  - `sharpness`: mean Sobel gradient magnitude of the grayscale (channel-mean) image.
+
+The focal length `f` is measured after every lens's `refractive_index` is set to `refractive_index_at(wavelength)`.
+
+## 5. Side effects
+- Each `lens.refractive_index` is temporarily overwritten and **restored in a `finally` block**. After the call the values equal their originals, even if the call raised.
+- `input_image` is not mutated: aberrations operate on `.copy()`, and the filters return new arrays.
+
+## 6. Branches and edge cases
+**Image distance (f = 100):**
+
+| `object_distance` | `image_distance` | `magnification` |
+|---|---|---|
+| 200 | 200.0 | -1.0 |
+| 50 | 100.0 (abs of -100) | -2.0 |
+| 100 | inf | -inf |
+
+- **Given distance:** `image_distance=50`, `object_distance=100` gives `image_distance == 50` and magnification -0.5. `refractive_index_at` is not called for a grayscale image.
+
+**Aberrations** (skipped entirely without scipy). Values are read from `get_aberrations(wl)`.
+- Each sigma is `abs(value)/pitch` in pixels. None or non-numeric values are skipped.
+- `spherical_aberration` or `spherical`: blurs both spatial axes.
+- `coma`: blurs both spatial axes.
+- `astigmatism` gives a half-width h:
+  - axis 0 (rows) is blurred with `h*√2`;
+  - axis 1 (columns) is blurred with `h/√2`.
+- On RGB images the colour axis is never blurred (sigma `(s, s, 0)`).
+- `{}` means no aberration blur.
+
+**Diffraction:**
+- `airy = 1.22*wavelength*1e-6*f/D` (mm).
+- `sigma = max(0.1, airy*0.844/2.355/pitch)`.
+- Example: f=100, D=25, λ=550, pitch=0.01 gives about 0.096 px, so sigma 0.1.
+- That leaves an effectively identity kernel (kernel radius 0), but do not rely on exact equality for non-constant images.
+
+**Chromatic step** (only when `ndim == 3` and `shape[2] >= 3`):
+- `f_base = get_system_focal_length()` at the current index.
+- For channels R, G, B at wavelengths 650, 550, 450: `scale = f_base / f_at(wl)`.
+- If `|scale - 1| > 1e-4`, the channel is zoomed with order 1, then centre-cropped or edge-padded back to the original size.
+- If the index does not vary with wavelength, nothing changes.
+- `(H, W, 1)` images skip this step.
+
+**Vignetting:**
+- If `image_distance` is inf, the fallback is `abs(get_system_focal_length())`. `effective_focal_length(WAVELENGTH_GREEN)` is tried first if present.
+- If L ≤ 0 or `pitch <= 0`, the image is unchanged.
+- Otherwise the factor is `(L/sqrt(L² + r²))⁴`, where:
+  - `r = hypot(x - w/2, y - h/2) * pitch`;
+  - the centre is the **float** point `(w/2, h/2)`, so pixel `(h/2, w/2)` has factor 1 when h and w are even.
+  - RGB images are broadcast over channels.
+
+## 7. Rules from comments and docstrings
+- Asking a question must never leave the system changed (index restore).
+- The wavelength must be forwarded to the aberration lookup, not dropped.
+- Blur sigma is in pixels: millimetres divided by `pixel_pitch_mm`.
+- Astigmatism blurs both meridians by different amounts.
+- RGB blur must not mix channels.
+- Vignetting never forces the corners to zero.
+
+## 8. Testing hints
+Use a fake system for determinism, and do not define `effective_focal_length` on it:
+
+```python
+class FakeLens:
+    def __init__(s, n=1.5, d=25.0):
+        s.refractive_index = n; s.diameter = d; s.calls = []
+    def refractive_index_at(s, wl):
+        s.calls.append(wl); return s.refractive_index
+class FakeSys:
+    def __init__(s, f=100.0, ab=None):
+        s.lens = FakeLens(); s.elements = [type("E", (), {"lens": s.lens})()]
+        s.f = f; s.ab = ab or {}
+    def get_system_focal_length(s): return s.f
+    def get_aberrations(s, wl): return s.ab
+```
+
+**Exact checks:**
+- **Identity case:** `np.ones((64, 64))`, `object_distance=200`, `pixel_pitch_mm=0`. Expected:
+  - `output_image` equals the input;
+  - `psnr == inf`, `global_ssim == 1.0`;
+  - `nyquist_spectral_ratio == 0.0`, `sharpness == 0.0`;
+  - `image_distance == 200.0` (use `pytest.approx` for any computed distance), `magnification == -1.0`.
+- **Vignetting:** `np.ones((4, 4))`, `object_distance=200` (L=200), `pixel_pitch_mm=10`.
+  - Every filter preserves a constant image, so the output equals the vignette map.
+  - `out[2, 2] == 1.0`.
+  - `out[0, 0] ≈ (40000/40800)**2 ≈ 0.961169`.
+  - Values decrease toward the corners.
+- **Wavelength forwarding:** `wavelength=486.1` with a grayscale image gives `lens.calls == [486.1]`. An RGB `(8, 8, 3)` image gives `[486.1, 650, 550, 450]`.
+
+**Pitfalls:**
+- Use `pytest.approx` or `np.allclose` for blurred images.
+- Each requirement below needs a separately built fake: a target without `get_aberrations` pulls in the unseen `AberrationsCalculator`; `f=None` triggers the ValueError; `elements=[]` triggers the aperture error (pass `image_distance`).
+- These results assume scipy is installed; without it the blurs are skipped.
+
+### openlens.optical_system.OpticalSystem.calculate_chromatic_aberration
+
+# Notes: `OpticalSystem.calculate_chromatic_aberration(self) -> Dict[str, Any]`
+
+## 1. Purpose
+- Computes longitudinal (axial) chromatic aberration of the whole system.
+- It rebuilds the paraxial ABCD matrix at the F, d and C Fraunhofer lines, then reports back focal lengths (BFL), effective focal lengths (EFL), their difference, and a "corrected" flag.
+
+## 2. Inputs
+- No parameters. It reads the following:
+  - `self.elements`, in order.
+  - Each `el.lens.refractive_index_at(wl)`. This is defined in `openlens.lens`, which is not shown here; it probably uses the material DB or model glass.
+  - `lens.get_effective_radius_1()` / `get_effective_radius_2()`.
+  - `lens.thickness`.
+  - `self.air_gaps[i].thickness`.
+- Wavelengths come from `openlens.constants`: `WAVELENGTH_F_LINE`, `WAVELENGTH_D_LINE`, `WAVELENGTH_C_LINE`. The exact values are not shown, so import them instead of hard-coding them.
+- Loop order is F, then d, then C. For each line, `refractive_index_at` is called once per element, in element order.
+- `lens.refractive_index` is **ignored** whenever the system has at least one element. In that case the override map is non-empty, and the override index is always used.
+
+## 3. Raises
+- The method itself raises nothing explicitly.
+- Exceptions from `refractive_index_at` or the radius getters would propagate. That code lives in `lens.py` and is not visible here.
+
+## 4. Returns and guarantees
+For each line, the private helper `_calculate_system_matrix(n_overrides)` builds the matrix:
+- It starts from the identity matrix.
+- Per element, in order:
+  - **Surface 1:** if R1 is finite and non-zero, `P1 = (n - 1)/R1`, then `C -= P1*A` and `D -= P1*B`.
+  - **Glass:** propagate the reduced thickness `d = t/n` (use plain `t` if n is 0): `A += d*C`, `B += d*D`.
+  - **Surface 2:** if R2 is finite and non-zero, `P2 = (1 - n)/R2`, applied the same way.
+  - **Air gap:** for every element except the last, propagate `air_gaps[i].thickness`.
+- If `abs(C) > 1e-10`: `bfl = -A/C` and `efl = -1/C`. Otherwise both are `None`.
+
+**Full result** (when `bfl_F` and `bfl_C` are both not None) is a new dict with exactly these 8 keys:
+```
+{"longitudinal": bfl_C - bfl_F, "bfl_F", "bfl_d", "bfl_C",
+ "f_F", "f_d", "f_C", "corrected": abs(longitudinal) < 0.1}
+```
+- `corrected` uses a strict `<`, and its value is a Python `bool`.
+- `bfl_d` and `f_d` can be `None` independently, but only if the d-line matrix alone is afocal.
+
+**Fallback result** (otherwise): exactly `{"longitudinal": 0.0, "corrected": False}`, with no other keys.
+
+Closed form for a single lens with spherical surfaces (n is the index at that line):
+- `1/f = (n-1)(1/R1 - 1/R2) + (n-1)**2 * t / (n*R1*R2)`
+- `bfl = f * (1 - (t/n)*(n-1)/R1)`
+
+## 5. Side effects
+- None.
+- No mutation of lenses or elements, `modified_at` is not touched, and nothing is cached.
+- A fresh dict is returned on every call.
+
+## 6. Branches and edge cases
+- **Empty system:** `OpticalSystem().calculate_chromatic_aberration() == {"longitudinal": 0.0, "corrected": False}`.
+- **Afocal at F and C** (e.g. all surfaces flat): the fallback dict is returned.
+- **Same index at all three lines** (index patched to a constant): F and C are computed identically, so `longitudinal == 0.0` exactly and `corrected is True`.
+- **Positive BK7-like singlet with normal dispersion** (n_F > n_d > n_C):
+  - `f_F < f_d < f_C`, and the same order holds for the BFLs.
+  - So `longitudinal > 0`.
+  - For f ≈ 100 mm BK7, it is about 1.5 mm, so `corrected is False`.
+- **Negative lens:** the sign of `longitudinal` flips (it becomes negative).
+- **Gaps:** the last element's following gap is never applied. Only `air_gaps[0 .. len-2]` are used.
+
+## 7. Rules from docstrings/comments
+- The `f_*` keys are true EFLs (`-1/C`). They are not copies of the BFL.
+- BFL is `-A/C`, the observable focus position.
+- The reduced thickness `d/n` is intentional (ray vector `(y, n·θ)`). Cemented zero-gap pairs are treated exactly.
+- `is_achromatic()` returns `bool(result.get("corrected", False))`.
+
+## 8. Testing hints
+Pin indices exactly by overriding the bound method on the instance. This assumes `Lens` has no `__slots__`, which is likely; it is a normal class.
+
+```python
+from openlens.constants import WAVELENGTH_F_LINE as F, WAVELENGTH_D_LINE as D, WAVELENGTH_C_LINE as C
+lens = Lens(radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0)
+idx = {F: 1.522, D: 1.5168, C: 1.514}
+lens.refractive_index_at = lambda wl: idx[wl]
+s = OpticalSystem(); s.add_lens(lens)
+r = s.calculate_chromatic_aberration()
+```
+
+What to check:
+- Compare `r["f_F"]`, `r["bfl_C"]` and so on with the closed form above, using `pytest.approx(rel=1e-9)`.
+- Check `r["longitudinal"] == approx(r["bfl_C"] - r["bfl_F"])`.
+- Check that `set(r)` equals the 8 keys.
+- Verify `lens.refractive_index` is ignored: set it to something absurd (e.g. 3.0) and confirm the result does not change.
+- Two-element test: add a second patched lens with `air_gap_before=10.0`. Compute the expected value by multiplying 2x2 matrices by hand. Changing the gap should change the BFL.
+- Threshold test: choose indices so that |longitudinal| is about 0.05 (expect `corrected` True) versus about 0.2 (expect False). Avoid values near exactly 0.1.
+- Verify ordering: record the wavelengths passed to `refractive_index_at`. For one element it should be `[F, D, C]`.
+
+Pitfalls:
+- Do not hard-code wavelength numbers or catalog indices. Without patching, `refractive_index_at` depends on code you cannot see, so only assert qualitative relations (signs and ordering).
+- Use `approx` for floats. The one exception is the constant-index case, where exact `0.0` is safe.
+- Avoid parabolic or conic lenses; their effective radius comes from `lens.py`, which is not shown.
+- Flat surfaces (`float('inf')`) are skipped as having no power. Whether `Lens` accepts them is decided in `lens.py`.
+
+### openlens.optical_system.OpticalSystem.load
+
+# Notes: `OpticalSystem.load(filename)` (staticmethod, `openlens/optical_system.py`)
+
+## 1. Purpose
+- Reads an optical system from a JSON file and returns a new `OpticalSystem` built by `OpticalSystem.from_dict`.
+- It **never raises** an `Exception` subclass. Any failure is logged and the function returns `None`.
+
+## 2. Inputs
+- `filename: str` is a path (a `pathlib.Path` from `tmp_path` also works with `open`).
+- Processing steps, in order, all inside one `try`:
+  1. `reject_oversized_file(filename)` checks a size cap. It lives in `openlens.validation`, which is not shown; its exact limit is unknown.
+  2. `open(filename, "r")` then `json.load(f)`. `json.load` accepts the bare `NaN`, `Infinity` and `-Infinity` literals.
+  3. `data = json_safe_radii(data)` comes from `openlens.lens`, not shown. Per the docstring, it converts infinite *radii* (the legacy flat-surface spelling) to `null`.
+  4. `reject_non_finite_numbers(data, "optical system")` rejects any remaining NaN or Infinity anywhere. Its implementation is not shown.
+  5. `return OpticalSystem.from_dict(data)`. No `lens_lookup` is passed, so every lens is deserialized fresh.
+
+## 3. Raises
+- **Nothing.** The code is `except Exception as e: logger.error("Error loading optical system: %s", e); return None`.
+- The logger name is `"openlens.optical_system"` and the level is ERROR.
+- Inputs that return `None`:
+  - Missing file: `OpticalSystem.load(str(tmp_path/"nope.json"))` returns `None`.
+  - Invalid JSON text `"not json"` returns `None`.
+  - Top-level JSON list `[]` returns `None`, because `data.get` raises AttributeError.
+  - Non-finite value outside a radius, e.g. `{"name":"x","aperture_stop_diameter": NaN}`, returns `None`.
+  - Legacy flat element (no `node_tree`) whose dict lacks the `"lens"` key returns `None` (KeyError in `elem_data["lens"]`).
+    - This also happens when `node_tree` is present, because the elements are parsed first.
+  - An invalid `image_plane_x_mm` makes `validate_image_plane_x` (in `openlens.lens`, not shown) raise, and the result is `None`.
+
+## 4. Returns and guarantees (what `from_dict` restores)
+- Each call returns a **new** `OpticalSystem`.
+- Values copied straight from the file, when present:
+  - `id`
+  - `created_at`
+  - `modified_at`: it is not touched afterwards, since `add_lens` and the rebuild steps do not update it.
+  - `name`: default `"Optical System"`.
+  - `aperture_stop_gap` and `aperture_stop_diameter`: raw values, default `None`.
+  - `thermal_state_temperature`: default `DEFAULT_TEMPERATURE`, a constant whose value is not shown.
+- `image_plane_x_mm = validate_image_plane_x(data.get("image_plane_x_mm"))`. `None` stays `None`.
+- `casing = Casing.from_dict(...)` only if the value is a dict, else `None`. It is **not** validated against the lenses.
+- `metadata` is `data["metadata"]` with every key in this set removed:
+  - `{"id","name","type","created_at","modified_at","aperture_stop_gap","aperture_stop_diameter","elements","air_gaps","metadata","node_tree","thermal_state_temperature","image_plane_x_mm","casing"}`
+  - Example: saving with metadata `{"tol": 1, "name": "zzz"}` loads back as `{"tol": 1}`.
+- Elements are first added via `add_lens(lens, air_gap_before=gaps[i-1]["thickness"])` with decenter and tilt values converted by `float(x or 0.0)`.
+- If `node_tree` is present (always true for files written by `save`), the tree is rebuilt from it:
+  - The element lenses then come from `node_tree[...]["element_model"]`.
+  - Node positions and rotations come from the tree.
+  - Modifiers are restored, and nesting is preserved.
+- Without `node_tree` (legacy file):
+  - Each saved `"position"` that is not `None` overrides the root child's x.
+  - Then the flat lists are rebuilt.
+  - With no positions at all, the layout runs from x=0 using the gaps.
+- Air gaps are recomputed from positions: `next.x - (x + thickness)`, clamped to ≥0.
+
+## 5. Side effects
+- The function only reads the file. It does not modify or create files.
+- On failure it logs one ERROR record.
+
+## 6. Branches / edge cases
+- `{}` in the file gives a system with name `"Optical System"`, `elements == []`, `air_gaps == []`, `metadata == {}` and `aperture_stop_gap is None`. A fresh `id` is generated.
+- A file containing a bare `Infinity` radius (legacy plano) still loads, because `json_safe_radii` converts it before the finite check. This relies on unseen helpers, so assert only `is not None`.
+- A legacy dict with elements at saved positions 15 and 30 (thickness 5) loads with element positions 15 and 30 and gap thickness 10 at gap position 20.
+- An empty or `null` `node_tree` takes the legacy path.
+
+## 7. Rules from docstrings/comments
+- The file is size-capped, and NaN/Infinity anywhere is rejected because NaN would silently defeat sanity checks.
+- Legacy `Infinity` radii are the one accepted exception.
+- `save` writes `json_safe_radii(to_dict())` with `indent=2` and `allow_nan=False`, so `save` followed by `load` must round-trip.
+
+## 8. Testing hints
+- Round trip:
+  ```python
+  s = OpticalSystem(name="T", metadata={"tol": 1, "name": "zzz"})
+  s.add_lens(Lens(name="A", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0))
+  s.add_lens(Lens(name="B", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0), air_gap_before=10.0)
+  s.set_aperture_stop(0, 8.0)
+  p = tmp_path/"s.json"; assert s.save(str(p))
+  r = OpticalSystem.load(str(p))
+  ```
+- Assertions that hold for this round trip:
+  - `r is not s`.
+  - `r.id == s.id`, `r.name == "T"`, and `r.created_at`/`r.modified_at` equal the originals.
+  - `[e.position for e in r.elements] == approx([0.0, 15.0])`.
+  - `r.air_gaps[0].thickness == approx(10.0)` and `r.air_gaps[0].position == approx(5.0)`.
+  - `r.get_aperture_stop() == {"gap_index": 0, "position": approx(5.0), "diameter": 8.0}`.
+  - `r.metadata == {"tol": 1}`.
+  - `[e.lens.name for e in r.elements] == ["A", "B"]`.
+  - `r.get_system_focal_length() == approx(s.get_system_focal_length())`.
+- Also check that `r.image_plane_x_mm` round-trips (set it to `None` or e.g. `120.0` before saving).
+- Legacy files: build them by hand with `json.dump` from `Lens(...).to_dict()` dicts and finite radii, leaving out `node_tree`.
+- Failure cases:
+  - Use `caplog` (level ERROR) and assert `"Error loading optical system"` appears in `caplog.text`.
+  - Use `assert result is None`, **not** `pytest.raises`.
+- Pitfalls:
+  - Write NaN by hand as text (`'{"aperture_stop_diameter": NaN}'`); `json.dump` with defaults does emit it.
+  - Do not assume `DEFAULT_TEMPERATURE`'s value; compare against `s.thermal_state_temperature`.
+  - Use `pytest.approx` for positions.
+
+### openlens.tracer_3d.LensRayTracer3D.trace_surface
+
+# Notes: `LensRayTracer3D.trace_surface(ray, surface_type, interaction="refract")`
+
+## 1. Purpose
+- Finds where a `Ray3D` meets one surface ("front" or "back") of a lens.
+- Moves the ray to that point and adds the optical path length for the segment.
+- Then refracts or reflects the ray in place.
+- Returns a `RefractionResult` (`openlens.ray`).
+
+## 2. Inputs
+- `self`: a `LensRayTracer3D(lens, transform=None, x_offset=0.0)`.
+  - Lens values are **snapshotted at construction**: R1/R2 (`get_effective_radius_*`), thickness `d`, diameter `D`, `n=lens.refractive_index`, parabolic/conic flags, clear apertures, Fresnel facets.
+  - Editing the lens afterwards does not affect `trace_surface`.
+  - With no transform, the front vertex is at world `(x_offset,0,0)` and the back vertex at `(x_offset+d,0,0)`. The optical axis is +x.
+- `ray`: a `Ray3D(origin: Vector3, direction: Vector3, ..., n=REFRACTIVE_INDEX_AIR)`. It is mutated.
+- `surface_type`: only `"front"` or `"back"`. Any other string returns `MISSED` immediately.
+- `interaction`:
+  - `"refract"` (default) or `"reflect"`.
+  - Any other value is accepted but returns `MISSED` *after* the ray has already been moved (see §6).
+
+**How the surface kind is chosen** (in `_calculate_geometry`; the order matters):
+1. Parabolic: `is_parabolic_k` and `|parabolic_sag_k| > EPSILON`.
+2. Flat: `_is_flat(R)` (defined in `openlens.lens`, not shown; presumably an infinite or huge radius).
+3. Conic: `|conic_constant_k| > EPSILON`.
+4. Otherwise a sphere.
+   - Front centre is at local `x=R1`; back centre is at local `x=d+R2`.
+   - The cap nearest the vertex is used (`abs(R)`, convex flag `R>0`).
+
+## 3. Raises
+- No explicit `raise`.
+- Errors could only come from helpers in other modules (`Ray3D.reflect`, `refract_or_reflect`, `OpticalIntersector`). Do not test for exceptions.
+
+## 4. Returns and guarantees
+- `RefractionResult.MISSED` in the following cases. In all of them the ray is **unchanged** (origin, direction, n, OPL, path):
+  - bad `surface_type`;
+  - no intersection;
+  - the hit lies outside the aperture;
+  - the Fresnel facet intersection is None.
+- Aperture test:
+  - The radial distance squared, measured perpendicular to the axis from the vertex, must be `<= (CA/2 + 1e-9)**2`.
+  - `CA` is `lens.get_clear_aperture_k()`, falling back to `D` when it returns falsy.
+  - Hit exactly at `CA/2` passes. A hit at radius `> CA/2` is a miss.
+- On a hit, in this order:
+  1. `ray.optical_path_length += |hit - old_origin| * ray.n`, using the `n` from *before* refraction.
+  2. `ray.origin = hit`.
+  3. `hit` is appended to `ray.path` only if the path is empty or the ray moved by more than `EPSILON`. A zero-length hit is not recorded again, but it is still refracted.
+- Choice of `(n1, n2)`. Defaults: front is `(air, lens.n)`, back is `(lens.n, air)`.
+  - If `|ray.n - default_n1| < 1e-3`, use the defaults.
+  - Else if `|ray.n - default_n2| < 1e-3`, swap them: `(default_n2, default_n1)`.
+  - Otherwise use `(ray.n, default_n2)`.
+- `"reflect"`: calls `ray.reflect(normal, n1, n2)` and always returns `REFLECTED`.
+- `"refract"`: returns whatever `ray.refract_or_reflect(n1, n2, normal)` returns. That is in `openlens.ray`; expect `REFRACTED`, or `REFLECTED` on total internal reflection.
+- Normals are always oriented outward: the front normal is about `-axis`, the back normal about `+axis`.
+- Never sets `ray.terminated`.
+
+## 5. Side effects
+- Mutates `ray`: origin, OPL, path, and direction/n through the refraction or reflection call.
+- The tracer and the lens are not changed.
+
+## 6. Branches and edge cases
+Shared test lens:
+`lens = Lens(radius_of_curvature_1=50, radius_of_curvature_2=-50, thickness=5, diameter=25, refractive_index=1.5)`
+`t = LensRayTracer3D(lens)`
+
+- **On-axis front hit.**
+  - Call: `ray = Ray3D(vec3(-10,0,0), vec3(1,0,0))`, then `t.trace_surface(ray,"front")`.
+  - Returns `REFRACTED`; origin is `(0,0,0)`; OPL increases by `10.0` (n=1).
+  - Direction stays about `(1,0,0)` (normal incidence).
+- **Back hit after that.**
+  - Origin `(0,0,0)` going +x hits `(5,0,0)` (back sphere centre `-45`, radius `50`).
+  - OPL increases by `5*ray.n`. If `refract_or_reflect` set `n=1.5`, that is `+7.5`.
+  - Since `ray.n≈1.5`, `(n1,n2)=(1.5,1.0)`.
+- **Off-axis sphere hit.**
+  - Ray from `(-10,5,0)` going +x hits the front at `x = 50 - sqrt(2475) ≈ 0.2506281`, `y=5`.
+  - OPL increases by about `10.2506281`.
+- **Aperture miss.**
+  - Ray from `(-10,13,0)` going +x: the sphere is hit (|y|<50), but `169 > 12.5²`, so `MISSED`.
+  - Origin stays `(-10,13,0)` and OPL is unchanged.
+- **Sphere missed entirely.**
+  - Ray at `y=60` going +x returns `MISSED`.
+- **Invalid surface type.**
+  - `t.trace_surface(ray, "middle")` returns `MISSED` with nothing changed.
+- **Unknown interaction.**
+  - `t.trace_surface(ray, "front", "absorb")` returns `MISSED`.
+  - However, origin is now `(0,0,0)` and OPL has increased by 10. This is a deliberate observable quirk.
+- **Reflect.**
+  - On-axis front hit with `"reflect"` returns `REFLECTED`.
+  - Direction should become about `(-1,0,0)`; this relies on `Ray3D.reflect` being standard mirror reflection.
+- **Zero-length hit.**
+  - A ray whose origin is already at the vertex, with a non-empty path: the path length does not grow and OPL increases by 0.
+  - The ray is still refracted.
+- **x_offset.**
+  - `LensRayTracer3D(lens, x_offset=100)` puts the front hit at `(100,0,0)`.
+- **Flat surface.**
+  - The surface is a plane through the vertex.
+  - A ray parallel to it, e.g. direction `(0,1,0)` (|denom|<EPSILON), returns `MISSED`.
+  - A plane hit behind the ray (`t < -EPSILON`) returns `MISSED`.
+- **Parabolic surface with effective R that is ~0 or > 1e10.**
+  - Treated as a plane.
+- **Fresnel lens (facets non-empty).**
+  - Only facet hits count. If no facet is hit, the result is `MISSED`.
+  - Facet construction is in `openlens.geometry` (not shown), so avoid exact values.
+
+## 7. Rules from comments
+- "A zero-length hit (t ~ 0) is legitimate and must still refract" (cemented doublets), but the point must not be recorded twice in `path`.
+- A no-intersection result must be `MISSED` with the state unchanged. The ray must never be faked into a transmitted ray.
+- OPL is accumulated per segment using the current medium's `n`.
+- Normal convention: the front normal points to −axis and the back normal to +axis, whatever the sign of the curvature.
+
+## 8. Testing hints
+- Imports:
+  - `from openlens.tracer_3d import LensRayTracer3D`
+  - `from openlens.ray import Ray3D, RefractionResult`
+  - `from openlens.vector3 import vec3`
+- Compare floats with `pytest.approx(abs=1e-6)`. Compare results with `is` / `==` on the enum.
+- Record `len(ray.path)` before the call and compare deltas. The initial contents of `Ray3D.path` are defined in `openlens.ray` and are probably `[origin]`.
+- Pass `refractive_index=` explicitly. Lens defaults (type, material index) come from code not shown here.
+- Safest assertions:
+  - return values;
+  - `ray.origin` coordinates;
+  - the OPL delta on the front surface (n=1);
+  - that the state is unchanged on `MISSED`.
+- Assertions that depend on the `openlens.ray` implementation, so keep them loose:
+  - `ray.n` after refraction;
+  - exact refracted directions on oblique rays.
+- Do not test backward-travelling rays. The result depends on `rank_cap_roots` (not shown).

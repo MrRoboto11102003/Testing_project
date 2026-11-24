@@ -1,0 +1,301 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.quality.auto_clean.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.quality.auto_clean
+def auto_clean(
+    frame: ArFrame,
+    *,
+    mode: str = "safe",
+    return_report: bool = False,
+    dry_run: bool = False,
+    allow_lossy_casts: bool = False,
+    confirmed_casts: dict[str, str] | None = None,
+    explain: bool = False,
+) -> (
+    ArFrame
+    | DataQualityReport
+    | tuple[ArFrame, DataQualityReport]
+    | tuple[ArFrame, CleanExplanation]
+    | tuple[ArFrame, DataQualityReport, CleanExplanation]
+):
+    """Apply built-in automatic cleaning.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input frame.
+    mode : {"safe", "strict"}, default "safe"
+        ``safe`` applies only low-risk cleanup such as whitespace trimming.
+        ``strict`` also applies deterministic casts and exact duplicate removal.
+    return_report : bool, default False
+        Whether to return the pre-cleaning quality report.
+    dry_run : bool, default False
+        Return the proposed pre-cleaning report without mutating the frame.
+    allow_lossy_casts : bool, default False
+        Required before strict mode applies suggested type casts. Type casts
+        also require *confirmed_casts* so callers explicitly confirm the exact
+        mapping they previewed.
+    confirmed_casts : dict[str, str] or None, default None
+        Exact cast mapping to apply in strict mode. Use ``dry_run=True`` or
+        ``suggest_cleaning()`` to inspect the proposed ``cast_types`` mapping,
+        then pass the same mapping here with ``allow_lossy_casts=True``.
+    explain : bool, default False
+        When ``True``, return a :class:`CleanExplanation` object that records
+        which steps ran, before/after row counts for each step, and why each
+        step was selected. The cleaned frame is always the first element in the
+        returned tuple.
+
+    Returns
+    -------
+    ArFrame
+        Cleaned frame (when *return_report*, *dry_run*, and *explain* are all ``False``).
+    DataQualityReport
+        When *dry_run* is ``True`` and *return_report* is ``False``.
+    tuple[ArFrame, DataQualityReport]
+        When only *return_report* is ``True``.
+    tuple[ArFrame, CleanExplanation]
+        When only *explain* is ``True``.
+    tuple[ArFrame, DataQualityReport, CleanExplanation]
+        When both *return_report* and *explain* are ``True``.
+
+    Examples
+    --------
+    >>> clean = ar.auto_clean(frame)
+    >>> report = ar.auto_clean(frame, mode="strict", dry_run=True)
+    >>> casts = dict(report.suggestions)["cast_types"]
+    >>> clean = ar.auto_clean(frame, mode="strict", allow_lossy_casts=True, confirmed_casts=casts)
+    >>> clean, report = ar.auto_clean(frame, mode="strict", return_report=True)
+    >>> clean, explanation = ar.auto_clean(frame, explain=True)
+    >>> print(explanation)
+    """
+    _validate_arframe(frame)
+
+    if not isinstance(mode, str) or mode not in {"safe", "strict"}:
+        raise ValueError("mode must be 'safe' or 'strict'")
+
+    if not isinstance(return_report, bool):
+        raise TypeError("return_report must be a bool")
+    if not isinstance(dry_run, bool):
+        raise TypeError("dry_run must be a bool")
+    if not isinstance(allow_lossy_casts, bool):
+        raise TypeError("allow_lossy_casts must be a bool")
+    confirmed_casts_map = _validate_confirmed_casts(confirmed_casts)
+    if not isinstance(explain, bool):
+        raise TypeError("explain must be a bool")
+
+    if dry_run and explain:
+        raise ValueError("explain=True cannot be used with dry_run=True")
+    if dry_run and return_report:
+        raise ValueError("return_report=True cannot be used with dry_run=True")
+
+    report = profile(frame)
+    if dry_run:
+        return report
+
+    result = frame
+    step_records: list[CleanStepRecord] = []
+    rows_before_all = result.shape[0]
+
+    for suggestion in report.suggestions:
+        if isinstance(suggestion, CleaningSuggestion):
+            step = suggestion.step
+            kwargs = suggestion.kwargs
+            reason = suggestion.confidence_reason
+        else:
+            step, kwargs = suggestion
+            reason = step
+
+        if mode == "safe" and step != "strip_whitespace":
+            continue
+
+        rows_before_step = result.shape[0]
+
+        if step == "strip_whitespace":
+            result = strip_whitespace(result, **kwargs)
+        elif step == "cast_types":
+            if not allow_lossy_casts:
+                raise ValueError(
+                    "auto_clean(mode='strict') would apply type casts. "
+                    f"Proposed mapping: {kwargs}. Run with dry_run=True to inspect "
+                    "the report, then pass allow_lossy_casts=True and "
+                    "confirmed_casts=<proposed mapping> to apply them."
+                )
+            if confirmed_casts_map is None:
+                raise ValueError(
+                    "auto_clean(mode='strict') requires confirmed_casts before "
+                    "applying type casts. Run with dry_run=True to inspect the "
+                    f"proposed mapping, then pass confirmed_casts={kwargs!r}."
+                )
+            if confirmed_casts_map != kwargs:
+                raise ValueError(
+                    "confirmed_casts must match the proposed cast mapping exactly. "
+                    f"Proposed mapping: {kwargs}. Confirmed mapping: "
+                    f"{confirmed_casts_map}."
+                )
+            result = cast_types(result, kwargs)
+        elif step == "drop_duplicates":
+            result = drop_duplicates(result, **kwargs)
+        else:
+            continue
+
+        rows_after_step = result.shape[0]
+        step_records.append(
+            CleanStepRecord(
+                step=step,
+                kwargs=kwargs,
+                rows_before=rows_before_step,
+                rows_after=rows_after_step,
+                rows_removed=rows_before_step - rows_after_step,
+                reason=reason,
+            )
+        )
+
+    if mode == "strict":
+        result = _drop_strict_duplicates_introduced_by_cleaning(
+            result,
+            step_records,
+        )
+
+    rows_after_all = result.shape[0]
+
+    if explain:
+        explanation = CleanExplanation(
+            mode=mode,
+            rows_before=rows_before_all,
+            rows_after=rows_after_all,
+            rows_removed=rows_before_all - rows_after_all,
+            steps=step_records,
+        )
+        if return_report:
+            return result, report, explanation
+        return result, explanation
+
+    if return_report:
+        return result, report
+    return result
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.quality.auto_clean
+
+# Notes: `arnio.quality.auto_clean`
+
+## 1. Purpose
+- Profiles the frame with `profile(frame)`, then applies the cleaning suggestions from that profile.
+- `mode="safe"` applies only `strip_whitespace`.
+- `mode="strict"` also applies `cast_types` (gated by two flags) and `drop_duplicates`, then runs a final dedup pass.
+- It can also return the pre-cleaning report and/or an audit trail (`CleanExplanation`).
+
+## 2. Inputs
+- **`frame`**: an ArFrame, checked by `_validate_arframe(frame)`. That helper lives in `arnio.frame`; its exception type and message are not visible (probably `TypeError`).
+- **`mode`**: must be a `str` in `{"safe", "strict"}`. The match is case-sensitive, so `"SAFE"` fails, and so does `None`. Both fail with `ValueError`, not `TypeError`.
+- **`return_report`, `dry_run`, `allow_lossy_casts`, `explain`**: must be real `bool`. `0` and `1` raise `TypeError`.
+- **`confirmed_casts`**: `None` or a `dict[str, str]`. It is copied into a new dict. In strict mode it is compared to the proposed mapping with `==`, so key order does not matter.
+
+## 3. Raises (checks run in this order)
+1. `_validate_arframe` fails (message unknown).
+2. `ValueError("mode must be 'safe' or 'strict'")`, e.g. `mode="fast"`.
+3. `TypeError("return_report must be a bool")`.
+4. `TypeError("dry_run must be a bool")`.
+5. `TypeError("allow_lossy_casts must be a bool")`.
+6. `confirmed_casts` checks:
+   - Not a dict: `TypeError("confirmed_casts must be a dict[str, str] or None")`, e.g. `confirmed_casts=[("a","int64")]`.
+   - Non-str key: `TypeError(f"confirmed_casts keys must be str column names, got {type(column).__name__}")`, e.g. `{1:"int64"}` gives `...got int`.
+   - Non-str value: `TypeError(f"confirmed_casts values must be str dtype names, got {type(dtype).__name__}")`, e.g. `{"a":1}` gives `...got int`.
+7. `TypeError("explain must be a bool")`.
+8. `ValueError("explain=True cannot be used with dry_run=True")`.
+9. `ValueError("return_report=True cannot be used with dry_run=True")`. Check 8 runs first if all three flags are set.
+
+The remaining errors fire only in strict mode, and only when a `cast_types` suggestion exists. They are raised while the steps are being applied. `{kwargs}` below is the proposed mapping dict.
+- **`allow_lossy_casts=False`** gives `ValueError`:
+  `"auto_clean(mode='strict') would apply type casts. Proposed mapping: {kwargs}. Run with dry_run=True to inspect the report, then pass allow_lossy_casts=True and confirmed_casts=<proposed mapping> to apply them."`
+- **`allow_lossy_casts=True` with `confirmed_casts=None`** gives `ValueError`:
+  `"auto_clean(mode='strict') requires confirmed_casts before applying type casts. Run with dry_run=True to inspect the proposed mapping, then pass confirmed_casts={kwargs!r}."`
+- **Mapping differs** gives `ValueError`:
+  `"confirmed_casts must match the proposed cast mapping exactly. Proposed mapping: {kwargs}. Confirmed mapping: {confirmed_casts_map}."`
+- These errors are never raised in safe mode, even with `allow_lossy_casts=False`.
+- If no cast is proposed, `confirmed_casts` is ignored, even if it has wrong content.
+
+## 4. Returns and guarantees
+| Flags | Return value |
+|---|---|
+| none | `ArFrame` |
+| `dry_run=True` | `DataQualityReport` (pre-cleaning `profile(frame)`); nothing applied |
+| `return_report=True` | `(ArFrame, DataQualityReport)` |
+| `explain=True` | `(ArFrame, CleanExplanation)` |
+| both | `(ArFrame, DataQualityReport, CleanExplanation)` |
+
+- The report always describes the **original** frame: `row_count` is the original row count, and its `suggestions` are the ones that were applied.
+- **Suggestion order** (from `suggest_cleaning`):
+  1. `("strip_whitespace", {"subset": [string cols with whitespace_count>0, in column order]})`
+  2. `("cast_types", {col: dtype})`
+  3. `("drop_duplicates", {"keep": "first"})`, only if the original data has full-row duplicates.
+- **Identity:** if no step is applied (and in strict mode there are no duplicates left), the result is the input object itself, so `auto_clean(f) is f`.
+- **`CleanExplanation` fields:**
+  - `mode` is the mode string.
+  - `rows_before` and `rows_after` are the original and final row counts.
+  - `rows_removed = rows_before - rows_after`.
+  - `steps` lists a `CleanStepRecord` for each applied step, in order: `step`, `kwargs` (the suggestion dict), `rows_before`, `rows_after`, `rows_removed`, `reason`.
+- **Reasons**, taken from the suggestion's `confidence_reason`:
+  - **strip_whitespace:** `"Trimming leading/trailing whitespace is a safe and highly recommended operation for columns with formatting anomalies."`
+  - **cast_types** (per column, joined with `"; "`):
+    - Default: `f"Column '{c}' conforms perfectly to {dtype} structure."`
+    - Non-null ratio < 0.2 or < 0.5: a "very low" or "moderate non-null support (xx.x%)" variant.
+  - **drop_duplicates:**
+    - `duplicate_ratio <= 0.5`: `f"Low duplicate ratio ({r:.1%}) suggests standard redundant records."`
+    - `duplicate_ratio > 0.5`: `f"High duplicate ratio ({r:.1%}) suggests potential schema or merge anomalies; review before dropping."`
+    - Example: 1 duplicate in 3 rows gives `"33.3%"`.
+  - **Strict final dedup:** `"Remove duplicate rows introduced by earlier strict-mode normalization steps."` with kwargs `{"keep": "first"}`.
+
+## 5. Side effects
+- No global state is changed and no files are written.
+- Steps return new frames; the input frame is not modified (based on the visible code).
+
+## 6. Branches and edge cases
+- **When a cast is suggested** (only for columns whose ArFrame dtype is `"string"`), based on the non-null values after stripping:
+  - All values in {true, false, 1, 0} (case-insensitive) give `"bool"`. So `["1","0","1"]` gives **bool, not int64**.
+  - All values match `[+-]?\d+` give `"int64"`.
+  - All values are numeric and finite give `"float64"`.
+  - Example: `[" 1","2","3"]` gives int64, because values are stripped first.
+- **Identifier columns** never get int64/float64 casts, but bool casts are still allowed. A column is an identifier if its lowercased name is in `id, uuid, zip, zipcode, zip_code` or ends in `_id`.
+- **Safe mode** applies only strip; duplicates and casts are skipped and do not appear in `explain.steps`.
+- **Strict final dedup:** in strict mode, if no `drop_duplicates` step ran but duplicates now exist, a dedup step is added. Example: `{"a": ["x", " x"]}`:
+  - Strict: strip makes the rows equal, they are deduped to 1 row, and the steps are `["strip_whitespace", "drop_duplicates"]` with the final reason above.
+  - Safe: 2 rows remain.
+- **Zero-row frame:** no suggestions, so the input object is returned; explanation `steps == []`.
+- **Numeric pandas columns** (int64/float64) never get cast suggestions or whitespace stripping.
+
+## 7. Rules from the docstring
+- `safe` is low-risk only.
+- `strict` adds deterministic casts and exact duplicate removal.
+- Casts need both `allow_lossy_casts=True` and an exact `confirmed_casts` previewed via `dry_run`.
+- `dict(report.suggestions)["cast_types"]` works because a `CleaningSuggestion` is a 2-tuple.
+- The cleaned frame is always element 0 of a returned tuple.
+
+## 8. Testing hints
+Example setup:
+```python
+df = pd.DataFrame({"name": [" alice", "bob", "carol"], "n": ["1", "2", "3"]})
+f = ar.from_pandas(df)
+
+ar.auto_clean(f)                     # name stripped; n stays string
+rep = ar.auto_clean(f, mode="strict", dry_run=True)
+casts = dict(rep.suggestions)["cast_types"]   # {'n': 'int64'}
+out = ar.auto_clean(f, mode="strict", allow_lossy_casts=True, confirmed_casts=casts)
+```
+- Read values back with `ar.to_pandas(out)["name"].tolist()` and check `out.shape`.
+- Check `f.dtypes["n"] == "string"` before casting.
+- The exact dtype and values produced by `cast_types` come from `arnio.cleaning` and the C++ core, so assert only `out.dtypes["n"] == "int64"` and values like `[1, 2, 3]` with care.
+- For error messages use `pytest.raises(ValueError, match=re.escape(...))`. Dict repr is `{'n': 'int64'}`.
+- Pitfalls:
+  - Avoid `"0"/"1"`-only columns unless you are testing bool.
+  - Avoid id-like column names when testing numeric casts.
+  - Duplicates are detected on the **raw**, unstripped data.
+  - Whitespace counts only for string columns.
+- Do not assert on report scores or the exact text of reasons beyond the strings given above.

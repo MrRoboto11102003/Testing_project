@@ -1,0 +1,792 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.database.DatabaseManager.load_all, openlens.database.UnsupportedSchemaVersionError, openlens.lens.Lens.to_dict, openlens.optical_system.OpticalSystem.from_dict.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.database.DatabaseManager.load_all
+    def load_all(self) -> List[Dict[str, Any]]:
+        """Load all standalone lenses and assemblies.
+
+        Every returned row carries a ``row_type`` of ``"Lens"`` or
+        ``"OpticalSystem"``. The marker is deliberately not ``type``: the
+        stored metadata blob is merged flat onto the row, and a lens's own
+        ``type`` is its lens type (``"Biconvex"``, ...), so storing the marker
+        under ``type`` meant the merge always overwrote it.
+
+        "Standalone" is the operative word. A lens row that exists only as an
+        element of an assembly is *not* a library item, and returning it as a
+        top-level "Lens" made every assembly member reappear in the lens lists
+        after a reload::
+
+            [OpticalSystem A(L1, L2)]  ->  [Lens L1, Lens L2, OpticalSystem A]
+
+        It then also made every full save try to delete each of them, which the
+        in-use guard correctly refused - so each save reported one failure per
+        assembly lens.
+
+        Assembly members are still read, and kept in the lookup, because the
+        assemblies below need them.
+        """
+        results = []
+        lenses_lookup = {}
+
+        with self._connection() as conn:
+            cursor = conn.cursor()
+
+            # 1. Load all lenses first (including those in assemblies).
+            # is_library is what the save path recorded: a lens the user keeps
+            # in the library stays visible even when an assembly also uses it.
+            cursor.execute("SELECT * FROM lenses")
+            for row in cursor.fetchall():
+                lens = dict(row)
+                lens["radius_of_curvature_1"] = lens["radius1"]
+                lens["radius_of_curvature_2"] = lens["radius2"]
+                del lens["radius1"]
+                del lens["radius2"]
+                lens["metadata"] = _metadata_merge(
+                    lens, lens.pop("metadata", None), f"lens {lens['id']}"
+                )
+                # The row marker lives under its own key, set after the merge.
+                # "type" belongs to the payload: Lens.to_dict()["type"] is the
+                # lens type ("Biconvex"), and _metadata_merge flattens the blob
+                # onto the row, so a marker stored under "type" was always
+                # overwritten and every lens came back as "Biconvex". After the
+                # merge, a stored blob cannot spoof the marker either (#488).
+                lens["row_type"] = "Lens"
+                # Coating TEXT columns decode to layer lists; an explicit
+                # blob key (hand-written rows) wins, matching the
+                # parabolic convention above.
+                for _ckey in ("coating_1", "coating_2"):
+                    _raw = lens.get(_ckey)
+                    lens[_ckey] = _coating_parse(_raw) if isinstance(_raw, str) else _raw
+                # Always available to assemblies, whether or not it is a
+                # library item in its own right.
+                lenses_lookup[lens["id"]] = lens
+                if lens.get("is_library", 1):
+                    results.append(lens)
+
+            # 2. Load all assemblies
+            cursor.execute("SELECT * FROM assemblies")
+            for row in cursor.fetchall():
+                assembly = dict(row)
+                assembly_id = assembly["id"]
+
+                # Load metadata
+                assembly["metadata"] = _metadata_merge(
+                    assembly, assembly.pop("metadata", None), f"assembly {assembly_id}"
+                )
+                # Same contract as the lens marker above.
+                assembly["row_type"] = "OpticalSystem"
+
+                # Load elements. Named columns only: both tables define an
+                # 'id' column, so 'l.*' would create a duplicate key whose
+                # winner depends on column order.
+                cursor.execute(
+                    """
+                    SELECT l.id AS lens_pk,
+                           l.name AS lens_name,
+                           l.radius1 AS lens_radius1,
+                           l.radius2 AS lens_radius2,
+                           l.thickness AS lens_thickness,
+                           l.material AS lens_material,
+                           l.refractive_index AS lens_refractive_index,
+                           l.diameter AS lens_diameter,
+                            l.created_at AS lens_created_at,
+                            l.modified_at AS lens_modified_at,
+                             l.is_parabolic_1 AS lens_is_parabolic_1,
+                             l.parabolic_sag_1 AS lens_parabolic_sag_1,
+                             l.is_parabolic_2 AS lens_is_parabolic_2,
+                             l.parabolic_sag_2 AS lens_parabolic_sag_2,
+                             l.conic_constant_1 AS lens_conic_constant_1,
+                             l.conic_constant_2 AS lens_conic_constant_2,
+                             l.clear_aperture_1 AS lens_clear_aperture_1,
+                             l.clear_aperture_2 AS lens_clear_aperture_2,
+                             l.bevel_1 AS lens_bevel_1,
+                             l.bevel_2 AS lens_bevel_2,
+                             l.coating_1 AS lens_coating_1,
+                             l.coating_2 AS lens_coating_2,
+                             l.metadata AS lens_metadata,
+                            ae.lens_id,
+                            ae.position,
+                            ae.decenter_y,
+                            ae.decenter_z,
+                            ae.tilt_x,
+                            ae.tilt_y,
+                            ae.tilt_z
+                     FROM assembly_elements ae
+                    JOIN lenses l ON ae.lens_id = l.id
+                    WHERE ae.assembly_id = ?
+                    ORDER BY ae.order_index
+                """,
+                    (assembly_id,),
+                )
+
+                elements = []
+                for e_row in cursor.fetchall():
+                    e_dict = dict(e_row)
+                    lens_id = e_dict["lens_id"]
+
+                    # Use the lens from lookup if possible to ensure identity
+                    if lens_id in lenses_lookup:
+                        lens_data = lenses_lookup[lens_id]
+                    else:
+                        lens_data = {
+                            "id": e_dict["lens_pk"],
+                            "name": e_dict["lens_name"],
+                            "radius_of_curvature_1": e_dict["lens_radius1"],
+                            "radius_of_curvature_2": e_dict["lens_radius2"],
+                            "thickness": e_dict["lens_thickness"],
+                            "material": e_dict["lens_material"],
+                            "refractive_index": e_dict["lens_refractive_index"],
+                            "diameter": e_dict["lens_diameter"],
+                            "created_at": e_dict["lens_created_at"],
+                            "modified_at": e_dict["lens_modified_at"],
+                            "is_parabolic_1": bool(e_dict["lens_is_parabolic_1"]),
+                            "parabolic_sag_1": e_dict["lens_parabolic_sag_1"],
+                            "is_parabolic_2": bool(e_dict["lens_is_parabolic_2"]),
+                            "parabolic_sag_2": e_dict["lens_parabolic_sag_2"],
+                            "conic_constant_1": e_dict["lens_conic_constant_1"],
+                            "conic_constant_2": e_dict["lens_conic_constant_2"],
+                            "clear_aperture_1": e_dict["lens_clear_aperture_1"],
+                            "clear_aperture_2": e_dict["lens_clear_aperture_2"],
+                            "bevel_1": e_dict["lens_bevel_1"],
+                            "bevel_2": e_dict["lens_bevel_2"],
+                            "coating_1": _coating_parse(e_dict["lens_coating_1"]),
+                            "coating_2": _coating_parse(e_dict["lens_coating_2"]),
+                        }
+                        lens_data["metadata"] = _metadata_merge(
+                            lens_data, e_dict["lens_metadata"], f"lens {lens_id}"
+                        )
+
+                    elements.append(
+                        {
+                            "lens": lens_data,
+                            "lens_id": lens_id,
+                            "position": e_dict["position"],
+                            "decenter_y": e_dict["decenter_y"],
+                            "decenter_z": e_dict["decenter_z"],
+                            "tilt_x": e_dict["tilt_x"],
+                            "tilt_y": e_dict["tilt_y"],
+                            "tilt_z": e_dict["tilt_z"],
+                        }
+                    )
+
+                assembly["elements"] = elements
+
+                # Load air gaps
+                cursor.execute(
+                    "SELECT * FROM assembly_air_gaps WHERE assembly_id = ? ORDER BY order_index",
+                    (assembly_id,),
+                )
+                gaps = []
+                for g_row in cursor.fetchall():
+                    g_dict = dict(g_row)
+                    gaps.append(
+                        {
+                            "thickness": g_dict["thickness"],
+                            "position": g_dict["position"],
+                        }
+                    )
+                assembly["air_gaps"] = gaps
+
+                results.append(assembly)
+
+        return results
+
+# openlens.database.UnsupportedSchemaVersionError
+class UnsupportedSchemaVersionError(RuntimeError):
+    """Raised when a database was written by a newer OpenLens than this one.
+
+    Migrating downwards would drop columns the newer build relies on and
+    corrupt the library, so the file is refused instead of being opened.
+
+    Attributes:
+        found: ``user_version`` recorded in the database.
+        supported: The highest schema version this build understands.
+        path: The database file that was refused.
+    """
+
+    def __init__(self, found: int, supported: int, path: str):
+        self.found = found
+        self.supported = supported
+        self.path = path
+        super().__init__(
+            f"Database '{path}' has schema version {found}, but this OpenLens "
+            f"only supports up to version {supported}. It was written by a newer "
+            "OpenLens; upgrade OpenLens rather than opening this file with an "
+            "older build, which would downgrade the library and lose data."
+        )
+
+# openlens.lens.Lens.to_dict
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert lens to dictionary representation."""
+        # Ensure modified_at is updated on serialization if not already managed
+        return {
+            "id": self.id,
+            "name": self.name,
+            "radius_of_curvature_1": self.radius_of_curvature_1,
+            "radius_of_curvature_2": self.radius_of_curvature_2,
+            "thickness": self.thickness,
+            "diameter": self.diameter,
+            "refractive_index": self.refractive_index,
+            "type": self.lens_type,
+            "material": self.material,
+            "mount_type": self.mount_type,
+            "wavelength": self.wavelength,
+            "temperature": self.temperature,
+            "pressure_atm": self.pressure_atm,
+            "thermal_state_temperature": self.thermal_state_temperature,
+            "image_plane_x_mm": self.image_plane_x_mm,
+            "is_fresnel": self.is_fresnel,
+            "groove_pitch": self.groove_pitch,
+            "num_grooves": self.num_grooves,
+            "model_glass_mode": self.model_glass_mode,
+            "model_nd": self.model_nd,
+            "model_vd": self.model_vd,
+            "is_parabolic_1": self.is_parabolic_1,
+            "parabolic_sag_1": self.parabolic_sag_1,
+            "is_parabolic_2": self.is_parabolic_2,
+            "parabolic_sag_2": self.parabolic_sag_2,
+            "conic_constant_1": self.conic_constant_1,
+            "conic_constant_2": self.conic_constant_2,
+            "clear_aperture_1": self.clear_aperture_1,
+            "clear_aperture_2": self.clear_aperture_2,
+            "bevel_1": self.bevel_1,
+            "bevel_2": self.bevel_2,
+            "coating_1": copy.deepcopy(self.coating_1),
+            "coating_2": copy.deepcopy(self.coating_2),
+            "edge_profile": (
+                [list(point) for point in self.edge_profile] if self.edge_profile else None
+            ),
+            "created_at": self.created_at,
+            "modified_at": self.modified_at,
+            # A copy: to_dict must not hand out a live reference to the
+            # model's own state, or editing the exported dict edits the lens.
+            "metadata": dict(self.metadata),
+        }
+
+# openlens.optical_system.OpticalSystem.from_dict
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], lens_lookup: Optional[dict] = None) -> "OpticalSystem":
+        """Create optical system from dictionary.
+
+        If ``lens_lookup`` is provided, elements with a matching ``lens_id``
+        reuse the shared Lens instance instead of deserializing a fresh copy.
+        """
+        system = cls(
+            name=data.get("name", "Optical System"),
+            metadata={
+                k: v
+                for k, v in (data.get("metadata") or {}).items()
+                if k not in _SYSTEM_SERIALIZED_KEYS
+            },
+        )
+        system.id = data.get("id", system.id)
+        system.created_at = data.get("created_at", system.created_at)
+        system.modified_at = data.get("modified_at", system.modified_at)
+        system.aperture_stop_gap = data.get("aperture_stop_gap")
+        system.aperture_stop_diameter = data.get("aperture_stop_diameter")
+        system.thermal_state_temperature = data.get(
+            "thermal_state_temperature", DEFAULT_TEMPERATURE
+        )
+        system.image_plane_x_mm = validate_image_plane_x(data.get("image_plane_x_mm"))
+        casing_data = data.get("casing")
+        system.casing = Casing.from_dict(casing_data) if isinstance(casing_data, dict) else None
+
+        # Clear default tree/flat state to avoid duplication.
+        system.elements = []
+        system.root.children = []
+
+        elements_data = data.get("elements", [])
+        gaps_data = data.get("air_gaps", [])
+
+        for i, elem_data in enumerate(elements_data):
+            lens_id = elem_data.get("lens_id")
+            if lens_lookup and lens_id in lens_lookup:
+                lens = lens_lookup[lens_id]
+            else:
+                lens = Lens.from_dict(elem_data["lens"])
+
+            gap_before = 0.0
+            if i > 0 and i - 1 < len(gaps_data):
+                gap_before = gaps_data[i - 1].get("thickness", 0.0)
+
+            system.add_lens(
+                lens,
+                air_gap_before=gap_before,
+                decenter_y=float(elem_data.get("decenter_y", 0.0) or 0.0),
+                decenter_z=float(elem_data.get("decenter_z", 0.0) or 0.0),
+                tilt_x=float(elem_data.get("tilt_x", 0.0) or 0.0),
+                tilt_y=float(elem_data.get("tilt_y", 0.0) or 0.0),
+                tilt_z=float(elem_data.get("tilt_z", 0.0) or 0.0),
+            )
+
+        # Restore the absolute positions to_dict saved. add_lens places each
+        # element relative to the one before it, so the gaps alone reproduce
+        # the *spacing* but not the offset: a system whose first element sits
+        # at x = 15 came back at x = 0, and an assembly at x = 20 came back
+        # root-level at x = 0. The saved position was ignored data.
+        #
+        # The tree is the authority for positions (_rebuild_from_tree reads
+        # them from it), so set each child's position and rebuild. This format
+        # is flat - it stores a list of elements and cannot represent a nested
+        # assembly tree - so a nested assembly still comes back flattened.
+        node_tree = data.get("node_tree")
+        if node_tree:
+            system._restore_node_tree(node_tree, lens_lookup)
+            return system
+
+        saved_positions = [elem_data.get("position") for elem_data in elements_data]
+        if any(position is not None for position in saved_positions):
+            for node, saved in zip(system.root.children, saved_positions):
+                if saved is None:
+                    continue
+                node.position = vec3(float(saved), node.position.y, node.position.z)
+            system._rebuild_from_tree()
+
+        return system
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.database.DatabaseManager.load_all
+
+# Notes: `openlens.database.DatabaseManager.load_all`
+
+## 1. Purpose
+- Reads the SQLite database and returns plain dicts.
+- It returns every **library** lens (`is_library` truthy) and every assembly.
+- Each assembly comes back with its ordered elements and air gaps.
+- It is read-only and returns a new list of new dicts on each call.
+
+## 2. Inputs
+- Takes no arguments; it uses `self.db_path`.
+- Build the manager with `db = DatabaseManager(str(tmp_path / "t.db"))`.
+- `resolve_db_path` and `ensure_parent_dir` live in `openlens.paths`, which is not shown here. Assume an explicit path is used as given.
+- A fresh file is created at schema v7 by `__init__`.
+
+## 3. Raises
+- `load_all` raises nothing on purpose.
+- Corrupt metadata blobs do **not** raise. They log a warning and produce `metadata == {}`.
+- Only raw `sqlite3` errors can escape, for example if the file is not a database.
+- `UnsupportedSchemaVersionError` comes from `__init__`, not from `load_all`.
+
+## 4. Returns and guarantees
+The result is a `list[dict]` built in this order:
+1. All lens rows with truthy `is_library`, in `SELECT * FROM lenses` order. This is normally rowid order. `INSERT OR REPLACE` re-inserts a row, so a re-saved lens moves to the end.
+2. All assemblies, in `SELECT * FROM assemblies` order.
+
+Empty database → `[]`.
+
+**Lens dict:**
+- **Columns:** every column of the table, except that `radius1`/`radius2` are renamed to `radius_of_curvature_1`/`radius_of_curvature_2`. The keys `radius1` and `radius2` are absent.
+  - Other columns: `id, name, thickness, material, refractive_index, diameter, created_at, modified_at, is_parabolic_1, parabolic_sag_1, is_parabolic_2, parabolic_sag_2, conic_constant_1, conic_constant_2, clear_aperture_1, clear_aperture_2, bevel_1, bevel_2, coating_1, coating_2, is_library`.
+- **Metadata merge:** the blob is merged **flat** onto the row with `dict.update`, so blob keys override column values.
+  - `lens["metadata"]` is a copy of the **whole** parsed blob. It is `{}` when the blob is NULL, empty, invalid JSON, or valid JSON that is not an object.
+- **`row_type`:** `lens["row_type"] == "Lens"`, set **after** the merge, so a blob cannot spoof it.
+  - A lens's `"type"` key, such as `"Biconvex"` from the blob, is left untouched.
+- **Coatings:** if `coating_1`/`coating_2` is a `str`, it is decoded.
+  - Valid non-empty JSON → the decoded list.
+  - `"[]"`, `"null"`, `""`, or invalid JSON → `None`.
+  - A non-str value, such as `None` or a list coming from the blob, is kept as is.
+- **SQLite types:**
+  - `is_parabolic_*` and `is_library` come back as `int` 0/1, not `bool`.
+  - REAL columns come back as `float` (`thickness=5` → `5.0`).
+  - Missing optional columns come back as `None`.
+
+**Assembly dict:**
+- **Columns:** `id, name, created_at, modified_at, aperture_stop_gap, aperture_stop_diameter`.
+- **Metadata:** the blob is merged flat, and `metadata` is a copy of the blob dict.
+- **`row_type`:** `"OpticalSystem"`, set after the merge.
+- **`elements`:** a list ordered by `order_index` (the save order). Each item is `{"lens", "lens_id", "position", "decenter_y", "decenter_z", "tilt_x", "tilt_y", "tilt_z"}`.
+- **`air_gaps`:** a list of `{"thickness", "position"}` ordered by `order_index`.
+
+**Element `"lens"` value:**
+- It is the **same dict object** as the lens lookup entry, because the JOIN guarantees the lens exists in the lookup.
+- For a library lens, `elements[i]["lens"] is <that lens dict in results>`.
+- For an assembly-only lens, it is a full lens dict, including `row_type: "Lens"` and `is_library: 0`, that does not appear at top level.
+- The fallback branch that rebuilds the lens from `lens_*` columns is effectively unreachable.
+
+## 5. Side effects
+- None on the database. It opens one connection and closes it.
+- The only side effect is a `logger.warning` when a metadata blob is bad.
+
+## 6. Branches and edge cases
+**Membership (which lenses appear at top level):**
+- **Standalone save:** `save_lens(...)` stores `is_library=1`, so the lens appears in results.
+- **Assembly member:** a lens first written through `save_assembly` gets `is_library=0`. It is absent from top-level results but present inside `elements[*]["lens"]`.
+- **Lens saved first, then used in an assembly:** the existing `is_library=1` is kept. The lens appears once at top level and is also referenced, by identity, from the element.
+- **Explicit flag:** a `lens_dict` with `"is_library": False` saves as 0 and is hidden.
+- **Promotion:** `set_library_membership(["L2"])` promotes L2 to 1, so it then appears.
+- **Blob override:** a blob key `is_library` would override the column before the inclusion check. This only happens with hand-written blobs; `save_lens` strips that key.
+
+**Metadata examples:**
+- Corrupt blob, e.g. via raw `sqlite3`: `UPDATE lenses SET metadata='{bad'`. Result: `metadata == {}`, the row is still returned, nothing raises.
+- `metadata='[1,2]'` → `{}` as well.
+
+**Flattening on save, then on load:**
+```python
+save_lens({..., "foo": "bar", "metadata": {"tol": 1}})
+```
+After `load_all()`:
+- `lens["foo"] == "bar"`
+- `lens["tol"] == 1`
+- `lens["metadata"] == {"foo": "bar", "tol": 1}`
+- The key `"metadata"` is never nested.
+
+**Coatings:**
+- Saving `coating_1=[]` or `None` → `None` after load.
+- Saving `[{"material": "MgF2", ...}]` → an equal list after load.
+
+**Empty assembly:** no elements or gaps → `elements == []` and `air_gaps == []`.
+
+## 7. Rules from comments/docstrings
+- Only "standalone" library lenses are returned at top level; assembly members are not.
+- The row marker uses the key `row_type`, never `type`.
+- The marker is set after the merge, so a blob cannot spoof it (#488).
+- A bad blob must not empty the whole library.
+- The element lens is taken from the lookup "to ensure identity".
+
+## 8. Testing hints
+**Minimum dict for `save_lens`:** the NOT NULL columns need `id, name, radius_of_curvature_1, radius_of_curvature_2, thickness, material`. Missing any of these gives an `IntegrityError`.
+```python
+L = {"id": "L1", "name": "A", "radius_of_curvature_1": 50.0,
+     "radius_of_curvature_2": -50.0, "thickness": 5.0,
+     "material": "BK7", "diameter": 25.0}
+```
+
+**Minimum assembly for `save_assembly`:**
+```python
+{"id": "A1", "name": "Sys",
+ "elements": [{"lens": L, "position": 0.0}],
+ "air_gaps": [{"thickness": 10.0, "position": 5.0}]}
+```
+
+**Pitfalls:**
+- **Ordering:** find rows by `row_type` and `id` rather than relying on list order. The guaranteed part is that lenses come before assemblies.
+- **Int flags:** compare `is_parabolic_1 == 1` or `== True`, never with `is True`.
+- **Default values:** unspecified `decenter_*`/`tilt_*` load as `0.0`. Unspecified `aperture_stop_gap` loads as `None`.
+- **Fresh objects:** each call builds new dicts, so mutating a result does not affect the next call.
+
+**What to check:**
+- `"radius1" not in lens`.
+- `lens["row_type"] == "Lens"`, even if the saved dict had `"type": "Biconvex"`, in which case `lens["type"] == "Biconvex"`.
+- Element identity with `is`.
+
+### openlens.database.UnsupportedSchemaVersionError
+
+# Notes: `openlens.database.UnsupportedSchemaVersionError`
+
+## 1. Purpose
+- An exception class, a subclass of `RuntimeError`.
+- `DatabaseManager.__init__` raises it, through `_initialize_db`, when the SQLite file's `PRAGMA user_version` is greater than the module constant `SCHEMA_VERSION = 7`. In other words, the file was written by a newer OpenLens.
+- The point is to refuse the file instead of downgrading it.
+
+## 2. Inputs (`__init__(self, found: int, supported: int, path: str)`)
+- All three are positional or keyword. There are no defaults.
+- There is **no validation or conversion**. The values are stored exactly as passed:
+  - `self.found = found`
+  - `self.supported = supported`
+  - `self.path = path`
+- Any type works, for example `found="x"` or `path=None`. Each value is simply interpolated into the f-string.
+
+## 3. Raises
+- The constructor itself never raises for any argument values.
+- Where it gets raised: in `DatabaseManager._initialize_db`, the first step inside the `BEGIN IMMEDIATE` transaction is:
+  ```python
+  version = PRAGMA user_version
+  if version > SCHEMA_VERSION:   # 7
+      raise UnsupportedSchemaVersionError(version, SCHEMA_VERSION, self.db_path)
+  ```
+- This check runs **before** any CREATE TABLE or migration statement.
+- The `_transaction` helper then runs `ROLLBACK` and re-raises. The connection is closed in a `finally` block.
+
+## 4. Returns and guarantees
+- `str(e)` equals `e.args[0]`, and `e.args == (message,)`. The message is exactly this (two adjacent f-strings plus plain strings, joined with **single spaces**):
+  ```
+  f"Database '{path}' has schema version {found}, but this OpenLens only supports up to version {supported}. It was written by a newer OpenLens; upgrade OpenLens rather than opening this file with an older build, which would downgrade the library and lose data."
+  ```
+- Example: `UnsupportedSchemaVersionError(9, 7, "a.db")` gives:
+  `"Database 'a.db' has schema version 9, but this OpenLens only supports up to version 7. It was written by a newer OpenLens; upgrade OpenLens rather than opening this file with an older build, which would downgrade the library and lose data."`
+- Type facts:
+  - `isinstance(e, RuntimeError)` is True.
+  - It is not a subclass of `LensInUseError`, and the reverse is also false.
+  - `e.found`, `e.supported` and `e.path` keep their identity (the same objects that were passed in).
+- When raised from `DatabaseManager`:
+  - `e.supported == 7`.
+  - `e.found` is the int read from the file.
+  - `e.path` is `resolve_db_path(<arg>)`. `resolve_db_path` lives in `openlens.paths`, whose code is not shown. Do not assume it returns the argument unchanged; compare against `openlens.paths.resolve_db_path(p)` instead.
+
+## 5. Side effects
+- Constructing the exception has no side effects.
+- When raised by `DatabaseManager`, the file is left unchanged:
+  - No tables are created.
+  - `user_version` stays at the value it had (for example 8).
+  - The connection has already run `PRAGMA journal_mode=WAL`, so `-wal`/`-shm` files may appear next to the db.
+
+## 6. Branches and edge cases (via `DatabaseManager`)
+| `user_version` in file | Result |
+|---|---|
+| 0 (new file) | Tables are created and the file is stamped 7. No error. |
+| 7 | Opens normally. No error. This is the boundary: the check is strict `>`. |
+| 8 | Raises, with `found=8, supported=7`. |
+| 100 | Raises, with `found=100`. |
+
+- Retrying is deterministic. Calling `DatabaseManager(p)` again raises the same error again, because nothing was modified.
+
+## 7. Rules from docstrings and comments
+- A newer database must be **refused, not opened**. A downgrade would "drop columns the newer build relies on and corrupt the library".
+- The documented attributes are `found`, `supported` and `path`.
+
+## 8. Testing hints
+- Direct construction is the easiest way to pin the exact message and the attributes:
+  ```python
+  from openlens.database import UnsupportedSchemaVersionError
+  e = UnsupportedSchemaVersionError(9, 7, "a.db")
+  assert str(e) == ("Database 'a.db' has schema version 9, but this OpenLens only supports "
+                    "up to version 7. It was written by a newer OpenLens; upgrade OpenLens "
+                    "rather than opening this file with an older build, which would downgrade "
+                    "the library and lose data.")
+  ```
+- Integration test. Create the file with plain sqlite3, then open it with the manager:
+  ```python
+  import sqlite3
+  p = str(tmp_path / "new.db")
+  c = sqlite3.connect(p); c.execute("PRAGMA user_version = 8"); c.commit(); c.close()
+  with pytest.raises(UnsupportedSchemaVersionError) as ei:
+      DatabaseManager(p)
+  assert ei.value.found == 8 and ei.value.supported == 7
+  ```
+  - Afterwards, reopen with sqlite3 and check two things:
+    - `PRAGMA user_version` is still 8.
+    - `SELECT name FROM sqlite_master WHERE type='table'` returns no rows.
+  - Close each connection, or Windows file locks may cause trouble.
+- Boundary test: a file stamped 7 constructs fine. You can also check `openlens.database.SCHEMA_VERSION == 7`.
+- Pitfalls:
+  - The path is wrapped in single quotes in the message.
+  - "version(s)" in the message is plain text, with no pluralisation logic.
+  - Use `pytest.raises(..., match=...)` carefully: `match` takes a regex, so the message's `.`, `(` and `'` need `re.escape`.
+  - Do not assert `e.path == p` without passing it through `resolve_db_path`; its behaviour is not visible here.
+
+### openlens.lens.Lens.to_dict
+
+# Notes: `openlens.lens.Lens.to_dict`
+
+## 1. Purpose
+- Serialises a `Lens` into a fresh plain `dict` of 37 keys.
+- It only reads attributes. There is no validation, no database or I/O access, and no timestamp update.
+
+## 2. Inputs
+- `self` only. Every value is read from the current instance attributes at call time.
+- Attribute changes made after construction show up in the output. For example, after `lens.name = "X"`, `d["name"] == "X"`.
+- Normalisation happens at construction or in setters, not in `to_dict`:
+  - Radius setter: assigning `0` stores `float("inf")`. Any other value is stored unchanged, so an `int` stays an `int`.
+  - `refractive_index`:
+    - If given explicitly, it is `float(refractive_index)`.
+    - Otherwise it is `DEFAULT_MATERIAL_INDICES.get(material, REFRACTIVE_INDEX_BK7)`. These constants are in `openlens.constants`, which is not shown.
+    - In model-glass mode it comes from the material database.
+    - **Always pass `refractive_index=` explicitly in tests.**
+  - `wavelength`: the `wavelength` argument if it is not `None`, else `wavelength_nm`.
+  - `mount_type`: `str(mount_type or DEFAULT_MOUNT_TYPE)`. The constant's value is not shown.
+  - `image_plane_x_mm`: `float(value)` or `None`.
+  - Parabolic flags: `bool(...)`.
+  - Parabolic sags, conic constants and clear apertures: converted with `float(...)`. A clear aperture of `None` stays `None`.
+  - Bevels: `float(x or 0.0)`.
+  - `num_grooves`:
+    - If `is_fresnel=True` and `num_grooves` is `None`, it becomes `int((diameter/2)/groove_pitch)`.
+    - If `groove_pitch <= 0`, it becomes `0`.
+    - If `is_fresnel=False`, it stays as passed (default `None`).
+  - Coatings: `None` or `[]` becomes `None`. A list of dicts or `CoatingLayer` objects becomes a list of new dicts.
+  - `metadata`: `dict(metadata)` if truthy, else `{}`.
+
+## 3. Raises
+- Nothing under normal use.
+- Only pathological attribute values could raise, e.g. an `edge_profile` whose items are not iterable (raises `TypeError` from `list(point)`).
+
+## 4. Returns and guarantees
+The result is a new `dict` on every call, with keys in exactly this insertion order:
+
+```
+id, name, radius_of_curvature_1, radius_of_curvature_2, thickness, diameter,
+refractive_index, type, material, mount_type, wavelength, temperature,
+pressure_atm, thermal_state_temperature, image_plane_x_mm, is_fresnel,
+groove_pitch, num_grooves, model_glass_mode, model_nd, model_vd,
+is_parabolic_1, parabolic_sag_1, is_parabolic_2, parabolic_sag_2,
+conic_constant_1, conic_constant_2, clear_aperture_1, clear_aperture_2,
+bevel_1, bevel_2, coating_1, coating_2, edge_profile, created_at,
+modified_at, metadata
+```
+
+Key-set facts:
+- `"type"` holds `self.lens_type`, exactly as passed. It is not `classify_lens_type()`.
+- There is **no** `"wavelength_nm"` key and **no** `"use_type_defaults"` key.
+- `set(d) == lens._LENS_SERIALIZED_KEYS - {"wavelength_nm"}`. `_LENS_SERIALIZED_KEYS` is a module-level frozenset of 38 names, so `len(d) == 37`.
+
+How values are copied:
+- `coating_1` / `coating_2` are `copy.deepcopy(self.coating_N)`: either `None` or a new list of new dicts. Mutating the output does not touch the lens.
+- `edge_profile` is `[list(p) for p in self.edge_profile]` (a list of lists) if truthy, else `None`. An empty tuple becomes `None`.
+- `metadata` is `dict(self.metadata)`, a **shallow** copy:
+  - Adding or removing keys in the output does not affect the lens.
+  - Nested mutable values are shared with the lens.
+- Radii are output raw. A flat surface is `float("inf")` and is **not** converted to `None`; that is the job of `json_safe_radii`.
+- `id` is a 32-character hex string (`uuid4().hex`). `created_at` and `modified_at` are ISO strings from `datetime.now().isoformat()`.
+
+## 5. Side effects
+- No mutation of the lens. `modified_at` is not changed, despite the comment.
+- No global state is touched and no files are written.
+- Two calls give equal but distinct dicts:
+  - `d1 == d2` and `d1 is not d2`.
+  - `d1["metadata"] is not lens.metadata`.
+
+## 6. Branches and edge cases
+- **Uncoated lens:** `Lens(refractive_index=1.5)` gives `d["coating_1"] is None` and `d["coating_2"] is None`.
+- **Coated lens:** `coating_1=[{"material":"MgF2","refractive_index":1.38,"thickness_nm":99.6}]` gives an equal list.
+  - `d["coating_1"][0]["thickness_nm"] = 0` leaves `lens.coating_1` unchanged.
+  - `d["coating_1"] is not lens.coating_1`.
+- **Edge profile set:**
+  - Set it directly: `lens.edge_profile = ((0.0, 12.5), (5.0, 12.5))`. This bypasses geometry validation, which is fine for `to_dict`.
+  - Result: `d["edge_profile"] == [[0.0, 12.5], [5.0, 12.5]]`, with inner items of type `list`.
+- **No edge profile:** `d["edge_profile"] is None`.
+- **Zero radius:** `Lens(radius_of_curvature_1=0, ...)` gives `d["radius_of_curvature_1"] == float("inf")` (check with `math.isinf`).
+- **Fresnel:** `Lens(is_fresnel=True, diameter=50, groove_pitch=2.0, refractive_index=1.5)` gives `d["num_grooves"] == 12`, since `int(25/2.0)` is 12.
+- **`wavelength` argument wins:** `Lens(wavelength=550.0, wavelength_nm=600.0, refractive_index=1.5)` gives `d["wavelength"] == 550.0`.
+- **Image plane:** `image_plane_x_mm="42"` gives `d["image_plane_x_mm"] == 42.0` as a float.
+- **Bevel `None`:** `bevel_1=None` gives `d["bevel_1"] == 0.0`.
+- **Empty metadata:** `metadata=None` gives `d["metadata"] == {}`.
+
+## 7. Rules from comments
+- `to_dict` must not hand out live references to model state. The `metadata` copy and the coating deep copies exist for this reason.
+- `_LENS_SERIALIZED_KEYS` is meant to equal what `to_dict` emits, plus `wavelength_nm`, which only `from_dict` reads. The comment says this is "asserted against it in tests".
+
+## 8. Testing hints
+Build test lenses like this:
+
+```python
+from openlens.lens import Lens, _LENS_SERIALIZED_KEYS
+lens = Lens(name="T", radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0,
+            thickness=5.0, diameter=25.0, refractive_index=1.5,
+            lens_type="Biconvex", material="BK7", temperature=20.0,
+            model_nd=1.6, model_vd=40.0, metadata={"tol": [1, 2]})
+d = lens.to_dict()
+```
+
+Exact checks that are safe:
+- `d["name"] == "T"`, `d["refractive_index"] == 1.5`, `d["type"] == "Biconvex"`.
+- `d["model_nd"] == 1.6`, `d["model_vd"] == 40.0`.
+- `d["id"] == lens.id`, `d["created_at"] == lens.created_at`.
+- `list(d)` equals the key order listed in section 4.
+
+Round trip:
+- `Lens.from_dict(d).to_dict()` keeps `id`, `created_at`, `modified_at`, the radii, `refractive_index` and `metadata` (user keys only).
+- Avoid model-glass mode in round-trip tests.
+
+Mutation-isolation tests:
+- Mutating `d["metadata"]["new"] = 1` leaves `lens.metadata` without `"new"`.
+- But `d["metadata"]["tol"] is lens.metadata["tol"]`, because the copy is shallow.
+
+Pitfalls:
+- Do not hard-code these defaults: `mount_type`, `pressure_atm`, `thermal_state_temperature`, the `lens_type` constant, and the default `refractive_index`. They come from modules that are not shown. Read them from the instance or the imported constants instead.
+- Do not assert `"wavelength_nm" in d`; it is absent.
+- Do not expect `modified_at` to change after `to_dict`.
+- `inf` radii stay `inf`. `json.dumps(d)` would emit `Infinity`, so do not assert JSON validity.
+- Avoid `model_glass_mode=True` without an explicit `refractive_index`, because the index then depends on the material database.
+
+### openlens.optical_system.OpticalSystem.from_dict
+
+# Notes: `OpticalSystem.from_dict(data, lens_lookup=None)` (classmethod)
+
+## 1. Purpose
+- Builds a new `OpticalSystem` from a dict such as the output of `to_dict()`.
+- It has two layout paths. If `data["node_tree"]` is truthy, the tree is the authority. Otherwise it uses the flat `elements`/`air_gaps` lists, optionally pinned to the saved `position` values.
+
+## 2. Inputs
+- `data`: a dict. Every key is optional and read with `.get`, except `elem_data["lens"]` (see Raises).
+  - `name`: default `"Optical System"`.
+  - `metadata`: a dict or None. Keys in `_SYSTEM_SERIALIZED_KEYS` are dropped. These are `id, name, type, created_at, modified_at, aperture_stop_gap, aperture_stop_diameter, elements, air_gaps, metadata, node_tree, thermal_state_temperature, image_plane_x_mm, casing`. The copy is shallow.
+  - `id`, `created_at`, `modified_at`: copied verbatim. If absent, a fresh uuid hex or the current ISO timestamp is used.
+  - `aperture_stop_gap`, `aperture_stop_diameter`: copied verbatim, default None. They are **not validated**, so a bad index is accepted.
+  - `thermal_state_temperature`: default `DEFAULT_TEMPERATURE` (a constant from `openlens.constants`; compare it to `OpticalSystem().thermal_state_temperature`).
+  - `image_plane_x_mm`: passed through `openlens.lens.validate_image_plane_x`. That function is in another module, so its behaviour is not visible here; None is accepted.
+  - `casing`: if it is a dict, `Casing.from_dict(...)`, else None. `validate_casing` is **not** called.
+  - `elements`: a list of dicts with keys `lens`, `lens_id`, `position`, `decenter_y/z`, `tilt_x/y/z`.
+  - `air_gaps`: a list of `{"thickness": ...}`.
+  - `node_tree`: see Branches.
+- `lens_lookup`: an optional dict mapping lens id to a `Lens`. A falsy value (None or `{}`) disables reuse. A matched lens is used **by identity**, with no copy.
+
+## 3. Raises
+Checks are not ordered up front; errors surface as the code reaches each value.
+- `AttributeError`, if `data` is not a dict or `metadata` is truthy but not a dict.
+  - Example: `from_dict({"metadata": [1]})`.
+- `KeyError: 'lens'`, if an element dict has no `"lens"` and no lookup hit.
+  - Example: `from_dict({"elements": [{}]})`.
+  - This happens even when `node_tree` is present, because the elements list is processed first.
+- `ValueError` or `TypeError` from `float()` on decenter or tilt values.
+  - Example: `{"decenter_y": "abc"}`. None and 0 are fine (`or 0.0`).
+- On the flat path, `float(saved position)` can raise the same errors.
+- Errors from `Lens.from_dict`, `Casing.from_dict` and `validate_image_plane_x` live in other modules and are not visible here.
+
+## 4. Returns and guarantees
+- Always returns a new `OpticalSystem`. The `data` dict itself is not stored.
+- The flat lists are rebuilt from the tree (`_rebuild_from_tree`):
+  - `elements[i].position` is the node's global x.
+  - Decenter and tilt come from the node's position y/z and rotation.
+  - `lens_id` comes from `lens.id`, via `LensElement.__post_init__`, **not** from `elem_data["lens_id"]`.
+- Air gaps follow the element positions:
+  - `air_gaps[i].thickness = next.x - (x_i + lens_i.thickness)`.
+  - `air_gaps[i].position = x_i + lens_i.thickness`.
+  - An overlap below `-1e-12` gives thickness `0` (int); a value within `±1e-12` gives `0.0`.
+- `modified_at` is not bumped; it equals `data["modified_at"]` when given.
+
+## 5. Side effects
+- `data` is not mutated.
+- Lookup lenses are shared, so later edits on the system's lens show up in the lookup objects.
+
+## 6. Branches and edge cases
+- **Empty dict** `{}` gives:
+  - name `"Optical System"`;
+  - `elements == []` and `air_gaps == []`;
+  - `metadata == {}`, `casing is None`, `aperture_stop_gap is None`, `image_plane_x_mm is None`;
+  - `get_total_length() == 0.0`.
+- **Flat path with no `position` keys.** Elements are stacked by gaps: `gap_before` for element i is `air_gaps[i-1]["thickness"]`, or 0.0 if missing or the list is too short.
+  - Example: two lenses with thickness 5 and `air_gaps=[{"thickness": 10}]` give positions `[0.0, 15.0]`, gap thickness 10, gap position 5.
+- **Flat path where some `position` is not None.**
+  - Each root child takes `x = float(saved)` and the gaps are recomputed from those positions. Saved gap thicknesses are therefore effectively overridden.
+  - Example: positions `[15, 30]` with thickness 5 give elements at 15 and 30, gap 10 at x=20.
+  - A None entry keeps its stacked x. For example, `[None, 40]` gives x 0 and 40.
+  - Overlapping saved positions give gap `0`.
+- **`node_tree` truthy.** The flat elements are discarded and the system is rebuilt from the tree:
+  - A node with `type == "OpticalElement"` becomes an element. Its lens is `Lens.from_dict(element_model)`, or `Lens()` if that key is missing or empty.
+  - The lens is then swapped for `lens_lookup[model.id]` if present.
+  - Any other or unknown `type` becomes an `OpticalAssembly` container.
+  - `position` and `rotation` are 3-sequences, default `(0,0,0)`. The root's own position and rotation are restored too.
+  - Modifiers are rebuilt via `modifier_from_dict`.
+  - Nested global x depends on `OpticalNode.get_flat_list`, which is in another module.
+- **`lens_lookup` hit on the flat path.** `system.elements[0].lens is lookup[id]`.
+
+## 7. Rules from comments
+- `to_dict` "elements" is a flattened list; `node_tree` preserves nesting and wins when present.
+- Saved absolute positions must be restored. A first element at x=15 must not come back at 0.
+- Metadata keeps only keys "that have no home on the model".
+
+## 8. Testing hints
+- Build inputs like this:
+
+  ```python
+  L = lambda n: Lens(name=n, radius_of_curvature_1=50.0, radius_of_curvature_2=-50.0, thickness=5.0, diameter=25.0)
+  s = OpticalSystem("S"); s.add_lens(L("a")); s.add_lens(L("b"), air_gap_before=10.0)
+  d = s.to_dict(); r = OpticalSystem.from_dict(d)
+  ```
+
+- Round trip: check `r.id == s.id`, `r.name == "S"`, `[e.position for e in r.elements] == [0.0, 15.0]` and `r.air_gaps[0].thickness == pytest.approx(10.0)`.
+- To test the flat path, delete the tree first: `d.pop("node_tree")`. Then set `d["elements"][0]["position"] = 15.0` and `d["elements"][1]["position"] = 30.0`, and assert positions `[15.0, 30.0]`.
+- Metadata filtering: `{"metadata": {"name": "x", "tol": 1}}` gives `r.metadata == {"tol": 1}` and `r.name == "Optical System"`.
+- A stale stop is accepted: `{"aperture_stop_gap": 5}` sets `r.aperture_stop_gap == 5`, while `r.get_aperture_stop() is None`.
+- Lookup identity: `OpticalSystem.from_dict(d, lens_lookup={lens.id: lens}).elements[0].lens is lens`. This works on both paths, as long as the lens id round-trips through `Lens.to_dict`/`from_dict` (that is the lens module's behaviour, so verify `Lens.from_dict(lens.to_dict()).id == lens.id` if unsure).
+- Pitfalls:
+  - Use `pytest.approx` for derived gap thicknesses.
+  - Don't assert `modified_at` changed.
+  - Don't expect `ValueError` for a bad stop index or an interfering casing.
+  - Don't rely on the default thickness or radius constants; pass explicit values.

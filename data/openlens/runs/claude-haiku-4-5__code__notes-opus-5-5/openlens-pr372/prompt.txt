@@ -1,0 +1,183 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.chromatic_analyzer.ChromaticAnalyzer.design_achromatic_doublet.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.chromatic_analyzer.ChromaticAnalyzer.design_achromatic_doublet
+    def design_achromatic_doublet(
+        self,
+        focal_length: float,
+        crown_material: str = "BK7",
+        flint_material: str = "F2",
+    ) -> Dict:
+        """
+        Design an achromatic doublet to correct chromatic aberration
+
+        Args:
+            focal_length: Desired focal length in mm
+            crown_material: Low dispersion glass (crown)
+            flint_material: High dispersion glass (flint)
+
+        Returns:
+            Dictionary with lens parameters for both elements
+
+        Raises:
+            ValueError: If crown and flint have the same Abbe number, which
+                makes the achromat unsolvable.
+        """
+        # Get Abbe numbers
+        V1 = self.calculate_abbe_number(crown_material)
+        V2 = self.calculate_abbe_number(flint_material)
+
+        # Get refractive indices at d-line
+        n1 = self.material_db.get_refractive_index(crown_material, self.WAVELENGTHS["d"])
+        n2 = self.material_db.get_refractive_index(flint_material, self.WAVELENGTHS["d"])
+
+        # Calculate power distribution (thin lens approximation)
+        # For achromatic doublet: φ1/V1 + φ2/V2 = 0
+        # φ1 + φ2 = 1/f
+
+        phi_total = 1.0 / focal_length
+        # Achromatism splits power by Abbe number, so the split divides by
+        # (V1 - V2). Two glasses with the same Abbe number cannot be
+        # achromatised at any focal length - the condition has no solution -
+        # and the division raised ZeroDivisionError. The sibling designer in
+        # optical_system.AchromaticDoubletDesigner guards this.
+        if abs(V1 - V2) < 1e-12:
+            raise ValueError(
+                f"Cannot design an achromat from {crown_material!r} and "
+                f"{flint_material!r}: both have Abbe number V={V1:.4f}. Two "
+                "different glasses are required to cancel chromatic "
+                "aberration."
+            )
+        phi1 = phi_total * V1 / (V1 - V2)
+        phi2 = phi_total * V2 / (V2 - V1)
+
+        # Focal lengths of individual elements
+        f1 = 1.0 / phi1 if phi1 != 0 else float("inf")
+        f2 = 1.0 / phi2 if phi2 != 0 else float("inf")
+
+        return {
+            "crown_element": {
+                "focal_length": f1,
+                "power": phi1,
+                "material": crown_material,
+                "n": n1,
+                "abbe_number": V1,
+            },
+            "flint_element": {
+                "focal_length": f2,
+                "power": phi2,
+                "material": flint_material,
+                "n": n2,
+                "abbe_number": V2,
+            },
+            "total_focal_length": focal_length,
+            "total_power": phi_total,
+        }
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.chromatic_analyzer.ChromaticAnalyzer.design_achromatic_doublet
+
+# Notes: `ChromaticAnalyzer.design_achromatic_doublet(focal_length, crown_material="BK7", flint_material="F2")`
+
+## 1. Purpose
+- Designs a thin-lens achromatic doublet by splitting total power `1/f` between two glasses so that `phi1/V1 + phi2/V2 = 0`.
+- Returns a plain dict. It builds no `Lens` and no `OpticalSystem`.
+
+## 2. Inputs
+- `focal_length`: number, the total focal length in mm. It is not validated. It is used as `phi_total = 1.0 / focal_length`.
+- `crown_material`, `flint_material`: str names. They are passed unchanged to `self.material_db.get_refractive_index(name, wavelength_nm)`.
+  - Exactly 2 positional arguments are passed, with no temperature.
+  - The materials are not checked for being different or for being crown and flint.
+- `self.material_db` comes from the constructor: `material_db or MaterialDatabase()`.
+  - A falsy fake object would be silently replaced by the real database.
+  - What the real database does with unknown names is in `material_database`, which is not shown. Do not assume it raises.
+- Wavelengths used: `ChromaticAnalyzer.WAVELENGTHS["d"]`, `["F"]` and `["C"]`.
+  - These come from the constants module, which is not shown. They are likely 587.6, 486.1 and 656.3.
+  - In tests, reference them through `ChromaticAnalyzer.WAVELENGTHS[...]`. Do not hard-code them.
+
+## 3. Raises (in check order)
+1. **Crown has no dispersion.** Raised inside `calculate_abbe_number(crown)` when `abs(n_F - n_C) < 1e-12`.
+   - Type: `ValueError`.
+   - Template: `f"Material {name!r} has no dispersion between the F and C lines (n_F - n_C = {dispersion}); its Abbe number is undefined."`
+   - Example: a fake database returning a constant 1.5 for `'X'` gives `"Material 'X' has no dispersion between the F and C lines (n_F - n_C = 0.0); its Abbe number is undefined."`
+2. **Flint has no dispersion.** Same `ValueError` and message, raised for the flint. The crown is evaluated first, so if both are bad, the crown name appears in the message.
+3. **`focal_length == 0`.** Raises `ZeroDivisionError` from `1.0 / focal_length`. This happens before the equal-Abbe check.
+4. **Equal Abbe numbers.** Raised when `abs(V1 - V2) < 1e-12`.
+   - Type: `ValueError`.
+   - Template: `f"Cannot design an achromat from {crown!r} and {flint!r}: both have Abbe number V={V1:.4f}. Two different glasses are required to cancel chromatic aberration."`
+   - Example: `design_achromatic_doublet(100, "G", "G")`, with a dispersive fake glass `G` with V = 50, gives `"...from 'G' and 'G': both have Abbe number V=50.0000. Two..."`
+   - With the real database, `("BK7", "BK7")` triggers it, but the V digits depend on the database. Use `match="Cannot design an achromat from 'BK7' and 'BK7'"`.
+
+## 4. Returns
+The result is a new dict with exactly these keys:
+```python
+{"crown_element": {"focal_length": f1, "power": phi1, "material": crown_material,
+                   "n": n1, "abbe_number": V1},
+ "flint_element": {"focal_length": f2, "power": phi2, "material": flint_material,
+                   "n": n2, "abbe_number": V2},
+ "total_focal_length": focal_length,   # the input object itself (int stays int)
+ "total_power": 1.0/focal_length}
+```
+
+How each value is computed:
+- `V = (n_d - 1) / (n_F - n_C)`
+- `n1` and `n2` are the d-line indices from the database.
+- `phi1 = phi_total*V1/(V1-V2)`
+- `phi2 = phi_total*V2/(V2-V1)`
+- `f1 = 1/phi1`, but `inf` if `phi1 == 0`. The same rule applies to `f2`.
+
+Identities that hold:
+- `phi1 + phi2 == phi_total`, up to float error.
+- `phi1/V1 + phi2/V2 ≈ 0`.
+
+## 5. Side effects
+- None in this method. Database caching is internal to `MaterialDatabase` and is not visible here.
+
+## 6. Branches and edge cases
+- **Normal case, using a fake database:**
+  - Crown: n_d=1.5, n_F=1.51, n_C=1.50, so V1≈50.
+  - Flint: n_d=1.6, n_F=1.62, n_C=1.60, so V2≈30.
+  - With `focal_length=100`:
+    - `total_power=0.01`
+    - crown: `phi1≈0.025`, `f1≈40.0`
+    - flint: `phi2≈-0.015`, `f2≈-66.6667`
+  - Use `pytest.approx`: 1.51-1.50 is not exactly 0.01.
+- **Crown power and sign:** if V1 > V2 and f > 0, the crown is positive and the flint is negative. A negative `focal_length` flips both signs.
+- **Zero crown power:** a crown with n_d = 1.0 (fake) gives V1 = 0, so `phi1 == 0` and the crown `focal_length` is `float('inf')`. In that case `phi2 == phi_total` and `f2 == focal_length`.
+- **Infinite focal length:** `focal_length=float('inf')` gives `phi_total=0.0`. Both powers are then 0 (possibly -0.0), and both focal lengths are `inf`.
+- **Near-equal Abbe numbers:** a gap of ≥1e-12 between V1 and V2 does not raise. It produces huge powers.
+
+## 7. Rules from comments
+- Two glasses with the same Abbe number cannot be achromatised. This case must raise `ValueError`, not `ZeroDivisionError`.
+- The model is the thin-lens approximation: `φ1/V1 + φ2/V2 = 0` and `φ1 + φ2 = 1/f`.
+
+## 8. Testing hints
+- Prefer a fake database for exact values. A plain class instance is truthy:
+  ```python
+  W = ChromaticAnalyzer.WAVELENGTHS
+  class FakeDB:
+      def __init__(s, t): s.t = t   # {name: {"d":..,"F":..,"C":..}}
+      def get_refractive_index(s, name, wl, temperature_c=20.0):
+          return s.t[name][{W["d"]: "d", W["F"]: "F", W["C"]: "C"}[wl]]
+  a = ChromaticAnalyzer(material_db=FakeDB({...}))
+  ```
+- Check the exact dict keys, that the `material` strings round-trip, and that `total_focal_length is` the input.
+- Check that `n`, `abbe_number` and `power` match the formulas above. You can also check that the returned Abbe numbers equal `a.calculate_abbe_number(name)`.
+- Check that the two powers sum to `total_power` and that the achromat condition holds, within about 1e-12 relative tolerance.
+- With the real database, the defaults (`"BK7"`, `"F2"`) and `f=100` should give:
+  - crown power > 0 and flint power < 0;
+  - V1 > V2;
+  - `f1 < 100` and `f2 < 0`;
+  - the identities above.
+  - Do not hard-code catalog numbers.
+- Pitfalls:
+  - Never use exact `==` on derived floats.
+  - Use `pytest.raises(ZeroDivisionError)` for `focal_length=0`, not `ValueError`.
+  - A fake database must accept a 2-positional-argument call.

@@ -1,0 +1,1798 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.cleaning.coalesce_columns, arnio.cleaning.combine_columns, arnio.cleaning.drop_columns_matching, arnio.cleaning.drop_constant_columns, arnio.cleaning.drop_nulls, arnio.cleaning.filter_rows, arnio.cleaning.keep_rows_with_nulls, arnio.cleaning.replace_values, arnio.cleaning.safe_divide_columns, arnio.cleaning.standardize_missing_tokens.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.coalesce_columns
+def coalesce_columns(
+    frame,
+    *,
+    subset: Sequence[str],
+    output_column: str = "coalesced",
+):
+    """Select the first non-null value from a list of columns.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame.
+    subset : sequence of str
+        Sequence of columns to check in order.
+    output_column : str, default "coalesced"
+        Name of the new column to store coalesced values.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        New frame with coalesced column.
+
+    Raises
+    ------
+    TypeError
+        If subset is not a list, or frame is not an ArFrame or DataFrame.
+    ValueError
+        If subset is empty, output_column is empty, or output_column already
+        exists in the frame.
+    KeyError
+        If any column in subset does not exist in the frame.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> result = ar.coalesce_columns(frame, subset=["col_a", "col_b"],
+    ...                              output_column="first_non_null")
+    """
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+
+    if not isinstance(output_column, str) or not output_column.strip():
+        raise ValueError("output_column must be a non-empty string")
+
+    column_names = list(frame.columns)
+    subset_columns = _validate_existing_column_sequence(
+        subset,
+        available_columns=column_names,
+        argument_name="subset",
+        reject_duplicates=True,
+        missing_message=lambda missing, available: (
+            f"Missing columns for coalesce_columns: {missing}. "
+            f"Available columns: {available}"
+        ),
+    )
+
+    if not subset_columns:
+        raise ValueError("subset must contain at least one column")
+
+    if output_column in column_names:
+        raise ValueError(f"Output column '{output_column}' already exists.")
+
+    df = to_pandas(frame) if is_arframe else frame.copy(deep=False)
+
+    # Select the first non-null/non-NaN/non-None value per row
+    df[output_column] = df[subset_columns].bfill(axis=1).iloc[:, 0]
+
+    return from_pandas(df) if is_arframe else df
+
+# arnio.cleaning.combine_columns
+def combine_columns(
+    frame,
+    *,
+    subset: list[str] | None = None,
+    separator: str = " ",
+    output_column: str = "combined",
+):
+    """Combine multiple columns into a single output column.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame.
+    subset : list[str], optional
+        Columns to combine. If None, all columns are used.
+    separator : str
+        String used to separate values in the output column.
+    output_column : str
+        Name of the new column to store combined values.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        Frame with the combined output column appended.
+
+    Raises
+    ------
+    TypeError
+        If separator is not a string, or frame is not an ArFrame or DataFrame.
+    ValueError
+        If output_column is empty, output_column already exists in the frame,
+        or subset is provided but empty.
+    KeyError
+        If any column in subset does not exist in the frame.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> result = ar.combine_columns(frame, subset=["first_name", "last_name"],
+    ...                             separator=" ", output_column="full_name")
+    """
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    if not isinstance(separator, str):
+        raise TypeError("separator must be a string")
+    if not isinstance(output_column, str) or not output_column.strip():
+        raise ValueError("output_column must be a non-empty string")
+
+    column_names = list(frame.columns)
+
+    if subset is None:
+        subset_columns = list(column_names)
+    else:
+        subset_columns = _validate_existing_column_sequence(
+            subset,
+            available_columns=column_names,
+            argument_name="subset",
+            reject_duplicates=True,
+            missing_message=lambda missing, available: (
+                f"Missing columns for combine_columns: {missing}. "
+                f"Available columns: {available}"
+            ),
+        )
+
+    if not subset_columns:
+        raise ValueError("subset must contain at least one column")
+
+    if output_column in column_names:
+        raise ValueError(f"Output column '{output_column}' already exists.")
+
+    if is_arframe:
+        from ._arnio_cpp import combine_columns as _combine_columns
+
+        result = _combine_columns(
+            frame._frame, subset_columns, separator, output_column
+        )
+        return _wrap(result, frame)
+
+    # Pandas fallback
+    df = frame.copy(deep=False)
+    combined = (
+        df[subset_columns].astype("string").fillna("").agg(separator.join, axis=1)
+    )
+    null_mask = df[subset_columns].isna().all(axis=1)
+    combined = combined.mask(null_mask, pd.NA)
+
+    df[output_column] = combined
+
+    return df
+
+# arnio.cleaning.drop_columns_matching
+def drop_columns_matching(frame, pattern):
+    """Drop columns whose names match a given pattern.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame.
+    pattern : str
+        Regex pattern to match column names against.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        Data frame with matching columns removed.
+
+    Raises
+    ------
+    TypeError
+        If pattern is not a string.
+    re.error
+        If pattern is not a valid regex.
+    ValueError
+        If pattern matches all columns.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> cleaned = drop_columns_matching(frame, "^temp_")
+    """
+    import re
+
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+
+    if not isinstance(pattern, str):
+        raise TypeError(f"pattern must be a string, got {type(pattern).__name__}")
+
+    try:
+        re.compile(pattern)
+    except re.error as e:
+        raise re.error(f"Invalid regex pattern: {pattern!r}") from e
+
+    df = to_pandas(frame) if is_arframe else frame
+
+    cols_to_drop = [col for col in df.columns if re.search(pattern, str(col))]
+
+    if len(df.columns) == 0:
+        return frame if is_arframe else df
+
+    if len(cols_to_drop) == len(df.columns):
+        raise ValueError(
+            "Pattern matches all columns. At least one column must remain."
+        )
+
+    result = df.drop(columns=cols_to_drop)
+
+    return from_pandas(result) if is_arframe else result
+
+# arnio.cleaning.drop_constant_columns
+def drop_constant_columns(
+    frame: ArFrame | pd.DataFrame,
+) -> ArFrame | pd.DataFrame:
+    """Remove columns with exactly one unique value.
+
+    Nulls are counted as values when determining whether a column is constant.
+    This means columns like ``[None, None]`` are dropped, while columns like
+    ``[1, 1, None]`` are kept. Empty columns in zero-row frames are also kept,
+    since they have zero unique values rather than one.
+
+    If every column is dropped, the resulting zero-column frame preserves the
+    original row count.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        New frame without constant columns.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> reduced = ar.drop_constant_columns(frame)
+    """
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    df = to_pandas(frame) if is_arframe else frame
+    if len(df.index) == 0:
+        result_df = df.copy(deep=True)
+
+        if is_arframe:
+            result = from_pandas(result_df)
+
+            if getattr(frame, "_attrs", None) is not None:
+                result._attrs = copy.deepcopy(frame._attrs)
+
+            return result
+
+        return result_df
+
+    nunique_counts = df.nunique(dropna=False)
+    constant_columns = nunique_counts[nunique_counts == 1].index.tolist()
+    result_df = df.drop(columns=constant_columns)
+    return from_pandas(result_df) if is_arframe else result_df
+
+# arnio.cleaning.drop_nulls
+def drop_nulls(
+    frame: ArFrame,
+    *,
+    subset: list[str] | None = None,
+) -> ArFrame:
+    """Remove rows containing null/empty values.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    subset : list[str], optional
+        Column names to check for nulls. If None, checks all columns.
+        A row is dropped if ANY column in the subset contains a null.
+
+    Returns
+    -------
+    ArFrame
+        New frame with null-containing rows removed.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> clean = ar.drop_nulls(frame, subset=["age", "name"])
+    """
+    _validate_arframe(frame)
+    if subset is not None:
+        subset = _validate_column_sequence(subset, argument_name="subset")
+        if len(subset) == 0:
+            raise ValueError(
+                "drop_nulls: subset cannot be empty; pass subset=None to check all columns"
+            )
+        subset = _validate_existing_column_sequence(
+            subset,
+            available_columns=frame.columns,
+            argument_name="subset",
+            missing_message=lambda missing, available: (
+                f"Missing columns for drop_nulls: {missing}. "
+                f"Available columns: {available}"
+            ),
+        )
+    result = _drop_nulls(frame._frame, subset=subset)
+    return _wrap(result, frame)
+
+# arnio.cleaning.filter_rows
+def filter_rows(
+    frame: ArFrame | pd.DataFrame,
+    column: str,
+    op: str,
+    value: object,
+) -> ArFrame | pd.DataFrame:
+    """Filter rows based on a column condition.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame. When an ``ArFrame`` is supplied the return value
+        is also an ``ArFrame``; when a ``pd.DataFrame`` is supplied the
+        return value is a ``pd.DataFrame``.
+    column : str
+        Name of the column to filter on.
+    op : str
+        Comparison operator.  Supported values: ``">"``, ``"<"``,
+        ``">="``, ``"<="``, ``"=="``, ``"!="``.
+    value : object
+        Scalar value to compare each cell against.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        Filtered frame of the same type as the input.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> filtered = ar.filter_rows(frame, column="age", op=">", value=18)
+    """
+    from pandas.api.types import is_scalar
+
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+
+    if not isinstance(column, str) or not column.strip():
+        raise TypeError(
+            f"filter_rows: column must be a non-empty string, got {type(column).__name__!r}"
+        )
+
+    if not isinstance(op, str):
+        raise TypeError(f"filter_rows: op must be a string, got {type(op).__name__!r}")
+    df = to_pandas(frame) if is_arframe else frame
+
+    ops = {
+        ">": "gt",
+        "<": "lt",
+        ">=": "ge",
+        "<=": "le",
+        "==": "eq",
+        "!=": "ne",
+    }
+
+    if op not in ops:
+        raise ValueError(f"Unsupported operator: {op}")
+
+    if column not in df.columns:
+        raise ValueError(f"Unknown column: {column}")
+
+    if not is_scalar(value):
+        raise TypeError("filter_rows value must be a scalar")
+
+    try:
+        mask = getattr(df[column], ops[op])(value)
+    except TypeError as exc:
+        raise TypeError(
+            f"filter_rows: cannot compare column {column!r} with value "
+            f"{value!r} using operator {op!r}: {exc}"
+        ) from exc
+
+    mask = mask.fillna(False).astype(bool)
+    filtered = df[mask]
+    if is_arframe:
+        filtered = filtered.reset_index(drop=True)
+
+    return from_pandas(filtered) if is_arframe else filtered
+
+# arnio.cleaning.keep_rows_with_nulls
+def keep_rows_with_nulls(
+    frame: ArFrame,
+    *,
+    subset: list[str] | None = None,
+) -> ArFrame:
+    """Keep only rows that contain at least one null/empty value.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    subset : list[str], optional
+        Column names to check for nulls. If None, checks all columns.
+        A row is kept if ANY column in the subset contains a null.
+
+    Returns
+    -------
+    ArFrame
+        New frame containing only rows with at least one null value.
+
+    Raises
+    ------
+    TypeError
+        If subset is passed as a string instead of a list.
+    KeyError
+        If any column in subset does not exist in the frame.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> nulls = ar.keep_rows_with_nulls(frame)
+    >>> nulls_age = ar.keep_rows_with_nulls(frame, subset=["age"])
+    """
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    if isinstance(subset, str):
+        raise TypeError(
+            f"keep_rows_with_nulls: 'subset' must be a list of column names, "
+            f"not a string. Did you mean subset=['{subset}']?"
+        )
+
+    from .convert import from_pandas, to_pandas
+
+    df = to_pandas(frame) if is_arframe else frame
+
+    if subset is not None:
+        subset = _validate_column_sequence(subset, argument_name="subset")
+
+        if len(subset) == 0:
+            raise ValueError(
+                "keep_rows_with_nulls: subset cannot be empty; "
+                "pass subset=None to check all columns"
+            )
+        cols = _validate_existing_column_sequence(
+            subset,
+            available_columns=df.columns,
+            argument_name="subset",
+            missing_message=lambda missing, available: (
+                f"Missing columns for keep_rows_with_nulls: {missing}. "
+                f"Available columns: {available}"
+            ),
+        )
+    else:
+        cols = df.columns.tolist()
+
+    mask = df[cols].isnull().any(axis=1)
+    result = df[mask].reset_index(drop=True)
+
+    return from_pandas(result) if is_arframe else result
+
+# arnio.cleaning.replace_values
+def replace_values(
+    frame: ArFrame | pd.DataFrame,
+    mapping: dict,
+    column: str | None = None,
+) -> ArFrame | pd.DataFrame:
+    """Replace values based on a mapping dict.
+
+    If ``column`` is ``None``, the mapping is applied to every column.
+
+    Handles ``None``/``NaN`` in mappings:
+
+    - If the mapping has a null-like key (``None`` / ``NaN`` / ``pd.NA``),
+      existing nulls in the frame are replaced via ``fillna``.
+    - If the mapping maps a value *to* a null-like value, the result will
+      contain real nulls (``NaN`` / ``NA``).
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame. When an ``ArFrame`` is supplied the return value
+        is also an ``ArFrame``; when a ``pd.DataFrame`` is supplied the
+        return value is a ``pd.DataFrame``.
+    mapping : dict
+        Mapping of ``{old_value: new_value}`` pairs.
+    column : str, optional
+        Specific column to apply replacements to.  When ``None`` (default)
+        the mapping is applied across all columns.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        New frame with values replaced, same type as the input.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> replaced = ar.replace_values(frame, {"old_value": "new_value"}, column="name")
+    """
+
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+
+    mapping = _validate_mapping(
+        mapping,
+        argument_name="mapping",
+        allow_empty=False,
+        non_mapping_message=(
+            "mapping must be a dict-like mapping of {old_value: new_value}, "
+            f"not {type(mapping).__name__}."
+        ),
+    )
+    # Avoid mutating the caller's DataFrame in the direct pandas API path.
+    df = to_pandas(frame) if is_arframe else frame.copy(deep=False)
+
+    if column is not None:
+        if not isinstance(column, str) or not column.strip():
+            raise TypeError("column must be a non-empty string when provided")
+        if column not in df.columns:
+            available = ", ".join(map(str, df.columns)) or "<none>"
+            raise KeyError(
+                f"Column '{column}' not found. Available columns: {available}"
+            )
+
+    # Normalize mapping and separate null-key handling because NaN != NaN
+    null_key_present = False
+    null_replacement = None
+    normalized_mapping = {}
+
+    for k, v in mapping.items():
+        # Handle scalar null-like keys safely without evaluating
+        # tuple/list/array-like objects in boolean context.
+        if _is_null_mapping_key(k):
+            null_key_present = True
+            null_replacement = v
+        # Exclude tuple/list/ndarray/series/index keys which pandas.replace
+        # does not support and can raise confusing errors (e.g. operand
+        # length mismatch). Treat strings and true scalars as valid keys.
+        elif is_scalar(k) and not isinstance(
+            k, (tuple, list, np.ndarray, pd.Series, pd.Index)
+        ):
+            normalized_mapping[k] = v
+        else:
+            raise TypeError(
+                f"replace_values() does not support non-scalar mapping keys. "
+                f"Got key {k!r} of type '{type(k).__name__}'. "
+                f"Only scalar values (str, int, float, bool) and null-like keys "
+                f"(None, float('nan'), pd.NA, pd.NaT) are supported."
+            )
+
+    if column:
+        s = df[column]
+        original_null_mask = s.isna() if null_key_present else None
+        if normalized_mapping:
+            s = s.replace(normalized_mapping)
+        if null_key_present:
+            # Replace only values that were already null before replacement so
+            # null-valued mapping results remain real nulls.
+            s = s.where(~original_null_mask, null_replacement)
+        df[column] = s
+    else:
+        original_null_mask = df.isna() if null_key_present else None
+        if normalized_mapping:
+            df = df.replace(normalized_mapping)
+        if null_key_present:
+            # Replace only values that were already null before replacement so
+            # null-valued mapping results remain real nulls.
+            df = df.where(~original_null_mask, null_replacement)
+
+    return from_pandas(df) if is_arframe else df
+
+# arnio.cleaning.safe_divide_columns
+def safe_divide_columns(
+    frame, numerator: str, denominator: str, output_column: str, fill_value: float = 0.0
+):
+    """Divide one column by another, handling division by zero and nulls explicitly.
+
+    When the denominator is zero or null, the result is replaced with
+    fill_value instead of raising an error or producing NaN/Inf.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    numerator : str
+        Column name to use as the numerator.
+    denominator : str
+        Column name to use as the denominator.
+    output_column : str
+        Name of the new column to store the division result. Must be a
+        non-empty string. If the column already exists, a ``ValueError`` is raised.
+    fill_value : float, optional
+        Value to use when denominator is zero or null. Defaults to 0.0.
+
+    Returns
+    -------
+    ArFrame
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> result = ar.safe_divide_columns(frame, numerator="revenue", denominator="cost", output_column="ratio")
+    """
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    columns = frame.columns
+
+    if not isinstance(numerator, str):
+        raise TypeError("numerator must be a string column name")
+
+    if not isinstance(denominator, str):
+        raise TypeError("denominator must be a string column name")
+
+    if numerator not in columns:
+        raise ValueError(f"Numerator column '{numerator}' not found in frame.")
+
+    if denominator not in columns:
+        raise ValueError(f"Denominator column '{denominator}' not found in frame.")
+
+    if not isinstance(output_column, str) or not output_column.strip():
+        raise ValueError("output_column must be a non-empty string.")
+
+    if isinstance(fill_value, bool):
+        raise TypeError("fill_value must be a finite float, not bool")
+
+    if not isinstance(fill_value, (int, float)):
+        raise TypeError(
+            f"fill_value must be a finite float, got {type(fill_value).__name__!r}"
+        )
+
+    if not math.isfinite(fill_value):
+        raise ValueError(f"fill_value must be finite, got {fill_value}")
+
+    if output_column in columns:
+        raise ValueError(f"Output column '{output_column}' already exists.")
+
+    if is_arframe:
+        numerator_dtype = frame.dtypes.get(numerator)
+        denominator_dtype = frame.dtypes.get(denominator)
+
+        numeric_types = {"int64", "float64"}
+
+        if numerator_dtype in numeric_types and denominator_dtype in numeric_types:
+            return ArFrame(
+                _safe_divide_columns(
+                    frame._frame,
+                    numerator,
+                    denominator,
+                    output_column,
+                    fill_value,
+                )
+            )
+
+    df = to_pandas(frame) if is_arframe else frame
+
+    numerator_series = df[numerator]
+    denominator_series = df[denominator]
+
+    numerator_values = pd.to_numeric(numerator_series, errors="coerce")
+    denominator_values = pd.to_numeric(denominator_series, errors="coerce")
+
+    bad_numerator = numerator_values.isna() & numerator_series.notna()
+    bad_denominator = denominator_values.isna() & denominator_series.notna()
+
+    if bad_numerator.any():
+        bad_values = df.loc[bad_numerator, numerator].head(3).tolist()
+        raise ValueError(
+            f"Numerator column '{numerator}' contains non-numeric values: {bad_values}"
+        )
+
+    if bad_denominator.any():
+        bad_values = df.loc[bad_denominator, denominator].head(3).tolist()
+        raise ValueError(
+            f"Denominator column '{denominator}' contains non-numeric values: {bad_values}"
+        )
+
+    is_zero_or_null = denominator_values.isna() | (denominator_values == 0)
+    safe_denom = denominator_values.mask(is_zero_or_null)
+    result = numerator_values / safe_denom
+
+    df = df.copy(deep=False)
+    df[output_column] = result.fillna(fill_value)
+
+    return from_pandas(df) if is_arframe else df
+
+# arnio.cleaning.standardize_missing_tokens
+def standardize_missing_tokens(frame, tokens=None, subset=None):
+    """Convert null-like string tokens in the frame to the standard NaN form.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    tokens : list[str], optional
+        List of strings to treat as missing. If None, then a built-in default tokens list is used
+    subset : list[str], optional
+        Column names to replace missing tokens in. If None, applies to all columns.
+
+    Notes
+    -----
+    Matching is case-insensitive and trims surrounding whitespace before checking
+    token membership. Values that do not match a missing token preserve their
+    original whitespace.
+
+    Returns
+    -------
+    ArFrame
+        New frame with missing token values replaced by NaN.
+
+    Examples
+    --------
+    >>> frame = ar.from_pandas(pd.DataFrame({"value": [1, 2, "N/A"]}))
+    >>> result = ar.standardize_missing_tokens(frame)
+    >>> frame = ar.from_pandas(pd.DataFrame({"value": [" NULL ", "\\tNaN\\t", "kept"]}))
+    >>> result = ar.standardize_missing_tokens(frame)
+    """
+
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    df = to_pandas(frame) if is_arframe else frame
+
+    df = df.copy(deep=False)
+    if isinstance(subset, str):
+        raise TypeError(
+            f"subset must be a list of column names, not a string. "
+            f"Did you mean subset=['{subset}']?"
+        )
+    if tokens is not None:
+        if isinstance(tokens, str):
+            raise TypeError(
+                f"tokens must be a list of strings, not a bare string. "
+                f"Did you mean tokens=['{tokens}']?"
+            )
+        if not isinstance(tokens, list):
+            raise TypeError(
+                f"tokens must be a list of strings, got {type(tokens).__name__!r}"
+            )
+        for item in tokens:
+            if not isinstance(item, str):
+                raise TypeError(
+                    f"tokens must be a list of strings, got {type(item).__name__!r} item"
+                )
+
+    default_tokens = [
+        "N/A",
+        "NA",
+        "n/a",
+        "na",
+        "nan",
+        "-",
+        "none",
+        "nil",
+        "null",
+        "",
+        "?",
+    ]
+
+    token_values = default_tokens if tokens is None else list(tokens)
+    normalized_tokens = {
+        token.strip().lower() for token in token_values if isinstance(token, str)
+    }
+
+    def _normalize_missing_value(value):
+        if not isinstance(value, str):
+            return value
+        if value.strip().lower() in normalized_tokens:
+            return float("nan")
+        return value
+
+    def _normalize_columns(columns):
+        for column in columns:
+            df[column] = df[column].map(_normalize_missing_value)
+
+    if subset is None:
+        _normalize_columns(df.columns)
+
+    else:
+        subset_columns = _validate_existing_column_sequence(
+            subset,
+            available_columns=df.columns,
+            argument_name="subset",
+            missing_error=ValueError,
+            missing_message=lambda missing, _available: (
+                f"Unknown columns in subset: {missing}"
+            ),
+        )
+        _normalize_columns(subset_columns)
+
+    return from_pandas(df) if is_arframe else df
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.cleaning.coalesce_columns
+
+# Notes: `arnio.cleaning.coalesce_columns(frame, *, subset, output_column="coalesced")`
+
+## 1. Purpose
+- Adds one new column, `output_column`, as the last column.
+- Each row's value is the first non-null value across `subset`, scanned left to right in the order `subset` lists them.
+- Implemented in pandas: `df[output_column] = df[subset_columns].bfill(axis=1).iloc[:, 0]`.
+
+## 2. Inputs
+- `frame`: an `ArFrame` or a `pd.DataFrame`. Anything else raises TypeError.
+- `subset`: required, keyword-only, no default. Validated in this order:
+  1. A `str` or `bytes` value raises TypeError.
+  2. It must be a `collections.abc.Sequence` (list, tuple) or a `pd.Index`. A `set`, a generator or `None` raises TypeError.
+  3. It is converted to a `list`, and every item must be a `str`.
+  4. Duplicate names are rejected.
+  5. Every name must exist in `frame.columns`.
+- `subset` order matters. It sets the priority, not the frame's column order.
+- `output_column`: a `str` with at least one non-whitespace character. It must not already be a column of the frame.
+
+## 3. Raises (in check order)
+1. Frame type: `TypeError("frame must be an ArFrame or a pandas DataFrame")`. Trigger: `coalesce_columns({"a": [1]}, subset=["a"])`.
+2. Bad `output_column` (not a str, or blank/whitespace): `ValueError("output_column must be a non-empty string")`.
+   - Triggers: `output_column=""`, `"  "`, or `5`.
+   - This is checked before `subset`.
+3. `subset` is a string: `TypeError("subset must be a sequence of column names, not a string")`. Trigger: `subset="a"`.
+4. `subset` is not a sequence: `TypeError("subset must be a sequence of column names")`. Triggers: `subset={"a"}` or `subset=None`.
+5. Non-string items: `TypeError("subset must contain only string column names")`. Trigger: `subset=["a", 1]`.
+6. Duplicates: `ValueError(f"subset contains duplicate column names: {duplicates}")`.
+   - Trigger: `subset=["a","a"]` gives `"subset contains duplicate column names: ['a']"`.
+   - This is checked before missing columns, so `["a","a","zz"]` raises ValueError, not KeyError.
+7. Missing columns: `KeyError(f"Missing columns for coalesce_columns: {missing}. Available columns: {available}")`.
+   - `available` is `", ".join(columns)`, or `"<none>"` if the frame has no columns.
+   - Trigger: frame with columns a, b and `subset=["a","zz"]` gives `"Missing columns for coalesce_columns: ['zz']. Available columns: a, b"`.
+8. Empty subset: `ValueError("subset must contain at least one column")`. Triggers: `subset=[]` or `subset=()`.
+9. Output already exists: `ValueError(f"Output column '{output_column}' already exists.")`.
+   - Trigger: `subset=["a"], output_column="b"` when `b` exists.
+   - The default name `"coalesced"` also triggers it if the frame has a column with that name.
+
+## 4. Returns and guarantees
+- The result has the same type as the input:
+  - ArFrame in gives ArFrame out, built via `from_pandas(df)`.
+  - DataFrame in gives DataFrame out.
+- Columns are all the original columns in their original order, then `output_column` at the end.
+- Original column values are unchanged.
+- Row count is unchanged and no rows are dropped.
+- Per row, the output is the first value in `subset` order that pandas considers non-null.
+  - `None`, `NaN` and `pd.NA` are all treated as null.
+  - If every subset value in a row is null, the output is null.
+  - pandas does not treat `""` as null.
+- Pandas input: the index is preserved. The result is a shallow copy of the input with the extra column.
+- ArFrame input: attrs are not explicitly carried over (no `_wrap`).
+  - Whether `from_pandas` keeps attrs depends on code in another module. Do not test attrs.
+- Dtype of the output:
+  - When all subset columns share a dtype (all float64, or all object strings), the result normally has that dtype.
+  - For mixed dtypes (int and str), `bfill(axis=1)` may upcast to object or float. Assert values, not the dtype.
+
+## 5. Side effects
+- The input pandas DataFrame is not modified. A column is added only to `frame.copy(deep=False)`, so the original `df.columns` is unchanged.
+- An input ArFrame is not modified.
+- No global state is touched and no files are written.
+
+## 6. Branches and edge cases
+- First subset column non-null: its value wins even if later columns are also non-null.
+  - `a=[1.0], b=[9.0]`, `subset=["a","b"]` gives `[1.0]`.
+  - `subset=["b","a"]` gives `[9.0]`.
+- Fallthrough to a later column:
+  - `a=[1.0, nan, nan]`, `b=[10.0, 2.0, nan]`, `subset=["a","b"]` gives `[1.0, 2.0, NaN]`.
+- Three columns:
+  - `a=[nan]`, `b=[nan]`, `c=[7.0]` gives `[7.0]`.
+- Single-column subset: the output equals that column's values.
+- Strings (pandas object):
+  - `a=["x", None]`, `b=["y","z"]` gives `["x","z"]`.
+- Columns outside `subset` are ignored even when non-null.
+- Zero-row frame with a valid subset returns 0 rows, with `output_column` added.
+- ArFrame path: `to_pandas`, then pandas ops, then `from_pandas`. Null handling and dtypes depend on the `convert` module and the C++ core, which are not visible here.
+
+## 7. Rules from docstring and comments
+- "Select the first non-null value from a list of columns."
+- Comment: "Select the first non-null/non-NaN/non-None value per row."
+- Docstring Raises section:
+  - TypeError for a bad subset or frame.
+  - ValueError for an empty subset, an empty output_column, or an existing output_column.
+  - KeyError for a missing subset column.
+
+## 8. Testing hints
+- The pandas path gives the most exact assertions:
+  ```python
+  df = pd.DataFrame({"a": [1.0, np.nan, np.nan], "b": [10.0, 2.0, np.nan]})
+  out = ar.coalesce_columns(df, subset=["a", "b"], output_column="c")
+  assert list(out.columns) == ["a", "b", "c"]
+  assert out["c"].tolist()[:2] == [1.0, 2.0] and pd.isna(out["c"].iloc[2])
+  assert list(df.columns) == ["a", "b"]  # input not mutated
+  ```
+- ArFrame path:
+  - Build with `ar.from_pandas(...)` and read the result back with `ar.to_pandas(result)`.
+  - Check `isinstance(result, ar.ArFrame)` and the `result.columns` order.
+  - Compare nulls with `pd.isna`, never with `== None` or `== np.nan`.
+  - Prefer float64 or string columns. Int columns with nulls may come back as a different dtype.
+- Use `pytest.raises(..., match=re.escape(msg))`. For a KeyError, `str(exc)` adds quotes, but `match` uses a substring search, so it still works.
+- Test priority by swapping the `subset` order. A bug that uses frame order, or picks the last value instead of the first, shows up there.
+- Test the check order:
+  - `output_column=""` combined with `subset="a"` raises ValueError, because `output_column` is checked first.
+  - Duplicates combined with a missing column raise ValueError.
+  - An existing output column combined with `subset=[]` raises the "at least one column" error first.
+
+### arnio.cleaning.combine_columns
+
+# Notes: `arnio.cleaning.combine_columns`
+
+## 1. Purpose
+- Joins the values of several columns, row by row, into one new string column. The new column is added as the last column.
+- ArFrame input is handled by a C++ function. pandas input is handled by Python code whose logic is fully visible below.
+
+## 2. Inputs
+- `frame`: an `ArFrame` or a `pd.DataFrame`. Anything else raises `TypeError`.
+- `subset` (keyword-only, default `None`):
+  - `None` means every column, in frame order.
+  - Otherwise it must be a list, tuple or `pd.Index` of `str`.
+  - The output order follows `subset` order. `subset=["b","a"]` joins b first, then a.
+- `separator` (default `" "`): must be a `str`. `""` is allowed.
+- `output_column` (default `"combined"`): must be a `str` that is not empty after `.strip()`.
+
+## 3. Raises (checks run in this order)
+1. Bad frame: `TypeError("frame must be an ArFrame or a pandas DataFrame")`.
+   - Trigger: `combine_columns({"a": [1]})`.
+2. Non-str separator: `TypeError("separator must be a string")`.
+   - Trigger: `separator=1`.
+3. Bad output_column: `ValueError("output_column must be a non-empty string")`.
+   - Triggers: `output_column=""`, `"   "`, or `5`.
+4. Subset validation (only when `subset` is not None):
+   - String or bytes subset: `TypeError("subset must be a sequence of column names, not a string")`. Trigger: `subset="a"`.
+   - Not a Sequence or `pd.Index`: `TypeError("subset must be a sequence of column names")`. Trigger: `subset={"a"}` (a set).
+   - Non-str items: `TypeError("subset must contain only string column names")`. Trigger: `subset=["a", 1]`.
+   - Duplicates (checked before missing columns): `ValueError(f"subset contains duplicate column names: {duplicates}")`.
+     - Trigger: `subset=["a","a"]` gives `"subset contains duplicate column names: ['a']"`.
+   - Missing columns: `KeyError(f"Missing columns for combine_columns: {missing}. Available columns: {available}")`.
+     - `available` is `", ".join(columns)`, or `"<none>"` when there are no columns.
+     - Trigger: on columns a, b, `subset=["z"]` gives `"Missing columns for combine_columns: ['z']. Available columns: a, b"`.
+   - An empty subset is not rejected by this step.
+5. Empty selection: `ValueError("subset must contain at least one column")`.
+   - Trigger: `subset=[]`.
+   - Also triggered by `subset=None` on a zero-column frame.
+6. Output name already exists: `ValueError(f"Output column '{output_column}' already exists.")`.
+   - Trigger: columns `["a","combined"]` with default arguments gives `"Output column 'combined' already exists."`.
+   - This check runs after the subset checks. For example, `subset=["z"]` plus an existing output name raises `KeyError`, not `ValueError`.
+- All of these checks run before the C++ import or call, so they can be tested with ArFrame input too.
+
+## 4. Returns and guarantees
+### pandas input (fully visible code)
+- Code:
+  ```python
+  df = frame.copy(deep=False)
+  combined = df[subset].astype("string").fillna("").agg(separator.join, axis=1)
+  combined = combined.mask(df[subset].isna().all(axis=1), pd.NA)
+  df[output_column] = combined
+  ```
+- Returns a new `pd.DataFrame`. Columns are the originals in their original order, then `output_column` last.
+- The index is kept as is (no reset).
+- How values become strings (pandas `astype("string")`):
+  - `1` becomes `"1"`.
+  - `1.5` becomes `"1.5"`.
+  - A float column such as `[1.0, 2.0]` gives `"1.0"`.
+  - `True` becomes `"True"`.
+- Null handling:
+  - A null in a partly-null row becomes `""`, and the separator is kept.
+  - `{"a": ["x", None], "b": [None, "y"]}` with `separator="-"` gives `["x-", "-y"]`.
+- A row where every subset value is null gives `pd.NA` (check with `pd.isna`).
+- Empty strings are not null:
+  - `["", ""]` with `" "` gives `" "`, not NA.
+- Single-column subset: the output is just the stringified value.
+
+### ArFrame input
+- Calls `arnio._arnio_cpp.combine_columns(frame._frame, subset_columns, separator, output_column)`.
+- Wraps the result with `_wrap`, so the result is a new ArFrame and `_attrs` is a deep copy of the input's.
+- **The formatting, null handling and output dtype are in C++ and cannot be seen.** Do not assume they match pandas exactly.
+- Note this imports from `._arnio_cpp`, not `._core`.
+
+## 5. Side effects
+- pandas: works on a shallow copy, so the caller's DataFrame does not gain `output_column` and its values are unchanged.
+- ArFrame: a new frame is returned; the input is untouched.
+- No global state changes and no file I/O.
+
+## 6. Branches / edge cases
+- `subset=None`: all columns are joined.
+  - pandas `{"a": ["x"], "b": ["y"]}` gives `"x y"`.
+- `subset` given: only those columns are joined, in the given order.
+- `separator=""`: `{"a": ["x"], "b": ["y"]}` gives `"xy"`.
+- Non-default `output_column="full"`: a new last column named `"full"`.
+- Zero-column pandas frame `pd.DataFrame(index=[0])` with `subset=None` raises the `"subset must contain at least one column"` ValueError.
+- ArFrame vs pandas: the type check returns the same type as the input. Validation is shared; the combining logic differs.
+
+## 7. Rules from the docstring
+- `TypeError` if separator is not a str or frame has the wrong type.
+- `ValueError` if output_column is empty or already exists, or the subset is empty.
+- `KeyError` for missing subset columns.
+
+## 8. Testing hints
+- Pin exact values using the pandas path, e.g. `ar.combine_columns(pd.DataFrame(...), ...)`.
+- Read results with `result["combined"].tolist()`, or `pd.isna(result.loc[1, "combined"])` for NA.
+- Do not assert the output dtype. `agg(axis=1)` plus `mask` may give object or string dtype.
+- Avoid zero-row pandas frames: `agg(..., axis=1)` on an empty frame behaves unclearly.
+- Check that the input is not mutated: `assert "combined" not in df.columns` after the call.
+- For ArFrames:
+  - Build input with `ar.from_pandas(pd.DataFrame({...}))`.
+  - Test mainly the validation errors.
+  - Safe checks: `result.columns == [..., "combined"]` and `isinstance(result, ar.ArFrame)`.
+  - For values, at most use simple non-null string columns (e.g. `"x y"`), knowing this relies on the C++ code.
+- `KeyError`'s `str()` adds surrounding quotes, so match with `re.escape(...)` on a substring, or compare `exc.value.args[0]` exactly.
+- Messages that are easy to get wrong:
+  - `"Output column 'x' already exists."` ends with a period.
+  - `"subset must contain at least one column"` has no period.
+
+### arnio.cleaning.drop_columns_matching
+
+# Notes: `arnio.cleaning.drop_columns_matching(frame, pattern)`
+
+## 1. Purpose
+- Drops every column whose name contains a match for the regex `pattern`, using `re.search`. It returns the same kind of object it was given: an `ArFrame` for an `ArFrame`, a `pd.DataFrame` for a `pd.DataFrame`.
+
+## 2. Inputs
+- `frame`: an `ArFrame` or a `pd.DataFrame`, checked by `_validate_frame(frame, allow_pandas=True)`.
+  - Anything else raises `TypeError`.
+  - No `pd.DataFrame` subclass special-casing beyond `isinstance`.
+- `pattern`: must be a `str`. There is no default and no normalisation.
+  - It is compiled once with `re.compile` purely to validate it.
+  - Matching uses `re.search(pattern, str(col))`. This matches anywhere in the name, not anchored. It is case-sensitive because no flags are passed.
+  - Non-string pandas column labels are converted with `str(col)` before matching. Example: label `0` is matched as `"0"`.
+
+## 3. Raises (checks run in this order)
+1. `TypeError("frame must be an ArFrame or a pandas DataFrame")`
+   - Trigger: `drop_columns_matching([1, 2], "x")`.
+   - The frame is checked before the pattern, so `drop_columns_matching(None, 5)` gives this message too.
+2. `TypeError(f"pattern must be a string, got {type(pattern).__name__}")`
+   - The type name is **not** quoted, so the message is exactly `pattern must be a string, got int`.
+   - Trigger: `drop_columns_matching(frame, 5)`.
+   - `re.compile` objects and `None` are also rejected: `got Pattern` / `got NoneType`.
+3. `re.error(f"Invalid regex pattern: {pattern!r}")`, raised `from` the original `re.error`.
+   - Trigger: `drop_columns_matching(frame, "[")`.
+   - `str(exc)` is exactly `Invalid regex pattern: '['`.
+   - `exc.__cause__` is an `re.error`.
+4. Zero-column frame: this is an early return, not an error. It happens **before** the all-match check (see section 6).
+5. `ValueError("Pattern matches all columns. At least one column must remain.")`
+   - Trigger: frame with columns `["a", "b"]` and pattern `""` (empty matches everything), `"."` or `"a|b"`.
+
+## 4. Returns and guarantees
+- Result columns are the original columns minus the matched ones, in their **original relative order**.
+- Rows, row count and cell values are unchanged.
+- **`ArFrame` input:**
+  - The result is `from_pandas(to_pandas(frame).drop(columns=...))`, which is a new `ArFrame`.
+  - `_wrap` is not used, so `attrs` are **not** explicitly copied. Whether `from_pandas` keeps attrs depends on `convert.py` (not shown), so do not assert on attrs.
+  - Dtypes go through a pandas round-trip. For plain int64 / float64 / string columns, `result.dtypes` should equal the input's dtypes for the surviving columns.
+- **`pd.DataFrame` input:**
+  - The result is `df.drop(columns=cols_to_drop)`, a new DataFrame. It is a distinct object even when nothing matched.
+  - Index is preserved, with no reset.
+- No match at all is not an error. You get a new frame with all columns: an `ArFrame` with the same columns, or a DataFrame `equal` to the input but `is not` the input.
+
+## 5. Side effects
+- None. The input DataFrame or `ArFrame` is not mutated, because `df.drop` returns a copy.
+- No global state is touched and no files are written.
+
+## 6. Branches and edge cases
+- **Partial match.** `pd.DataFrame({"temp_a": [1, 2], "b": ["x", "y"], "temp_c": [1.5, 2.5]})` with `"^temp_"` gives columns `["b"]`.
+- **Substring vs anchor.**
+  - Columns `["my_temp", "temp_x", "keep"]` with `"temp"` gives `["keep"]`.
+  - The same columns with `"^temp"` gives `["my_temp", "keep"]`.
+- **Case-sensitive.** Columns `["TEMP_a", "temp_b", "c"]` with `"^temp"` gives `["TEMP_a", "c"]`.
+- **No match.** `"zzz"` returns all columns unchanged (new object).
+- **Zero columns.** If `len(df.columns) == 0`, the function returns the **input object itself**: `result is frame` for both `ArFrame` and DataFrame. This holds even for pattern `""`, so no ValueError is raised.
+  - Use `pd.DataFrame(index=range(3))` to build this case.
+  - Whether `ar.from_pandas` accepts a zero-column frame depends on the C++ core, so prefer the pandas path for this test.
+- **Zero rows, some columns.** Behaves normally: the matched columns are dropped and the result has 0 rows.
+- **Non-string labels (pandas).** `pd.DataFrame({0: [1], 1: [2], "x": [3]})` with `"^\d$"` gives columns `["x"]`.
+- **All match.** Raises the ValueError from item 5 of section 3. Examples: a single-column frame `{"a": [1]}` with `"a"`, or any frame with `""`.
+
+## 7. Rules from the docstring
+- `pattern` is a regex matched against column names.
+- A non-str `pattern` raises TypeError, an invalid regex raises `re.error`, and matching all columns raises ValueError.
+- The return type matches the input type.
+
+## 8. Testing hints
+- Build inputs with `fr = ar.from_pandas(pd.DataFrame({...}))`.
+- Observe results through:
+  - `res.columns` (a list),
+  - `res.shape`,
+  - `ar.to_pandas(res)` together with `pd.testing.assert_frame_equal` against `df[["b"]]`, plus `check_dtype` where the dtypes are simple.
+- Assert `isinstance(res, ar.ArFrame)` for `ArFrame` input and `isinstance(res, pd.DataFrame)` for DataFrame input.
+- Check order: drop the middle column of `["a", "mid", "z"]` with `"^mid$"` and assert `["a", "z"]` exactly.
+- Matching exception messages with `pytest.raises(..., match=...)`:
+  - Wrap them in `re.escape`, because they contain `(`, `.` and `'`. Example: `match=re.escape("Invalid regex pattern: '['")`.
+  - For the type error, `match="pattern must be a string, got int"` works; the type name is not quoted.
+- Non-mutation check for the pandas path: keep `df_copy = df.copy()`, call the function, then `assert_frame_equal(df, df_copy)` and `list(df.columns)` unchanged.
+- Pitfalls:
+  - `""` and `"."` match every non-empty name, so they raise on non-empty frames.
+  - Do not assert that `attrs` survive.
+  - Do not assert `result is frame` except in the zero-column case.
+  - For pandas input the index is **not** reset. After dropping columns the index is the same as the input's anyway.
+
+### arnio.cleaning.drop_constant_columns
+
+# Notes: `arnio.cleaning.drop_constant_columns(frame)`
+
+## 1. Purpose
+- Removes every column that has exactly one distinct value.
+- Nulls count as a value (`nunique(dropna=False) == 1`).
+- Accepts an `ArFrame` or a `pd.DataFrame` and returns the same kind of object.
+
+## 2. Inputs
+- `frame`: an `ArFrame` or a `pandas.DataFrame`. There are no other parameters.
+- Validation is done by `_validate_frame(frame, allow_pandas=True)`:
+  - `ArFrame` → ArFrame path.
+  - `pd.DataFrame` → pandas path.
+  - Anything else → `TypeError`.
+- An `ArFrame` is converted with `ar.to_pandas(frame)`. A pandas input is used directly; it is not mutated, because `drop` and `copy` return new objects.
+
+## 3. Raises
+- `TypeError("frame must be an ArFrame or a pandas DataFrame")` for any other type.
+  - Examples: `ar.drop_constant_columns({"a": [1]})`, `ar.drop_constant_columns(None)`, a list, a `pd.Series`.
+- This is the only explicit raise. Pandas `nunique` may raise for unhashable cell values (e.g. lists in an object column). Do not test that.
+
+## 4. Returns and guarantees
+- **Return type:** an `ArFrame` for `ArFrame` input, a `pd.DataFrame` for DataFrame input. It is always a new object, never the input itself (`result is not frame`).
+- **Column order:** the remaining columns keep their original relative order (`df.drop(columns=...)`).
+- **Which columns are dropped:** `nunique_counts[nunique_counts == 1]`.
+  - Columns with ≥2 distinct values (null counted as one distinct value) are kept.
+- **Null handling:**
+  - `[None, None]` / `[nan, nan]` → 1 unique → dropped.
+  - `[1, 1, None]` → 2 unique (1 and NaN) → kept.
+- **Rows:** never changed. Values and dtypes of the kept columns are unchanged in the pandas path.
+- **Pandas path:** the index is preserved as-is (no `reset_index`).
+- **attrs (ArFrame):**
+  - Zero-row path: explicitly sets `result._attrs = copy.deepcopy(frame._attrs)`, when not None.
+  - Non-empty path: returns `from_pandas(result_df)` with no explicit attrs copy. Whether attrs survive depends on `to_pandas`/`from_pandas` in `arnio.convert`, which is not visible here. Do not assert attrs in the non-empty path.
+
+## 5. Side effects
+- None. The input `ArFrame` or DataFrame is unchanged (columns and values identical afterwards).
+- No global state is touched and no I/O is performed.
+
+## 6. Branches and edge cases
+- **Zero rows** (`len(df.index) == 0`): returns a deep copy with **all columns kept**, even though they have 0 unique values.
+  - `pd.DataFrame({"a": [], "b": []})` → result has columns `["a", "b"]` and 0 rows, and is not the same object.
+  - ArFrame: `from_pandas(copy)`, with attrs deep-copied (so mutating `result._attrs` does not affect `frame._attrs`).
+- **Mixed columns:** `pd.DataFrame({"a": [1, 1, 1], "b": [1, 2, 3], "c": ["x", "x", "x"]})` → columns `["b"]`.
+- **Nothing constant:** `{"a": [1, 2], "b": ["x", "y"]}` → both columns kept, values equal to the input.
+- **Single row:** every column has nunique 1, so **all** columns are dropped.
+  - Pandas: result has `columns == []` and `len(result) == 1` (row count preserved, per the docstring).
+- **Every column constant:** `{"a": [5, 5], "b": ["z", "z"]}` → pandas result has 0 columns and `len == 2`.
+  - The ArFrame row count for a 0-column result depends on `from_pandas` (not visible). Assert only `result.columns == []`.
+- **Null-related columns:**
+  - All-null column `{"a": [None, None, None], "b": [1, 2, 3]}` → `["b"]`.
+  - Partly null `{"a": [1.0, 1.0, None], "b": [1, 2, 3]}` → both kept (`["a", "b"]`).
+- **Bool column** `[True, True]` → dropped. `[True, False]` → kept.
+
+## 7. Rules from the docstring
+- "Nulls are counted as values"; `[None, None]` is dropped and `[1, 1, None]` is kept.
+- "Empty columns in zero-row frames are also kept, since they have zero unique values rather than one."
+- "If every column is dropped, the resulting zero-column frame preserves the original row count."
+
+## 8. Testing hints
+- **Build inputs:** `ar.from_pandas(pd.DataFrame({...}))`.
+- **Observe results:**
+  - `result.columns` (list of str, ordered), `result.shape`, and `ar.to_pandas(result)[col].tolist()`.
+  - Check the return type with `isinstance(result, ar.ArFrame)` / `isinstance(result, pd.DataFrame)`.
+- **Use the pandas-input path for exact assertions** (row count with 0 columns, index, dtypes). `pd.testing.assert_frame_equal(result, df[["b"]])` works for the pandas path.
+- **Test the threshold exactly.** Best regression catchers:
+  - A 2-value column is kept.
+  - The null-vs-value distinction: `[1, 1, None]` kept, `[None, None]` dropped. This catches a `dropna=True` change.
+  - The zero-row branch keeps columns.
+  - Column order is preserved, e.g. `{"x": [1, 2], "c": [0, 0], "y": [3, 4]}` → `["x", "y"]`.
+  - The input is not mutated: check `df.columns.tolist()` after the call.
+- **Pitfalls:**
+  - Don't mix `None` and `NaN` in one column, or mix `1` and `"1"`. Pandas/arnio coercion makes the unique count uncertain.
+  - Don't assert attrs or the ArFrame row count for the all-dropped, non-empty case.
+  - For zero-row ArFrames, build them via `ar.from_pandas(pd.DataFrame({"a": pd.Series([], dtype="int64")}))`. Assert only the columns and `shape[0] == 0`.
+  - To set attrs, assign `frame._attrs = {"k": [1]}` (a private attribute). Use it only in the zero-row test.
+
+### arnio.cleaning.drop_nulls
+
+# Notes: `arnio.cleaning.drop_nulls(frame, *, subset=None)`
+
+## 1. Purpose
+- Removes every row that has a null in any checked column. With `subset=None` it checks all columns; otherwise it checks only the `subset` columns.
+- The row filtering itself is done by the C++ core (`_drop_nulls`). Python only validates the arguments and wraps the result.
+
+## 2. Inputs
+- `frame`: must be an `ArFrame`.
+  - It is checked by `_validate_arframe`, which lives in `arnio.frame` and is not shown here.
+  - A non-ArFrame (for example a `pd.DataFrame`) presumably raises `TypeError`, but the exact message is not visible.
+- `subset` (keyword-only), default `None`:
+  - `None` means all columns are checked. It is passed to C++ as `subset=None`.
+  - Otherwise it is normalised by `_validate_column_sequence(subset, argument_name="subset")`:
+    - `str` or `bytes` is rejected.
+    - The value must be a `collections.abc.Sequence` (list, tuple) or a `pd.Index`.
+    - A `set`, `dict` or generator is rejected.
+    - All items must be `str`.
+    - It is converted with `list(subset)`.
+  - Duplicate names in `subset` are **not** rejected.
+  - Column-name matching is exact and case-sensitive. It uses `in frame.columns`.
+
+## 3. Raises (checks happen in this order)
+1. Frame check (non-ArFrame): exception type and message come from `arnio.frame`, so they are unverified. Use only `pytest.raises(TypeError)` if you test this at all.
+2. `subset` is a string or bytes:
+   - Raises `TypeError("subset must be a sequence of column names, not a string")`.
+   - Trigger: `ar.drop_nulls(f, subset="a")`.
+3. `subset` is not a Sequence or Index:
+   - Raises `TypeError("subset must be a sequence of column names")`.
+   - Trigger: `subset={"a"}`.
+4. `subset` contains a non-str item:
+   - Raises `TypeError("subset must contain only string column names")`.
+   - Trigger: `subset=["a", 1]`.
+   - This check runs before the missing-column check, so `subset=[1]` gives this TypeError, not a KeyError.
+5. Empty `subset`:
+   - Raises `ValueError("drop_nulls: subset cannot be empty; pass subset=None to check all columns")`.
+   - Trigger: `subset=[]` or `subset=()`.
+6. A column in `subset` does not exist:
+   - Raises `KeyError(f"Missing columns for drop_nulls: {missing}. Available columns: {available}")`.
+   - `missing` is a Python list repr of the missing names, in the order they appear in `subset`. Example: `['zz']`.
+   - `available` is `", ".join(frame.columns)`, or `"<none>"` if the frame has no columns.
+   - Example: for a frame with columns `a,b`, `subset=["zz"]` gives the message `Missing columns for drop_nulls: ['zz']. Available columns: a, b`.
+   - Because `str(KeyError)` adds quotes, assert on `exc.value.args[0] == ...`, or use `match=re.escape("Missing columns for drop_nulls: ['zz']")`.
+7. Errors raised inside the C++ `_drop_nulls` are unknown and not visible.
+
+## 4. Returns and guarantees
+- Always returns a **new** `ArFrame` built by `_wrap(result, frame)`. It is never the input object itself: `result is not frame`.
+- Metadata: `result._attrs` is `copy.deepcopy(frame._attrs)`.
+  - It is equal to the original but is not the same object. Nested objects are also not shared.
+- Rows: kept rows are presumably in their original relative order. This is C++ behaviour, but it is the expected semantics.
+- Columns and dtypes: the C++ layer is expected to keep the column set, column order and dtypes unchanged. This is not verifiable from the Python code. Asserting that `columns` is unchanged is reasonable.
+- "null/empty": the docstring says empty values also count. Whether `""` counts as null is decided in C++ (and by how `from_pandas` stores `""`), so it is unverified. **Do not write tests that depend on `""` being dropped or being kept.**
+
+## 5. Side effects
+- No module or global state is touched and no files are written.
+- The input frame should be unchanged. A test asserting that `frame.shape` and `to_pandas(frame)` are the same before and after the call is safe.
+
+## 6. Branches and edge cases
+- **`subset=None`.** Any null in any column drops the row.
+  - Frame: `{"a": [1.0, None, 3.0], "b": ["x", "y", None]}`.
+  - Result: 1 row, `a=1.0`, `b="x"`.
+- **`subset=["a"]` on the same frame.** Only nulls in `a` count.
+  - Rows 0 and 2 are kept: `a=[1.0, 3.0]`, `b=["x", None]`.
+  - The null in `b` survives.
+- **`subset=["b"]`.** Rows 0 and 1 are kept: `a=[1.0, nan]`, `b=["x", "y"]`.
+- **Tuple subset** `("a",)`: gives the same result as `["a"]`.
+- **Duplicate names** such as `["a", "a"]`: accepted; the result is presumably the same as `["a"]`.
+- **No nulls at all:** the result has the same shape and values as the input, but it is a new object.
+- **All rows contain a null:** the result has 0 rows and the same columns.
+- **Zero-row input:** it goes straight to C++, and the result presumably has 0 rows with the same columns.
+
+## 7. Rules from docstring and comments
+- "A row is dropped if ANY column in the subset contains a null."
+- `subset=None` means check all columns.
+- An empty subset is an explicit error. Do not treat it as "check all columns".
+
+## 8. Testing hints
+- **Building a frame:**
+  ```python
+  f = ar.from_pandas(pd.DataFrame({"a": [1.0, None, 3.0], "b": ["x", "y", None]}))
+  ```
+  - Use `float` columns with `None`/NaN and object columns with `None` to create nulls.
+  - Avoid nullable int columns and `""`, because how they map to nulls depends on `from_pandas` and the C++ core.
+- **Observing the result:**
+  - `r.shape`, `r.columns`, `r.to_dict()` (orient `"list"`), or `ar.to_pandas(r)`.
+  - When comparing a pandas result, call `.reset_index(drop=True)` on it and check values with `pd.isna(...)` rather than `== None`.
+  - A float `a` comes back as `1.0`, not `1`.
+- **Checking attrs:**
+  ```python
+  f._attrs = {"src": {"k": [1]}}
+  r = ar.drop_nulls(f)
+  assert r._attrs == f._attrs and r._attrs is not f._attrs and r._attrs["src"] is not f._attrs["src"]
+  ```
+- **Precise assertions:**
+  - The subset path is easy to pin down: `subset=["a"]` must keep the row that is null only in `b`. A regression that ignores `subset` would drop it.
+  - Also check `subset=[]` → ValueError and `subset="a"` → TypeError, each with its exact message.
+- **Pitfall:** a set subset raises TypeError (item 3 above); do not expect it to work.
+
+### arnio.cleaning.filter_rows
+
+# Notes: `arnio.cleaning.filter_rows(frame, column, op, value)`
+
+## 1. Purpose
+- Keeps only the rows where `frame[column] <op> value` is True, using a pandas comparison method.
+- The result has the same type as the input: an `ArFrame` gives an `ArFrame`, a `pd.DataFrame` gives a `pd.DataFrame`.
+
+## 2. Inputs
+- **`frame`**: an `ArFrame` or a `pd.DataFrame`.
+  - It is checked with `_validate_frame(frame, allow_pandas=True)`.
+  - An `ArFrame` is converted with `to_pandas(frame)`.
+  - A DataFrame is used directly and is not copied up front.
+- **`column`**: must be a `str` that is not empty after `.strip()`.
+  - It must exist in the pandas columns.
+  - It is not stripped before the lookup, so `" a"` is not the same as `"a"`.
+- **`op`**: must be a `str` and an exact key of this table (no stripping):
+  ```
+  ">"  -> gt
+  "<"  -> lt
+  ">=" -> ge
+  "<=" -> le
+  "==" -> eq
+  "!=" -> ne
+  ```
+- **`value`**: anything where `pandas.api.types.is_scalar(value)` is True.
+  - Accepted: int, float, str, bool, `None`, `np.int64`, `pd.Timestamp`.
+  - Rejected: list, tuple, set, dict, ndarray.
+
+## 3. Raises (in this exact order)
+1. `TypeError("frame must be an ArFrame or a pandas DataFrame")`
+   - Trigger: `filter_rows({"a": [1]}, "a", ">", 1)`
+2. `TypeError(f"filter_rows: column must be a non-empty string, got {type(column).__name__!r}")`
+   - `column=5` gives "...got 'int'".
+   - `column=""` or `"   "` gives "...got 'str'".
+3. `TypeError(f"filter_rows: op must be a string, got {type(op).__name__!r}")`
+   - `op=None` gives "...got 'NoneType'".
+4. `ValueError(f"Unsupported operator: {op}")`
+   - `op="="` gives `"Unsupported operator: ="`.
+   - `"=>"`, `" >"` and `"eq"` also raise this.
+5. `ValueError(f"Unknown column: {column}")`
+   - `column="zzz"` gives `"Unknown column: zzz"`.
+6. `TypeError("filter_rows value must be a scalar")`
+   - Trigger: `value=[1, 2]`.
+7. Any `TypeError` raised by the pandas comparison is re-raised as:
+   - `TypeError(f"filter_rows: cannot compare column {column!r} with value {value!r} using operator {op!r}: {exc}")`, with `__cause__` set to the original error.
+   - Reliable trigger (pandas input, object column):
+     ```python
+     filter_rows(pd.DataFrame({"s": ["a", "b"]}), "s", ">", 1)
+     ```
+     The message starts with `"filter_rows: cannot compare column 's' with value 1 using operator '>': "`.
+   - `"=="` and `"!="` between str and int do not raise; they just give all False / all True.
+
+Ordering pitfalls:
+- `op` is validated before `column`: `filter_rows(f, "missing", "=", 1)` raises "Unsupported operator: =".
+- `column` is validated before `value`: `filter_rows(f, "missing", ">", [1])` raises "Unknown column: missing".
+
+## 4. Returns and guarantees
+- The mask is `getattr(series, op_name)(value).fillna(False).astype(bool)`.
+  - Null comparison results (`pd.NA` from nullable dtypes) count as False and are dropped.
+- **DataFrame input**:
+  - Returns `df[mask]`, a new DataFrame.
+  - The index is **not reset**; the original labels are kept, e.g. `[1, 2]`.
+  - Columns and dtypes are unchanged.
+- **ArFrame input**:
+  - Returns `from_pandas(df[mask].reset_index(drop=True))`, a new `ArFrame`.
+  - Columns keep their original order and row order is preserved.
+  - `_attrs` are **not** deep-copied from the source; there is no `_wrap` call, unlike most other functions.
+- Dtypes of the ArFrame result depend on `from_pandas` inference (in `convert`, not shown here).
+- No rows matching gives 0 rows with the same columns.
+
+## 5. Side effects
+- The input frame or DataFrame is never mutated.
+- No global state is touched and no files are written.
+
+## 6. Branches and edge cases
+Base frame for the examples: `pdf = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})`.
+
+| Call | Result |
+|---|---|
+| `filter_rows(pdf, "a", ">", 1)` | rows `a=[2, 3]`, index `[1, 2]` |
+| `filter_rows(ar.from_pandas(pdf), "a", ">", 1)` | `ArFrame`, `a=[2, 3]`, `b=["y", "z"]`, shape `(2, 2)` |
+| `">="` 2 | `[2, 3]` |
+| `"<"` 2 | `[1]` |
+| `"<="` 2 | `[1, 2]` |
+| `"=="` 2 | `[2]` |
+| `"!="` 2 | `[1, 3]` |
+| string column: `"b", "==", "y"` | 1 row |
+| string column: `"b", ">=", "y"` | rows `y`, `z` (lexicographic) |
+| no match: `"a", ">", 100` | 0 rows, columns `["a", "b"]` |
+
+Float NaN with `"!="`:
+- With pandas input `pd.DataFrame({"f": [1.0, float("nan"), 3.0]})`, `"!="` with `1.0` **keeps** the NaN row (index `[1, 2]`), because `NaN != 1.0` is True in numpy.
+- `">"` with `0` drops the NaN row.
+
+`value=None` or NaN:
+- This follows pandas semantics: `"!="` keeps all rows and the other ops keep none.
+- That behaviour is pandas' own, not arnio's; avoid relying on it heavily.
+
+## 7. Rules from the docstring
+- The output type matches the input type.
+- Only the six listed operators are supported.
+- `value` must be a scalar.
+
+## 8. Testing hints
+Build inputs and read results like this:
+```python
+fr = ar.from_pandas(pdf)
+res = ar.filter_rows(fr, "a", ">", 1)
+out = ar.to_pandas(res)
+assert out["a"].tolist() == [2, 3]
+assert res.columns == ["a", "b"]
+```
+
+What to assert on:
+- **ArFrame result**: assert that the index is `RangeIndex` 0..n-1, e.g. `list(out.index) == [0, 1]`.
+- **pandas result**: assert the original labels, e.g. `list(res.index) == [1, 2]`. This difference between the two paths is a key behaviour to pin.
+- **Immutability**: assert `pdf` is unchanged afterwards (`pdf.equals(original_copy)`).
+- **Error messages**: use `pytest.raises(..., match=re.escape(msg))`.
+  - Operators like `>` and `?` are fine in regex, but strings containing `(`, `[` or `.` need escaping.
+- **Comparison-wrap error**: use a **pandas** DataFrame with an object-dtype string column. The dtype that `to_pandas` gives ArFrame string columns is not visible here.
+
+Pitfalls:
+- Avoid asserting exact dtypes on zero-row ArFrame results, since `from_pandas` inference is not visible here.
+- Do not assume attrs survive on the ArFrame path.
+- Do not rely on how nulls in an ArFrame int column look after `to_pandas` (NaN vs `pd.NA`). The `"!="` + null behaviour differs between them, so test null handling only with pandas float64 input.
+
+### arnio.cleaning.keep_rows_with_nulls
+
+# Notes: `arnio.cleaning.keep_rows_with_nulls(frame, *, subset=None)`
+
+## 1. Purpose
+- Returns only the rows that have at least one null value. With `subset`, only those columns are checked.
+- It is the complement of `drop_nulls`, but it is implemented entirely in pandas.
+- It accepts an `ArFrame` or a `pd.DataFrame` and returns the same type it was given.
+
+## 2. Inputs
+- **`frame`**: an `ArFrame` or a `pd.DataFrame`. Anything else raises `TypeError`.
+  - An `ArFrame` is converted with `to_pandas(frame)`.
+  - A DataFrame is used as-is and is not copied up front.
+- **`subset`** (keyword-only, default `None`):
+  - `None` means every column is checked: `cols = df.columns.tolist()`.
+  - Otherwise it must be a non-string `collections.abc.Sequence` (list or tuple) or a `pd.Index`.
+  - Every item must be a `str` and must exist in `df.columns`.
+  - Duplicate names are allowed (they are not rejected).
+  - The order of names in `subset` has no effect on the result.
+
+## 3. Raises (checks run in this order)
+1. Bad frame type: `TypeError("frame must be an ArFrame or a pandas DataFrame")`.
+   - Trigger: `keep_rows_with_nulls({"a": [1]})`.
+2. `subset` is a `str`: `TypeError(f"keep_rows_with_nulls: 'subset' must be a list of column names, not a string. Did you mean subset=['{subset}']?")`.
+   - Trigger: `subset="a"` gives `...Did you mean subset=['a']?`.
+3. `subset` is `bytes`: `TypeError("subset must be a sequence of column names, not a string")`.
+   - Trigger: `subset=b"a"`.
+4. `subset` is not a Sequence or Index: `TypeError("subset must be a sequence of column names")`.
+   - Trigger: `subset={"a"}` (a set) or `subset=5`.
+5. `subset` contains a non-`str` item: `TypeError("subset must contain only string column names")`.
+   - Trigger: `subset=["a", 1]`.
+6. `subset` is empty: `ValueError("keep_rows_with_nulls: subset cannot be empty; pass subset=None to check all columns")`.
+   - Trigger: `subset=[]` or `subset=()`.
+7. Unknown column: `KeyError(f"Missing columns for keep_rows_with_nulls: {missing}. Available columns: {available}")`.
+   - `missing` is the Python list repr of the missing names, in `subset` order.
+   - `available` is `", ".join(columns)`, or `"<none>"` if the frame has no columns.
+   - Example message: `Missing columns for keep_rows_with_nulls: ['z']. Available columns: a, b`.
+   - Because it is a `KeyError`, `str(exc)` wraps the message in extra quotes. Match with `re.escape(...)` on a fragment.
+- Note on ordering: the frame-type check runs before any check on `subset`.
+
+## 4. Returns and guarantees
+- **Return type**:
+  - `ArFrame` input gives an `ArFrame` (`from_pandas(result)`).
+  - `DataFrame` input gives a `pd.DataFrame`.
+- **Null test**: `df[cols].isnull().any(axis=1)`. Only pandas nulls count: `None`, `NaN`, `pd.NA`, `NaT`.
+  - Empty strings `""` and whitespace-only strings are **not** treated as null, even though the docstring says "null/empty".
+- **Columns**: all columns are kept, in their original order, not just the `subset` columns.
+- **Rows**:
+  - Rows that match keep their original relative order.
+  - The index is always reset to `0..n-1` via `reset_index(drop=True)`. This applies to pandas input too: if the input index is `[10, 20, 30]`, the output index is a `RangeIndex`.
+- **Values**: unchanged, and nulls stay null.
+- **Result object**: always a new object, never the input itself.
+- **`ArFrame` attrs**: not explicitly copied. The function does not use `_wrap`. Whether attrs survive depends on `to_pandas`/`from_pandas` in `convert.py`, which is not shown here, so do not assert on attrs.
+
+## 5. Side effects
+- The input frame or DataFrame is not mutated, because boolean indexing creates a new frame.
+- There is no global state, registry change, or file I/O.
+
+## 6. Branches and edge cases
+- **`subset=None`**: checks all columns.
+  - Example: `{"a": [1.0, None, 3.0], "b": ["x", "y", None]}` keeps original rows 1 and 2 → a=[NaN, 3.0], b=["y", None].
+- **With `subset`**: on the same data, `subset=["a"]` keeps only original row 1. `subset=["b"]` keeps only original row 2.
+- **No nulls anywhere**: result has 0 rows and the same columns, e.g. `shape == (0, 2)`.
+- **Every row has a null**: all rows are returned, in their original order.
+- **Zero-row input**: returns zero rows with the same columns.
+- **Zero-column pandas frame** (`pd.DataFrame(index=range(3))`):
+  - `cols = []`, so `any(axis=1)` is all False.
+  - The result is an empty frame with 0 rows.
+- **Duplicate names in `subset`**: `subset=["a", "a"]` gives the same rows as `["a"]`.
+- **Tuple or Index subset**: `subset=("a",)` and `subset=pd.Index(["a"])` both work.
+
+## 7. Rules from the docstring
+- A row is kept if **any** column in `subset` is null.
+- A string `subset` raises `TypeError`, and a missing column raises `KeyError`. Both match the code.
+
+## 8. Testing hints
+- **Building input**:
+  ```python
+  df = pd.DataFrame({"a": [1.0, None, 3.0], "b": ["x", "y", None]})
+  fr = ar.from_pandas(df)
+  out = ar.keep_rows_with_nulls(fr)
+  ```
+- **Inspecting an `ArFrame` result**: use `ar.to_pandas(out)`, `out.shape`, and `out.columns`.
+- **Comparing nulls**: compare with `pd.isna(...)`, not with `== None`.
+  - After the ArFrame round trip, a null string may come back as `None` or `NaN`.
+  - Int columns that contain nulls are float in pandas.
+- **Testing the pandas path**:
+  - Assert that `type(result) is pd.DataFrame`.
+  - Assert `list(result.index) == list(range(len(result)))` when the input index was non-default.
+  - Assert the original `df` is unchanged afterwards (`df.equals(copy)`).
+- **Exact null criterion**: test it on the **pandas path**. A row whose only "missing" value is `""` must NOT be kept.
+  - Avoid `""` on the ArFrame path: how the C++ conversion stores empty strings is not visible here.
+- **Empty results**: assert `shape[0] == 0` and the column list. Do not assert dtypes of empty ArFrame results, since inference is done by C++/convert code that is not shown.
+- **Error messages**: use `pytest.raises(..., match=re.escape("Missing columns for keep_rows_with_nulls: ['z']"))`.
+  - Escape the brackets, and quotes too where they appear.
+- **Not observable**: attrs propagation, and internal dtypes after `from_pandas`.
+
+### arnio.cleaning.replace_values
+
+# Notes: `arnio.cleaning.replace_values(frame, mapping, column=None)`
+
+## 1. Purpose
+- Replaces exact cell values using a `{old: new}` dict, either in one column or in every column.
+- Null-like keys (`None`, `NaN`, `pd.NA`, `pd.NaT`) fill pre-existing nulls.
+- The result has the same kind as the input: ArFrame in gives ArFrame out; `pd.DataFrame` in gives `pd.DataFrame` out.
+
+## 2. Inputs
+- `frame`: an `ArFrame` or a `pd.DataFrame`.
+  - ArFrame input is converted with `to_pandas(frame)`.
+  - DataFrame input is copied with `frame.copy(deep=False)`.
+- `mapping`: any `collections.abc.Mapping`, converted with `dict(mapping)`. It must not be empty.
+  - Each key is classified in insertion order:
+    - **Null-like key**: `k is None`, or a scalar `k` where `pd.isna(k)` is true. Then `null_key_present = True` and `null_replacement = v`. If there are several null keys, the last one wins.
+    - **Scalar key** (`pandas.api.types.is_scalar`, not tuple/list/ndarray/Series/Index): goes into the normal replace dict.
+    - **Anything else** (for example a tuple `(1, 2)` or a `frozenset`): raises `TypeError` (see Raises).
+- `column`: `None` (the default) means the mapping applies to all columns. Otherwise it must be a non-blank `str` that exists in the frame's columns.
+
+## 3. Raises (in check order)
+1. Frame of the wrong type: `TypeError("frame must be an ArFrame or a pandas DataFrame")`.
+   - Example: `replace_values([1], {1: 2})`
+2. Mapping that is not a Mapping: `TypeError(f"mapping must be a dict-like mapping of {{old_value: new_value}}, not {type(mapping).__name__}.")`.
+   - Example: `replace_values(df, [("a", "b")])` gives `"... not list."`
+3. Empty mapping: `ValueError("mapping must not be empty")`.
+   - Example: `replace_values(df, {})`
+4. Column that is not a string, or is blank: `TypeError("column must be a non-empty string when provided")`.
+   - Examples: `column=5`, `column=""`, `column="  "`
+5. Column not in the frame: `KeyError(f"Column '{column}' not found. Available columns: {available}")`.
+   - `available` is `", ".join(map(str, df.columns))`, or `"<none>"` if there are no columns.
+   - Example: columns `a`, `b` with `column="z"` gives `Column 'z' not found. Available columns: a, b`.
+   - `str(KeyError)` adds quotes around the message, so `pytest.raises(KeyError, match="Column 'z' not found")` still works.
+6. Non-scalar key: `TypeError(f"replace_values() does not support non-scalar mapping keys. Got key {k!r} of type '{type(k).__name__}'. Only scalar values (str, int, float, bool) and null-like keys (None, float('nan'), pd.NA, pd.NaT) are supported.")`.
+   - Example: `{(1, 2): "x"}` gives `Got key (1, 2) of type 'tuple'`.
+   - This check runs only after checks 1–5 pass. With a bad column and a tuple key, the column error is raised.
+
+## 4. Returns and guarantees
+- **Column path** (`column` given):
+  - `s = df[column]` and `mask = s.isna()` (computed before any replacement).
+  - Then `s.replace(normalized_mapping)`, if the dict is non-empty.
+  - Then `s.where(~mask, null_replacement)`, if a null key is present.
+  - The result is written back to `df[column]`. Other columns are untouched.
+- **Whole-frame path**: the same steps, using `df.isna()`, `df.replace(...)` and `df.where(...)` over all columns.
+- Matching is exact, whole-value matching (pandas `replace` with `regex=False`). There is no substring replacement: `{"a": "b"}` leaves `"abc"` unchanged.
+- Nulls produced by the mapping stay null; only nulls that were null originally are filled. Example: `["a", None]` with `{"a": None, None: "z"}` gives `[None/NaN, "z"]`.
+- Column order and row count are unchanged.
+- **ArFrame input**: the result comes from `from_pandas(df)`, so it is a new ArFrame. It does not copy `frame._attrs` (unlike `_wrap`).
+- **DataFrame input**: the result is a new DataFrame (`result is not df`).
+- Output dtypes come from pandas `replace` and `where`. The ArFrame↔pandas dtype mapping lives in `arnio.convert`, which is not shown here.
+
+## 5. Side effects
+- The input is never mutated. The pandas path works on a shallow copy and assigns new columns or frames. ArFrame inputs are only read.
+- There is no global state and no file I/O.
+
+## 6. Branches and edge cases
+- Column given, only scalar keys: `df = pd.DataFrame({"a": ["x", "y"], "b": ["x", "q"]})` with `{"x": "X"}` and `column="a"` gives `a == ["X", "y"]` and `b == ["x", "q"]`.
+- No column: the same input with `{"x": "X"}` gives `a == ["X", "y"]` and `b == ["X", "q"]`.
+- Only a null key in the column path: `{"a": ["x", None]}` with `{None: "missing"}` and `column="a"` gives `["x", "missing"]`.
+- Null key in the whole-frame path fills nulls in every column. Example: `pd.DataFrame({"s": ["x", None], "n": [1.0, np.nan]})` with `{np.nan: 0}` gives `s == ["x", 0]` and `n == [1.0, 0.0]`. Prefer type-compatible fills.
+- Keys that are never present: values are unchanged and there is no error.
+- `pd.NA`, `float("nan")` and `pd.NaT` keys all behave like `None`.
+- A mapping value that is itself a null creates real nulls. Example: `{"x": None}` with `column="a"` on `["x", "y"]` makes `pd.isna(result["a"][0])` true.
+
+## 7. Rules from comments and docstring
+- "Avoid mutating the caller's DataFrame in the direct pandas API path."
+- The null-key path is kept separate "because NaN != NaN". Only values that were already null before replacement are filled, "so null-valued mapping results remain real nulls".
+- Tuple/list/ndarray/Series/Index keys are rejected up front so that pandas does not raise confusing errors.
+
+## 8. Testing hints
+- To build inputs: `fr = ar.from_pandas(pd.DataFrame({...}))`.
+- To observe results: `out = ar.to_pandas(ar.replace_values(fr, {...}, column="a"))` and compare `out["a"].tolist()`. Check nulls with `pd.isna(x)`, never with `== None` or `== np.nan`.
+- Also test the pandas-in path:
+  - `isinstance(res, pd.DataFrame)`
+  - `res is not df`
+  - `df` is unchanged afterwards (`pd.testing.assert_frame_equal` against a saved `.copy()`).
+- Good regression targets:
+  - Nulls created by the mapping are not overwritten by the null key.
+  - `column=` limits changes to that column.
+  - The exact error messages and the order of the checks.
+  - The ArFrame type is preserved.
+- Pitfalls to avoid:
+  - Do not assert exact dtypes; ArFrame conversion is defined elsewhere.
+  - Avoid mixing types inside one column (for example replacing a string with an int in a string column); how `from_pandas` handles that is not visible here.
+  - Avoid `True`/`1`/`1.0` keys: they are the same dict key, and pandas may match bools to ints.
+  - Avoid chained mappings like `{"a": "b", "b": "c"}`; the result depends on pandas.
+  - Do not test `_attrs` preservation; attrs are not copied.
+  - Hand-written integer columns with NaN become float in pandas, so `[1, None]` gives `[1.0, nan]`.
+
+### arnio.cleaning.safe_divide_columns
+
+# Notes: `arnio.cleaning.safe_divide_columns(frame, numerator, denominator, output_column, fill_value=0.0)`
+
+## 1. Purpose
+- Adds a new column `output_column` equal to `frame[numerator] / frame[denominator]`.
+- Where the denominator is zero or null, the value is `fill_value` instead of NaN/inf.
+- Accepts an ArFrame or a pandas DataFrame. The output type matches the input type.
+
+## 2. Inputs
+- `frame`: `ArFrame` or `pd.DataFrame`. Anything else raises TypeError.
+- `numerator`, `denominator`: `str` column names, and both must exist. They may be the same column.
+- `output_column`: a non-empty, non-whitespace `str` that must NOT already exist. A non-str value such as `5` raises **ValueError**, not TypeError.
+- `fill_value`: `int` or `float`, and must be finite. `bool` is rejected.
+  - `np.float64` is accepted because it subclasses float.
+  - `np.int64` is rejected.
+
+## 3. Raises (checks run in exactly this order)
+1. `TypeError("frame must be an ArFrame or a pandas DataFrame")`, e.g. `safe_divide_columns({"a":[1]}, "a", "a", "r")`.
+2. `TypeError("numerator must be a string column name")`, e.g. `numerator=1`.
+3. `TypeError("denominator must be a string column name")`.
+4. `ValueError(f"Numerator column '{numerator}' not found in frame.")`, e.g. `numerator="x"`.
+5. `ValueError(f"Denominator column '{denominator}' not found in frame.")`.
+6. `ValueError("output_column must be a non-empty string.")`. Note the trailing period. Triggered by `""`, `"  "` or `5`.
+7. `TypeError("fill_value must be a finite float, not bool")`, e.g. `fill_value=True`.
+8. `TypeError(f"fill_value must be a finite float, got {type(fill_value).__name__!r}")`:
+   - `fill_value="0"` gives `got 'str'`.
+   - `fill_value=None` gives `got 'NoneType'`.
+9. `ValueError(f"fill_value must be finite, got {fill_value}")`:
+   - `float("nan")` gives `got nan`.
+   - `float("inf")` gives `got inf`.
+10. `ValueError(f"Output column '{output_column}' already exists.")`, e.g. `output_column="n"`.
+11. Pandas path only (see §6), non-numeric values:
+    - `ValueError(f"Numerator column '{numerator}' contains non-numeric values: {bad_values}")`.
+    - The denominator variant is the same text with `Denominator column '{denominator}'`.
+    - `bad_values` lists the first 3 offending original values.
+    - The numerator is checked first, so it is reported even when both columns are bad.
+    - Example: `pd.DataFrame({"n":["a","b","c","d"],"d":[1,1,1,1]})` gives `Numerator column 'n' contains non-numeric values: ['a', 'b', 'c']`.
+
+Order examples:
+- A missing numerator plus `fill_value=True` raises the "not found" ValueError.
+- An existing `output_column` plus `fill_value=nan` raises the "must be finite" ValueError.
+
+## 4. Returns and guarantees
+**Native path (C++):** used when the input is an ArFrame AND both `frame.dtypes` entries are in `{"int64","float64"}`.
+- Returns `ArFrame(_safe_divide_columns(...))`.
+- The `attrs` argument is NOT passed, so the source `_attrs` are not carried over.
+- Exact values, null handling and output dtype are determined in C++ code I cannot see.
+- The docstring says zero or null denominator gives `fill_value`.
+
+**Pandas path:** used in every other case (any pd.DataFrame input, or an ArFrame with a non-numeric dtype such as `"string"`).
+- `pd.to_numeric(errors="coerce")` is applied to both columns.
+- Where the denominator is NaN or `== 0`, the denominator is masked to NaN.
+- The result is `numerator / denominator` followed by `.fillna(fill_value)`.
+- **A null numerator also yields `fill_value`**, because NaN/x is NaN and then gets filled.
+- The output column is float64 and is appended as the last column. Existing columns are unchanged.
+- ArFrame input returns `from_pandas(df)`, with attrs not preserved. DataFrame input returns a pd.DataFrame with the original index kept.
+
+## 5. Side effects
+- None.
+- The pandas path assigns to `df.copy(deep=False)`, so the caller's DataFrame does not gain the new column.
+- No global state is touched.
+
+## 6. Branches and edge cases
+- **pd input, numeric:**
+  ```python
+  pd.DataFrame({"n":[10.0,5.0,3.0,None],"d":[2.0,0.0,None,1.0]})
+  ```
+  `r` is `[5.0, 0.0, 0.0, 0.0]` with the default fill. With `fill_value=-1` it is `[5.0, -1.0, -1.0, -1.0]`.
+- **pd input, int columns:** `{"n":[10,9],"d":[4,3]}` gives `[2.5, 3.0]`. The dtype is float64.
+- **ArFrame with numeric strings (pandas path):** `ar.from_pandas(pd.DataFrame({"n":["10","20"],"d":[2,0]}))`.
+  - This assumes the `"n"` dtype is `"string"`.
+  - Result `r` is `[5.0, 0.0]`, and `n` stays a string column.
+- **ArFrame with numeric columns (native path):** test only clear cases:
+  - `{"n":[10.0,9.0],"d":[2.0,0.0]}` with `fill_value=-1.0` should give `[5.0,-1.0]`.
+- **Same column twice:** `numerator == denominator` is allowed. `{"a":[2.0,0.0]}` gives `[1.0, 0.0]`.
+
+## 7. Rules from docstring/comments
+- Zero or null denominator is replaced with `fill_value`, never NaN or inf.
+- An existing `output_column` raises ValueError.
+- `fill_value` must be finite.
+
+## 8. Testing hints
+- **Prefer pd.DataFrame inputs** to pin exact pandas-path semantics, especially null numerator becoming `fill_value`.
+  - Compare with `result["r"].tolist()`, or `pd.testing.assert_series_equal(..., check_names=False)`.
+- **Use exactly representable values** such as 2.5 and 5.0. Use `pytest.approx` otherwise.
+- **For ArFrame results**, use `ar.to_pandas(res)["r"].tolist()` and `res.columns[-1] == "r"`.
+- **Check non-mutation:** after the call, assert `"r" not in original_df.columns`.
+- **Check error messages** with `pytest.raises(X, match=re.escape(msg))`. Remember the trailing periods.
+- **Pitfalls that would make a test wrong on the current code:**
+  - Do not assert that attrs are preserved; they are not on either path.
+  - Do not rely on C++-path behaviour for a null numerator, since it is unseen.
+  - Avoid bool columns and empty strings: they go down the pandas path with unclear coercion.
+  - Do not expect TypeError for a non-str `output_column`; it raises ValueError.
+
+### arnio.cleaning.standardize_missing_tokens
+
+# Notes: `arnio.cleaning.standardize_missing_tokens(frame, tokens=None, subset=None)`
+
+## 1. Purpose
+- Replaces string cells that look like missing-value tokens with `float("nan")`.
+- Matching ignores case and surrounding whitespace.
+- Accepts an ArFrame or a pandas DataFrame and returns the same kind of object.
+
+## 2. Inputs
+- **`frame`**: an `ArFrame` or a `pd.DataFrame`. Anything else raises TypeError.
+  - An ArFrame is converted with `to_pandas(frame)`. A DataFrame is used directly.
+  - In both cases the function works on `df.copy(deep=False)`.
+- **`tokens`**: `None` or a `list` of `str`. A tuple or set is rejected.
+  - `None` uses the defaults: `["N/A","NA","n/a","na","nan","-","none","nil","null","","?"]`.
+  - A custom list replaces the defaults completely. It is not added to them.
+  - Every token is normalised with `.strip().lower()`. The effective default set is `{"n/a","na","nan","-","none","nil","null","","?"}`.
+  - `tokens=[]` means nothing is ever replaced.
+- **`subset`**: `None` (all columns) or a sequence of column names.
+  - A `list`, `tuple` or `pd.Index` is accepted.
+  - An empty `[]` is allowed and replaces nothing.
+  - Duplicate names are allowed.
+  - Validation is done by `_validate_existing_column_sequence` with `missing_error=ValueError`.
+
+## 3. Raises (checks run in this order)
+1. Bad frame type: `TypeError("frame must be an ArFrame or a pandas DataFrame")`.
+   - Trigger: `standardize_missing_tokens([1,2])`.
+2. `subset` is a `str`:
+   - Template: `TypeError(f"subset must be a list of column names, not a string. Did you mean subset=['{subset}']?")`.
+   - `subset="a"` gives `"...Did you mean subset=['a']?"`.
+3. `tokens` is a `str`:
+   - Template: `TypeError(f"tokens must be a list of strings, not a bare string. Did you mean tokens=['{tokens}']?")`.
+4. `tokens` is not a list:
+   - Template: `TypeError(f"tokens must be a list of strings, got {type(tokens).__name__!r}")`.
+   - `tokens=("x",)` gives `"tokens must be a list of strings, got 'tuple'"`.
+5. A token item is not a `str`:
+   - Template: `TypeError(f"tokens must be a list of strings, got {type(item).__name__!r} item")`.
+   - `tokens=["x", 1]` gives `"... got 'int' item"`.
+6. Only when `subset` is not None:
+   - `subset` is bytes: `TypeError("subset must be a sequence of column names, not a string")`.
+   - `subset` is a set or other non-Sequence: `TypeError("subset must be a sequence of column names")`.
+   - A non-str name, e.g. `subset=[1]`: `TypeError("subset must contain only string column names")`.
+   - A missing column: `ValueError(f"Unknown columns in subset: {missing}")`, where `missing` is a list repr.
+   - `subset=["zz"]` gives `"Unknown columns in subset: ['zz']"`.
+- Ordering pitfalls:
+  - The `subset`-is-str check runs before any tokens check.
+  - The column-existence check for `subset` runs last, after tokens validation.
+
+## 4. Returns and guarantees
+- **ArFrame in, ArFrame out.** The result is a new object built with `from_pandas(df)`.
+  - Attrs are not explicitly copied, so do not assert on attrs.
+- **DataFrame in, DataFrame out.** The result is the shallow copy, so it is not the input object (`result is not df`).
+  - The index and column order are preserved.
+- A cell is replaced only if `isinstance(value, str)` and `value.strip().lower()` is in the token set.
+  - Replaced cells become `float("nan")`.
+- All other cells are left unchanged, including ints, floats, bools, `None`, `pd.NA` and non-matching strings.
+  - Non-matching strings keep their whitespace: `" kept "` stays `" kept "`.
+- Whitespace-only strings (`"   "`, `"\t"`) normalise to `""`, which is a default token, so they become NaN.
+- These values match by default:
+  - `"NULL"`, `" None "`, `"\tNaN\t"`, `"N/A"`, `"NIL"`, `"-"`, `"?"`, `""`.
+- These values do not match by default:
+  - `"missing"`, `"#N/A"`, `"N.A."`, `"undefined"`, `"--"`, `"0"`.
+- The dtype that ArFrame infers after the round-trip depends on `from_pandas` (convert module / C++), which this code does not show.
+
+## 5. Side effects
+- The input is not mutated.
+  - For pandas input, `df[col] = ...map(...)` assigns a new Series on the shallow copy only.
+  - The caller's DataFrame keeps its original values.
+- There is no global state and no file I/O.
+
+## 6. Branches and edge cases
+- **`subset=None`**: every column is mapped, including numeric ones. Non-str values pass through.
+- **`subset=["a"]`**: only column `a` changes. Tokens in other columns stay as strings.
+  - Example: `{"a":["NA"],"b":["NA"]}` gives `a=[NaN]`, `b=["NA"]`.
+- **`subset=[]`**: no columns are processed, so the output equals the input.
+- **Custom tokens**: `tokens=["  MISSING "]` makes `"missing"` and `"Missing"` become NaN.
+  - With custom tokens, `"N/A"` is no longer replaced.
+- **`tokens=[]`**: nothing is replaced, not even `""`.
+- **Zero rows**: works and returns an empty frame with the same columns.
+
+## 7. Rules from the docstring
+- "Matching is case-insensitive and trims surrounding whitespace before checking token membership."
+- "Values that do not match a missing token preserve their original whitespace."
+- The default token list is used when `tokens` is None.
+
+## 8. Testing hints
+- The pandas path is the most deterministic. Use object-dtype columns:
+  ```python
+  df = pd.DataFrame({"v": [" NULL ", "\tNaN\t", "kept ", "x"]})
+  out = ar.standardize_missing_tokens(df)
+  assert pd.isna(out["v"][0]) and pd.isna(out["v"][1])
+  assert out["v"][2] == "kept " and out["v"][3] == "x"
+  assert df["v"][0] == " NULL "   # input not mutated
+  ```
+- ArFrame path:
+  - Build with `ar.from_pandas(pd.DataFrame({...}))`.
+  - Check `isinstance(result, ar.ArFrame)`.
+  - Inspect with `ar.to_pandas(result)` and use `pd.isna(...)`. Nulls may come back as `None` or `NaN`, so never compare with `==`.
+  - Keep at least one real string in the column so it stays a string column.
+- Pitfalls:
+  - Do not assert the ArFrame dtype of mixed columns such as `[1, 2, "N/A"]`, or of columns that become all-null. That inference is in convert/C++ and is not shown here.
+  - Avoid pandas `"string"` (StringDtype) inputs, because `.map` returning NaN has dtype-specific behaviour. Use object dtype instead.
+  - For error messages, use `pytest.raises(..., match=re.escape(msg))`, since messages contain `[`, `'` and `?`.

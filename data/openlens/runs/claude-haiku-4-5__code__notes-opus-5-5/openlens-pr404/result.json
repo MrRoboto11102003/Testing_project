@@ -1,0 +1,268 @@
+{
+ "id": "openlens-pr404",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 24273,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 18325
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 23,
+ "n_catching": 3,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 9790,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 13558,
+  "output_tokens_details": {
+   "thinking_tokens": 9596
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 9790,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 13558,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 9790,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 9790
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.087379,
+ "model_seconds": 53.1,
+ "seconds": 78.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_calls_show_when_no_save_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_figure_contains_expected_elements": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_matplotlib_unavailable_logs_warning": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_raises_on_zero_aperture": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_saves_file_when_path_provided": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotAiryDisk::test_title_includes_parameters_and_wavelength": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_calls_show_when_no_save_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_figure_attributes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_matplotlib_unavailable_logs_warning": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_raises_on_zero_aperture": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_saves_file_when_path_provided": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotEncircledEnergy::test_title_includes_parameters_and_wavelength": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_calls_show_when_no_save_path": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_figure_structure_and_suptitle": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_matplotlib_unavailable_logs_warning": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_no_savefig_when_show": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_raises_on_zero_aperture": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_saves_file_when_path_provided": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_subplot_titles_and_labels": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  },
+  "tests/_generated/test_openlens_pr404.py::TestPlotPSF2D::test_suptitle_includes_parameters_and_wavelength": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "DiffractionCalculator"
+   ]
+  }
+ }
+}

@@ -1,0 +1,441 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.schema_export.schema_to_dict, arnio.schema_export.schema_to_yaml.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.schema_export.schema_to_dict
+def schema_to_dict(schema: dict | Any) -> dict:
+    """Convert *schema* to a plain, sorted, serialisation-ready :class:`dict`.
+
+    Parameters
+    ----------
+    schema:
+        Either the raw ``dict`` returned by ``ar.scan_csv`` / ``ar.Schema``,
+        or any object that exposes a ``fields`` attribute (mapping of field
+        name → field descriptor) – whichever arnio uses internally.
+        Also supports ArFrame objects and lists of ColumnSummary.
+
+    Returns
+    -------
+    dict
+        A plain Python dict with only stdlib-serialisable values.
+
+    Raises
+    ------
+    TypeError
+        If *schema* is not of a supported type.
+    """
+    # ── ArFrame path ────────────────────────────────────────────────────────
+    if hasattr(schema, "schema_summary"):
+        schema = schema.schema_summary
+
+    # ── List of ColumnSummary path ──────────────────────────────────────────
+    if isinstance(schema, list):
+        normalised_list = {}
+        for entry in schema:
+            if hasattr(entry, "name") and hasattr(entry, "dtype"):
+                name = entry.name
+                normalised_list[name] = {
+                    "type": str(entry.dtype).upper(),
+                }
+                if hasattr(entry, "nullable"):
+                    normalised_list[name]["nullable"] = entry.nullable
+            elif isinstance(entry, dict) and "name" in entry and "dtype" in entry:
+                name = entry["name"]
+                normalised_list[name] = {
+                    "type": str(entry["dtype"]).upper(),
+                }
+                if "nullable" in entry:
+                    normalised_list[name]["nullable"] = entry["nullable"]
+            else:
+                raise TypeError(f"Unsupported list item type: {type(entry)!r}")
+        return {"fields": normalised_list}
+
+    # ── Schema object path ──────────────────────────────────────────────────
+    if hasattr(schema, "fields"):
+        if getattr(schema, "rules", None):
+            raise ValueError(
+                "schema_to_yaml does not support Schema objects with custom rules "
+                "because callables are not serializable. "
+                "Remove schema.rules before exporting."
+            )
+
+        raw_fields = schema.fields
+        _validate_schema_field_names(raw_fields)
+
+        normalised: dict = {}
+        for name, field in raw_fields.items():
+            if isinstance(field, dict):
+                raw_field = field
+            elif hasattr(field, "dtype"):
+                raw_field = _field_to_dict(field)
+            elif hasattr(field, "__dict__"):
+                raw_field = {
+                    k: v for k, v in vars(field).items() if not k.startswith("_")
+                }
+            else:
+                raw_field = str(field)
+
+            if isinstance(raw_field, str):
+                normalised[name] = {"type": raw_field}
+            elif isinstance(raw_field, dict):
+                normalised[name] = _normalize_serializable(raw_field)
+            else:
+                normalised[name] = raw_field
+
+        # Build result cleanly — metadata never touches the fields namespace
+        result = {"fields": dict(sorted(normalised.items()))}
+        if hasattr(schema, "strict"):
+            result["strict"] = schema.strict
+        if hasattr(schema, "unique"):
+            result["unique"] = schema.unique
+
+        return result
+
+    # ── Raw dict path ────────────────────────────────────────────────────────
+    if isinstance(schema, dict):
+        # Detect explicit structured input:
+        # {"fields": {...}, "strict": ..., "unique": ...}
+        if "fields" in schema and isinstance(schema["fields"], dict):
+            raw_fields = schema["fields"]
+            metadata = {k: v for k, v in schema.items() if k != "fields"}
+        else:
+            # Flat scan_csv-style dict:
+            # all keys are field names
+            raw_fields = schema
+            metadata = {}
+
+        _validate_schema_field_names(raw_fields)
+        normalised = {}
+
+        for field_name in sorted(raw_fields.keys()):
+            value = raw_fields[field_name]
+
+            # Recursively normalize nested containers
+            # into serialization-safe deterministic values.
+            if isinstance(value, str):
+                normalised[field_name] = {"type": value}
+            else:
+                normalised[field_name] = _normalize_serializable(value)
+
+        result = {"fields": normalised}
+
+        # Validate and normalize structured metadata before merging.
+        # Keys must be strings; values must be serialization-safe.
+        for meta_key, meta_val in metadata.items():
+            if not isinstance(meta_key, str):
+                raise TypeError(
+                    f"schema metadata keys must be strings, got {type(meta_key)!r}"
+                )
+            result[meta_key] = _normalize_serializable(meta_val)
+
+        return result
+
+    raise TypeError(
+        f"Expected a dict, an ArFrame, or an object with a 'fields' attribute, "
+        f"got {type(schema)!r}."
+    )
+
+# arnio.schema_export.schema_to_yaml
+def schema_to_yaml(
+    schema: dict | Any,
+    path: str | pathlib.Path | None = None,
+) -> str:
+    """Serialise *schema* to a YAML string.
+
+    Parameters
+    ----------
+    schema:
+        A ``dict`` (e.g. from ``ar.scan_csv``) or an arnio ``Schema`` object.
+    path:
+        Optional file path.  When supplied the YAML is written to that file
+        (UTF-8 encoding, existing file is overwritten).  The string is always
+        returned regardless.
+
+    Returns
+    -------
+    str
+        The YAML representation, always ending with ``\\n``.
+
+    Examples
+    --------
+    >>> import arnio as ar
+    >>> schema = ar.scan_csv("data.csv")
+    >>> print(ar.schema_to_yaml(schema))
+    fields:
+      id:
+        type: INT64
+      name:
+        type: STRING
+
+    >>> ar.schema_to_yaml(schema, path="schema.yaml")   # also write to file
+    """
+    data = schema_to_dict(schema)
+    body = _emit_value(data, depth=0)
+    yaml_str = body if body.endswith("\n") else body + "\n"
+
+    if path is not None:
+        if not isinstance(path, (str, os.PathLike)):
+            raise TypeError("path must be a string or os.PathLike")
+        if isinstance(path, str) and not path.strip():
+            raise ValueError("path must not be empty")
+        target = pathlib.Path(path)
+        if target.is_dir():
+            raise ValueError("path must point to a file, not a directory")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(yaml_str, encoding="utf-8")
+
+    return yaml_str
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.schema_export.schema_to_dict
+
+# Notes: `arnio.schema_export.schema_to_dict(schema)`
+
+## 1. Purpose
+- Converts a schema-like input into a plain dict of the form `{"fields": {...}, ...metadata}` that is ready to serialise.
+- `schema_to_yaml` calls it first.
+- Pure Python. It does not call the C++ core except to read `ArFrame.schema_summary`.
+
+## 2. Inputs
+`schema` can be any object. The checks run **in this order**, and the first match wins:
+1. **Has a `schema_summary` attribute** (an ArFrame). It is replaced by `schema.schema_summary`, which is a list of `ColumnSummary`, and then handled by step 2.
+2. **`isinstance(schema, list)`**. Each entry must be one of:
+   - an object with `.name` and `.dtype`, or
+   - a dict with the keys `"name"` and `"dtype"`.
+3. **Has a `fields` attribute.** This covers `ar.Schema` or any object such as `types.SimpleNamespace(fields=...)`.
+   - A plain dict does not have a `fields` *attribute*, so it skips this step.
+4. **`isinstance(schema, dict)`**. This is either the structured form `{"fields": {...}, ...}` or a flat `scan_csv`-style form `{"col": "int64"}`.
+5. Anything else raises `TypeError`.
+- Tuples, strings, `None` and ints are not accepted. A tuple of `ColumnSummary` also raises `TypeError`.
+
+## 3. Raises
+- **Final fallback** (`TypeError`):
+  - Template: `f"Expected a dict, an ArFrame, or an object with a 'fields' attribute, got {type(schema)!r}."`
+  - Example: `schema_to_dict(42)` gives `...got <class 'int'>.`
+- **List path, bad entry** (`TypeError`):
+  - Template: `f"Unsupported list item type: {type(entry)!r}"`
+  - Example: `[{"name": "a"}]` (no `"dtype"`) gives `Unsupported list item type: <class 'dict'>`.
+  - Example: `[1]` gives `<class 'int'>`.
+- **Schema path, truthy `rules`** (`ValueError`), with this exact message:
+  `"schema_to_yaml does not support Schema objects with custom rules because callables are not serializable. Remove schema.rules before exporting."`
+  - Example: `SimpleNamespace(fields={}, rules=[lambda df: []])`.
+  - `rules=[]` or `rules=None` is fine.
+  - The rules check happens **before** the field-name check.
+- **Non-str field name** (`TypeError`, `"schema field names must be strings"`). Applies to the Schema path and the dict path.
+  - Example: `{1: "int64"}`, or `{"fields": {1: "x"}}`.
+  - Checked before sorting.
+- **Non-str key inside a field dict or nested dict** (`TypeError`, `"schema dict keys must be strings"`).
+  - Example: `{"a": {1: "x"}}`.
+- **Unsupported value type** (`TypeError`):
+  - Template: `f"schema_to_yaml does not support values of type {type(value)!r}. Only str, int, float, bool, None, list, and dict are allowed."`
+  - Example: `{"a": {"x": object()}}`.
+- **Gotcha: nested tuples raise.** A tuple is converted to a list only when it is the value handed *directly* to the normaliser (see the table in section 6). Validation runs over the whole dict first and rejects any tuple found inside a dict or list:
+  - `{"a": {"x": (1, 2)}}` raises `TypeError ... <class 'tuple'> ...`.
+  - `{"a": {"x": [(1,)]}}` also raises.
+- **Structured-dict path, non-str metadata key** (`TypeError`):
+  - Template: `f"schema metadata keys must be strings, got {type(meta_key)!r}"`
+  - Example: `{"fields": {}, 1: "x"}`.
+- **Set with mixed incomparable types**, e.g. `{"a": {"s": {1, "x"}}}`: Python's own `TypeError` from `sorted()`.
+
+## 4. Returns and guarantees
+- The result is always a new dict, and its first key is `"fields"`.
+- **List / ArFrame path** returns `{"fields": {name: {"type": str(dtype).upper(), "nullable": nullable}}}`.
+  - `"nullable"` is included only if the entry has a `nullable` attr/key.
+  - **Field order is input order (NOT sorted).**
+  - Duplicate names: the later entry overwrites the earlier one.
+  - There are no `strict`/`unique` keys.
+  - Only this path upper-cases the type.
+- **Schema path** returns `{"fields": <sorted by name>}`, plus `"strict": schema.strict` if that attr exists, plus `"unique": schema.unique` if that attr exists.
+  - `unique` is passed through **unchanged**: no normalisation, and a tuple stays a tuple.
+  - `ar.Schema` always has both attrs. A `SimpleNamespace(fields=...)` gets only `"fields"`.
+  - How each field value is converted:
+    - dict: normalised.
+    - has `.dtype`: `_field_to_dict(field)` from `arnio.schema`. **Its exact output cannot be seen here, so avoid asserting it.**
+    - has `__dict__`: `vars()` minus keys starting with `_`, then normalised.
+    - otherwise: `{"type": str(field)}`. So `"int64"` gives `{"type": "int64"}`, `5` gives `{"type": "5"}`, and `None` gives `{"type": "None"}`.
+- **Dict path** returns `{"fields": <sorted by name>}`, followed by the metadata keys in input order. Metadata values are normalised, so the tuple `("id",)` becomes `["id"]`.
+  - Each field value is converted like this:
+    - str `v`: `{"type": v}`. The case is kept, so `"int64"` stays `"int64"`.
+    - anything else: normalised.
+  - Normalisation rules:
+    - Dict keys are sorted.
+    - A set becomes a sorted list.
+    - A top-level tuple becomes a list.
+    - Scalars (`str`, `int`, `float`, `bool`, `None`) are returned unchanged.
+    - NaN is allowed.
+
+## 5. Side effects
+- None. The input is not mutated and no files are written.
+- Schema-path `unique` is the very same object as `schema.unique`.
+
+## 6. Branches and edge cases
+| Input | Result |
+|---|---|
+| `[]` | `{"fields": {}}` |
+| `{}` | `{"fields": {}}` (flat path) |
+| `{"fields": {}}` | `{"fields": {}}` |
+| `{"b": "int64", "a": "string"}` | `{"fields": {"a": {"type": "string"}, "b": {"type": "int64"}}}`; `list(result["fields"]) == ["a", "b"]` |
+| `{"fields": {"z": "int64"}, "strict": True, "unique": ("id",)}` | `{"fields": {"z": {"type": "int64"}}, "strict": True, "unique": ["id"]}` |
+| `{"fields": "int64"}` (fields not a dict) | flat path: `{"fields": {"fields": {"type": "int64"}}}` |
+| `{"a": 5}` | `{"fields": {"a": 5}}` (non-str scalar is not wrapped) |
+| `{"a": (1, 2)}` | `{"fields": {"a": [1, 2]}}` |
+| `{"a": {"allowed": {"b", "a"}, "z": 1, "m": None}}` | `allowed` becomes `["a", "b"]`; inner keys are ordered `allowed`, `m`, `z` |
+| `[ColumnSummary("b", "int64", False), ColumnSummary("a", "string", True)]` | `{"fields": {"b": {"type": "INT64", "nullable": False}, "a": {"type": "STRING", "nullable": True}}}`, order `b, a` |
+| `[{"name": "x", "dtype": "float64"}]` | `{"fields": {"x": {"type": "FLOAT64"}}}` (no `nullable`) |
+| `SimpleNamespace(fields={"b": "int64", "a": {"k": 1}})` | `{"fields": {"a": {"k": 1}, "b": {"type": "int64"}}}`, with no `strict`/`unique` |
+| `SimpleNamespace(fields={"a": SimpleNamespace(min=1, _p=2)}, strict=True, unique=("id",))` | `{"fields": {"a": {"min": 1}}, "strict": True, "unique": ("id",)}` (a tuple!) |
+
+## 7. Rules from comments/docstrings
+- Field order is meant to be deterministic, through sorted keys and sorted sets.
+- Metadata must "never touch the fields namespace".
+- The comment says tuples like `required_if=("col", "val")` should "survive export". In practice this only works for a top-level value; nested tuples raise (see section 3).
+
+## 8. Testing hints
+- `from types import SimpleNamespace` and `from arnio.frame import ColumnSummary`.
+- Use these to drive the Schema path and list path deterministically, without relying on `_field_to_dict`.
+- **Check order** with `list(d["fields"])`. Plain `==` on dicts ignores order.
+- **ArFrame path:** `ar.from_pandas(pd.DataFrame({"b": [1], "a": ["x"]}))`.
+  - Assert only `list(d["fields"]) == ["b", "a"]` (column order, not sorted).
+  - Assert that each `type` equals `type.upper()` and that it has a `"nullable"` key.
+  - The exact dtype strings and nullable values come from the C++ core, so do not hardcode them.
+- **Real `ar.Schema(fields={})`:** you can assert `"strict"` and `"unique"` keys exist and equal `schema.strict` and `schema.unique`.
+- **Error messages:** use `pytest.raises(TypeError, match=...)` and wrap the message in `re.escape`, because the messages contain `(`, `'`, `.`, `<`.
+- The type is upper-cased **only** on the list/ArFrame path. The dict path keeps `"int64"` lower-case.
+
+### arnio.schema_export.schema_to_yaml
+
+# Notes: `arnio.schema_export.schema_to_yaml(schema, path=None) -> str`
+
+## 1. Purpose
+- Turns a schema into a deterministic YAML string with sorted keys. It is built by `schema_to_dict(schema)` and then the private emitter.
+- If `path` is given, it also writes that string to a file (UTF-8). The string is returned either way.
+
+## 2. Inputs
+- `schema`: the type decides which `schema_to_dict` branch runs. Checks happen in this order:
+  1. **Has a `schema_summary` attribute (e.g. ArFrame)**: it is replaced by `schema.schema_summary` and then goes to the list branch.
+  2. **`list`**: each item must either
+     - have `.name` and `.dtype` (ColumnSummary-like), or
+     - be a dict with `"name"` and `"dtype"` keys.
+     - Result is `{"fields": {name: {"type": str(dtype).upper(), "nullable": ...}}}`. `nullable` is included only if the item has it.
+  3. **Has a `fields` attribute (Schema-like)**:
+     - Each field value is converted as follows:
+       - dict → used as-is.
+       - Has `.dtype` → `arnio.schema._field_to_dict(field)`. That helper is not visible here, so its exact keys are unknown.
+       - Other object with `__dict__` → its public attributes.
+       - Anything else (e.g. a str) → `{"type": str(field)}`.
+     - Dict field values go through the normaliser.
+     - The output also gets `strict` and `unique` copied from the object as-is. Note that `unique` is **not** normalised.
+  4. **`dict`**:
+     - **Structured form**: if `"fields"` is a key and its value is a dict, the other keys are treated as metadata.
+     - **Flat form** (scan_csv style): otherwise, every key is a field name.
+       - `{"fields": "x"}` is flat: it produces a field literally named `fields`.
+     - A str field value becomes `{"type": value}`. Any other value goes through the normaliser.
+     - Metadata values are normalised too.
+- Normaliser (`_normalize_serializable`):
+  - Dict keys are sorted. Sets become sorted lists.
+  - A tuple becomes a list **only when the tuple is the value passed in directly**: a flat field value, or a metadata value.
+  - It validates the whole container recursively *before* converting. So a tuple nested inside a dict or list raises TypeError, e.g. `{"a": {"x": ("p", "q")}}`.
+- `path`: `None`, `str`, or `os.PathLike`. `bytes` and `int` are rejected.
+  - Parent directories are created (`mkdir(parents=True, exist_ok=True)`).
+  - An existing file is overwritten.
+
+## 3. Raises
+Schema conversion happens **before** any path check. A bad schema raises even when `path` is also bad, and no file is written.
+- TypeError `f"Expected a dict, an ArFrame, or an object with a 'fields' attribute, got {type(schema)!r}."`
+  - Trigger: `schema_to_yaml(42)` → `"...got <class 'int'>."`
+- TypeError `f"Unsupported list item type: {type(entry)!r}"`
+  - Trigger: `schema_to_yaml(["a"])`
+- ValueError `"schema_to_yaml does not support Schema objects with custom rules because callables are not serializable. Remove schema.rules before exporting."`
+  - Trigger: an object with truthy `.rules`.
+- TypeError `"schema field names must be strings"`
+  - Trigger: `schema_to_yaml({1: "INT64"})`
+  - Also triggered by `{"fields": {1: "x"}}`.
+- TypeError `"schema dict keys must be strings"`
+  - Trigger: a non-str key nested inside a field value, e.g. `{"a": {1: "x"}}`.
+- TypeError `f"schema metadata keys must be strings, got {type(meta_key)!r}"`
+  - Trigger: `{"fields": {}, 1: "x"}` → `"...got <class 'int'>"`
+- TypeError `f"schema_to_yaml does not support values of type {type(v)!r}. Only str, int, float, bool, None, list, and dict are allowed."`
+  - Trigger: `{"a": {"x": object()}}`
+  - Also: `{"a": {"x": (1, 2)}}` → type `<class 'tuple'>`.
+  - Also raised by the emitter for an unnormalised value, e.g. a Schema-like object with `unique=("id",)`.
+- Path errors, checked in this order after serialization:
+  1. TypeError `"path must be a string or os.PathLike"` (e.g. `path=123` or `path=b"x"`).
+  2. ValueError `"path must not be empty"` for a str that is empty or whitespace-only (`""` or `"   "`).
+  3. ValueError `"path must point to a file, not a directory"` (e.g. `path=tmp_path`).
+     - Also raised by `pathlib.Path("")`, because it resolves to `.`.
+
+## 4. Returns and guarantees
+- Returns a `str` that always ends with exactly one `"\n"`. The body never ends in a newline, because newlines inside strings are escaped.
+- Keys are sorted at every dict level, so top-level `fields` comes before `strict`, which comes before `unique`.
+- Indentation is 2 spaces per level.
+  - A non-empty dict or list value is written as `key:` and then nested lines.
+  - An empty dict prints as `{}` and an empty list as `[]`.
+  - List items under a key at depth d use (d+1)*2 spaces of indent plus `- `.
+- Scalars:
+  - `None` → `null`; booleans → `true` / `false`; int → `str()`.
+  - float → `repr()`, e.g. `1.5`, `1e-05`.
+  - NaN → `.nan`, inf → `.inf`, -inf → `-.inf`.
+- A string is double-quoted if any of these hold:
+  - It is empty.
+  - `float(s)` succeeds: `"1"`, `"1.5"`, `"nan"`, `"inf"`, `"1_0"`, `" 1"`.
+  - Its lowercase form is one of true/false/null/yes/no/on/off.
+  - It matches the date pattern `^\d{4}-\d{2}-\d{2}...`.
+  - It contains `\n` or `\r`.
+  - Its first char is one of `" ' { [ | > ! & * # ? : - , @ \` % ~`.
+  - It contains `:` or `#` anywhere.
+  - It has leading or trailing whitespace.
+- Escaping when quoted: `\` → `\\`, `"` → `\"`, newline → `\n`, CR → `\r`.
+  - Unquoted strings are emitted raw: `a\b` stays `a\b`. `INT64`, `a b`, `y` are not quoted.
+- Keys use the same quoting rules: key `"1"` → `"1": ...`, key `"true"` → `"true": ...`.
+
+Exact examples:
+```python
+ar.schema_to_yaml({"id": "INT64", "name": "STRING"}) == \
+  "fields:\n  id:\n    type: INT64\n  name:\n    type: STRING\n"
+ar.schema_to_yaml({"fields": {"b": "x"}, "strict": True, "unique": None}) == \
+  "fields:\n  b:\n    type: x\nstrict: true\nunique: null\n"
+ar.schema_to_yaml({}) == "fields: {}\n"
+ar.schema_to_yaml([]) == "fields: {}\n"
+ar.schema_to_yaml({"a": {"allowed": {"y", "x"}}}) == \
+  "fields:\n  a:\n    allowed:\n      - x\n      - y\n"
+ar.schema_to_yaml({"a": ("x", "y")}) == "fields:\n  a:\n    - x\n    - y\n"
+ar.schema_to_yaml({"a": {"type": "1", "n": 2, "f": 0.5}}) == \
+  "fields:\n  a:\n    f: 0.5\n    n: 2\n    type: \"1\"\n"
+```
+
+## 5. Side effects
+- The input schema is not mutated; new dicts are built.
+- With `path`, the function creates parent directories and writes the file with `pathlib.Path.write_text(encoding="utf-8")`.
+  - On Windows, `"\n"` is translated to `"\r\n"` on disk.
+
+## 6. Branches and edge cases
+- ArFrame input: `ar.from_pandas(pd.DataFrame({"a": [1]}))` produces `fields: a: type: <DTYPE upper>, nullable: <bool>`.
+  - The dtype string and nullable flag come from the C++ core. Compute the expected values from `frame.schema_summary`.
+- List of dicts: `[{"name": "a", "dtype": "int64"}]` → `"fields:\n  a:\n    type: INT64\n"`. There is no nullable line because the key is absent.
+- Schema-like stub with no Field objects:
+  - `types.SimpleNamespace(fields={"a": "int64"}, rules=None, strict=False, unique=None)`
+  - → `"fields:\n  a:\n    type: int64\nstrict: false\nunique: null\n"`
+  - With `unique=["id"]` → the output ends `unique:\n  - id\n`.
+- The structured dict's metadata keys are emitted at top level, sorted together with `fields`.
+
+## 7. Rules stated in comments/docstrings
+- The output is deterministic (sorted keys); the docstring says "always ending with `\n`".
+- An existing file is overwritten, and the returned string is the same whether or not `path` is given.
+- Tuples such as `required_if` or `unique` are meant to "survive export" as lists. In the current code this holds only at the direct-value level (see §2).
+
+## 8. Testing hints
+- Compare full strings exactly. Prefer flat or structured dicts, or SimpleNamespace stubs, over real `ar.Schema`/`Field` objects, because the output of `_field_to_dict` is not visible here.
+- When checking a written file, compare `Path(p).read_text(encoding="utf-8") == returned`. Do not compare bytes, because of the Windows CRLF translation.
+- Use pytest `tmp_path`:
+  - `tmp_path / "sub" / "s.yaml"` checks that parent directories are created.
+  - Pre-writing junk to the file checks that it is overwritten.
+- Round-tripping with `yaml.safe_load(out)` is a good structural check, e.g. that the quoted `"1"` loads back as a str.
+  - Avoid `schema_from_yaml` for this, because it requires keys that `Schema.from_json` accepts.
+- Use `pytest.raises(..., match=re.escape(msg))` for messages containing `(` `)` `.` or `'`.
+- Do not assert the formatting of a dict inside a list. The spacing is odd (e.g. `- ` followed by extra indent).

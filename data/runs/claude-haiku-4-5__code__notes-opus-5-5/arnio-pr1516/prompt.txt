@@ -1,0 +1,259 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.schema.Schema.to_json, arnio.schema.Schema.validate.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.schema.Schema.to_json
+    def to_json(self) -> str:
+        """Serialize the schema to a stable JSON string.
+
+        Cross-field ``rules`` cannot be serialized. When rules are present
+        they are silently omitted and a ``UserWarning`` is emitted. The
+        returned payload includes ``"rules_omitted": true`` so downstream
+        consumers can detect the gap. Call ``from_json()`` to restore the
+        field-only schema; rules must be re-attached manually afterward.
+        """
+        rules_omitted = bool(self.rules)
+        if rules_omitted:
+            warnings.warn(
+                "Schema.to_json(): cross-field rules cannot be serialized "
+                "and have been omitted. The JSON payload includes "
+                '"rules_omitted": true. Restore rules manually after '
+                "from_json().",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        payload = {
+            "fields": {
+                name: _field_to_json_dict(field_def)
+                for name, field_def in sorted(self.fields.items())
+            },
+            "strict": self.strict,
+            "unique": list(self.unique) if self.unique is not None else None,
+        }
+        if rules_omitted:
+            payload["rules_omitted"] = True
+        return json.dumps(payload, sort_keys=True)
+
+# arnio.schema.Schema.validate
+    def validate(
+        self,
+        frame: ArFrame,
+        max_errors: int | None = None,
+    ) -> ValidationResult:
+        """
+        Validate an ArFrame against this schema.
+
+        Args:
+            frame:
+                frame to validate.
+            max_errors:
+                Maximum number of validation issues to return.
+                Validation stops once this limit is reached.
+        """
+        return validate(frame, self, max_errors=max_errors)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.schema.Schema.to_json
+
+# Notes: `arnio.schema.Schema.to_json`
+
+## 1. Purpose
+- Serializes a `Schema` (its fields, `strict` and `unique`) to a deterministic JSON string.
+- Cross-field `rules` are not serialized. If any are present, a `UserWarning` is emitted and a `"rules_omitted": true` marker is added.
+
+## 2. Inputs
+- `self` only; there are no parameters.
+- The `Schema` has already been validated in `__post_init__`:
+  - field names are `str`;
+  - values are `Field` instances;
+  - `strict` is a bool;
+  - `unique` is a list/tuple of distinct strings or `None`;
+  - `rules` is a list/tuple of callables or `None`.
+
+## 3. Raises
+- `TypeError` from `json.dumps` when a field value is not JSON-serializable. The message is the stdlib one: `"Object of type <T> is not JSON serializable"`. Examples:
+  - `ar.Schema({"d": ar.String(allowed=[datetime.date(2024,1,1)])}).to_json()` → `Object of type date is not JSON serializable`
+  - `ar.Schema({"a": ar.Int64(required_if=("b", np.int64(1)))}).to_json()` → `Object of type int64 is not JSON serializable` (`np.int64` is accepted by `Field` because it passes `pd.api.types.is_scalar`)
+- Order of events: the rules warning is emitted first, then the payload is built, then `json.dumps` runs. So a schema with rules and a bad value warns and then raises.
+
+## 4. Returns and guarantees
+- Returns a `str` produced by `json.dumps(payload, sort_keys=True)`:
+  - no indent;
+  - default separators `", "` and `": "`;
+  - `allow_nan=True`, so a `NaN` float is written as `NaN`.
+- Top-level keys, sorted: `"fields"`, optionally `"rules_omitted"` (only when rules are present, value `true`), `"strict"`, `"unique"`.
+- `"unique"` is `list(self.unique)`, keeping the original order. It is not sorted (unlike `diff_schema`). If unset it is `null`. A tuple becomes a JSON array.
+- `"fields"` maps each column name to a dict with exactly 18 keys, in this sorted order:
+  `allowed, case_sensitive, date_max, date_min, datetime_max, datetime_min, dtype, format, max, max_length, min, min_length, nullable, pattern, required_if, semantic, severity, unique`.
+- How each field value is written:
+  - **`allowed`**: a set becomes a sorted list. If its types are mixed and not comparable, it is sorted by `(type(x).__name__, repr(x))`, so `{1, "a"}` → `[1, "a"]`. `None` → `null`.
+  - **`required_if`**: the tuple becomes a list, e.g. `("x", 1)` → `["x", 1]`.
+  - **`datetime_min` / `datetime_max`**: `Timestamp.isoformat()`. `ar.DateTime(min="2024-01-01")` → `"2024-01-01T00:00:00"`.
+  - **`date_min` / `date_max`**: `date.isoformat()`. `ar.Date(min="2024-01-01")` → `"2024-01-01"`.
+  - **`min` / `max`**: raw values. `ar.Int64(min=1, max=5)` → `1`, `5`. `ar.Float64(min=1)` stays `1`, not `1.0`.
+- `semantic` for each field factory:
+
+  | Factory | `semantic` |
+  |---|---|
+  | `Email()` | `"email"` |
+  | `Email(validation="strict")` | `"email:strict"` |
+  | `URL()` | `"url"` |
+  | `URL(allowed_schemes=["https","http"])` | `"url:http|https"` (sorted, joined by `|`) |
+  | `PhoneNumber()` | `"phone"` |
+  | `CountryCode()` | `"country_code"` |
+  | `UUID()` | `"uuid"` |
+  | `IPv4()` | `"ipv4"` |
+  | `MACAddress()` | `"mac_address"` |
+  | `Date()` | `"date"`; `dtype` is `"string"` |
+  | `DateTime()` | `dtype` is `"datetime"`; `semantic` is `null` |
+  | `Custom("n")` | `"custom:n"`; `dtype` is `null` |
+
+- Exact output for `ar.Schema({"a": ar.Int64()}).to_json()`:
+```
+{"fields": {"a": {"allowed": null, "case_sensitive": true, "date_max": null, "date_min": null, "datetime_max": null, "datetime_min": null, "dtype": "int64", "format": null, "max": null, "max_length": null, "min": null, "min_length": null, "nullable": true, "pattern": null, "required_if": null, "semantic": null, "severity": "error", "unique": false}}, "strict": false, "unique": null}
+```
+- `ar.Schema({}).to_json()` → `'{"fields": {}, "strict": false, "unique": null}'`
+
+## 5. Side effects
+- Emits a `UserWarning` only when `bool(self.rules)` is true. The warning uses `stacklevel=2`. Exact message:
+  `Schema.to_json(): cross-field rules cannot be serialized and have been omitted. The JSON payload includes "rules_omitted": true. Restore rules manually after from_json().`
+- The schema is not mutated (it is a frozen dataclass).
+
+## 6. Branches and edge cases
+- `rules=None` or `rules=[]`: no warning and no `rules_omitted` key.
+- `rules=[f]` (list or tuple): warns, and the key appears between `fields` and `strict`: `'{"fields": {...}, "rules_omitted": true, "strict": ...}'`.
+- `strict=True` → `"strict": true`.
+- `unique=("b","a")` → `"unique": ["b", "a"]` (order preserved).
+- Multiple fields are emitted in name order, whatever order they were inserted in. For example, `{"b":..., "a":...}` gives `a` first.
+- `severity="warning"` → `"severity": "warning"`.
+- `ar.String(min_length=2, max_length=5, pattern=r"^x$", case_sensitive=False)` → those values appear as-is (`"pattern": "^x$"`, `"case_sensitive": false`).
+
+## 7. Rules from the docstring
+- The output is stable: field names are sorted and `sort_keys=True` is used.
+- Rules are silently omitted apart from the warning.
+- `from_json()` restores only the field part of the schema. It accepts and ignores the `rules_omitted` key.
+
+## 8. Testing hints
+- Prefer `json.loads(s)` and compare dicts. Exact-string checks are also deterministic (see §4), and checking the exact string is a good way to catch separator or ordering regressions.
+- Check the key order with `list(json.loads(s)["fields"]["a"].keys())` (dicts preserve the parsed order) or by checking the raw string.
+- Warning: `with pytest.warns(UserWarning, match=r"cross-field rules cannot be serialized"):`
+- No warning: use
+  ```python
+  with warnings.catch_warnings():
+      warnings.simplefilter("error")
+      schema.to_json()
+  ```
+- Round trip: `ar.Schema.from_json(s.to_json()).fields == s.fields` holds for factory-built fields, including `allowed` sets, `required_if` tuples, and date/datetime bounds.
+- Round-trip pitfalls:
+  - `Schema` equality fails if the original `unique` was a tuple (it comes back as a list).
+  - `Schema` equality fails if the original had rules (they come back as `None`).
+- `Custom` needs `ar.register_validator(...)` first. The registry is global and duplicate names raise, so use a unique name or pass `overwrite=True`.
+- Do not expect `NaN`/`Infinity` from `Int64`/`Float64`, which reject non-finite bounds. Only a raw `ar.Field(dtype="float64", min=float("nan"))` produces `"min": NaN`.
+
+### arnio.schema.Schema.validate
+
+# Notes: `arnio.schema.Schema.validate(self, frame, max_errors=None)`
+
+## 1. Purpose
+- Validates an `ArFrame` against this schema and returns a `ValidationResult`.
+- It is a one-line wrapper: `return validate(frame, self, max_errors=max_errors)`. Every behaviour below is the module-level `ar.validate`.
+
+## 2. Inputs
+- `frame`: must be an `ArFrame` instance. A `pd.DataFrame` or a chunk iterator is rejected.
+- `max_errors`: `None` (no limit) or an `int >= 1`. A `bool` is rejected.
+- Internally:
+  - `df = to_pandas(frame)` and `dtypes = frame.dtypes`. The dtype strings come from the C++ core; they are expected to be `"int64"`, `"float64"`, `"string"`, `"bool"`, but I cannot see that code.
+  - Fields are checked in the dict insertion order of `self.fields`.
+
+## 3. Raises (checked in this order)
+1. Non-ArFrame `frame` raises `TypeError`. Message: `"validate() expects a single ArFrame. Chunked validation is not currently supported; validate each chunk explicitly or materialize the data before validation."` Example: `schema.validate(pd.DataFrame())`.
+2. `max_errors` is a bool or not an int: `TypeError("max_errors must be an int or None")`. Examples: `max_errors=True`, `max_errors=1.5`.
+3. `max_errors <= 0`: `ValueError("max_errors must be >= 1")`. Examples: `0`, `-1`.
+4. A rule in `rules` returns a non-list: `TypeError(f"Rule {rule_name!r} must return a list of ValidationIssue, got {type(result).__name__!r}")`.
+   - `rule_name` is `fn.__name__`.
+   - Example: `def r(df): return None` gives `"Rule 'r' must return a list of ValidationIssue, got 'NoneType'"`.
+5. A rule returns a list containing a non-issue: `TypeError(f"Rule {rule_name!r} returned a non-ValidationIssue item: {type(item).__name__!r}")`.
+   - Only `KeyError` from a rule is caught. Any other exception propagates.
+6. A Custom validator raises: `ArnioError(f"Custom validator {name!r} failed for column {col!r} with value {v!r}: {exc}")`.
+7. A Custom validator returns something other than True/False/None/pd.NA: `TypeError`.
+
+## 4. Returns and guarantees
+`ValidationResult` fields:
+- `row_count = len(df)`.
+- `issues`: a list in check order.
+- `issue_count == len(issues)`.
+- `bad_rows`: sorted, de-duplicated `row_index` values (`None` excluded).
+
+Indexing and status:
+- `row_index` is **1-based**: pandas index + 1. Row 0 gives `row_index == 1`.
+- `issue.value` is the raw offending cell value. Column-level issues have `value=None` and `row_index=None`.
+- `result.passed` is True iff no issue has `severity == "error"`. Warning-only issues still pass.
+
+Issue order:
+1. Per field, in field order. A missing column gives `rule="required_column"`, `message=f"Missing required column: {name}"`, `severity=field.severity`.
+2. Strict check: `rule="unexpected_column"`, `message=f"Unexpected column: {name}"`, severity `"error"`, in frame column order.
+3. Composite `unique`.
+4. `rules`.
+
+Within one column, `_validate_column` checks in this order:
+
+| Order | Rule | Fires when / message |
+|---|---|---|
+| 1 | `dtype` | Fires if `field.dtype` is set and differs from the actual dtype. Skipped when the field is `"datetime"` and the column is `"string"`. Message: `f"Column {name!r} has dtype {actual!r}; expected {exp!r}"`. If the column is string, the field is int64/float64, and the values look convertible, it gains the suffix `". Values appear safely convertible to 'int64'"`. "Convertible" means all non-null values match `^-?\d+$` for int. For id-like names (`id`, `*_id`, `uuid`, `zip*`), leading-zero values like `"007"` block the suffix. |
+| 2 | `nullable` | Only if `nullable=False`. Message: `"Column 'x' contains null or empty values"`. For string/object columns, `""` and whitespace-only values also count as null. |
+| 3 | `required_if` | If the condition column is absent: `rule="missing_column"`, `message=f"Column {c!r} not found"`, severity `"error"`. Otherwise one issue per row where `df[c] == v` and the cell is null. Message: `f"Column {name!r} is required when {c!r} == {v!r}"`. |
+| 4 | `unique` | Duplicates among non-null values, with `keep=False`, so **every** occurrence is reported. Message: `"Column 'x' contains duplicate values"`. |
+| 5 | `allowed` | Message: `"Column 'x' contains values outside the allowed set"`. Case folding applies only when `dtype=="string"` and `case_sensitive=False`. |
+| 6 | datetime: `format`, `min`, `max` | Bound messages: `"Column 'x' has values below <Timestamp>"` / `"above"`. |
+| 6 (else) | numeric: `numeric`, `min`, `max` | Applies when min or max is set. Messages: `"Column 'x' contains non-numeric values"`, `f"Column {name!r} has values below {min}"`, `f"... above {max}"`. Bounds are strict: a value equal to a bound passes. |
+| 7 | `pattern` | Uses `fullmatch`. Message: `"Column 'x' has values that do not match the pattern"`. |
+| 8 | semantic | The rule name equals the semantic (e.g. `"email"`, `"url"`, `"ipv4"`, `"date"`). Message: `f"Column {name!r} contains invalid {semantic} values"`. Date min/max use rule `min`/`max` with message `"has date values before 2020-01-01"` / `"after"`. Custom validators use `rule="custom"`. |
+| 9 | `min_length` / `max_length` | Messages: `"has values shorter than N"` / `"longer than N"`. |
+
+- Null and empty cells are skipped by every check after `nullable`.
+- Severity: column checks use `field.severity`. Strict, composite-unique and rule-`KeyError` issues use `"error"`.
+
+## 5. Side effects
+- None. The frame and schema are not mutated. Rules receive the `df` produced by `to_pandas`.
+
+## 6. Branches and edge cases
+- **`max_errors=N`**: stops as soon as N issues have accumulated and returns exactly N.
+  - Example: three bad rows plus `max_errors=1` gives `issue_count==1`.
+  - Later columns, strict, unique and rules are then not evaluated.
+- **Composite `unique=[]`**: one issue with `column=None`, `rule="composite_unique"`, `message="Composite unique columns cannot be empty"`.
+- **Composite unique column absent**: `rule="missing_column"`, `message=f"Column {c!r} not found"`.
+- **Composite duplicates**: one issue per duplicated row (all occurrences), with `message=f"Duplicate rows found for columns {list(unique)}"`. Example: `"Duplicate rows found for columns ['a', 'b']"`.
+- **Rule raises `KeyError('z')`**: an issue with `column="z"`, `rule="missing_column"`, `message="Cross-field rule referenced a missing column: 'z'"`.
+- **Zero-row frame with the column present**: `row_count==0` and no row issues. A dtype issue can still appear.
+- **Empty schema `Schema({})`**: passes. With `strict=True`, every frame column is reported.
+
+## 7. Rules stated in docstrings
+- "Validation stops once this limit (`max_errors`) is reached."
+- `passed` means "zero error-level issues".
+
+## 8. Testing hints
+- Build frames with `ar.from_pandas(pd.DataFrame({...}))`.
+- For nulls in string columns, use `""` or `"  "`. These count as null regardless of how the C++ core stores None.
+- Prefer substring or `rule` assertions for dtype messages, because the actual-dtype string comes from the C++ core.
+- `schema.validate(f)` and `ar.validate(f, schema)` return equal results; you can compare them via `.to_dict()`.
+- Example of a precise test:
+  ```python
+  f = ar.from_pandas(pd.DataFrame({"a": [1, 5, 10]}))
+  r = ar.Schema({"a": ar.Int64(min=2, max=9)}).validate(f)
+  assert [(i.rule, i.row_index) for i in r.issues] == [("min", 1), ("max", 3)]
+  assert r.bad_rows == [1, 3] and not r.passed
+  ```
+- Pitfalls:
+  - `row_index` is 1-based. Do not expect 0.
+  - `unique` reports all occurrences, not just the second.
+  - `Int64(min=5)` with value 5 passes.
+  - `issue.value` may be a numpy scalar, so compare with `==`.
+  - `severity="warning"` issues still appear in `issues` and `bad_rows`, but `passed` stays True.
+  - Do not write tests that rely on `TypeError` raised by rules being caught; it propagates.

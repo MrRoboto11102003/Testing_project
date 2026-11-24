@@ -1,0 +1,1165 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.lens.Lens.calculate_back_focal_length, openlens.lens.Lens.calculate_front_focal_length, openlens.polarization.JonesMatrices.linear_polarizer, openlens.polarization.PolarizationCalculator.fresnel_coefficients, openlens.polarization.PolarizationCalculator.reflectance_transmittance, openlens.polarization.PolarizationState.apply_matrix, openlens.polarization.PolarizationState.elliptical, openlens.polarization.PolarizationState.intensity, openlens.polarization.PolarizationState.stokes_parameters, openlens.tolerancing.ToleranceType.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.lens.Lens.calculate_back_focal_length
+    def calculate_back_focal_length(self) -> Optional[float]:
+        """
+        Calculate Back Focal Length (BFL).
+
+        BFL is the distance from the back vertex of the lens to the rear focal point.
+        For a thick lens: BFL = f * (1 - d * P1 / n)
+        where P1 = (n-1)/R1 is the power of the first surface,
+        d is the thickness, n is the refractive index, and f is the focal length.
+
+        Returns:
+            Back focal length in mm, or None if undefined (afocal).
+            None (not inf) matches OpticalSystem.calculate_back_focal_length.
+        """
+        f = self.calculate_focal_length()
+        if f is None:
+            return None
+
+        n = self.refractive_index
+        r1 = self.get_effective_radius_1()
+        t = self.thickness
+
+        try:
+            # Power of first surface (flat surface: r1 = inf -> P1 = 0)
+            P1 = (n - 1) / r1
+
+            # BFL = f * (1 - d * P1 / n)
+            bfl = f * (1.0 - t * P1 / n)
+
+            return bfl
+        except ZeroDivisionError:
+            return None
+
+# openlens.lens.Lens.calculate_front_focal_length
+    def calculate_front_focal_length(self) -> Optional[float]:
+        """
+        Calculate Front Focal Length (FFL).
+
+        FFL is the Cartesian x-coordinate of the front focal point measured
+        from the front vertex (+x along the light direction). For a
+        converging lens the front focus lies to the LEFT of the front
+        vertex, so FFL is negative: FFL = -f * (1 - d * P2 / n), where
+        P2 = (1-n)/R2 is the second-surface power, d the thickness, n the
+        refractive index and f the effective focal length. (From the system
+        matrix in (y, n*theta) form: the front object distance is s = -D/C,
+        hence the Cartesian coordinate is D/C = -f*(1 - d*P2/n).)
+        The mirror image of BFL = -A/C = +f * (1 - d * P1 / n).
+
+        Returns:
+            Front focal length in mm (signed Cartesian coordinate),
+            or None if undefined (afocal). None (not inf) matches the
+            system-level convention.
+        """
+        f = self.calculate_focal_length()
+        if f is None:
+            return None
+
+        n = self.refractive_index
+        r2 = self.get_effective_radius_2()
+        t = self.thickness
+
+        try:
+            # Power of second surface (note: using sign convention where P2 = (n_out - n_in)/R2)
+            # For light exiting lens: P2 = (1 - n) / R2 = -(n - 1) / R2
+            # Flat surface: r2 = inf -> P2 = 0
+            P2 = -(n - 1) / r2
+
+            # FFL = -f * (1 - d * P2 / n); the minus sign places the front
+            # focus on the object side (-x) for converging lenses.
+            ffl = -f * (1.0 - t * P2 / n)
+
+            return ffl
+        except ZeroDivisionError:
+            return None
+
+# openlens.polarization.JonesMatrices.linear_polarizer
+    @staticmethod
+    def linear_polarizer(angle_deg: float) -> np.ndarray:
+        """Linear polarizer at angle"""
+        theta = np.radians(angle_deg)
+        cos_t = np.cos(theta)
+        sin_t = np.sin(theta)
+        return np.array([[cos_t**2, cos_t * sin_t], [cos_t * sin_t, sin_t**2]])
+
+# openlens.polarization.PolarizationCalculator.fresnel_coefficients
+    def fresnel_coefficients(self, n1: float, n2: float, angle_deg: float) -> Dict[str, complex]:
+        """
+        Calculate Fresnel reflection and transmission coefficients
+
+        Args:
+            n1: Refractive index of incident medium
+            n2: Refractive index of transmitted medium
+            angle_deg: Incident angle in degrees
+
+        Returns:
+            Dictionary with r_s, r_p, t_s, t_p coefficients
+        """
+        theta1 = np.radians(angle_deg)
+
+        # Snell's law for transmission angle
+        sin_theta2 = (n1 / n2) * np.sin(theta1)
+
+        # Check for total internal reflection
+        if sin_theta2 > 1.0:
+            # Total internal reflection: cos(theta2) is imaginary and the
+            # same Fresnel formulas give complex unit-magnitude
+            # coefficients whose relative phase is the s/p retardance
+            # (basis of the Fresnel rhomb). Power reflectance stays 1.
+            cos_theta2 = cmath.sqrt(1.0 - sin_theta2**2)
+            cos_theta1 = np.cos(theta1)
+            r_s = (n1 * cos_theta1 - n2 * cos_theta2) / (n1 * cos_theta1 + n2 * cos_theta2)
+            r_p = (n2 * cos_theta1 - n1 * cos_theta2) / (n2 * cos_theta1 + n1 * cos_theta2)
+            return {
+                "r_s": r_s,
+                "r_p": r_p,
+                "t_s": 0.0 + 0j,
+                "t_p": 0.0 + 0j,
+                "total_internal_reflection": True,
+            }
+
+        theta2 = np.arcsin(sin_theta2)
+
+        cos_theta1 = np.cos(theta1)
+        cos_theta2 = np.cos(theta2)
+
+        # Fresnel coefficients for s-polarization (TE)
+        r_s = (n1 * cos_theta1 - n2 * cos_theta2) / (n1 * cos_theta1 + n2 * cos_theta2)
+        t_s = (2 * n1 * cos_theta1) / (n1 * cos_theta1 + n2 * cos_theta2)
+
+        # Fresnel coefficients for p-polarization (TM)
+        r_p = (n2 * cos_theta1 - n1 * cos_theta2) / (n2 * cos_theta1 + n1 * cos_theta2)
+        t_p = (2 * n1 * cos_theta1) / (n2 * cos_theta1 + n1 * cos_theta2)
+
+        return {
+            "r_s": r_s,
+            "r_p": r_p,
+            "t_s": t_s,
+            "t_p": t_p,
+            "theta_transmitted_deg": np.degrees(theta2),
+            "total_internal_reflection": False,
+        }
+
+# openlens.polarization.PolarizationCalculator.reflectance_transmittance
+    def reflectance_transmittance(self, n1: float, n2: float, angle_deg: float) -> Dict[str, float]:
+        """
+        Calculate reflectance and transmittance (power)
+
+        Args:
+            n1: Refractive index of incident medium
+            n2: Refractive index of transmitted medium
+            angle_deg: Incident angle in degrees
+
+        Returns:
+            Dictionary with R_s, R_p, T_s, T_p values
+        """
+        coeffs = self.fresnel_coefficients(n1, n2, angle_deg)
+
+        if coeffs["total_internal_reflection"]:
+            return {"R_s": 1.0, "R_p": 1.0, "T_s": 0.0, "T_p": 0.0}
+
+        theta1 = np.radians(angle_deg)
+        theta2 = np.radians(coeffs["theta_transmitted_deg"])
+
+        # Reflectance (power)
+        R_s = np.abs(coeffs["r_s"]) ** 2
+        R_p = np.abs(coeffs["r_p"]) ** 2
+
+        # Transmittance (power with angle correction)
+        # Avoid division by zero at grazing incidence (theta1 = 90 deg)
+        if np.abs(np.cos(theta1)) < 1e-10:
+            T_s = 0.0
+            T_p = 0.0
+        else:
+            T_s = (n2 * np.cos(theta2)) / (n1 * np.cos(theta1)) * np.abs(coeffs["t_s"]) ** 2
+            T_p = (n2 * np.cos(theta2)) / (n1 * np.cos(theta1)) * np.abs(coeffs["t_p"]) ** 2
+
+        return {"R_s": R_s, "R_p": R_p, "T_s": T_s, "T_p": T_p}
+
+# openlens.polarization.PolarizationState.apply_matrix
+    def apply_matrix(self, matrix: np.ndarray) -> "PolarizationState":
+        """Apply Jones matrix to transform polarization"""
+        new_vector = matrix @ self.jones_vector
+        return PolarizationState(new_vector)
+
+# openlens.polarization.PolarizationState.elliptical
+    @classmethod
+    def elliptical(cls, a: float, b: float, angle_deg: float = 0):
+        """Elliptical polarization"""
+        angle_rad = np.radians(angle_deg)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
+
+        # Rotation matrix
+        jones = np.array([a * cos_a - 1j * b * sin_a, a * sin_a + 1j * b * cos_a])
+        norm = np.sqrt(np.abs(jones[0]) ** 2 + np.abs(jones[1]) ** 2)
+        return cls(jones / norm)
+
+# openlens.polarization.PolarizationState.intensity
+    def intensity(self) -> float:
+        """Calculate intensity (magnitude squared)"""
+        return np.abs(self.jones_vector[0]) ** 2 + np.abs(self.jones_vector[1]) ** 2
+
+# openlens.polarization.PolarizationState.stokes_parameters
+    def stokes_parameters(self) -> np.ndarray:
+        """Convert to Stokes parameters [S0, S1, S2, S3]"""
+        Ex, Ey = self.jones_vector
+        S0 = np.abs(Ex) ** 2 + np.abs(Ey) ** 2
+        S1 = np.abs(Ex) ** 2 - np.abs(Ey) ** 2
+        S2 = 2 * np.real(Ex * np.conj(Ey))
+        S3 = 2 * np.imag(Ex * np.conj(Ey))
+        return np.array([S0, S1, S2, S3])
+
+# openlens.tolerancing.ToleranceType
+class ToleranceType(enum.Enum):
+    """Toleranced parameter. Native units per type (used as-is, no conversion).
+
+    RADIUS_1/2 (mm), THICKNESS (mm), REFRACTIVE_INDEX (absolute),
+    DECENTER_X/Y (mm; X is axial despace realized as the gap before the
+    element), TILT_X/Y (deg), AIR_GAP (mm; gap after the element),
+    ABBE_NUMBER (absolute), IRREGULARITY (fringes at 632.8 nm, power-
+    equivalent radius change at the surface semi-aperture), WEDGE (arcmin,
+    thin-element approximation as element tilt of half the wedge),
+    FOCUS (mm image-plane shift; compensator-only, never randomized).
+    """
+
+    RADIUS_1 = "Radius 1"
+    RADIUS_2 = "Radius 2"
+    THICKNESS = "Thickness"
+    REFRACTIVE_INDEX = "Refractive Index"
+    DECENTER_X = "Decenter X"
+    DECENTER_Y = "Decenter Y"
+    TILT_X = "Tilt X"
+    TILT_Y = "Tilt Y"
+    DECENTER_Z = "Decenter Z"
+    AIR_GAP = "Air Gap"
+    ABBE_NUMBER = "Abbe Number"
+    IRREGULARITY = "Surface Irregularity"
+    WEDGE = "Wedge"
+    FOCUS = "Focus"
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.lens.Lens.calculate_back_focal_length
+
+# Notes: `Lens.calculate_back_focal_length()`
+
+## 1. Purpose
+- Returns the thick-lens back focal length in mm: the distance from the back vertex to the rear focal point.
+- Formula: `BFL = f * (1 - t * P1 / n)`, where `P1 = (n - 1) / R1_eff`.
+- Returns `None` when the lens is afocal or undefined.
+
+## 2. Inputs
+- The method takes no arguments. It reads only these attributes:
+  - `self.refractive_index` (plain attribute, read as-is; no database or wavelength lookup)
+  - `self.thickness`
+  - `get_effective_radius_1()`
+  - `calculate_focal_length()`, which also uses `get_effective_radius_2()`
+- Effective radius rules (shown for surface 1; surface 2 is the same with `_2`):
+  - If `is_parabolic_1` is False: returns `radius_of_curvature_1`. The setter turns `0` (and `-0.0`) into `float('inf')`.
+  - If `is_parabolic_1` is True: returns `(D/2)**2 / (2*parabolic_sag_1)`.
+    - Returns `inf` if `|sag| < EPSILON` or `|D/2| < EPSILON`.
+    - The stored `radius_of_curvature_1` is ignored in this case.
+- `conic_constant_*` is **not used** at all, so it does not change the BFL.
+- `calculate_focal_length()`:
+  - `power = (n-1)*(1/R1 - 1/R2 + (n-1)*d/(n*R1*R2))`
+  - Returns `None` if `abs(power) < EPSILON` or on `ZeroDivisionError`; otherwise returns `1/power`.
+  - `1/inf == 0.0`, so a flat surface contributes zero power.
+  - `EPSILON` lives in `openlens.constants` (value not shown; it is a tiny tolerance).
+
+## 3. Raises
+- Nothing in normal use. `ZeroDivisionError` is caught in both this method and the focal-length method, and turned into `None`.
+- Example: `n=0` with finite radii makes `n*R1*R2 == 0.0`, so the focal length is `None` and BFL is `None`.
+
+## 4. Returns and guarantees
+- Returns a `float` (sign kept, so it can be negative) or `None`.
+- Afocal or undefined cases return `None`, never `inf`.
+- If `R1_eff` is infinite, `P1 = 0`, so `BFL == f` exactly.
+- If `thickness == 0`, `BFL == f`.
+
+Worked values (always pass `refractive_index` explicitly; `t` is thickness):
+
+| R1 | R2 | t | n | f | BFL |
+|---|---|---|---|---|---|
+| 100 | -100 | 5 | 1.5 | 12000/119 ≈ 100.840336 | 11800/119 ≈ **99.159664** |
+| 100 | 0 (→inf) | 5 | 1.5 | 200.0 | 200*59/60 ≈ **196.666667** |
+| 0 (→inf) | -100 | 5 | 1.5 | 200.0 | **200.0** (== f) |
+| -100 | 100 | 5 | 1.5 | -12000/121 ≈ -99.173554 | -12200/121 ≈ **-100.826446** |
+| 10 | -10 | 40 | 1.5 | 30.0 | **-10.0** (negative BFL) |
+| 0 | 0 | 5 | 1.5 | None | **None** |
+| 100 | -100 | 5 | 1.0 | None (power 0) | **None** |
+
+Parabolic example:
+- Setup: `diameter=20, is_parabolic_1=True, parabolic_sag_1=1.0` gives `R1_eff = 100/2 = 50`.
+- Any `radius_of_curvature_1` is ignored.
+- With `R2=-100, t=5, n=1.5`:
+  - power = `0.5*(0.02 + 0.01 + 0.5*5/(1.5*50*-100))` = `0.5*(0.03 - 1/3000)` = `0.5*(89/3000)`
+  - f = `6000/89` ≈ 67.41573
+  - P1 = 0.01
+  - BFL = `f*(1 - 0.05/1.5)` = `f*(29/30)` = `5800/89` ≈ **65.168539**
+- Parabolic with `parabolic_sag_1=0.0` gives `R1_eff = inf`, so `BFL == f`.
+
+## 5. Side effects
+- None. The lens is not mutated, `modified_at` is not touched, and there is no database access or I/O.
+
+## 6. Branches and edge cases
+- Focal length is `None` (both surfaces flat, or `n == 1`, or `abs(power) < EPSILON`): returns `None` early.
+- Finite `R1`: the full formula is applied.
+- Infinite `R1`: returns `f`.
+- `ZeroDivisionError` in the BFL step can only come from `n == 0`, but that case already returns `None` in the focal-length step.
+- A NaN radius propagates and returns NaN. Avoid testing this.
+
+## 7. Rules from docstring/comments
+- "None (not inf) matches OpticalSystem.calculate_back_focal_length."
+- A flat surface (`r1 = inf`) gives `P1 = 0`.
+- The formula uses the effective (vertex) radius, so parabolic surfaces are handled.
+
+## 8. Testing hints
+- Build lenses directly, for example: `Lens(radius_of_curvature_1=100, radius_of_curvature_2=-100, thickness=5, diameter=25, refractive_index=1.5)`.
+  - Always pass `refractive_index`. The default comes from `DEFAULT_MATERIAL_INDICES`, whose values are not shown.
+  - Always pass the radii explicitly. The default radii are unknown constants.
+- Compare floats with `pytest.approx(..., rel=1e-9)`. Use the exact fractions above where possible.
+- Good regression checks:
+  - **Sign**: a negative lens gives a negative BFL; the `R1=10, t=40` case gives `-10.0`.
+  - **Asymmetry**:
+    - Plano-convex (curved side first) gives 196.67.
+    - Convex-plano (flat side first, `R1=inf`) gives 200.0.
+    - This shows R1 is used, not R2.
+  - **Thickness dependence**: `t=0` gives `BFL == f`.
+  - **Parabolic**: BFL uses the effective radius, so the stored `radius_of_curvature_1` has no effect.
+  - **Afocal**: check `is None`, not `inf` or 0.
+- You may mutate `lens.refractive_index` or `lens.thickness` after construction; the method reads the current values.
+- Relation to check: `bfl == lens.calculate_focal_length() * (1 - t*(n-1)/(R1*n))`.
+
+### openlens.lens.Lens.calculate_front_focal_length
+
+# Notes: `Lens.calculate_front_focal_length()`
+
+## 1. Purpose
+- Returns the signed Cartesian x-coordinate of the front focal point, measured from the front vertex. +x is the light direction.
+- For a converging lens the front focus is on the object side, so the result is **negative**.
+- Formula: `FFL = -f * (1 - t*P2/n)` with `P2 = -(n-1)/R2`.
+- Equivalent form: `FFL = -f * (1 + t*(n-1)/(n*R2))`.
+
+## 2. Inputs (no arguments, only lens state)
+- `f = self.calculate_focal_length()` uses the lensmaker equation:
+  - `power = (n-1)*(1/R1 - 1/R2 + (n-1)*d/(n*R1*R2))`.
+  - It returns `None` if `abs(power) < EPSILON` or if a `ZeroDivisionError` occurs.
+  - Otherwise it returns `1/power`.
+- `n = self.refractive_index`. This is the stored value; there is no database lookup and no wavelength dependence.
+- `r2 = self.get_effective_radius_2()`:
+  - If `is_parabolic_2` is set: returns `(diameter/2)**2 / (2*parabolic_sag_2)`. If `|sag| < EPSILON` or `|diameter/2| < EPSILON`, it returns `inf`.
+  - Otherwise: returns `radius_of_curvature_2`.
+- R1 is handled the same way via `get_effective_radius_1()`.
+- The radius setters turn `0` (and `-0.0`) into `float('inf')`, which means a flat surface. A flat surface gives `1/R = 0` and `P2 = -0.0`.
+- `t = self.thickness`. This is the centre thickness and is not validated (negative or zero is accepted).
+- Ignored by this method:
+  - `conic_constant_*`
+  - `diameter` (except for parabolic surfaces)
+  - `wavelength`, `temperature`, `pressure_atm`
+  - clear apertures
+  - `lens_type`
+
+## 3. Raises
+- In practice, nothing.
+- A `ZeroDivisionError` in the FFL step is caught and gives `None`.
+- An `n == 0` case already fails inside `calculate_focal_length`, which returns `None`.
+
+## 4. Returns and guarantees
+- Returns `None` when the focal length is `None` (afocal or undefined). It never returns `inf` for this case.
+- Otherwise returns a plain Python `float`.
+- Pure: computed fresh on each call, no caching.
+
+## 5. Side effects
+- None. No attribute changes; `modified_at` is not updated.
+
+## 6. Branches and worked values
+Always pass an explicit `refractive_index`. The default index comes from `constants.DEFAULT_MATERIAL_INDICES`, which is not shown here.
+
+| Lens(...) kwargs | f | FFL |
+|---|---|---|
+| R1=100, R2=-100, t=5, n=1.5 | 12000/119 ≈ 100.840336 | -11800/119 ≈ **-99.159664** |
+| R1=50, R2=0 (flat back), t=5, n=1.5 | 100.0 | **-100.0** |
+| R1=0 (flat front), R2=-50, t=5, n=1.5 | 100.0 | -100*(1-1/30) ≈ **-96.666667** |
+| R1=-100, R2=100, t=5, n=1.5 (diverging) | -12000/121 ≈ -99.173554 | 12200/121 ≈ **+100.826446** |
+| R1=100, R2=-100, t=0, n=1.5 (thin) | 100.0 | **-100.0** (= -f) |
+| R1=0, R2=0 (both flat), any t, n | None | **None** |
+| R1=100, R2=-100, n=1.0 | None (power 0) | **None** |
+
+Parabolic back surface:
+- Build with `R1=0, radius_of_curvature_2=1000` (this radius is ignored), `is_parabolic_2=True, parabolic_sag_2=-1.0, diameter=20, t=5, n=1.5`.
+- The effective R2 is `100/(2*-1) = -50`.
+- The result is the same as the flat-front row: ≈ -96.666667.
+
+Relationship checks:
+- For a symmetric biconvex lens (R1 = -R2), `FFL == -BFL`. Compare against `calculate_back_focal_length()` using approx.
+- Plano-convex orientation matters:
+  - Curved front, flat back (R1=50, R2=flat): FFL = -100 and BFL = 100*(1 - 5*0.5/(1.5*50)) ≈ 96.6667.
+  - Flipped (flat front, R2=-50): FFL ≈ -96.6667 and BFL = 100.0.
+  - So `FFL != -BFL` here. This catches a swapped R1/R2 or a wrong sign.
+
+## 7. Rules from comments/docstring
+- Uses a signed Cartesian convention:
+  - A converging lens gives a negative FFL.
+  - A diverging lens gives a positive FFL.
+- Returns `None` (not `inf`) when the lens is afocal, matching the system-level convention.
+- It is the mirror of `BFL = +f*(1 - d*P1/n)`, where `P1 = (n-1)/R1`.
+- A flat R2 gives `P2 = 0`, so `FFL = -f`.
+
+## 8. Testing hints
+- Construct the lens like this: `Lens(radius_of_curvature_1=..., radius_of_curvature_2=..., thickness=..., refractive_index=1.5)`.
+  - Leave `use_type_defaults` at its default `False`; setting it to `True` would overwrite the radii.
+- Compare results with `pytest.approx(..., rel=1e-9)`, not `==`.
+- A flat surface can be given as `0` or `float('inf')`; both behave the same.
+- Assert the sign explicitly. Negating or dropping the leading `-` flips every converging case.
+- Assert `None` with `is None` for the both-flat lens and the n=1 lens.
+- Use a non-zero thickness and an asymmetric lens (the flat-front R2=-50 case). This catches:
+  - using R1 instead of R2,
+  - a `+` vs `-` sign error inside the parentheses,
+  - dropping the `/n`.
+- Check `-96.666667`; this exact value is lost if `/n` is omitted.
+- Changing `material`, `wavelength_nm`, or `conic_constant_2` must not change the result when `refractive_index` is explicit. This can be asserted as a non-regression check.
+
+### openlens.polarization.JonesMatrices.linear_polarizer
+
+# Notes: `openlens.polarization.JonesMatrices.linear_polarizer`
+
+## 1. Purpose
+- Returns the 2×2 Jones matrix of an ideal linear polarizer whose transmission axis is at `angle_deg` from the x (horizontal) axis.
+
+## 2. Inputs
+- `angle_deg: float`, a required positional argument in **degrees**.
+- There is no validation, clamping or type check. The only processing is `theta = np.radians(angle_deg)`.
+- It is a `@staticmethod`. All of these work:
+  - `JonesMatrices.linear_polarizer(30)`
+  - `JonesMatrices().linear_polarizer(30)`
+  - `PolarizationCalculator().matrices.linear_polarizer(30)`
+- `int` inputs are fine. `numpy` scalars are fine.
+- With `c = cos(theta)` and `s = sin(theta)`, the body is:
+  ```python
+  np.array([[c**2, c*s], [c*s, s**2]])
+  ```
+
+## 3. Raises
+- Nothing for numeric scalars. This includes negative values, values above 360, `nan` and `inf`. `nan` and `inf` give an all-`nan` matrix.
+- Non-numeric input such as `"45"` makes `np.radians` raise a numpy `TypeError` (`ufunc 'radians' not supported...`). Do not assert on the message text.
+
+## 4. Returns and guarantees
+- A new `np.ndarray` on every call, with `shape == (2, 2)` and `dtype == float64`. It is **real, not complex**, so `np.isrealobj(M)` is True.
+- Element layout:
+  - `M[0,0] = cos²θ`
+  - `M[0,1] = M[1,0] = cosθ·sinθ`. These two are bit-identical, so `M[0,1] == M[1,0]` holds exactly.
+  - `M[1,1] = sin²θ`
+- Key values (use `np.allclose` with `atol=1e-12`):
+
+  | angle_deg | expected matrix | notes |
+  |---|---|---|
+  | `0` | `[[1,0],[0,0]]` | **exact**, since cos(0)=1 and sin(0)=0 |
+  | `90` | ≈ `[[0,0],[0,1]]` | `M[0,0]` ≈ 3.7e-33 and `M[0,1]` ≈ 6.1e-17, so it is not exactly 0 |
+  | `45` | ≈ `[[0.5,0.5],[0.5,0.5]]` | |
+  | `-45` | ≈ `[[0.5,-0.5],[-0.5,0.5]]` | |
+  | `30` | `[[0.75, √3/4≈0.4330127], [0.4330127, 0.25]]` | |
+  | `60` | `[[0.25, 0.4330127], [0.4330127, 0.75]]` | |
+  | `135` | ≈ `[[0.5,-0.5],[-0.5,0.5]]` | |
+
+- Algebraic invariants hold for any θ, within about 1e-12:
+  - Symmetric: `M == M.T`.
+  - Idempotent: `M @ M ≈ M`.
+  - `trace == 1`.
+  - `det ≈ 0`.
+  - Eigenvalues are ≈ {0, 1}.
+- Periodicity:
+  - Period 180°: `P(θ+180) ≈ P(θ)`, and also `P(θ+360)`.
+  - `P(-θ)` has the same diagonal as `P(θ)` with the off-diagonal sign flipped.
+  - `P(θ) + P(θ+90) ≈ I` (identity).
+  - `P(θ) @ P(θ+90) ≈ 0` (crossed polarizers).
+- Consistency with the module's rotation convention: with `R = [[c, s], [-s, c]]`, `P(θ) = R.T @ diag(1,0) @ R`. This is the same construction used by `quarter_wave_plate` and `half_wave_plate`.
+
+## 5. Side effects
+- None. There is no state and no mutation, and the matrix is freshly built on each call.
+
+## 6. Branches and edge cases
+- There is a single code path with no branches.
+- An array input such as `np.array([0, 90])` gives an object of shape `(2, 2, N)`, not `(2, 2)`. Avoid this in tests unless it is asserted explicitly.
+- Large angles reduce naturally: `P(405) ≈ P(45)`.
+
+## 7. Rules from docstrings and comments
+- The docstring says only "Linear polarizer at angle".
+- The module docstring fixes the conventions:
+  - Jones vectors are `(Ex, Ey)`.
+  - `rotator()` is `[[c,s],[-s,c]]`.
+  - The polarizer angle is measured from the x-axis toward +y. For example, `P(θ)` applied to `linear_angle(θ)` returns `linear_angle(θ)` unchanged.
+
+## 8. Testing hints
+Observable behaviour through other public API:
+```python
+from openlens.polarization import JonesMatrices as J, PolarizationState as S, PolarizationCalculator
+h = S.linear_horizontal()
+out = h.apply_matrix(J.linear_polarizer(60))
+out.intensity()          # ≈ cos²60 = 0.25   (Malus)
+PolarizationCalculator().malus_law(1.0, 60)  # ≈ 0.25, same value
+S.linear_angle(30).apply_matrix(J.linear_polarizer(30)).jones_vector  # ≈ [cos30, sin30]
+S.linear_vertical().apply_matrix(J.linear_polarizer(0)).intensity()   # exactly 0.0
+h.apply_matrix(J.linear_polarizer(0)).jones_vector  # exactly [1+0j, 0+0j]
+```
+- General rule (Malus): for `linear_angle(φ)` passed through `P(θ)`, `intensity ≈ cos²(θ-φ)`. Parametrize this over several (θ, φ) pairs.
+- Assertions that catch typical regressions:
+  - The exact value at 0°.
+  - The off-diagonal sign at -45° and 135°.
+  - The sin² vs cos² placement at 30° (0.75 vs 0.25) and 60°.
+  - Degrees vs radians, using the 30° values.
+  - Idempotence.
+  - Trace = 1.
+  - Real dtype.
+- Pitfalls that would make a test fail on the current code:
+  - Do not use `==` for anything except 0° and the `M[0,1]==M[1,0]` symmetry.
+  - Do not expect exact zeros at 90°.
+  - Do not expect a complex dtype.
+  - Do not expect the input to be interpreted as radians.
+
+### openlens.polarization.PolarizationCalculator.fresnel_coefficients
+
+# Notes: `PolarizationCalculator.fresnel_coefficients(n1, n2, angle_deg)`
+
+## 1. Purpose
+- Returns the Fresnel amplitude coefficients (r_s, r_p, t_s, t_p) for light going from index `n1` into index `n2` at incidence angle `angle_deg`.
+- When total internal reflection (TIR) occurs, it returns complex reflection coefficients with magnitude 1 and zero transmission.
+
+## 2. Inputs
+- `n1`, `n2`: scalar indices. Nothing is validated, clamped or converted.
+- `angle_deg`: scalar incidence angle in degrees. It is converted with `np.radians`. There is no range check: negative angles and angles above 90 are accepted.
+- `self` state is not used (`self.matrices` is ignored). Build the object with `PolarizationCalculator()`, which takes no arguments.
+- Only pass scalars. A numpy array input fails at `if sin_theta2 > 1.0` with numpy's "truth value of an array is ambiguous" `ValueError`.
+
+## 3. Raises
+- There are no explicit raises.
+- `n2 == 0` with plain Python numbers raises `ZeroDivisionError` from `n1 / n2`. Example: `fresnel_coefficients(1.0, 0.0, 10.0)`. Don't assert the exact message, because it differs between Python versions.
+
+## 4. Returns and guarantees
+Each call builds a new `dict`. The steps are `sin_theta2 = (n1/n2)*np.sin(theta1)`, then the strict check `sin_theta2 > 1.0`.
+
+**Normal branch** (`sin_theta2 <= 1.0`). The dict has exactly 6 keys:
+`{"r_s", "r_p", "t_s", "t_p", "theta_transmitted_deg", "total_internal_reflection"}`
+- The formulas, with c1 = cos θ1 and c2 = cos(arcsin(sin_theta2)):
+  - `r_s = (n1 c1 - n2 c2)/(n1 c1 + n2 c2)`
+  - `t_s = 2 n1 c1/(n1 c1 + n2 c2)`
+  - `r_p = (n2 c1 - n1 c2)/(n2 c1 + n1 c2)`
+  - `t_p = 2 n1 c1/(n2 c1 + n1 c2)`
+- The values are **real `np.float64`**, not complex (the annotation says complex). They are still instances of `float`.
+- `theta_transmitted_deg = np.degrees(theta2)`.
+- `total_internal_reflection` is the Python bool `False`.
+- Identities that hold exactly, up to float rounding:
+  - `t_s == 1 + r_s`
+  - `t_p == (n1/n2)*(1 + r_p)`
+- Sign convention: at normal incidence `r_p == -r_s`. With n1 < n2, r_s is negative and r_p is positive.
+
+**TIR branch** (`sin_theta2 > 1.0`). The dict has exactly 5 keys, and **no** `theta_transmitted_deg`:
+- `cos_theta2 = cmath.sqrt(1 - sin_theta2**2)`. This is purely imaginary with a **positive** imaginary part.
+- `r_s` and `r_p` use the same formulas as above, so they are complex (`complex` or `np.complex128`; both pass `isinstance(x, complex)`).
+- `abs(r_s) == abs(r_p) == 1` within about 1e-12, and both have imaginary part < 0.
+- `t_s` and `t_p` are `0j`. `total_internal_reflection` is `True`.
+
+## 5. Side effects
+None. Inputs are not mutated and no global state changes.
+
+## 6. Branches and edge cases (concrete values)
+- **Normal incidence**, `(1.0, 1.5, 0.0)`:
+  - r_s = -0.2, r_p = 0.2, t_s = t_p = 0.8
+  - theta_transmitted_deg = 0.0, total_internal_reflection is False
+- **45°**, `(1.0, 1.5, 45.0)`:
+  - r_s ≈ -0.303337, r_p ≈ 0.092013
+  - t_s ≈ 0.696663, t_p ≈ 0.728009
+  - theta_transmitted_deg ≈ 28.1255
+- **Brewster angle**, `(1.0, 1.5, np.degrees(np.arctan(1.5)))` (about 56.3099°):
+  - |r_p| < 1e-12
+  - r_s = (1 - 2.25)/3.25 ≈ -0.384615
+  - t_s ≈ 0.615385, t_p ≈ 2/3
+  - theta_transmitted_deg ≈ 33.6901, so θ1 + θ2 = 90
+- **Matched indices**, `(1.5, 1.5, 30.0)`: r_s = r_p = 0, t_s = t_p = 1, theta_transmitted_deg ≈ 30.0.
+- **TIR**, `(1.5, 1.0, 60.0)` (the critical angle is about 41.81°):
+  - total_internal_reflection is True; t_s == t_p == 0j
+  - the dict has no `theta_transmitted_deg` key (`"theta_transmitted_deg" not in d`)
+  - |r_s| ≈ |r_p| ≈ 1; the phase of r_s ≈ -1.671 rad, the phase of r_p ≈ -2.377 rad
+- **Dense to rare medium below the critical angle**, `(1.5, 1.0, 30.0)`: normal branch, sin θ2 = 0.75, theta_transmitted_deg ≈ 48.5904.
+- **Grazing incidence**, `(1.5, 1.0, 90.0)`: TIR. r_s ≈ -1 (magnitude 1).
+- **Grazing incidence**, `(1.0, 1.5, 90.0)`: normal branch. c1 ≈ 6e-17, so r_s ≈ -1, r_p ≈ +1 and t ≈ 0.
+- **Negative angle**, `(1.0, 1.5, -30.0)`: the coefficients equal those at +30, and theta_transmitted_deg is negative (≈ -19.4712).
+- **Quirk with a negative angle in the TIR regime**, `(1.5, 1.0, -60.0)`: sin_theta2 ≈ -1.299 is not > 1, so the code takes the normal branch. `np.arcsin` returns `nan` with a RuntimeWarning, every coefficient is `nan`, and total_internal_reflection is `False`. Test it with `np.isnan` and `pytest.warns(RuntimeWarning)`, or don't test it at all.
+- **n1 = 0**, `(0.0, 1.5, 30.0)`: r_s = -1.0, r_p = 1.0, t_s = t_p = 0.0.
+
+## 7. Rules stated in comments
+- Comment on the TIR branch: the same Fresnel formulas give complex coefficients with unit magnitude. Their relative phase is the s/p retardance (the basis of the Fresnel rhomb), and the power reflectance stays 1.
+- `reflectance_transmittance` depends on this function. When `total_internal_reflection` is True it returns `R_s = R_p = 1.0` and `T_s = T_p = 0.0`. Otherwise it reads `coeffs["theta_transmitted_deg"]`, so that key must be present in the normal branch.
+
+## 8. Testing hints
+- Compare floats with `pytest.approx(..., abs=1e-9)` or `np.isclose`. Never use `==` on computed values, except the exact 0j values in the TIR branch and the bool flag.
+- Check the key sets exactly (6 keys in the normal branch, 5 in TIR). This catches regressions that add or drop keys.
+- Pin the signs as well as the magnitudes:
+  - r_s < 0 and r_p > 0 at normal incidence when n1 < n2
+  - r_p changes sign across the Brewster angle: at 40°, r_p > 0; at 70°, r_p < 0 (for n1=1, n2=1.5)
+- Use the identities `t_s == 1 + r_s` and `t_p == (n1/n2)*(1+r_p)` at several angles. They catch swapped n1/n2 or c1/c2 terms.
+- Energy check in the normal branch: `|r_s|² + (n2 c2)/(n1 c1)·t_s² == 1`, and the same holds for p.
+- Test the boundary with angles clearly on either side of the critical angle (for example 41° and 43° with 1.5 → 1.0). At exactly the critical angle, floating-point rounding decides the branch.
+- Don't assert `isinstance(r_s, complex)` in the normal branch. Those values are real.
+
+### openlens.polarization.PolarizationCalculator.reflectance_transmittance
+
+# Notes: `PolarizationCalculator.reflectance_transmittance(n1, n2, angle_deg)`
+
+## 1. Purpose
+- Returns the power reflectance and transmittance for s- and p-polarisation at a planar interface between medium `n1` (incident side) and medium `n2`.
+- It uses the Fresnel amplitude coefficients from `self.fresnel_coefficients`.
+
+## 2. Inputs
+- `n1`, `n2`: refractive indices, plain floats. **No validation** is done.
+- `angle_deg`: angle of incidence in degrees. It is converted with `np.radians`. No validation or clamping.
+- Construct the object with `PolarizationCalculator()`. It takes no arguments and the constructor has no side effects that matter here.
+
+## 3. Raises
+- There are no explicit `raise` statements.
+- `n2 == 0` with Python floats raises `ZeroDivisionError` from `n1 / n2` inside `fresnel_coefficients`.
+  - Example: `calc.reflectance_transmittance(1.0, 0.0, 10.0)`.
+  - Avoid this case in tests.
+
+## 4. Returns and guarantees
+The result is always a new `dict` with exactly the keys `"R_s", "R_p", "T_s", "T_p"`, in that order. No extra keys appear: `theta_transmitted_deg` and `total_internal_reflection` are not included.
+
+**Total internal reflection (TIR)** happens when `(n1/n2)*sin(theta1) > 1.0`. The check is strict `>`.
+- The function returns the literal `{"R_s": 1.0, "R_p": 1.0, "T_s": 0.0, "T_p": 0.0}`.
+- The values are exact Python floats, so `==` comparisons are safe.
+
+**Normal (non-TIR) path:**
+- `R_s = |r_s|²` and `R_p = |r_p|²`. These are `np.float64`.
+- When `|cos(theta1)| >= 1e-10`:
+  - `T_s = (n2*cos θ2)/(n1*cos θ1) * |t_s|²`
+  - `T_p = (n2*cos θ2)/(n1*cos θ1) * |t_p|²`
+- θ2 is recovered as `np.radians(np.degrees(arcsin(sin θ2)))`. The round trip only introduces float noise.
+- The underlying coefficients are:
+  - `r_s = (n1c1 - n2c2)/(n1c1 + n2c2)`
+  - `t_s = 2n1c1/(n1c1 + n2c2)`
+  - `r_p = (n2c1 - n1c2)/(n2c1 + n1c2)`
+  - `t_p = 2n1c1/(n2c1 + n1c2)`
+- Energy is conserved: `R_s + T_s == 1` and `R_p + T_p == 1`, within about 1e-12. This holds for any non-TIR, non-grazing input.
+
+## 5. Side effects
+None. Nothing is mutated, nothing is logged, and no files are written.
+
+## 6. Branches and edge cases, with concrete values
+**Normal incidence, `(1.0, 1.5, 0.0)`:**
+- `R_s = 0.04` and `R_p = 0.04` (r_s = -0.2, r_p = +0.2).
+- `T_s = 0.96` and `T_p = 0.96`.
+- Use `pytest.approx`.
+
+**Reverse direction, `(1.5, 1.0, 0.0)`:**
+- Gives the same values: R = 0.04 and T = 0.96 for both polarisations.
+
+**Brewster angle:**
+- Inputs: `angle = np.degrees(np.arctan(1.5))`, about 56.3099°, with `(1.0, 1.5)`.
+- `R_p ≈ 0`; check with `abs < 1e-12`.
+- `R_s = ((1-n²)/(1+n²))² = (1.25/3.25)² ≈ 0.147929`.
+- `T_p ≈ 1.0`.
+- `T_s ≈ 0.852071`.
+
+**Equal indices, `(1.5, 1.5, 30.0)`:**
+- R_s and R_p are about 0.
+- T_s and T_p are about 1.
+
+**TIR, `(1.5, 1.0, 60.0)`:**
+- `sin θ2 = 1.299`, which is above 1.
+- Returns the exact dict `{"R_s":1.0,"R_p":1.0,"T_s":0.0,"T_p":0.0}`.
+- The critical angle for 1.5→1.0 is `arcsin(1/1.5)` ≈ 41.81°.
+  - At 41.0° there is no TIR (normal path).
+  - At 42.0° the result is TIR.
+  - Do not test exactly at the critical angle; floating-point rounding decides the branch there.
+
+**Grazing incidence, `(1.0, 1.5, 90.0)`:**
+- `cos(radians(90)) ≈ 6.1e-17`, which is below `1e-10`.
+- `T_s == 0.0` and `T_p == 0.0`, as exact Python floats.
+- `R_s ≈ 1` and `R_p ≈ 1`; check with `approx(1, abs=1e-9)`.
+- At 89.0° the normal formula is still used, so T is greater than 0.
+
+**Sign of the angle:**
+- A negative angle gives the same result as the positive one.
+- Example: `(1.0, 1.5, -30.0)` equals `(1.0, 1.5, 30.0)`, approximately.
+
+**Monotonicity for 1.0→1.5:**
+- R_s increases monotonically with angle from 0° to 89°.
+- R_p falls to about 0 at Brewster's angle and then rises again.
+
+## 7. Rules from comments and docstrings
+- The grazing guard has the comment "Avoid division by zero at grazing incidence (theta1 = 90 deg)". The threshold is `1e-10` on `|cos θ1|`.
+- The comments on the TIR branch say "Power reflectance stays 1".
+
+## 8. Testing hints
+**Value checks:**
+- Use `pytest.approx` for every non-TIR value.
+- Exact `==` is only safe for:
+  - all four TIR values;
+  - the grazing `T_s` and `T_p` (0.0).
+
+**Strong regression checks:**
+- `set(result) == {"R_s","R_p","T_s","T_p"}`, plus `list(result) == ["R_s","R_p","T_s","T_p"]`.
+- The 0.04/0.96 values at normal incidence. These catch a dropped `n2/n1` factor or squaring: without the factor, T would be 0.64.
+- Energy conservation at several angles, for example 0, 20, 45 and 70°, with `(1.0, 1.5)`.
+- `R_p ≈ 0` at Brewster's angle (catches a swapped s/p formula), together with `R_s ≈ 0.1479`.
+- The TIR exact dict at 60° and a non-TIR case at 41°.
+- The grazing 90° case: T is exactly 0.
+
+**Pitfalls:**
+- Non-TIR values are `np.float64`. Comparing them with `approx` is fine, but `type(x) is float` fails.
+- Never call with `n2 = 0`.
+- Do not assert the `theta_transmitted_deg` key in the result; it is absent.
+- `fresnel_coefficients` is a method on the same object, so it can be monkeypatched. That is unnecessary, because the real function works as described.
+
+### openlens.polarization.PolarizationState.apply_matrix
+
+# Notes: `openlens.polarization.PolarizationState.apply_matrix`
+
+## 1. Purpose
+- Applies a Jones matrix to this state. It returns a **new** `PolarizationState` whose vector is `matrix @ self.jones_vector`.
+- Full body:
+  ```python
+  new_vector = matrix @ self.jones_vector
+  return PolarizationState(new_vector)
+  ```
+
+## 2. Inputs
+- `self.jones_vector`: whatever the dataclass holds. The dataclass does no validation and no normalisation. The factory methods produce shape-(2,) arrays.
+  - `linear_horizontal()` and `linear_vertical()` give complex vectors.
+  - `linear_45()` and `linear_angle()` give **float** vectors.
+  - `circular_*` and `elliptical` give complex vectors.
+- `matrix`: anything that supports `@` with an ndarray.
+  - A 2x2 `np.ndarray` works, real or complex.
+  - A nested list also works, e.g. `[[1,0],[0,0]]`, through `ndarray.__rmatmul__`.
+- The function does no shape check, no unitarity check and no normalisation.
+
+## 3. Raises
+apply_matrix has no explicit raises. Only numpy errors from `@` can occur. Their exact wording depends on the numpy version, so assert only the type:
+- `ValueError` when the core dimensions mismatch, e.g. `PolarizationState.linear_horizontal().apply_matrix(np.eye(3))`.
+- `ValueError` for a scalar matrix, e.g. `.apply_matrix(np.float64(2.0))`. Note that matmul rejects 0-d operands.
+- Use `pytest.raises(ValueError)` only. Do not use `match=`.
+
+## 4. Returns and guarantees
+- The result is an instance of exactly `PolarizationState`. It is hard-coded, not `type(self)`.
+- The result is a new object: `out is not s` and `out.jones_vector is not s.jones_vector`, even with `np.eye(2)`.
+- The output is **not normalised**, so intensity can drop.
+- dtype follows numpy promotion:
+  - A real matrix times the float `linear_45` vector gives a float result.
+  - Anything involving complex gives a complex result.
+- Shape follows matmul. For example, a (1,2) matrix gives a shape-(1,) vector with no error.
+- Chaining `s.apply_matrix(A).apply_matrix(B)` equals `(B @ A) @ v`, so order matters.
+
+## 5. Side effects
+- None. Neither `self.jones_vector` nor `matrix` is modified.
+- Test this by keeping a `.copy()` of the vector and comparing it after the call.
+
+## 6. Concrete expected values
+Use `np.testing.assert_allclose(..., atol=1e-12)` for all of these.
+
+| Input state | Matrix (`JonesMatrices`) | Result `jones_vector` |
+|---|---|---|
+| `linear_vertical()` | `linear_polarizer(0)` = `[[1,0],[0,0]]` | `[0, 0]` → `intensity()==0`, `degree_of_polarization()==0.0` |
+| `linear_45()` | `linear_polarizer(0)` | `[0.70710678, 0]`, `intensity()≈0.5` (Malus) |
+| `linear_horizontal()` | `linear_polarizer(90)` | ≈`[0, 0]` (tiny float residue ~6e-17; use atol) |
+| `linear_horizontal()` | `half_wave_plate(22.5)` | `[0.70710678, 0.70710678]` (= linear_45) |
+| `linear_horizontal()` | `half_wave_plate(0)` = diag(1,-1) | `[1, 0]` |
+| `linear_vertical()` | `half_wave_plate(0)` | `[0, -1]` (sign matters) |
+| `linear_horizontal()` | `quarter_wave_plate(45)` | `[0.5+0.5j, 0.5-0.5j]` |
+| `linear_horizontal()` | `rotator(30)` = `[[c,s],[-s,c]]` | `[0.8660254, -0.5]` (note the **minus**) |
+| `linear_horizontal()` | `rotator(90)` | ≈`[0, -1]` |
+| `circular_right()` | `np.eye(2)` | equal values to the input, but a new object |
+| `PolarizationState(np.array([1+0j, 2+0j]))` | `[[0,1],[1,0]]` (list) | `[2, 1]` |
+
+Further checks on the QWP(45) case, i.e. `linear_horizontal().apply_matrix(quarter_wave_plate(45))`:
+- `stokes_parameters()` is `[1, 0, 0, 1]`, so S3 = +1, matching `circular_left`.
+- The result equals `circular_left().jones_vector * (1+1j)/np.sqrt(2)`. This is the module docstring's "consistency anchor".
+- `intensity()` is 1.0 and `degree_of_polarization()` is 1.0.
+
+Other edge cases:
+- An all-zero matrix gives a zero vector, `intensity()==0`, and `degree_of_polarization()` returns exactly `0.0`.
+- A scaling matrix `2*np.eye(2)` applied to horizontal gives `[2, 0]` and `intensity()==4`. This proves there is no normalisation.
+
+## 7. Rules from comments and docstrings
+- Docstring: "Apply Jones matrix to transform polarization". It is a pure left-multiplication.
+- Module conventions:
+  - `circular_right` is `[1,+i]/√2`.
+  - `rotator` is `[[c,s],[-s,c]]`, clockwise-positive.
+  - Horizontal light through QWP@45 gives `circular_left` up to a global phase.
+- Do not "correct" these signs in expected values.
+
+## 8. Testing hints
+- Always compare arrays with `np.testing.assert_allclose`, not `==`. Trig residues such as `cos(90°)≈6e-17` exist, so pass `atol`.
+- Compare complex results either against complex expected arrays or by checking real and imaginary parts separately.
+- Global phase:
+  - Compare exactly against the computed vector, e.g. `[0.5+0.5j, 0.5-0.5j]`.
+  - Or compare phase-invariant quantities: the Stokes parameters, `intensity()`, and `abs(np.vdot(a, b))`.
+- Test non-commutativity. Apply `linear_polarizer(0)` then `linear_polarizer(90)` to `linear_45()` and you get ≈0. That is different from applying a single polarizer.
+- Test `type(out) is PolarizationState`, `out is not s`, and input immutability.
+- Do not assert numpy error message text. Do not assert dtype for mixed real/complex cases beyond `np.iscomplexobj` in cases where it is obviously complex.
+
+### openlens.polarization.PolarizationState.elliptical
+
+# Notes: `openlens.polarization.PolarizationState.elliptical`
+
+## 1. Purpose
+- Classmethod. It builds a normalised (unit-intensity) Jones vector for an elliptical polarization state.
+- The ellipse has semi-axis `a` along direction `angle_deg` and semi-axis `b` perpendicular to it, with a +90° phase on the `b` component.
+
+## 2. Inputs
+- `a: float`: semi-axis amplitude along the rotated x' axis. Any real number, including 0 and negative values.
+- `b: float`: semi-axis amplitude along the rotated y' axis. Any real number, including 0 and negative values.
+- `angle_deg: float = 0`: ellipse orientation in **degrees**. It is converted with `np.radians`.
+- There is no validation, clamping or type coercion. Ints work.
+
+Exact code:
+```python
+c, s = cos(rad), sin(rad)
+jones = np.array([a*c - 1j*b*s, a*s + 1j*b*c])
+norm  = np.sqrt(|jones[0]|**2 + |jones[1]|**2)
+return cls(jones / norm)
+```
+- For real `a` and `b`, `norm == sqrt(a**2 + b**2)`. The norm is independent of the angle.
+
+## 3. Raises
+- No explicit raises.
+- `a = b = 0` does **not** raise. It gives a 0/0 division, so `jones_vector` is `[nan+nanj, nan+nanj]`. numpy emits a `RuntimeWarning` ("invalid value encountered in divide").
+- Non-numeric `a` or `b` (e.g. `"x"`) fails inside numpy or Python arithmetic, typically with `TypeError`. The message is not pinned down.
+
+## 4. Returns and guarantees
+- Returns `cls(...)`, which is a `PolarizationState` (or the subclass it is called on).
+- `.jones_vector` is a new `np.ndarray` with shape `(2,)` and dtype `complex128`. It is complex even when `b == 0`.
+- For nonzero `(a, b)`, `intensity()` is ≈ 1.0.
+- Closed-form Stokes parameters, with N = a² + b²:
+  - S0 = 1
+  - S1 = (a² − b²)·cos2θ / N
+  - S2 = (a² − b²)·sin2θ / N
+  - S3 = −2ab / N
+- The result is invariant to a common positive scale: `elliptical(2,2)` equals `elliptical(1,1)`.
+
+## 5. Side effects
+- None. There is no global state and no mutation.
+
+## 6. Branches / concrete values
+There is a single code path. Concrete values:
+- `elliptical(1, 0)` → `[1+0j, 0+0j]`. This is the same as `linear_horizontal()`.
+- `elliptical(1, 1)` → `[1, 1j]/√2`. This equals `circular_right().jones_vector`, and S3 = −1.
+- `elliptical(1, -1)` → `[1, -1j]/√2`. This equals `circular_left()`, and S3 = +1.
+- `elliptical(0, 1)` → `[0, 1j]`. Note this is **not** `[0, 1]`: the Ey component is purely imaginary.
+- `elliptical(3, 4)` → `[0.6+0j, 0.8j]`. Stokes ≈ `[1, -0.28, 0, -0.96]`.
+- `elliptical(1, 0, 90)` → ≈ `[0, 1]`. The cos(90°) term is about 6e-17, so compare with `np.allclose`.
+- `elliptical(2, 1, 45)` → ≈ `[0.632456-0.316228j, 0.632456+0.316228j]`. Stokes ≈ `[1, 0, 0.6, -0.8]`.
+- `elliptical(-1, 0)` → `[-1, 0]`. The sign is preserved; there is no abs().
+- `elliptical(1, 0, 30)` → ≈ `linear_angle(30)` vector `[0.866025, 0.5]`.
+- `elliptical(0, 0)` → all-NaN vector, as described in section 3.
+
+## 7. Rules from docstring/module comments
+- Fixed conventions: `circular_right = [1,+i]/√2` with S3 = −1, and `circular_left = [1,−i]/√2` with S3 = +1.
+- Therefore a positive `a*b` gives S3 < 0 ("right" in this module's labelling).
+- Module docstring says: do not "correct" signs in isolation. The `-1j*b*s` and `+1j*b*c` signs are deliberate.
+
+## 8. Testing hints
+- Compare vectors with `np.allclose(state.jones_vector, expected)`. Do **not** use `==` on two `PolarizationState` objects: the dataclass `__eq__` compares ndarrays and raises "truth value of an array is ambiguous".
+- Good regression pins:
+  - The exact vector for `(3,4,0)`.
+  - The `(2,1,45)` vector.
+  - The `elliptical(0,1)[1] == 1j` imaginary component.
+  - The S3 sign: `elliptical(1,1).stokes_parameters()[3] ≈ -1`.
+  - Equality with `circular_right` and `circular_left`.
+  - `intensity() ≈ 1` for arbitrary `(a, b, angle)`.
+  - Angle in degrees, not radians: `elliptical(1,0,90)` gives ≈ `[0,1]`.
+  - Normalisation independent of the angle.
+  - `dtype == np.complex128`.
+- For the zero case, wrap in `np.errstate(invalid="ignore")` (or `pytest.warns(RuntimeWarning)`) and assert `np.all(np.isnan(v))`.
+- Use `abs=1e-12` tolerances. sin and cos of 90°/180° are not exactly 0.
+
+### openlens.polarization.PolarizationState.intensity
+
+# Notes: `openlens.polarization.PolarizationState.intensity`
+
+## 1. Purpose
+- Returns the total intensity of a Jones vector: `|Ex|**2 + |Ey|**2`.
+- The value is **not** normalised. It is the raw squared magnitude.
+
+## 2. Inputs
+- `self` is a `PolarizationState`, which is a plain `@dataclass` with one field, `jones_vector`.
+- The dataclass does no validation, conversion or normalisation of `jones_vector`.
+- Only `self.jones_vector[0]` and `self.jones_vector[1]` are read.
+  - Any further elements are ignored. For example, `[1, 0, 5]` gives `1.0`.
+- `jones_vector` should be a 1-D numpy array, real or complex.
+  - A plain list such as `[3, 4]` also works, because `np.abs` accepts Python scalars.
+- `np.abs` is applied to each component before squaring. So for complex entries the result uses the modulus, not the real part.
+
+## 3. Raises
+- The method has no explicit raises.
+- `IndexError` from indexing if the vector has fewer than 2 elements:
+  - `PolarizationState(np.array([1.0])).intensity()` raises `IndexError`.
+- `TypeError` if `jones_vector` is `None`, because it is not subscriptable:
+  - `PolarizationState(None).intensity()`.
+
+## 4. Returns and guarantees
+- For numpy input the result is a numpy scalar, `np.float64`. `isinstance(result, float)` is True.
+- The result is always real and `>= 0`. Its value is `abs(Ex)**2 + abs(Ey)**2`.
+- Exact-value examples (integers or exactly representable values):
+  - `[3, 4]` gives `25.0`.
+  - `[3, 4j]` gives `25.0`.
+  - `[0, 2j]` gives `4.0`.
+  - `[-3, 0]` gives `9.0`.
+  - `[0, 0]` gives `0.0`.
+  - `[2, 0]` gives `4.0`, not `2.0`. The value is squared, not a norm.
+- Factory states:
+  - `linear_horizontal()` and `linear_vertical()` give exactly `1.0`.
+  - `linear_45()`, `circular_right()`, `circular_left()`, `linear_angle(θ)` and `elliptical(a, b, θ)` give approximately `1.0`. Floating-point rounding is possible, e.g. `0.9999999999999998`.
+- The result scales quadratically with the vector: `PolarizationState(k * v).intensity() == k**2 * PolarizationState(v).intensity()`. Compare with approx.
+- The result is unchanged by a global phase: multiplying the vector by `np.exp(1j*φ)` gives the same intensity (approx).
+- It equals `stokes_parameters()[0]`, which is S0 and uses the identical formula.
+
+## 5. Side effects
+- None. `jones_vector` is not mutated.
+
+## 6. Branches and edge cases
+- There is a single code path with no branches.
+- Zero vector `[0, 0]` returns `0.0`. Related: `degree_of_polarization()` returns `0.0` in this case and `1.0` otherwise.
+- Purely imaginary component `[0, 1j]` returns `1.0`.
+  - This distinguishes the modulus from the real part, which would give `0`.
+- Complex `[1+1j, 0]` returns `≈ 2.0`; use approx.
+- Non-unit vectors, e.g. `[3, 4]` giving `25.0`, distinguish the squared sum from `sqrt` or a norm (which would give `5`).
+- Combining with `apply_matrix`:
+  - `linear_horizontal().apply_matrix(JonesMatrices.linear_polarizer(45)).intensity()` is approximately `0.5`.
+  - With polarizer `90` the result is approximately `0` (about `1e-33`), so use `abs=1e-12`.
+  - With polarizer `0` the result is exactly `1.0`.
+  - This matches `PolarizationCalculator().malus_law(1.0, θ)` (approx).
+- Wave plates and rotators preserve intensity:
+  - `quarter_wave_plate(45)`, `half_wave_plate(22.5)`, `rotator(30)` and `retarder(60, 10)` applied to `linear_45()` give approximately `1.0`.
+
+## 7. Rules stated in comments/docstrings
+- The docstring says: "Calculate intensity (magnitude squared)". The value is squared, with no sqrt and no normalisation.
+- The module docstring says Jones vectors are pure states, so intensity is the only amplitude measure.
+
+## 8. Testing hints
+- Build states directly, e.g. `PolarizationState(np.array([3.0, 4.0j]))`, or with the classmethod factories.
+- Use `pytest.approx` for any value involving `sqrt(2)`, trig functions or complex products.
+- Exact `==` is safe only for small integer components.
+- Strong regression-catching cases:
+  - `[3, 4]` gives `25.0`. This catches a missing square or a sqrt.
+  - `[3, 0]` gives `9.0` and `[0, 4]` gives `16.0`. These catch use of only one component.
+  - `[0, 2j]` gives `4.0`. This catches use of the real part instead of the modulus.
+  - `[-3, 0]` gives `9.0`. This catches sign handling.
+  - Scaling: `v` versus `2*v` should give a ratio of 4.
+  - `intensity() == approx(stokes_parameters()[0])`.
+- Do not assert `type(result) is float`; it is `np.float64`. Use `isinstance(result, float)` or compare values.
+- Do not rely on extra elements beyond index 1 contributing; they are ignored.
+
+### openlens.polarization.PolarizationState.stokes_parameters
+
+# Notes: `openlens.polarization.PolarizationState.stokes_parameters`
+
+## 1. Purpose
+- Converts the state's Jones vector `(Ex, Ey)` into the Stokes vector `[S0, S1, S2, S3]`.
+- Returns it as a `np.ndarray` of shape `(4,)`.
+
+## 2. Inputs
+- The method takes no arguments. It reads only `self.jones_vector`.
+- `jones_vector` is unpacked as `Ex, Ey = self.jones_vector`, so it must have exactly 2 elements. A list or a numpy array both work.
+- Nothing is normalised. Raw magnitudes are used, so the result scales with intensity.
+- The dataclass does not validate input. `PolarizationState(np.array([2, 0]))` is accepted.
+
+## 3. Raises
+- The method raises nothing explicitly.
+- A `jones_vector` that does not have exactly 2 elements raises `ValueError` from tuple unpacking:
+  - `PolarizationState(np.array([1, 0, 0])).stokes_parameters()` gives `ValueError: too many values to unpack (expected 2)`.
+  - `PolarizationState(np.array([1])).stokes_parameters()` gives `ValueError: not enough values to unpack (expected 2, got 1)`.
+  - Use `pytest.raises(ValueError)` only. Do not match the message.
+
+## 4. Returns and guarantees
+The exact formulas are:
+```
+S0 = |Ex|^2 + |Ey|^2
+S1 = |Ex|^2 - |Ey|^2
+S2 = 2 * Re(Ex * conj(Ey))
+S3 = 2 * Im(Ex * conj(Ey))     # note: Ex * conj(Ey), NOT conj(Ex) * Ey
+```
+- A new `np.ndarray` is built on every call, in the order `[S0, S1, S2, S3]`.
+- For float or complex input the dtype is float64 (real values).
+- For integer input the dtype may be integer. Do not assert dtype in that case.
+
+Reference values (compare with `np.allclose` or `pytest.approx`):
+
+| State | Expected `[S0, S1, S2, S3]` |
+|---|---|
+| `linear_horizontal()` | `[1, 1, 0, 0]` |
+| `linear_vertical()` | `[1, -1, 0, 0]` |
+| `linear_45()` | `[1, 0, 1, 0]` |
+| `linear_angle(θ)` | `[1, cos2θ, sin2θ, 0]`, e.g. 30° gives `[1, 0.5, 0.8660254, 0]`; −45° gives `[1, 0, -1, 0]` |
+| `circular_right()` = `[1, +i]/√2` | `[1, 0, 0, -1]` (S3 = **−1**, as the module docstring states) |
+| `circular_left()` = `[1, −i]/√2` | `[1, 0, 0, +1]` |
+| `elliptical(2, 1, 0)` = `[2, i]/√5` | `[1, 0.6, 0, -0.8]` |
+| `elliptical(1, 1, 0)` | same as `circular_right`: `[1, 0, 0, -1]` |
+| `PolarizationState(np.array([2+0j, 0j]))` | `[4, 4, 0, 0]` (not normalised) |
+| `PolarizationState(np.array([1+0j, 1j]))` | `[2, 0, 0, -2]` |
+| `PolarizationState(np.array([0j, 0j]))` | `[0, 0, 0, 0]` |
+| `PolarizationState(np.array([1+1j, 0j]))` | `[2, 2, 0, 0]` |
+
+## 5. Side effects
+- None. `self.jones_vector` is not mutated.
+- Calling the method twice gives equal arrays, and they are distinct objects.
+
+## 6. Branches and edge cases
+- There is a single code path with no branches.
+- For real-valued input (`linear_45`, `linear_angle`), `np.imag` gives 0, so S3 is exactly 0.
+- For any Jones vector the result is fully polarized: `S0**2 ≈ S1**2 + S2**2 + S3**2`.
+- A global phase does not change the result. Multiplying the vector by `np.exp(1j*0.7)` gives the same Stokes vector, within allclose.
+- Each component scales by `|k|^2` when the vector is multiplied by `k`. For example, `k = 3` multiplies every S by 9.
+
+## 7. Rules from comments and docstrings
+- The module docstring fixes the conventions:
+  - S3 = `2*Im(Ex*conj(Ey))`.
+  - `circular_right` has S3 = −1 and `circular_left` has S3 = +1.
+  - These signs are deliberate, and the docstring says not to "correct" them.
+- Consistency anchor from the docstring: horizontal light through a QWP at 45° gives `circular_left` up to a global phase.
+  - Concretely, `PolarizationState.linear_horizontal().apply_matrix(JonesMatrices.quarter_wave_plate(45))` gives the vector `[(1+i)/2, (1−i)/2]`.
+  - Its Stokes vector is `[1, 0, 0, +1]`.
+
+## 8. Testing hints
+- Always compare floats with `np.allclose(result, expected, atol=1e-12)`. For example, `linear_45` gives S0 ≈ 1.0000000000000002.
+- Check `result.shape == (4,)` and `isinstance(result, np.ndarray)`.
+- The highest-value tests are:
+  - **The S3 sign for circular_right and circular_left.** A mutation to `conj(Ex)*Ey` flips it.
+  - **The S1 sign for vertical light**, which must be −1.
+  - **The S2 sign for linear at −45°**, which must be −1.
+  - **The factor 2 in S2 and S3**, e.g. `linear_45` must have S2 = 1, not 0.5.
+  - **The unnormalised scaling**, e.g. `[2, 0]` must give S0 = 4.
+  - **The order of components.** The `elliptical(2, 1, 0)` vector `[1, 0.6, 0, -0.8]` distinguishes every position.
+- More checks:
+  - Assert the identity `S0 == intensity()` (from the same class) for arbitrary vectors.
+  - Rotator: `linear_horizontal().apply_matrix(JonesMatrices.rotator(30))` gives `[cos30, -sin30]`, so the Stokes vector is `[1, 0.5, -0.8660254, 0]`.
+- Do not assume a normalised output, and do not assert an integer dtype.
+
+### openlens.tolerancing.ToleranceType
+
+# Notes: `openlens.tolerancing.ToleranceType`
+
+## 1. Purpose
+- A plain `enum.Enum` (not `IntEnum`/`StrEnum`) that names each toleranced parameter.
+- Units are native per type. The docstring says they are "used as-is, no conversion".
+- Several functions use the enum members:
+  - as lookup keys: `.value` in (de)serialisation;
+  - as labels: `.name` in perturbation keys and sensitivity dicts.
+
+## 2. Members (exact definition order, name → value)
+| # | name | value |
+|---|------|-------|
+| 0 | RADIUS_1 | `"Radius 1"` |
+| 1 | RADIUS_2 | `"Radius 2"` |
+| 2 | THICKNESS | `"Thickness"` |
+| 3 | REFRACTIVE_INDEX | `"Refractive Index"` |
+| 4 | DECENTER_X | `"Decenter X"` |
+| 5 | DECENTER_Y | `"Decenter Y"` |
+| 6 | TILT_X | `"Tilt X"` |
+| 7 | TILT_Y | `"Tilt Y"` |
+| 8 | DECENTER_Z | `"Decenter Z"` |
+| 9 | AIR_GAP | `"Air Gap"` |
+| 10 | ABBE_NUMBER | `"Abbe Number"` |
+| 11 | IRREGULARITY | `"Surface Irregularity"` |
+| 12 | WEDGE | `"Wedge"` |
+| 13 | FOCUS | `"Focus"` |
+
+Facts to pin:
+- There are exactly **14 members**, and all values are unique, so there are no aliases.
+- **DECENTER_Z comes after TILT_Y**, not after DECENTER_Y.
+- The IRREGULARITY value is `"Surface Irregularity"`, not `"Irregularity"`.
+
+Related module constant:
+- `COMPENSATOR_ONLY_TYPES = frozenset({ToleranceType.FOCUS})`.
+
+## 3. Raises (standard Enum behaviour)
+- Unknown value: `ToleranceType("bogus")` raises `ValueError` with message `'bogus' is not a valid ToleranceType`.
+- Value lookup is case- and space-exact: `ToleranceType("radius 1")` raises `ValueError`.
+- Unknown name: `ToleranceType["BOGUS"]` raises `KeyError`.
+- Lookup by name string as a value fails: `ToleranceType("RADIUS_1")` raises `ValueError`, because the value is `"Radius 1"`.
+- Members are not strings: `ToleranceType.RADIUS_1 == "Radius 1"` is `False`.
+
+## 4. Guarantees / how it is consumed (all in this module)
+- **Round trip by value:** `ToleranceType("Air Gap") is ToleranceType.AIR_GAP`.
+- **Round trip by name:** `ToleranceType["WEDGE"] is ToleranceType.WEDGE`.
+- **Iteration:** `list(ToleranceType)` returns the 14 members in the table order above.
+- **`serialize_operands`:** stores `"type": op.param_type.value`.
+  - Example: `"Surface Irregularity"`.
+- **`deserialize_operands`:** looks the type up via `{t.value: t for t in ToleranceType}`.
+  - A name string such as `"RADIUS_1"` is an *unknown* type, so that entry is skipped.
+- **`randomisable_tolerance_types(i, n)`:** returns the members in enum order, minus FOCUS.
+  - DECENTER_X is also removed if `i <= 0`.
+  - AIR_GAP is also removed if `i >= max(n-1, 0)`.
+- **`MonteCarloAnalyzer` perturbation keys:** use `.name`, in the form `f"El_{idx}_{param_type.name}"`.
+  - Example: `"El_0_RADIUS_1"`.
+- **`MonteCarloAnalyzer` skipped labels:** use `.value`, in the form `f"Element {idx+1} {param_type.value}"`.
+  - Example: `"Element 1 Focus"`.
+- **`InverseSensitivityAnalyzer.calculate_sensitivities`:** sets `"type": tol.param_type.name`.
+
+## 5. Side effects
+None. The members are immutable singletons.
+
+## 6. Branches / edge cases (observable through public functions)
+**`randomisable_tolerance_types`:**
+- `randomisable_tolerance_types(0, 1)` returns 11 types:
+  `[RADIUS_1, RADIUS_2, THICKNESS, REFRACTIVE_INDEX, DECENTER_Y, TILT_X, TILT_Y, DECENTER_Z, ABBE_NUMBER, IRREGULARITY, WEDGE]`.
+- `randomisable_tolerance_types(1, 3)` returns 13 types: everything except FOCUS.
+- `randomisable_tolerance_types(2, 3)` returns 12 types: AIR_GAP is gone, DECENTER_X is kept.
+- `randomisable_tolerance_types(0, 0)`: `max(-1, 0)` is 0, so both DECENTER_X and AIR_GAP are removed. The result has 11 types.
+- FOCUS is never in the result.
+
+**`deserialize_operands`:**
+- `[{"type": "Focus", "element_index": 0, "min_val": -1, "max_val": 1}]` gives one operand with `param_type is ToleranceType.FOCUS`.
+- `{"type": "Irregularity", ...}` is skipped, so the result is `[]`.
+
+**`tolerances_for_system`:**
+- Per element, it emits these types in this order:
+  `RADIUS_1, RADIUS_2, THICKNESS, REFRACTIVE_INDEX, ABBE_NUMBER, DECENTER_Y, DECENTER_Z, TILT_X, TILT_Y, IRREGULARITY (surface=1), IRREGULARITY (surface=2), WEDGE`.
+  That is 12 operands per element.
+- It then adds one AIR_GAP operand per gap.
+- It never emits DECENTER_X or FOCUS.
+
+## 7. Rules from docstrings/comments
+- Units per member:
+
+  | Member(s) | Unit / meaning |
+  |---|---|
+  | RADIUS_1/2, THICKNESS | mm |
+  | REFRACTIVE_INDEX, ABBE_NUMBER | absolute |
+  | DECENTER_X | mm, axial despace realised as the gap *before* the element |
+  | DECENTER_Y/Z | mm |
+  | TILT_X/Y | degrees |
+  | AIR_GAP | mm, gap *after* the element |
+  | IRREGULARITY | fringes at 632.8 nm |
+  | WEDGE | arcmin; applied as tilt X of `value/120` deg |
+  | FOCUS | mm image shift; compensator-only, never randomised |
+
+- Comment on `COMPENSATOR_ONLY_TYPES`: the "Add Tolerance dialog must not offer them".
+
+## 8. Testing hints
+- Pin the exact `[t.name for t in ToleranceType]` list and the exact `[t.value for t in ToleranceType]` list. A reorder, rename or value change then fails the test.
+- Pin `len(ToleranceType) == 14` and `ToleranceType.FOCUS in COMPENSATOR_ONLY_TYPES`. Import the constant: `from openlens.tolerancing import COMPENSATOR_ONLY_TYPES`.
+- Check the serialise/deserialise round trip for **every** member:
+
+  ```python
+  ops = [ToleranceOperand(0, t, -1.0, 1.0) for t in ToleranceType]
+  back = deserialize_operands(serialize_operands(ops))
+  assert [o.param_type for o in back] == list(ToleranceType)
+  assert serialize_operands(ops)[11]["type"] == "Surface Irregularity"
+  ```
+
+- Pin `randomisable_tolerance_types` outputs as exact lists. They depend on enum order.
+- For `tolerances_for_system`, pass a real system, e.g. `OpticalSystem()` plus `add_lens(Lens())`. Read `system.elements` and `system.air_gaps` from it; they are defined in `optical_system`, which is not shown here.
+- Pitfalls:
+  - Do not compare members to strings.
+  - Do not assume alphabetical or name-grouped order.
+  - Do not use `auto()`/int values.
+  - `ToleranceType.FOCUS.value` is `"Focus"`, not `"FOCUS"`.

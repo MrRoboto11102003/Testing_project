@@ -1,0 +1,196 @@
+{
+ "id": "openlens-pr241",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 11960,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6863
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.0,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 2,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4786,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10338,
+  "output_tokens_details": {
+   "thinking_tokens": 8889
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4786,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10338,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 4786,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4786
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.061271000000000006,
+ "model_seconds": 49.3,
+ "seconds": 56.4,
+ "tests": {
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_aperture_overhang_checks_first_radius": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_aperture_overhang_hard_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_basic_biconvex_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_diameter_boundary_no_warning": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_diameter_warning_alone": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_flat_flat_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_hard_error_with_warnings": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_intersecting_surfaces_hard_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_multiple_soft_warnings": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_negative_radii_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_none_radius_raises_type_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_thickness_boundary_no_warning": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_thickness_warning_alone": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_thin_lens_boundary_no_warning": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  },
+  "tests/_generated/test_openlens_pr241.py::TestCheckPhysicalFeasibility::test_thin_lens_warning_alone": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "check_physical_feasibility"
+   ]
+  }
+ }
+}

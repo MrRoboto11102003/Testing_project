@@ -1,0 +1,182 @@
+{
+ "id": "openlens-pr246",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 17299,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 13680
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.25,
+ "detected": true,
+ "n_tests": 13,
+ "n_catching": 3,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 6698,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11438,
+  "output_tokens_details": {
+   "thinking_tokens": 8558
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 6698,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11438,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 6698,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 6698
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.070595,
+ "model_seconds": 53.5,
+ "seconds": 65.3,
+ "tests": {
+  "tests/_generated/test_openlens_pr246.py::TestLensRayTracerParallelRays::test_angled_ray_fan": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestLensRayTracerParallelRays::test_edge_cases_empty_and_single_ray": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestLensRayTracerParallelRays::test_fill_and_explicit_range": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "LensRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestLensRayTracerParallelRays::test_offset_invariance_with_angle": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestLensRayTracerParallelRays::test_ray_count_and_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestLensRayTracerParallelRays::test_symmetry_and_convergence": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestLensRayTracerParallelRays::test_wavelength_independence": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "LensRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestSystemRayTracerParallelRays::test_cross_check_with_lens_tracer": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "LensRayTracer",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestSystemRayTracerParallelRays::test_empty_system": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestSystemRayTracerParallelRays::test_fill_parameter": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestSystemRayTracerParallelRays::test_ray_count_and_types": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray",
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestSystemRayTracerParallelRays::test_single_ray_and_wavelength": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  },
+  "tests/_generated/test_openlens_pr246.py::TestSystemRayTracerParallelRays::test_zero_rays_and_symmetry": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "SystemRayTracer"
+   ]
+  }
+ }
+}

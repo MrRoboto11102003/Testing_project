@@ -1,0 +1,342 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.cleaning.normalize_case, arnio.cleaning.normalize_unicode.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.normalize_case
+def normalize_case(
+    frame: ArFrame,
+    *,
+    subset: list[str] | None = None,
+    case_type: str = "lower",
+) -> ArFrame:
+    """Normalize ASCII letters in string columns to lower/upper/title case.
+
+    Non-ASCII UTF-8 bytes are preserved unchanged. This keeps accented text,
+    CJK characters, emoji, and other multibyte data valid while avoiding a
+    heavyweight Unicode case-folding dependency.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    subset : list[str], optional
+        Column names to normalize. If None, applies to all string columns.
+    case_type : str, default "lower"
+        Case to normalize to. Options: "lower", "upper", "title".
+
+    Returns
+    -------
+    ArFrame
+        New frame with string columns normalized to specified case.
+
+    Raises
+    ------
+    TypeError
+        If case_type is not a string.
+    ValueError
+        If case_type is not one of the supported options.
+    KeyError
+        If any column in subset does not exist in the frame.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> lower = ar.normalize_case(frame, case_type="lower")
+    """
+    _validate_arframe(frame)
+    if not isinstance(case_type, str):
+        raise TypeError("case_type must be a string")
+    valid_cases = {"lower", "upper", "title"}
+    if case_type not in valid_cases:
+        raise ValueError(f"case_type must be one of {valid_cases}, got {case_type!r}")
+    if subset is not None:
+        subset = _validate_existing_column_sequence(
+            subset,
+            available_columns=frame.columns,
+            argument_name="subset",
+            missing_message=lambda missing, available: (
+                f"Missing columns for normalize_case: {missing}. "
+                f"Available columns: {available}"
+            ),
+        )
+    result = _normalize_case(frame._frame, subset=subset, case_type=case_type)
+    return _wrap(result, frame)
+
+# arnio.cleaning.normalize_unicode
+def normalize_unicode(
+    frame: ArFrame,
+    *,
+    subset: list[str] | None = None,
+    form: str = "NFC",
+) -> ArFrame:
+    """Normalize Unicode text columns.
+
+    This implementation operates natively on the ArFrame's internal columnar
+    representation, avoiding a full pandas roundtrip. Only STRING columns are
+    processed; all other column types are cloned unchanged.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+    subset : list[str], optional
+        Column names to normalize. If None, applies to all string columns.
+    form : str, default "NFC"
+        Unicode normalization form. One of "NFC", "NFD", "NFKC", "NFKD".
+
+    Returns
+    -------
+    ArFrame
+        New frame with Unicode-normalized string columns.
+
+    Raises
+    ------
+    ValueError
+        If form is not one of the supported normalization forms.
+    KeyError
+        If any column in subset does not exist in the frame.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> normalized = ar.normalize_unicode(frame, form="NFC")
+    """
+    _validate_arframe(frame)
+    valid_forms = {"NFC", "NFD", "NFKC", "NFKD"}
+    if not isinstance(form, str):
+        raise TypeError("form must be a string")
+    if form not in valid_forms:
+        raise ValueError(f"Unsupported Unicode normalization form: {form}")
+    if subset is not None:
+        subset = _validate_existing_column_sequence(
+            subset,
+            available_columns=frame.columns,
+            argument_name="subset",
+            missing_message=lambda missing, available: (
+                f"Missing columns for normalize_unicode: {missing}. "
+                f"Available columns: {available}"
+            ),
+        )
+    cpp_frame = frame._frame
+    num_cols = cpp_frame.num_cols()
+    target_names: set[str] = (
+        set(subset)
+        if subset is not None
+        else {
+            cpp_frame.column_by_index(i).name()
+            for i in range(num_cols)
+            if cpp_frame.column_by_index(i).dtype() == _DType.STRING
+        }
+    )
+    new_columns: dict[str, list[object]] = {}
+    dtype_hints: dict[str, _DType] = {}
+    _normalize = unicodedata.normalize
+    for i in range(num_cols):
+        col = cpp_frame.column_by_index(i)
+        name = col.name()
+        dtype = col.dtype()
+        if name in target_names and dtype == _DType.STRING:
+            values = col.to_python_list()
+            new_columns[name] = [
+                _normalize(form, v) if v is not None else None for v in values
+            ]
+            dtype_hints[name] = _DType.STRING
+        else:
+            new_columns[name] = col.to_python_list()
+            dtype_hints[name] = dtype
+    new_cpp_frame = _Frame.from_dict(new_columns, dtype_hints, frame.shape[0])
+    return _wrap(new_cpp_frame, frame)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.cleaning.normalize_case
+
+# Notes: `arnio.cleaning.normalize_case(frame, *, subset=None, case_type="lower")`
+
+## 1. Purpose
+- Returns a new ArFrame in which the ASCII letters of string columns are converted to lower, upper or title case.
+- The case change itself runs in the C++ core (`_core._normalize_case`). The Python side only validates arguments and wraps the result.
+
+## 2. Inputs
+- `frame`: must be an `ArFrame`. It is checked by `_validate_arframe` from `arnio.frame`. That helper is not visible here; it presumably raises `TypeError` for a non-ArFrame, but the exact message is unknown.
+- `case_type`: a `str`, default `"lower"`. It must be exactly one of `"lower"`, `"upper"`, `"title"`.
+  - The check is case-sensitive, so `"Lower"` is rejected.
+  - Whitespace is not stripped, so `" lower"` is rejected.
+- `subset`: keyword-only, default `None`.
+  - `None` means all string columns (per the docstring; the column choice is made in C++).
+  - Otherwise it goes through `_validate_existing_column_sequence`:
+    - A `str` or `bytes` value is rejected.
+    - The value must be a `collections.abc.Sequence` (list or tuple) or a `pd.Index`. A `set`, a generator or a dict view is rejected.
+    - Every item must be a `str`.
+    - Every name must exist in `frame.columns`.
+    - It is converted to a `list` before being passed to C++.
+  - An empty list `[]` is allowed (no "cannot be empty" check). It is passed to C++ as `[]`; what happens then is decided in C++ and is not visible.
+  - Duplicate names are not rejected.
+
+## 3. Raises (in this order)
+1. Frame validation from `_validate_arframe`. Message unknown; for example `ar.normalize_case(pd.DataFrame())` probably raises `TypeError`.
+2. `TypeError("case_type must be a string")`. Example: `ar.normalize_case(f, case_type=1)` or `case_type=None`.
+3. `ValueError(f"case_type must be one of {valid_cases}, got {case_type!r}")`, where `valid_cases` is the set `{"lower","upper","title"}`.
+   - Example: `case_type="snake"` gives `... got 'snake'`.
+   - The order of the set inside the message varies between runs (hash randomisation). Do not assert the full message. Use `match="case_type must be one of"` and `match="got 'snake'"`.
+4. Subset errors (only checked after `case_type` is valid):
+   - `subset="name"` raises `TypeError("subset must be a sequence of column names, not a string")`.
+   - `subset={"name"}` (a set) raises `TypeError("subset must be a sequence of column names")`.
+   - `subset=["name", 3]` raises `TypeError("subset must contain only string column names")`.
+   - `subset=["zzz"]` raises `KeyError`. The message is `"Missing columns for normalize_case: ['zzz']. Available columns: name, n"`.
+     - Available columns are joined with `", "`, or the string `"<none>"` if the frame has no columns.
+     - This is a `KeyError`, not a `ValueError`.
+     - `str(exc)` adds surrounding quotes. Use `match=re.escape("Missing columns for normalize_case: ['zzz']")`.
+- Precedence: a bad `case_type` wins over a bad subset. `normalize_case(f, subset=["zzz"], case_type="bad")` raises `ValueError`, not `KeyError`.
+- Raise-tests do not depend on C++ behaviour, so they are the most reliable kind.
+
+## 4. Returns and guarantees
+- Returns a new `ArFrame` created by `_wrap(result, frame)`. It is never the input object (`result is not frame`).
+- `attrs` (`frame._attrs`) is deep-copied:
+  - The result's `_attrs` equals the source's `_attrs`.
+  - It is a different object (`is not`), so mutating it does not affect the source.
+- The following come from C++ and cannot be confirmed from this source:
+  - column order and dtypes (expected to be unchanged);
+  - preservation of nulls (expected);
+  - leaving non-string columns untouched (expected).
+- Docstring rule: only ASCII letters change, and non-ASCII UTF-8 is preserved byte-for-byte. For example, `"ÉCOLE"` with `"lower"` should give `"École"`, not `"école"` as Python's `str.lower` would.
+
+## 5. Side effects
+- The input frame is not mutated, because C++ returns a new frame.
+- No global state is changed and no files are written.
+
+## 6. Branches / edge cases
+- With `subset=None`, C++ processes all string columns.
+- With `subset=[...]`, only the listed columns should change. Other string columns should keep their original case.
+- Things decided in C++ that should not be asserted strictly:
+  - a non-string column inside `subset` (for example an int column);
+  - `subset=[]`;
+  - a zero-row frame (expected to keep the columns with 0 rows).
+- Title-case semantics are defined in C++. Only assert simple words, e.g. `"hello world"` → `"Hello World"` and `"hELLO"` → `"Hello"`. Avoid apostrophes, digits and non-ASCII characters when testing title case.
+
+## 7. Rules from docstring/comments
+- "Normalize ASCII letters … Non-ASCII UTF-8 bytes are preserved unchanged" (accents, CJK, emoji).
+- The docstring lists the raised exceptions as: `TypeError` for a non-str `case_type`, `ValueError` for an unsupported option, and `KeyError` for a missing subset column.
+
+## 8. Testing hints
+```python
+df = pd.DataFrame({"name": ["Alice", "BOB", None], "city": ["New York", "PARIS", "rome"], "n": [1, 2, 3]})
+f = ar.from_pandas(df)
+out = ar.to_pandas(ar.normalize_case(f, subset=["name"], case_type="upper"))
+assert out["name"].tolist()[:2] == ["ALICE", "BOB"] and pd.isna(out["name"][2])
+assert out["city"].tolist() == ["New York", "PARIS", "rome"]   # untouched
+assert out["n"].tolist() == [1, 2, 3]
+```
+- Check nulls with `pd.isna(...)`. The null representation after `to_pandas` (None vs NaN) depends on C++.
+- Check that the default really is `"lower"`: `["Alice", "BOB"]` should become `["alice", "bob"]` when `case_type` is omitted.
+- Run all three modes on the same input so that swapped modes are detected (lower, upper and title outputs all differ).
+- A tuple subset is accepted: `subset=("name",)` works the same as `["name"]`.
+- The input is unchanged: `ar.to_pandas(f)` is still the original data after the call.
+- To test attrs: set `f._attrs = {"k": [1]}`. Check that `res._attrs == {"k": [1]}` and that `res._attrs is not f._attrs`.
+- Pitfalls:
+  - Do not compare the full `case_type` error message (set ordering varies).
+  - Do not expect a `ValueError` for a missing subset column; it is a `KeyError`.
+  - Do not expect Python Unicode casing on non-ASCII text.
+
+### arnio.cleaning.normalize_unicode
+
+# Notes: `arnio.cleaning.normalize_unicode(frame, *, subset=None, form="NFC")`
+
+## 1. Purpose
+- Applies `unicodedata.normalize(form, value)` to every non-null value in STRING columns.
+- Works directly on the C++ columns and does not convert to pandas.
+- Every other column is copied unchanged.
+- Returns a new `ArFrame`.
+
+## 2. Inputs
+- `frame`: must be an `ArFrame`. It is checked first by `_validate_arframe`, which lives in `arnio.frame` and is not shown. It presumably raises `TypeError` for non-ArFrames, but the message is unknown, so only assert the type, e.g. `pytest.raises(TypeError)`.
+- `form`: must be a `str` and exactly one of `{"NFC", "NFD", "NFKC", "NFKD"}`.
+  - The check is case-sensitive, so `"nfc"` is rejected.
+  - The default is `"NFC"`.
+- `subset`: either `None` (meaning all STRING columns) or a sequence of column names.
+  - Validated by `_validate_existing_column_sequence`.
+  - It must be a `Sequence` (list or tuple) or a `pd.Index`. It must not be a str or bytes. Every item must be a `str`. Every name must exist in `frame.columns`.
+  - It is converted to a `set`, so duplicates and ordering do not matter.
+  - An empty list `[]` is allowed: there is no empty check.
+  - Columns in `subset` that are not STRING dtype are silently skipped (no error).
+
+## 3. Raises (checks run in this order)
+1. Non-ArFrame `frame`: `TypeError` from `_validate_arframe`; the message is not visible here.
+2. Non-str `form`: `TypeError("form must be a string")`.
+   - Trigger: `ar.normalize_unicode(f, form=1)` or `form=None`.
+3. Bad `form` value: `ValueError(f"Unsupported Unicode normalization form: {form}")`.
+   - Trigger: `form="nfc"` gives `"Unsupported Unicode normalization form: nfc"`.
+   - `form="NFX"` and `form=""` also raise.
+4. `subset` is a str or bytes: `TypeError("subset must be a sequence of column names, not a string")`.
+   - Trigger: `subset="s"`.
+5. `subset` is not a Sequence and not a `pd.Index`: `TypeError("subset must be a sequence of column names")`.
+   - Trigger: `subset={"s"}` (a set), or `subset=5`.
+6. A non-str item in `subset`: `TypeError("subset must contain only string column names")`.
+   - Trigger: `subset=["s", 1]`.
+7. A missing column: `KeyError(f"Missing columns for normalize_unicode: {missing}. Available columns: {available}")`.
+   - `missing` is a list repr, e.g. `['zz']`.
+   - `available` is `", ".join(frame.columns)`, e.g. `s, n`.
+   - Trigger: `subset=["zz"]` on columns `["s", "n"]` gives `"Missing columns for normalize_unicode: ['zz']. Available columns: s, n"`.
+   - `str(KeyError)` adds surrounding quotes, so use `match="Missing columns for normalize_unicode"` or `re.escape(...)` rather than an exact `==`.
+- Because `form` is checked before `subset`, `form="bad", subset=["zz"]` raises `ValueError`, not `KeyError`.
+
+## 4. Returns and guarantees
+- The result is always a new `ArFrame`, never the input object, even when nothing changes.
+- It is built with `_Frame.from_dict(new_columns, dtype_hints, frame.shape[0])`:
+  - The column order matches the input order.
+  - Every column keeps its original dtype. Target columns stay `"string"`.
+  - The row count is the same as the input.
+- Null cells (`None` from `to_python_list`) stay null.
+- Only Unicode normalization happens:
+  - Whitespace is not stripped.
+  - Case is not changed.
+  - Values that are already normalized are unchanged.
+- `attrs`: `_wrap` sets `result._attrs = copy.deepcopy(frame._attrs)`. The result is equal to the source attrs but is a different object.
+
+## 5. Side effects
+- None. The input frame is not mutated, there is no global state, and no files are written.
+
+## 6. Branches and edge cases
+- **`subset=None`**: every column whose dtype is STRING is normalized. int, float and bool columns are copied as-is.
+- **`subset=["a"]`**: only `a` is normalized. Other string columns keep un-normalized text.
+  - Example: `b=["e\u0301"]` stays a 2-character string.
+- **`subset=["n"]` where `n` is int64**: no error, and nothing changes.
+- **`subset=[]`**: no column is targeted. The result is a new frame equal to the input.
+- **Zero-row frame**: the result has 0 rows with the same columns and dtypes.
+- **Value behaviour per form**:
+  - NFC: `"e\u0301"` → `"\u00e9"` (length 2 → 1). `"\ufb01"` (the ﬁ ligature) is unchanged.
+  - NFD: `"\u00e9"` → `"e\u0301"` (length 1 → 2).
+  - NFKC: `"\ufb01"` → `"fi"`; `"\uff21"` (fullwidth A) → `"A"`; `"x\u00b2"` → `"x2"`; `"\u2460"` → `"1"`.
+  - NFKD: `"\u00e9"` → `"e\u0301"`; `"\ufb01"` → `"fi"`.
+  - Plain ASCII such as `"abc"` is unchanged under every form.
+- **Zero-column frames**: avoid them. It depends on the C++ `from_dict({}, {}, n)`, which is not visible here.
+
+## 7. Rules from the docstring
+- "Only STRING columns are processed; all other column types are cloned unchanged."
+- The function avoids a full pandas roundtrip.
+- `subset=None` means all string columns.
+
+## 8. Testing hints
+```python
+import pandas as pd, arnio as ar
+df = pd.DataFrame({"s": ["e\u0301", None, "\ufb01"], "t": ["e\u0301", "x", "y"], "n": [1, 2, 3]})
+f = ar.from_pandas(df)
+r = ar.normalize_unicode(f, form="NFKC", subset=["s"])
+out = ar.to_pandas(r)
+assert out["s"][0] == "\u00e9" and out["s"][2] == "fi" and pd.isna(out["s"][1])
+assert out["t"][0] == "e\u0301"          # not in subset -> untouched
+assert r.columns == ["s", "t", "n"] and r.dtypes == f.dtypes
+assert r is not f
+```
+- Compare strings using explicit escapes and `len()`. Composed and decomposed forms look identical when printed.
+- Check nulls with `pd.isna(...)`. Do not assert whether a null comes back as `None` or `NaN`, because that depends on `to_pandas`.
+- To check attrs, set `f._attrs = {"k": [1]}` and then assert both:
+  - `r._attrs == {"k": [1]}`
+  - `r._attrs is not f._attrs`
+- Do not assume the default form is NFKC. The default NFC leaves `"\ufb01"` unchanged. That makes it a good test that the default is really `"NFC"`.
+- Do not expect an error for a non-string column in `subset`, or for an empty `subset`.

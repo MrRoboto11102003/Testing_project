@@ -1,0 +1,767 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.stl_export.STLExporter.export_lens_to_stl, openlens.stl_export.STLExporter.generate_edge_triangles, openlens.stl_export.STLExporter.generate_flat_surface, openlens.stl_export.STLExporter.generate_profile_triangles, openlens.stl_export.STLExporter.generate_surface_triangles.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.stl_export.STLExporter.export_lens_to_stl
+    def export_lens_to_stl(
+        self,
+        r1: float,
+        r2: float,
+        thickness: float,
+        diameter: float,
+        filename: str,
+        resolution: int = 50,
+        lens: Optional[Any] = None,
+    ) -> int:
+        """Export a lens to STL format.
+
+        Pass ``lens`` to mesh the model's actual conic, parabolic or Fresnel
+        surfaces. Without it the legacy numeric spherical parameters are used.
+        """
+        self.triangles = []
+
+        # 1. Front Surface (R1)
+        # Vertex at (0,0,0).
+        if lens is not None:
+            profile1 = self._model_surface_profile(lens, 1, resolution)
+        else:
+            profile1 = self.calculate_surface_profile(
+                r1, diameter, is_front=True, resolution=resolution
+            )
+        if profile1:
+            self.triangles.extend(
+                self.generate_surface_triangles(
+                    profile1, 0.0, num_segments=resolution * 2, is_front=True
+                )
+            )
+        else:
+            # Flat
+            self.triangles.extend(
+                self.generate_flat_surface(
+                    diameter, 0.0, num_segments=resolution * 2, is_front=True
+                )
+            )
+
+        # 2. Back Surface (R2)
+        # Vertex at (0,0,thickness)
+        if lens is not None:
+            profile2 = self._model_surface_profile(lens, 2, resolution)
+        else:
+            profile2 = self.calculate_surface_profile(
+                r2, diameter, is_front=False, resolution=resolution
+            )
+        if profile2:
+            self.triangles.extend(
+                self.generate_surface_triangles(
+                    profile2, thickness, num_segments=resolution * 2, is_front=False
+                )
+            )
+        else:
+            # Flat
+            self.triangles.extend(
+                self.generate_flat_surface(
+                    diameter, thickness, num_segments=resolution * 2, is_front=False
+                )
+            )
+
+        # 3. Edge
+        # The rim chain runs from the front ring to the back ring. The default
+        # chain is the old straight cylinder; a custom profile may step or
+        # flange outward.
+        if lens is not None:
+            edge = LensGeometry.edge_profile_points(lens)
+            self.triangles.extend(
+                self.generate_profile_triangles(
+                    [(radius, z) for z, radius in edge], num_segments=resolution * 2
+                )
+            )
+        else:
+            self.triangles.extend(
+                self.generate_edge_triangles(
+                    diameter,
+                    profile1[-1][1] if profile1 else 0.0,
+                    (profile2[-1][1] + thickness) if profile2 else thickness,
+                    num_segments=resolution * 2,
+                )
+            )
+
+        # Write
+        self.write_binary_stl(filename)
+        return len(self.triangles)
+
+# openlens.stl_export.STLExporter.generate_edge_triangles
+    def generate_edge_triangles(
+        self, diameter: float, z_front_arr: Any, z_back_arr: Any, num_segments: int = 60
+    ):
+        """
+        Generate triangles for the cylindrical edge.
+        z_front_arr: Z coordinate of the front edge: a float, or a list of
+            ``num_segments`` values (closed profile) / ``num_segments + 1``
+            values (open profile).
+        z_back_arr: Z coordinate of the back edge, with the same forms.
+        """
+        for name, values in (("z_front_arr", z_front_arr), ("z_back_arr", z_back_arr)):
+            if isinstance(values, list) and len(values) not in (num_segments, num_segments + 1):
+                raise ValueError(
+                    f"{name} must have {num_segments} or {num_segments + 1} "
+                    f"values, got {len(values)}"
+                )
+
+        triangles = []
+        radius = diameter / 2.0
+        angle_step = 2 * math.pi / num_segments
+
+        for seg in range(num_segments):
+            angle1 = seg * angle_step
+            # Wrap to exactly 0 for the last segment; sin(2*pi) is not 0 and
+            # would leave the barrel open. See generate_surface_triangles.
+            angle2 = ((seg + 1) % num_segments) * angle_step
+
+            cos1, sin1 = math.cos(angle1), math.sin(angle1)
+            cos2, sin2 = math.cos(angle2), math.sin(angle2)
+
+            zf1 = z_front_arr[seg] if isinstance(z_front_arr, list) else z_front_arr
+            zf2 = (
+                z_front_arr[(seg + 1) % len(z_front_arr)]
+                if isinstance(z_front_arr, list)
+                else z_front_arr
+            )
+
+            zb1 = z_back_arr[seg] if isinstance(z_back_arr, list) else z_back_arr
+            zb2 = (
+                z_back_arr[(seg + 1) % len(z_back_arr)]
+                if isinstance(z_back_arr, list)
+                else z_back_arr
+            )
+
+            # Four corners
+            p1 = (radius * cos1, radius * sin1, zf1)  # Front 1
+            p2 = (radius * cos2, radius * sin2, zf2)  # Front 2
+            p3 = (radius * cos2, radius * sin2, zb2)  # Back 2
+            p4 = (radius * cos1, radius * sin1, zb1)  # Back 1
+
+            # Edge normals point radially outward.
+            # Quad p1(front, seg) -> p2(front, seg+1) -> p3(back, seg+1) -> p4(back, seg)
+            #
+            #   Triangle 1: (p1, p2, p4). Normal = (p2-p1) x (p4-p1).
+            #     (p2-p1) is tangential CCW; (p4-p1) is axial (+Z).
+            #     tangent x axial = radial out.
+            triangles.append((p1, p2, p4))
+
+            #   Triangle 2: (p2, p3, p4). Normal = (p3-p2) x (p4-p2).
+            #     (p3-p2) is axial (+Z); (p4-p2) is tangential CW.
+            #     axial x (-tangent) = radial out.
+            triangles.append((p2, p3, p4))
+
+        return triangles
+
+# openlens.stl_export.STLExporter.generate_flat_surface
+    def generate_flat_surface(
+        self,
+        diameter: float,
+        z_offset: float,
+        num_segments: int = 60,
+        is_front: bool = True,
+    ):
+        """Generate triangles for a flat surface"""
+        triangles = []
+        radius = diameter / 2.0
+        angle_step = 2 * math.pi / num_segments
+
+        center = (0.0, 0.0, z_offset)
+
+        for seg in range(num_segments):
+            angle1 = seg * angle_step
+            # Wrap to exactly 0 for the last segment - see the note in
+            # generate_surface_triangles: sin(2*pi) is not 0, so without this
+            # the ring does not close on itself.
+            angle2 = ((seg + 1) % num_segments) * angle_step
+
+            p1 = (radius * math.cos(angle1), radius * math.sin(angle1), z_offset)
+            p2 = (radius * math.cos(angle2), radius * math.sin(angle2), z_offset)
+
+            # Winding order depends on facing
+            if is_front:
+                # Normal -Z (if it's a flat front surface)
+                triangles.append((center, p2, p1))
+            else:
+                # Normal +Z (if it's a flat back surface)
+                triangles.append((center, p1, p2))
+
+        return triangles
+
+# openlens.stl_export.STLExporter.generate_profile_triangles
+    def generate_profile_triangles(
+        self,
+        profile: List[Tuple[float, float]],
+        num_segments: int = 100,
+    ) -> List[Any]:
+        """Generate the revolved triangles of a meridional rim profile.
+
+        Args:
+            profile: ``(radius, z)`` points ordered from the front rim to the
+                back rim. The straight two-point profile is the old cylinder.
+            num_segments: Number of points around the full revolution.
+        """
+        triangles: List[Any] = []
+        if len(profile) < 2 or num_segments < 3:
+            return triangles
+        angles = [2 * math.pi * i / num_segments for i in range(num_segments)]
+
+        for (r1, z1), (r2, z2) in zip(profile, profile[1:]):
+            if abs(r1 - r2) <= EPSILON and abs(z1 - z2) <= EPSILON:
+                continue
+            for index, angle1 in enumerate(angles):
+                angle2 = angles[(index + 1) % num_segments]
+                cos1, sin1 = math.cos(angle1), math.sin(angle1)
+                cos2, sin2 = math.cos(angle2), math.sin(angle2)
+
+                p1 = (r1 * cos1, r1 * sin1, z1)
+                p2 = (r1 * cos2, r1 * sin2, z1)
+                p3 = (r2 * cos2, r2 * sin2, z2)
+                p4 = (r2 * cos1, r2 * sin1, z2)
+                triangles.append((p1, p2, p3))
+                triangles.append((p1, p3, p4))
+
+        return triangles
+
+# openlens.stl_export.STLExporter.generate_surface_triangles
+    def generate_surface_triangles(
+        self,
+        profile_points: List[Tuple[float, float]],
+        z_offset: float,
+        num_segments: int = 60,
+        is_front: bool = True,
+    ):
+        """Generate triangles for a surface of revolution.
+
+        Args:
+            profile_points: (radius_from_axis, z) pairs from axis to rim.
+            z_offset: Axial offset for the whole surface (0 for the front,
+                the centre thickness for the back).
+            num_segments: Number of segments around the circumference.
+            is_front: Which way the cap faces. The front surface must have its
+                normals pointing along -Z and the back along +Z, so that both
+                point *out of* the glass. Winding both the same way made every
+                front-surface normal point into the solid.
+
+        Returns:
+            List of triangle vertex tuples, wound so the normals face outward.
+        """
+        if not profile_points:
+            return []
+
+        triangles = []
+        angle_step = 2 * math.pi / num_segments
+
+        # Generate points around the circle
+        for seg in range(num_segments):
+            angle1 = seg * angle_step
+            # Wrap the last segment back to 0 exactly. Computing the final
+            # angle as n * step gives 2*pi, and sin(2*pi) is 6.4e-16 rather
+            # than 0, so that vertex was a hair's breadth away from the one
+            # segment 0 starts at. The two were not the same point, leaving a
+            # seam right around the surface: the shell was not watertight and
+            # every consumer that checks for closed meshes rejected the file.
+            angle2 = ((seg + 1) % num_segments) * angle_step
+
+            cos1, sin1 = math.cos(angle1), math.sin(angle1)
+            cos2, sin2 = math.cos(angle2), math.sin(angle2)
+
+            # Create triangles for each radial segment
+            for i in range(len(profile_points) - 1):
+                r1, z1 = profile_points[i]
+                r2, z2 = profile_points[i + 1]
+
+                # Four points of the quad
+                # Add z_offset to the profile z
+                p1 = (r1 * cos1, r1 * sin1, z1 + z_offset)
+                p2 = (r2 * cos1, r2 * sin1, z2 + z_offset)
+                p3 = (r2 * cos2, r2 * sin2, z2 + z_offset)
+                p4 = (r1 * cos2, r1 * sin2, z1 + z_offset)
+
+                # Handle singularity at center (r1 ~ 0)
+                if r1 < 1e-9:
+                    # Triangle fan at center
+                    # p1 and p4 are the same (the center point)
+                    if is_front:
+                        triangles.append((p1, p3, p2))
+                    else:
+                        triangles.append((p1, p2, p3))
+                else:
+                    # Full quad. Reversing the vertex order flips the normal.
+                    if is_front:
+                        triangles.append((p1, p3, p2))
+                        triangles.append((p1, p4, p3))
+                    else:
+                        triangles.append((p1, p2, p3))
+                        triangles.append((p1, p3, p4))
+
+        return triangles
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.stl_export.STLExporter.export_lens_to_stl
+
+# Notes: `STLExporter.export_lens_to_stl(r1, r2, thickness, diameter, filename, resolution=50, lens=None) -> int`
+
+## 1. Purpose
+- Builds a closed triangle mesh of one lens with Z as the optical axis: front cap at z=0, back cap at z=`thickness`, plus the rim.
+- Writes the mesh as a binary STL file and returns the number of triangles.
+
+## 2. Inputs
+- `r1`, `r2`: signed radii in mm. They are used only when `lens is None`.
+  - A radius counts as **flat** when `abs(R) < 1e-10` or `abs(R) > 1e10`. So `0`, `0.0` and `float('inf')` are flat.
+  - Positive R gives sag `+s`. Negative R gives sag `-s`, where `s = y²/(|R| + sqrt(R²-y²))`.
+- `thickness`: added as the z offset of the back cap. Not validated.
+- `diameter`: rim radius is `h = diameter/2`. Used by the spherical profiles, the flat caps and the legacy edge.
+- `filename`: written through `atomic_write_bytes` (in `openlens.atomic`, not shown). Per its docstring, the file is replaced only on success.
+- `resolution`: number of radial steps.
+  - A curved profile has `resolution+1` points, at `y = i/resolution*h`.
+  - The angular segment count is `S = resolution*2`.
+  - No validation is done. `resolution=0` raises `ZeroDivisionError`, for curved and for flat surfaces.
+- `lens` (optional): a model `Lens`.
+  - Surfaces come from `lens.get_effective_radius_1/2()` and `LensGeometry.surface_profile(lens, s, num_points=resolution)`. The `(z, r)` pairs are swapped to `(r, z)`.
+  - The edge comes from `LensGeometry.edge_profile_points(lens)` and is revolved with `generate_profile_triangles`.
+  - In this mode `r1`/`r2` are **ignored**. `thickness` and `diameter` are still used: `thickness` for the back offset, `diameter` for flat caps.
+  - A non-finite or flat effective radius gives a flat cap.
+  - `LensGeometry` lives in another module, so triangle counts in this mode are not derivable from this file.
+
+## 3. Raises (legacy path, `lens=None`)
+- **`ValueError`** when `R² - y² < 0` at some sample point, i.e. `|R| < diameter/2`.
+  - It is raised at the first offending `i`.
+  - Exact template: `f"Surface of radius {radius} mm does not extend to {y:.4f} mm: |R| must be at least half the diameter ({h:.4f} mm). Widen the radius or reduce the diameter."`
+  - Example: `export_lens_to_stl(10, -50, 5, 25, p, resolution=50)` gives `"Surface of radius 10 mm does not extend to 10.2500 mm: |R| must be at least half the diameter (12.5000 mm). Widen the radius or reduce the diameter."`
+  - The samples are `y = 0.25*i`, and `i=41` is the first with `y > 10`.
+  - Passing `10.0` prints `10.0`; passing `-10` prints `-10`.
+- **Check order**: the front (`r1`) is checked before the back (`r2`).
+  - If only `r2` is bad, `self.triangles` already holds the front triangles when the error is raised.
+  - In both cases `write_binary_stl` is never reached, so no file is written.
+- `|R| == h` exactly is allowed, because the radicand at the rim is 0.
+- **`ZeroDivisionError`** when `resolution=0`.
+
+## 4. Returns and guarantees
+- Returns an `int` equal to `len(self.triangles)`, which also equals the triangle count stored in the file.
+- `self.triangles` is reset to `[]` at the start of every call, so calls do not accumulate. After the call it keeps the mesh.
+- Triangle counts in the legacy path, with N = resolution:
+  - Curved cap: `2N*(2N-1)`. The center ring gives 1 triangle per segment; the other rings give 2.
+  - Flat cap: `2N`.
+  - Edge: `4N`.
+  - Both curved: `8N²`. N=50 gives **20000**; N=2 gives 32; N=1 gives 8.
+  - Both flat: `8N`. N=50 gives **400**; N=4 gives 32.
+  - One curved, one flat: `4N²+4N`. N=50 gives **10200**; N=2 gives 24.
+- File layout:
+  - 80-byte header: `b"openlens STL export" + b" "*61`.
+  - `<I` triangle count.
+  - Then each triangle takes 50 bytes: normal `<fff`, three vertices `<fff`, and `<H` 0.
+  - Total file size is `84 + 50*n`.
+- Geometry for `r1=50, r2=-50, t=5, D=25`:
+  - Front vertex is at (0,0,0). Front rim is at z=1.58771. The sag is `156.25/(50+sqrt(2343.75))`.
+  - Back vertex is at (0,0,5). Back rim is at z=`5-1.58771 = 3.41229`. The source comment says 3.412, not 6.588.
+  - Overall z range is [0, 5]. The maximum |x| is 12.5, at angle 0.
+  - The rim ring vertices all have `x²+y² = 12.5²`.
+- Legacy edge band:
+  - It runs from `z_front = profile1[-1][1]`, or 0 if the front is flat.
+  - It ends at `z_back = profile2[-1][1] + thickness`, or `thickness` if the back is flat.
+- Normals point outward:
+  - The front cap faces -Z. Its center-fan normal z is negative.
+  - The back cap faces +Z.
+  - Edge normals point radially outward.
+  - Signed volume `Σ p1·(p2×p3)/6` is positive and close to the solid volume.
+  - Both-flat case: the volume is `π(D/2)²·t`, approximated by a 2N-gon.
+- Every vertex of segment `S-1` that sits at angle `2π` uses angle exactly 0, so the mesh is watertight. Vertex `(h, 0.0, z)` appears exactly.
+
+## 5. Side effects
+- Writes or replaces `filename`.
+- Mutates `self.triangles`.
+- Inputs are not mutated.
+
+## 6. Branches and edge cases
+- `lens is None` with both radii curved: spherical profiles plus a cylinder, `8N²` triangles.
+- `r1=0` or `inf`: the front is a flat fan at z=0. `r2=0` gives a flat fan at z=`thickness`.
+- `lens` given: surfaces and edge come from `LensGeometry`. Only assert `n > 0`, `size == 84+50n`, and that the header count equals the return value.
+
+## 7. Rules from comments
+- `is_front` does nothing in the profile calculation; only the sign of R matters.
+- The back cap uses `is_front=False`, which reverses the winding.
+- The last segment wraps to angle 0 exactly; `sin(2π)≠0` would otherwise leave a seam.
+- A radius too small for the diameter must raise instead of silently producing a flat disc.
+
+## 8. Testing hints
+- Use pytest `tmp_path` for the output file.
+- Parse the file:
+  ```python
+  b = p.read_bytes()
+  n = struct.unpack_from('<I', b, 80)[0]
+  # triangle k: struct.unpack_from('<12fH', b, 84 + 50*k)
+  ```
+- The values are float32, so compare with `pytest.approx(..., abs=1e-4)`.
+- Assert exact counts with small resolutions, e.g. N=2:
+  - (50, -50) gives 32.
+  - (0, 0) gives 16.
+  - (50, 0) gives 24.
+- Check the extent of z: the minimum is 0 and the maximum equals `thickness` for biconvex. Check the rim z values 1.5877 and 3.4123 (with D=25).
+- Check the sign of the front normal on triangle 0: its z component is less than 0.
+- Check that no file exists after a `ValueError`.
+- Check that two consecutive calls return the same count.
+- Pitfalls:
+  - Do not use `thickness` equal to the rim-sag difference, or a zero thickness with flat caps. That makes the edge triangles degenerate, and normalizing a zero vector depends on `Vector3` (not shown).
+  - Do not assume that `r1`/`r2` matter when `lens` is passed.
+  - Exact float formatting in the error message: `{radius}` uses `str()`, while `y` and `h` use `.4f`.
+
+### openlens.stl_export.STLExporter.generate_edge_triangles
+
+# Notes: `STLExporter.generate_edge_triangles(diameter, z_front_arr, z_back_arr, num_segments=60)`
+
+## 1. Purpose
+- Builds the triangles of the cylindrical side wall (barrel) of a lens. The wall runs between a front rim ring and a back rim ring, both at radius `diameter/2`.
+- Returns a plain list of triangles. It does **not** write a file and does **not** touch `self.triangles`.
+
+## 2. Inputs
+- `diameter`: number. `radius = diameter / 2.0`. There is no validation: 0 or negative values are accepted and used as-is.
+- `z_front_arr` / `z_back_arr`: the Z of the front and back edge rings. Each can be:
+  - **a scalar**: the same z is used for every vertex on that ring. The value is put into the tuples unchanged, so an `int` stays an `int`.
+  - **a `list`**: its length must be `num_segments` or `num_segments + 1`.
+  - The check is `isinstance(values, list)`. A tuple or numpy array is therefore **not** treated as per-segment. It goes down the scalar path and the whole object becomes the z coordinate. No error is raised.
+- `num_segments`: int, default 60. `angle_step = 2*pi/num_segments`.
+
+## 3. Raises
+- **List length check.** It runs first, front list before back list.
+  - Exception: `ValueError(f"{name} must have {num_segments} or {num_segments + 1} values, got {len(values)}")`, where `name` is the literal `"z_front_arr"` or `"z_back_arr"`.
+  - Example: `gen(10, [0,0], 5, num_segments=4)` raises `"z_front_arr must have 4 or 5 values, got 2"`.
+  - Example: `gen(10, 0, [1,2,3], num_segments=4)` raises `"z_back_arr must have 4 or 5 values, got 3"`.
+  - If both lists are bad, the front one is reported.
+- **Zero segments.** `num_segments=0` gives `ZeroDivisionError` from `2*math.pi/0`. This happens after the list check, so `[]` passes that check when n = 0.
+- **Non-int segment count.** A float such as `num_segments=4.0` gives a `TypeError` from `range`.
+- **Negative segment count.** A negative `num_segments` raises nothing and returns `[]`, because the range is empty.
+
+## 4. Returns and guarantees
+- The result is a new `list` of exactly `2 * num_segments` triangles. Each triangle is a 3-tuple of 3-tuples `(x, y, z)`.
+- Loop order is `seg = 0..n-1`. For each segment:
+  - `angle1 = seg*step`.
+  - `angle2 = ((seg+1) % n) * step`. For the last segment this is exactly `0.0`, so it uses `cos = 1.0` and `sin = 0.0` exactly, which is a watertight seam.
+- The four corners of each segment are:
+  - `p1 = (r*cos1, r*sin1, zf1)`
+  - `p2 = (r*cos2, r*sin2, zf2)`
+  - `p3 = (r*cos2, r*sin2, zb2)`
+  - `p4 = (r*cos1, r*sin1, zb1)`
+- They are appended in this order: `(p1, p2, p4)`, then `(p2, p3, p4)`.
+- The z values come from:
+  - `zf1 = z_front[seg]`
+  - `zf2 = z_front[(seg+1) % len(z_front)]`
+  - The same pattern applies to the back ring.
+  - With a scalar, all four z values equal that scalar.
+- The list length changes which value closes the ring:
+  - **Length n (closed):** the last segment's `zf2` wraps to index 0.
+  - **Length n+1 (open):** the last segment's `zf2` is index `n`, the last element, even though its x/y equal those of segment 0's start.
+- **Normals.** When back z > front z, the normals point radially outward, at the segment's mid-angle. This is checkable with `exporter.calculate_normal(*tri)`.
+  - Example: `n=4`, `d=10`, front 0, back 5. Triangle 0 has normal ≈ `(0.7071, 0.7071, 0)`. Triangle 1 has the same normal.
+  - If front z > back z, the normals point inward. The function does not check this.
+
+## 5. Side effects
+- None. Inputs are not mutated, `self.triangles` is unchanged, and no I/O happens.
+
+## 6. Branches and edge cases
+- Scalars `gen(10, 0.0, 5.0, num_segments=4)` give 8 triangles:
+  - Triangle 0 = `((5.0,0.0,0.0), (5*cos(pi/2), 5.0, 0.0), (5.0,0.0,5.0))`. Here `5*cos(pi/2)` ≈ 3.06e-16, which is not 0, so use `approx`.
+  - Triangle 7 = `(p2, p3, p4)` of seg 3, with `p2 = p3[:2]+... = (5.0, 0.0, 0.0)` / `p3 = (5.0, 0.0, 5.0)` exactly.
+- Closed list `gen(10, [0,1,2,3], 5, 4)`:
+  - Seg 3 has `p1.z == 3` and `p2.z == 0` (wraps).
+- Open list `gen(10, [0,1,2,3,9], 5, 4)`:
+  - Seg 3 has `p2.z == 9`. Index 4 is used, not index 0.
+- `num_segments=1`: `angle1 = angle2 = 0`, so the result is 2 degenerate triangles, all at x = r and y = 0.
+- `diameter=0`: every x and y is 0. The result is still `2n` triangles.
+
+## 7. Rules from comments and docstring
+- The last segment must wrap to an exact 0 angle. `sin(2*pi)` is about 6.4e-16, and using it would leave the barrel open.
+- The edge normals must point radially outward. This is why the winding is `(p1,p2,p4)` and `(p2,p3,p4)`.
+- Allowed list lengths: `n` is a closed profile and `n+1` is an open profile.
+
+## 8. Testing hints
+- Setup: `e = STLExporter(); tris = e.generate_edge_triangles(10.0, 0.0, 5.0, num_segments=4)`.
+- **Count:** `len(tris) == 2*n`. Also check that `e.triangles == []` afterwards.
+- **Radius:** every vertex has `hypot(x, y) ≈ diameter/2`.
+- **Exact z:** every vertex z is in `{zf, zb}`.
+- **Order:** check `tris[0][0] == tris[1][2]` (p4 is shared at the end of both). Also check `tris[0][1] == tris[1][0]` (p2 is shared).
+- **Seam:** `tris[-1][0][:2] == (10/2, 0.0)` holds exactly, because the last segment's p2 x/y is `(r*1.0, r*0.0)` = `(5.0, 0.0)`. The first triangle's p1 is the same exact value.
+- **Normal direction:** for each triangle, the dot product of `calculate_normal` with the radial vector at the triangle's centroid should be > 0.
+- **Error messages:** match the full text with `pytest.raises(ValueError, match=r"^z_front_arr must have 4 or 5 values, got 2$")`.
+- **Pitfalls:**
+  - Do not expect exact zeros at angles π/2 or π. Use `pytest.approx(abs=1e-12)` for any x/y other than those at angle 0.
+  - A tuple passed for z does not raise.
+  - Integer z inputs stay `int`. `==` with floats still works.
+
+### openlens.stl_export.STLExporter.generate_flat_surface
+
+# Notes: `STLExporter.generate_flat_surface(self, diameter, z_offset, num_segments=60, is_front=True)`
+
+## 1. Purpose
+- Builds a triangle fan for a flat circular disc at axial height `z_offset`.
+- The disc is centred on the Z axis.
+- The winding order sets which way the normal points: `-Z` for a front cap, `+Z` for a back cap.
+
+## 2. Inputs
+- `diameter`: float. `radius = diameter / 2.0`. There is no validation, so 0 and negative values are accepted.
+- `z_offset`: float. It is used as-is for every vertex z, with no conversion: an int stays an int in the tuples.
+- `num_segments`: int, default `60`. `angle_step = 2*math.pi / num_segments` is computed before the loop runs over `range(num_segments)`.
+- `is_front`: bool, default `True`. Only its truthiness matters.
+- `self`: only used as the receiver. `self.triangles` is neither read nor written.
+
+## 3. Raises
+These are not explicit raises; they come from Python itself.
+- `num_segments=0`: `ZeroDivisionError` ("float division by zero"), raised by `2*math.pi/0`.
+  - Trigger: `STLExporter().generate_flat_surface(10, 0, num_segments=0)`.
+- `num_segments=2.5` (any non-int float): `TypeError`, raised by `range()` ("'float' object cannot be interpreted as an integer").
+- Nothing else raises. Negative `num_segments` returns `[]`, because the range is empty.
+
+## 4. Returns and guarantees
+- Returns a new `list` of exactly `num_segments` triangles.
+- Each triangle is a 3-tuple of 3-tuples `(x, y, z)`.
+- Shared values:
+  - `center = (0.0, 0.0, z_offset)`. The same tuple object is reused as vertex 0 of every triangle.
+  - `angle1 = seg*angle_step`
+  - `angle2 = ((seg+1) % num_segments)*angle_step`. The last segment wraps exactly to angle 0.
+  - `p1 = (radius*cos(angle1), radius*sin(angle1), z_offset)`
+  - `p2 = (radius*cos(angle2), radius*sin(angle2), z_offset)`
+- When `is_front` is truthy, triangle `seg` is `(center, p2, p1)`.
+- When it is falsy, triangle `seg` is `(center, p1, p2)`.
+- The ring is exactly closed:
+  - The last triangle's `p2` equals the first triangle's `p1`, exactly `(radius, 0.0, z_offset)`, because cos(0)=1.0 and sin(0)=0.0.
+  - Each triangle's `p2` equals the next triangle's `p1`, as the same float computation of the same angle.
+- Every vertex has z exactly `== z_offset`.
+- Every rim vertex lies at distance `|radius|` from the axis (up to float rounding).
+
+## 5. Side effects
+- None. No mutation of `self.triangles`, no files written, no global state.
+
+## 6. Branches and edge cases
+- **Front**, `generate_flat_surface(10.0, 0.0, 4, True)`, radius 5, step π/2:
+  - tri0 = `((0,0,0), (5cos(π/2), 5sin(π/2), 0), (5,0,0))`, which is ≈ `((0,0,0),(0,5,0),(5,0,0))`.
+  - tri3 = `(center, (5.0,0.0,0.0), (≈0,≈-5,0))`.
+- **Back**, same arguments with `False`: tri0 = `(center, (5.0,0.0,0.0), (≈0,5,0))`, i.e. p1 and p2 are swapped relative to the front case.
+- **`num_segments=1`**: one degenerate triangle `(center, (r,0.0,z), (r,0.0,z))`. Here p1 == p2, since angle2 = (1%1)*step = 0.
+- **`diameter=0`**: every vertex is `(0.0, 0.0, z_offset)`. Note that `0*sin` gives `0.0`; signs may be `-0.0`, which still compares equal.
+- **Negative diameter**: points are mirrored (radius < 0), so the normal direction flips relative to the rules below. No error is raised.
+- **Negative `num_segments`**: returns `[]`.
+
+## 7. Rules from comments
+- The front flat surface has its normal along `-Z` and the back along `+Z`, so normals point out of the glass.
+- The last segment's angle is wrapped to exactly 0. The reason: `sin(2π)` ≠ 0, so the ring would otherwise not close (the mesh would not be watertight).
+
+## 8. Testing hints
+- Construct with `from openlens.stl_export import STLExporter; e = STLExporter()`.
+- **Normals**: use `e.calculate_normal(*tri)`, which is a cross product of (p2-p1)×(p3-p1), normalized.
+  - For `diameter>0` and `num_segments>=3`: front → `≈(0,0,-1)` and back → `≈(0,0,1)` for every triangle.
+  - Use `pytest.approx(..., abs=1e-9)`.
+  - Avoid `num_segments` of 1 or 2 for normal checks. n=1 gives a zero-area triangle. n=2 is near-degenerate because sin(π)≈1.2e-16, and the zero-vector behaviour of `Vector3.normalize` is in another module, not shown.
+- **Exact checks that are safe**:
+  - `len(result) == num_segments`.
+  - `tri[0] == (0.0, 0.0, z_offset)` for all triangles.
+  - All z values `== z_offset`.
+  - `result[0][2] == (r, 0.0, z)` for the front case (p1 is index 2).
+  - `result[0][1] == (r, 0.0, z)` for the back case.
+  - `result[-1][1] == result[0][2]` for the front case.
+  - Front triangle `i` equals the back triangle `i` with vertices 1 and 2 swapped.
+- **Approximate checks**: use `pytest.approx` for cos/sin coordinates, e.g. `math.hypot(x, y) == approx(r)`.
+- **Signed area**: the sum over front triangles of the cross product's z-component ≈ `-num_segments * r² * sin(2π/n)`. This is the 2× area of the regular n-gon, so its absolute value is `n*r²*sin(2π/n)`. The back case gives a positive sum.
+- **Do not** expect `self.triangles` to change: it stays `[]` after the call on a fresh exporter.
+- **Indirect use**: `export_lens_to_stl(r1=float('inf'), ...)` (or a flat radius whose |R| > 1e10, when `lens=None`) uses this method with `num_segments=resolution*2`, giving `resolution*2` triangles per flat cap. Testing the method directly is simpler.
+
+### openlens.stl_export.STLExporter.generate_profile_triangles
+
+# Notes: `STLExporter.generate_profile_triangles(self, profile, num_segments=100)`
+
+## 1. Purpose
+- Revolves a meridional rim profile, a list of `(radius, z)` points ordered front rim to back rim, around the Z axis.
+- Returns the triangle mesh as a list.
+- `export_lens_stl` and `export_lens_to_stl(lens=...)` use it to build the lens edge from `LensGeometry.edge_profile_points`.
+
+## 2. Inputs
+- `profile`: a sequence of 2-item `(r, z)` pairs.
+  - It must support `len()` and slicing (`profile[1:]`). Lists and tuples work; a generator raises `TypeError`.
+  - Each item is unpacked as `r, z`, so lists like `[5, 0]` also work.
+  - No validation of values. Negative `r` is used as-is.
+- `num_segments`: int, default `100`. It is the number of angular points around the full revolution.
+  - It is not validated beyond the `< 3` check.
+  - A float such as `4.0` fails in `range()` with `TypeError`.
+- `self` is not used. Any `STLExporter()` instance works.
+
+## 3. Raises
+- The function raises no exceptions of its own.
+- Incidental errors:
+  - `TypeError` for a non-sliceable or unsized `profile`, or a non-int `num_segments` (when it is ≥ 3).
+  - `ValueError` from tuple unpacking if a point does not have exactly 2 items.
+
+## 4. Returns and guarantees
+- Returns a new `list` of triangles. Each triangle is a tuple of 3 points, each point is a tuple `(x, y, z)` of floats.
+- Precomputed angles: `angles = [2*pi*i/num_segments for i in range(num_segments)]`.
+  - `angles[0] == 0.0` exactly.
+  - The wrap `angle2 = angles[(index+1) % n]` makes the last segment end at exactly `0.0`. This closes the seam: the last segment's `p2` is identical to the first segment's `p1` ring point.
+- Loop order: the outer loop runs over consecutive profile pairs `(r1, z1), (r2, z2)`; the inner loop runs over the angle index `0..n-1`.
+- Each angle index appends 2 triangles, in this order:
+  - `p1 = (r1*cos a1, r1*sin a1, z1)`
+  - `p2 = (r1*cos a2, r1*sin a2, z1)`
+  - `p3 = (r2*cos a2, r2*sin a2, z2)`
+  - `p4 = (r2*cos a1, r2*sin a1, z2)`
+  - The triangles are `(p1, p2, p3)` then `(p1, p3, p4)`.
+- Length of the result is `2 * num_segments * (number of non-degenerate consecutive pairs)`.
+- z values are copied verbatim; there is no offset.
+
+## 5. Side effects
+- None. It does not touch `self.triangles` and does not mutate `profile`. No file I/O.
+
+## 6. Branches and edge cases
+- `len(profile) < 2` returns `[]`. Examples: `[]` and `[(5, 0)]`.
+- `num_segments < 3` returns `[]`. Examples: `2`, `0`, `-1`.
+  - `num_segments == 3` works and gives 6 triangles per pair.
+- Degenerate pair: skipped only if `abs(r1-r2) <= EPSILON` **and** `abs(z1-z2) <= EPSILON`.
+  - `EPSILON` comes from `openlens.constants` (not shown), so its exact value is unknown. Use clearly equal or clearly different values, e.g. differences of 0 or ≥ 0.1.
+  - `[(5, 0), (5, 0), (5, 3)]` gives `2*n` triangles; the first pair is skipped.
+  - `[(5, 0), (5, 0)]` gives `[]`.
+- A pair with the same `r` but different `z` is a cylinder band and is not skipped.
+- A pair with the same `z` but different `r` is a flat annulus and is not skipped.
+- `r1 == r2 == 0` with different `z` is not skipped. It emits zero-area triangles, all with x = y = 0.
+- Default `num_segments=100` with a 2-point profile gives 200 triangles.
+
+## 7. Rules from docstrings and comments
+- The docstring says: "The straight two-point profile is the old cylinder."
+  - For example, `[(D/2, z_front), (D/2, z_back)]` reproduces a cylindrical barrel.
+- Through the callers, the winding gives radially outward normals when `z` increases along the profile at constant `r`.
+- Example: `[(5, 0), (5, 3)]` with `n=4`. The first triangle's `calculate_normal` is ≈ `(0.7071, 0.7071, 0.0)`, which is outward at the 45° mid-segment.
+  - In general, with z increasing, `normal · (cos(mid), sin(mid), 0) > 0` for the midpoint angle `mid`.
+
+## 8. Testing hints
+- Construct the object with `from openlens.stl_export import STLExporter; e = STLExporter()`.
+- Exact checks for `tris = e.generate_profile_triangles([(5.0, 0.0), (5.0, 3.0)], num_segments=4)`:
+  - `len(tris) == 8`.
+  - `tris[0][0] == (5.0, 0.0, 0.0)`, exact, because angle 0.
+  - `tris[0][1]` is ≈ `(0, 5, 0)`; use `pytest.approx(abs=1e-12)`, since `cos(pi/2)` is `6e-17`, not 0.
+  - `tris[1] == (tris[0][0], tris[0][2], p4)` with `p4 == (5.0, 0.0, 3.0)`, exact.
+  - All z values are in `{0.0, 3.0}`.
+  - All points satisfy `hypot(x, y) ≈ 5`.
+- Seam closure, exact equality: the last segment's `p2` equals `tris[0][0]`.
+  - `tris[-2][1] == tris[0][0]` holds exactly, because `cos(0)=1.0` and `sin(0)=0.0` are exact.
+- Multi-pair ordering:
+  - Profile: `[(5, 0), (5, 3), (7, 3)]` with `n=4` gives 16 triangles.
+  - The first 8 have z only in `{0, 3}` and r = 5.
+  - The last 8 have z = 3 and radii in `{5, 7}`.
+  - `tris[8][0] == (5.0, 0.0, 3.0)`.
+- Triangle count formula to parametrize: `2 * n * pairs`.
+  - Example: a 4-point non-degenerate profile with `n=6` gives 36.
+- Use `e.calculate_normal(*tri)` to check outward orientation.
+  - Avoid degenerate (zero-area) triangles there; `Vector3.normalize` behaviour on a zero vector lives in another module and is not shown.
+- Pitfalls:
+  - Compare non-zero-angle coordinates with `approx`, not `==`.
+  - Do not rely on the EPSILON boundary.
+  - The result contains tuples, not lists.
+  - The return value does not alias `profile`.
+
+### openlens.stl_export.STLExporter.generate_surface_triangles
+
+# Notes: `STLExporter.generate_surface_triangles(profile_points, z_offset, num_segments=60, is_front=True)`
+
+## 1. Purpose
+- Revolves a half-profile of `(radius_from_axis, z)` points around the Z axis into a triangle list (a surface cap).
+- Each triangle is a 3-tuple of `(x, y, z)` float tuples.
+- The winding order depends on `is_front`, so the normals point out of the glass:
+  - front cap: normals along −Z;
+  - back cap: normals along +Z.
+
+## 2. Inputs
+- **`profile_points`**: a sequence supporting `len()` and indexing, such as a list or tuple of `(r, z)` pairs, ordered from the axis to the rim.
+  - The emptiness check is `if not profile_points:`, so `[]` and `None` both return `[]`.
+  - A numpy array with more than one element makes `not arr` raise `ValueError` (ambiguous truth value). Use lists.
+- **`z_offset`**: a float added to every profile z. Vertex z = `z_i + z_offset`.
+- **`num_segments`**: an int, default 60. It sets the number of angular segments, with `angle_step = 2*pi/num_segments`.
+- **`is_front`**: a bool, default `True`. It only changes the vertex order inside each triangle.
+- **No validation is done.** It is not checked that `r` is non-negative or that the points are sorted.
+
+## 3. Raises
+- `num_segments=0` with a non-empty profile raises `ZeroDivisionError` (`2*math.pi/0`).
+  - With an empty profile, the early `return []` happens first, so no error is raised.
+- A float `num_segments` (e.g. `4.0`) with a non-empty profile raises `TypeError` from `range()`.
+- A negative `num_segments` gives an empty `range`, so it returns `[]` and does not raise.
+
+## 4. Returns and guarantees
+- The result is a new list. `self.triangles` is **not** touched.
+
+**Loop order:**
+- The outer loop is `seg` in `0..num_segments-1`.
+- The inner loop is the radial index `i` in `0..len(profile)-2`, over the pair `(profile[i], profile[i+1])`.
+
+**Angles:**
+- `angle1 = seg*step`.
+- `angle2 = ((seg+1) % num_segments)*step`.
+- For the last segment `angle2 == 0` exactly, so `cos2 = 1.0` and `sin2 = 0.0`. Its p3/p4 equal segment 0's p2/p1 exactly; the seam is watertight.
+
+**Points per quad**, using `(r1,z1)=profile[i]` and `(r2,z2)=profile[i+1]`:
+
+```
+p1=(r1*cos1, r1*sin1, z1+off)
+p2=(r2*cos1, r2*sin1, z2+off)
+p3=(r2*cos2, r2*sin2, z2+off)
+p4=(r1*cos2, r1*sin2, z1+off)
+```
+
+**Triangles per pair:**
+
+| Case | `is_front=True` | `is_front=False` |
+|---|---|---|
+| `r1 < 1e-9` (centre fan, 1 triangle) | `(p1,p3,p2)` | `(p1,p2,p3)` |
+| otherwise (quad, 2 triangles, in this order) | `(p1,p3,p2)`, `(p1,p4,p3)` | `(p1,p2,p3)`, `(p1,p3,p4)` |
+
+- Only `r1` is tested. A negative `r1` also takes the fan branch. A pair with `r2 ≈ 0` is still a quad.
+
+**Triangle count:**
+- In general: `num_segments * Σ_i (1 if r_i < 1e-9 else 2)`, summed over `i = 0..len-2`.
+- For a profile starting at r=0 with N points: `num_segments*(2N-3)`.
+  - Example: 51 points and 60 segments give 5940 triangles.
+- For a profile not starting at 0: `num_segments*2*(N-1)`.
+
+## 5. Side effects
+- None. The input is not mutated, no file is written, and `self.triangles` is unchanged.
+
+## 6. Branches and edge cases
+- `[]` returns `[]`.
+- `[(0,0)]` (one point) returns `[]`, because the inner loop is empty.
+- `[(0,0),(1,0)]` with `num_segments=4` returns 4 triangles (fans only).
+- `[(1,0),(2,0)]` with `num_segments=4` returns 8 triangles (quads only).
+- A worked example: `[(0,0),(1,0.1),(2,0.4)]`, `z_offset=5`, `num_segments=4`, `is_front=True` gives 12 triangles.
+  - `tri[0] = ((0,0,5), (≈0,1,5.1), (1,0,5.1))`. The middle point is p3 at 90°; its x is `6.1e-17`, so use approx.
+  - `tri[1] = ((1,0,5.1), (≈0,2,5.4), (2,0,5.4))`.
+  - `tri[2] = ((1,0,5.1), (≈0,1,5.1), (≈0,2,5.4))`.
+  - With `is_front=False`: `tri[0] = (p1,p2,p3) = ((0,0,5),(1,0,5.1),(≈0,1,5.1))`.
+- Segment-0 values are exact. With `cos(0)=1.0` and `sin(0)=0.0`, p1 = `(r1, 0.0, z1+off)` and p2 = `(r2, 0.0, z2+off)` exactly.
+- The last segment's `angle2` is exactly 0, so its p3 is `(r2, 0.0, z2+off)` exactly.
+
+## 7. Rules from comments and docstring
+- Normals must point out of the glass: −Z for the front, +Z for the back.
+  - Winding both caps the same way was a past bug.
+- The last segment wraps to angle 0 exactly, rather than using `n*step = 2π`, to avoid a non-watertight seam.
+- At the centre (r1 ≈ 0), p1 and p4 coincide, so a single fan triangle is used instead of a degenerate quad.
+
+## 8. Testing hints
+- Construct the exporter with `from openlens.stl_export import STLExporter; e = STLExporter()`. Profiles can be literal lists. Real ones come from `e.calculate_surface_profile(50.0, 25.0, resolution=N)`, which returns N+1 points starting at `(0.0, 0.0)`.
+
+**Checking normals:**
+- Use `e.calculate_normal(*tri)`.
+- For a flat profile, e.g. `[(0,0),(1,0),(2,0)]` with `num_segments >= 3`, every triangle's normal z should be ≈ −1 when `is_front=True` and ≈ +1 when `False`.
+- Checking the sign of the z component (`< 0` / `> 0`) is robust.
+- Avoid `num_segments` of 1 or 2: the triangles are degenerate or near-degenerate.
+
+**Other checks:**
+- Every vertex z equals `profile z + z_offset`.
+- Every vertex radius `hypot(x,y)` matches one of the profile radii (use approx).
+- Front and back outputs have the same vertex sets; each triangle is reordered with the second and third vertices swapped. For example, `front[k] == (b[0], b[2], b[1])` where `b = back[k]`.
+- Check that `e.triangles == []` after the call.
+
+**Pitfalls:**
+- Compare intermediate-angle coordinates with `pytest.approx`, because `cos(pi/2)` is not exactly 0.
+- A negative `r` can produce `-0.0`, which still compares equal to `0.0`.
+- Don't assume a fixed count without accounting for the fan rule. Only the first pair is usually a fan.
+- Don't expect validation errors for unsorted or negative radii.

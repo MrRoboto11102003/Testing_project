@@ -1,0 +1,330 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.schema.PhoneNumber, arnio.schema.URL.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.schema.PhoneNumber
+def PhoneNumber(
+    *,
+    nullable: bool = True,
+    unique: bool = False,
+    severity: str = "error",
+    required_if: tuple[str, Any] | None = None,
+) -> Field:
+    """Create a phone-number schema field.
+
+    Args:
+        nullable: Whether null values are allowed.
+        unique: Whether non-null values must be unique.
+        severity: Severity level for validation issues.
+        required_if: Conditional requirement as a column/value pair.
+
+    Returns:
+        Field: Configured phone-number schema field.
+    """
+    return Field(
+        dtype="string",
+        nullable=nullable,
+        semantic="phone",
+        unique=unique,
+        required_if=required_if,
+        severity=severity,
+    )
+
+# arnio.schema.URL
+def URL(
+    *,
+    nullable: bool = True,
+    unique: bool = False,
+    severity: str = "error",
+    required_if: tuple[str, Any] | None = None,
+    allowed_schemes: list[str] | None = None,
+) -> Field:
+    """Create a URL schema field.
+    Args:
+        nullable: Whether null values are allowed.
+        unique: Whether non-null values must be unique.
+        severity: Severity level for validation issues.
+        required_if: Conditional requirement as a column/value pair.
+        allowed_schemes: List of allowed URL schemes e.g. ["https"].
+            If None, both http and https are accepted.
+    Returns:
+        Field: Configured URL schema field.
+    """
+    if allowed_schemes is not None:
+        if isinstance(allowed_schemes, (str, bytes)):
+            raise TypeError(
+                "allowed_schemes must be a sequence of scheme names, not a bare string"
+            )
+
+        if not isinstance(allowed_schemes, (list, tuple, set)):
+            raise TypeError("allowed_schemes must be a sequence of scheme names")
+
+        normalized_schemes = set()
+
+        for scheme in allowed_schemes:
+            if not isinstance(scheme, str):
+                raise ValueError("allowed_schemes must contain non-empty strings")
+
+            scheme = scheme.strip()
+
+            if scheme == "":
+                raise ValueError("allowed_schemes must contain non-empty strings")
+
+            if URL_SCHEME_PATTERN.fullmatch(scheme) is None:
+                raise ValueError(
+                    "allowed_schemes must contain URL scheme names such as 'http' or 'https'"
+                )
+
+            normalized_schemes.add(scheme)
+
+        if len(normalized_schemes) == 0:
+            raise ValueError("allowed_schemes must be a non-empty sequence")
+
+        schemes = "|".join(re.escape(scheme) for scheme in sorted(normalized_schemes))
+
+        semantic = f"url:{schemes}"
+
+    else:
+        semantic = "url"
+    return Field(
+        dtype="string",
+        nullable=nullable,
+        semantic=semantic,
+        unique=unique,
+        required_if=required_if,
+        severity=severity,
+    )
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.schema.PhoneNumber
+
+# Notes: `arnio.schema.PhoneNumber`
+
+## 1. Purpose
+- A factory that returns a frozen `Field` for phone-number string columns: `dtype="string"` and `semantic="phone"`.
+- The phone check itself runs only later, inside `ar.validate(frame, schema)` or `Schema.validate`.
+
+## 2. Inputs
+All parameters are keyword-only. Nothing is normalised; values are passed straight into `Field(...)`.
+- `nullable: bool = True` must be an actual `bool`. `1` and `None` are rejected.
+- `unique: bool = False` must be an actual `bool`.
+- `severity: str = "error"` must be `"error"` or `"warning"`.
+- `required_if: tuple[str, Any] | None = None` must be a 2-tuple of `(str, scalar)`. The scalar check is `pd.api.types.is_scalar`.
+- The resulting `Field` has these fixed values:
+  - `dtype="string"`, `semantic="phone"`
+  - `pattern=None`, `allowed=None`, `case_sensitive=True`
+  - `min=max=None`, `min_length=max_length=None`, `format=None`
+
+## 3. Raises
+All checks happen in `Field.__post_init__`, in this order: nullable → unique → required_if → severity.
+
+| Exception | Exact message | Minimal call |
+|---|---|---|
+| `TypeError` | `"nullable must be a bool"` | `ar.PhoneNumber(nullable=1)` |
+| `TypeError` | `"unique must be a bool"` | `ar.PhoneNumber(unique="yes")` |
+| `TypeError` | `"required_if must be a tuple or None"` | `ar.PhoneNumber(required_if=["a", 1])` |
+| `TypeError` | `"required_if must be a (column_name, expected_value) tuple"` | `ar.PhoneNumber(required_if=("a",))` |
+| `TypeError` | `"required_if column name must be a string"` | `ar.PhoneNumber(required_if=(1, "x"))` |
+| `TypeError` | `"required_if expected value must be a scalar"` | `ar.PhoneNumber(required_if=("a", [1]))` |
+| `TypeError` | `"severity must be a string"` | `ar.PhoneNumber(severity=1)` |
+| `ValueError` | `"severity must be 'error' or 'warning'"` | `ar.PhoneNumber(severity="info")` |
+
+- Ordering example: `PhoneNumber(nullable=1, severity="bad")` raises the nullable `TypeError`, because nullable is checked first.
+- Use `pytest.raises(..., match=re.escape(msg))`. The messages contain `(`, `)` and `'`.
+
+## 4. Returns and guarantees
+- Returns a new frozen `Field`. It is a dataclass with equality, so:
+  - `ar.PhoneNumber() == ar.Field(dtype="string", semantic="phone")` is True.
+  - `ar.PhoneNumber(nullable=False).nullable is False`.
+- Assigning to an attribute raises `dataclasses.FrozenInstanceError`.
+
+During `validate`, a phone column gives these issues, in this order within the column:
+1. **dtype mismatch.** Emitted if `frame.dtypes[col] != "string"`.
+   - Message: `f"Column {name!r} has dtype {actual!r}; expected 'string'"`.
+   - `rule="dtype"`, `row_index=None`.
+   - The dtype names come from the C++ core, which I cannot see. Check `frame.dtypes` before asserting on this.
+2. **nullable.** Only when `nullable=False`. One issue per null/empty/whitespace-only row.
+   - `rule="nullable"`, message `f"Column {name!r} contains null or empty values"`.
+3. **required_if** (see section 6).
+4. **unique.** Uses `duplicated(keep=False)`, so every copy of a duplicate is flagged.
+   - `rule="unique"`, message `f"Column {name!r} contains duplicate values"`.
+5. **phone check.**
+   - Each non-null value is cast to string and must **fullmatch** `r"\+?[0-9][0-9 .()\-]{6,}[0-9]"`.
+   - Failures give `rule="phone"`, message `f"Column {name!r} contains invalid phone values"`.
+   - `value` is the original cell value.
+- For every row issue:
+  - `row_index = pandas index + 1`, so it is **1-based**.
+  - `severity` is the field's severity.
+- `result.bad_rows` is the sorted set of row indexes.
+
+## 5. Side effects
+- None. No registries are touched; `_CUSTOM_VALIDATORS` is unused.
+
+## 6. Branches and edge cases for the phone regex
+The regex requires: an optional leading `+`, then a digit, then at least 6 characters from `[0-9 .()-]`, then a final digit. That means at least 8 characters, not counting the `+`.
+
+- **Valid:**
+  - `"12345678"`, `"555-1234"` (8 chars)
+  - `"555-123-4567"`, `"555.123.4567"`
+  - `"+1 (555) 123-4567"`, `"+44 20 7946 0958"`
+- **Invalid:**
+  - `"5551234"`: only 7 chars.
+  - `"(555) 123-4567"`: the first character must be a digit.
+  - `"555-123-4567-"` and `"555-123-456)"`: must end with a digit.
+  - `"++15551234567"`: more than one `+`.
+  - `"1-800-FLOWERS"` and `"abc"`: letters are not allowed.
+  - `" 555-123-4567"`: the leading space is kept in the text, and the space is not a digit.
+- **Nulls and blanks:**
+  - Applies when the actual dtype is `"string"` or `"object"`.
+  - `None`, NaN, `""` and `"   "` are treated as null and are **skipped** by the phone check.
+  - They are only reported if `nullable=False`, and then only as `rule="nullable"`.
+- **`required_if=("country", "US")`:**
+  - If `country` is missing from the frame, there is one issue:
+    - `column="country"`, `rule="missing_column"`, message `"Column 'country' not found"`.
+    - Its severity is always `"error"`, even when `severity="warning"`.
+  - Otherwise, each row where `country == "US"` and the phone is null/blank gives:
+    - `rule="required_if"`, message `"Column 'phone' is required when 'country' == 'US'"`.
+- **`severity="warning"`:** issues are still produced, but `result.passed` is True.
+- **Missing phone column in the frame:** one issue with `rule="required_column"`, message `"Missing required column: phone"`, `row_index=None`.
+
+## 7. Rules from comments/docstrings
+- "nullable: Whether null values are allowed."
+- "unique: Whether non-null values must be unique."
+- "required_if: Conditional requirement as a column/value pair."
+
+## 8. Testing hints
+- Build a frame with `ar.from_pandas(pd.DataFrame({"phone": ["555-123-4567", "abc", None]}))`.
+- Then run `res = ar.validate(frame, {"phone": ar.PhoneNumber()})`.
+- Expected issues for that frame:
+  - `[(i.rule, i.row_index, i.value) for i in res.issues] == [("phone", 2, "abc")]`.
+  - `res.bad_rows == [2]`.
+- Assert exact `rule`, `message`, `row_index` and `severity`. Do not stop at checking `passed`.
+- Boundary pair worth testing: `"555-1234"` is valid and `"5551234"` is invalid.
+- Also test that `"(555) 123-4567"` fails.
+- Use all-string columns so no `dtype` issue appears; with all-string columns, the actual dtype is `"string"`.
+- How nulls round-trip through `from_pandas`/`to_pandas` depends on the C++ core, which I cannot see. To be safe, use `""` for blanks, since it is treated as null either way when the dtype is `"string"`.
+- Each duplicate value produces one `"unique"` issue per occurrence. The `"phone"` issues come after the `"unique"` issues.
+- `ValidationIssue` equality includes `value`. When comparing whole issues, prefer comparing tuples of fields instead.
+
+### arnio.schema.URL
+
+# Notes: `arnio.schema.URL`
+
+## 1. Purpose
+- Factory that returns a frozen `Field` for a string column whose non-null values must be URLs of the form `<scheme>://<non-whitespace>`.
+- Validation happens later, in `ar.validate(...)` or `Schema.validate(...)`.
+
+## 2. Inputs
+All parameters are keyword-only.
+
+- `nullable: bool = True`: passed to `Field`. It must be a real `bool`, otherwise `Field` raises `TypeError`.
+- `unique: bool = False`: must be a real `bool`.
+- `severity: str = "error"`: must be `"error"` or `"warning"`.
+- `required_if: tuple[str, Any] | None = None`: must be a 2-tuple of `(str, scalar)`. `Field` checks this.
+- `allowed_schemes: list | tuple | set | None = None`:
+  - `None` gives `semantic="url"`. The pattern used is `https?://[^\s]+`, so only lowercase `http` and `https`.
+  - Otherwise, each item is checked to be a `str`, then `.strip()`ed, then checked against `^[A-Za-z][A-Za-z0-9+.-]*$`.
+  - Items are collected into a set, so duplicates collapse.
+  - The set is `sorted` (case-sensitive; uppercase sorts before lowercase) and each item is `re.escape`d.
+  - Items are joined with `"|"`, giving `semantic = "url:" + joined`.
+  - Case is not changed.
+  - Examples:
+    - `["https"]` gives `"url:https"`.
+    - `["https", "http", "http"]` gives `"url:http|https"`.
+    - `[" ftp "]` gives `"url:ftp"`.
+    - `["svn+ssh"]` gives `"url:svn\\+ssh"` (in Python source; that is the characters `svn\+ssh`). `re.escape` escapes `+`, `.` and `-`.
+    - `["HTTPS", "http"]` gives `"url:HTTPS|http"`.
+
+## 3. Raises
+Checks run in this order. The `allowed_schemes` checks run first, inside `URL`.
+
+| Order | Exception | Exact message | Example call |
+|---|---|---|---|
+| 1 | `TypeError` | `allowed_schemes must be a sequence of scheme names, not a bare string` | `URL(allowed_schemes="https")` (also `b"https"`) |
+| 2 | `TypeError` | `allowed_schemes must be a sequence of scheme names` | `URL(allowed_schemes={"https": 1})`, or a generator |
+| 3 | `ValueError` | `allowed_schemes must contain non-empty strings` | `URL(allowed_schemes=[1])` or `URL(allowed_schemes=["  "])` |
+| 4 | `ValueError` | `allowed_schemes must contain URL scheme names such as 'http' or 'https'` | `["1http"]`, `["ht tp"]`, `["http:"]` |
+| 5 | `ValueError` | `allowed_schemes must be a non-empty sequence` | `URL(allowed_schemes=[])`, `()`, `set()` |
+
+Notes on the table:
+- Row 3 fires on the first bad item. Items are checked in iteration order.
+- Row 3 fires before row 4 for the same item: for `[" "]`, the strip makes it empty, so you get row 3's message.
+
+Then `Field.__post_init__` runs its checks, in this order:
+1. `nullable`: `TypeError("nullable must be a bool")`, e.g. `URL(nullable=1)`.
+2. `unique`: `TypeError("unique must be a bool")`, e.g. `URL(unique="yes")`.
+3. `required_if`:
+   - `TypeError("required_if must be a tuple or None")` for `URL(required_if=["a", 1])`.
+   - `TypeError("required_if must be a (column_name, expected_value) tuple")` for `("a",)`.
+   - `TypeError("required_if column name must be a string")` for `(1, "x")`.
+   - `TypeError("required_if expected value must be a scalar")` for `("a", [1])`.
+4. `severity`:
+   - `TypeError("severity must be a string")` for `severity=1`.
+   - `ValueError("severity must be 'error' or 'warning'")` for `severity="info"`.
+
+## 4. Returns and guarantees
+- Returns a new frozen `Field` with:
+  - `dtype="string"`
+  - `semantic="url"` or `"url:<schemes>"`
+  - `nullable`, `unique`, `required_if`, `severity` as passed in
+  - every other attribute at its default (`pattern=None`, `allowed=None`, `min`/`max=None`, `case_sensitive=True`).
+- `Field` is a dataclass with `eq=True`, so you can compare whole objects:
+  - `ar.URL() == ar.Field(dtype="string", semantic="url")` is `True`.
+  - `ar.URL(allowed_schemes=["https"]).semantic == "url:https"`.
+- The field is frozen. Assigning to an attribute raises `dataclasses.FrozenInstanceError`.
+
+How validation behaves with this field (from `_validate_column`):
+- If the column's frame dtype (`frame.dtypes[name]`, which comes from the C++ core) is not `"string"`, you get an extra `rule="dtype"` issue.
+- Null mask: `isna()` OR a value that is empty or whitespace-only after strip (when the dtype is `object` or `string`). Null values are skipped by the URL check.
+- The check is `str.fullmatch` on non-null values:
+  - default pattern: `https?://[^\s]+`
+  - with schemes: `(<schemes>)://[^\s]+`
+- It is case-sensitive:
+  - `"HTTP://a"` is invalid with the default.
+  - `"https://a"` is invalid with `allowed_schemes=["HTTPS"]`.
+- Concrete inputs:
+  - Invalid with the default: `"https://"`, `"http://a b"`, `"ftp://x"`, `"www.a.com"`, `" http://a"` (leading space; it is not stripped before the match).
+  - Valid with the default: `"http://a"`, `"https://example.com/x?y=1"`.
+  - With `allowed_schemes=["https"]`: `"http://a.com"` is invalid.
+- Each invalid value produces one `ValidationIssue`:
+  - `column = name`
+  - `rule = field.semantic` (e.g. `"url"` or `"url:http|https"`)
+  - `message = f"Column {name!r} contains invalid {semantic} values"`, e.g. `"Column 'site' contains invalid url values"`
+  - `row_index = pandas index + 1` (1-based)
+  - `value` = the original value
+  - `severity` = the field's severity
+- Issue order within a column: dtype, nullable, required_if, unique, then the url issues in row order.
+
+## 5. Side effects
+- None. No registry changes and no mutation of inputs. Note that `allowed_schemes` is copied into a new set.
+
+## 6. Branches and edge cases
+- `allowed_schemes=None` gives `"url"`. Any non-`None` value takes the validation branch: a tuple or set is fine, and an empty one raises (row 5).
+- Mixed case is preserved, and sorting is case-sensitive: `["b", "A"]` gives `"url:A|b"`.
+- Allowed characters after the first letter are letters, digits, `+`, `.` and `-`: `["git+ssh", "a.b-c"]` gives `"url:a\\.b\\-c|git\\+ssh"` (characters `a\.b\-c|git\+ssh`).
+- `severity="warning"`: invalid URLs still produce issues, but `result.passed` is `True`.
+- `nullable=False`: an empty string `""` produces a `rule="nullable"` issue and no url issue.
+
+## 7. Rules stated in docs
+- The docstring says that if `allowed_schemes` is `None`, both `http` and `https` are accepted.
+- The intended example is `["https"]`.
+
+## 8. Testing hints
+Build a frame and validate it like this:
+```python
+df = pd.DataFrame({"site": ["http://a.com", "ftp://b", "https://c.org"]})
+res = ar.validate(ar.from_pandas(df), ar.Schema({"site": ar.URL()}))
+# expect exactly one issue: rule "url", row_index 2, value "ftp://b"
+```
+
+- **Filter issues by rule.** Use `[i for i in res.issues if i.rule == "url"]`. Do not assert the total issue count, because a `dtype` issue appears if the C++ core does not report `"string"`. That mapping cannot be confirmed from this module; `"string"` is expected for object/str columns.
+- **Row indices are 1-based.**
+- **Use `""` for nulls in string columns.** Prefer it over `None`, because how `None` round-trips through the C++ core is not visible here.
+- **Check `semantic` strings for exact values.** This catches regressions in sorting, escaping or deduplication. Remember backslashes in the expected Python string literal.
+- **Use `pytest.raises(..., match=...)` for the exception messages.** Pass the message through `re.escape`, because the messages contain `'` and `.`.

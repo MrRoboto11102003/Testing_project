@@ -1,0 +1,272 @@
+{
+ "id": "arnio-pr1860",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 12355,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 7354
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.17,
+ "detected": true,
+ "n_tests": 23,
+ "n_catching": 2,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 4695,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10714,
+  "output_tokens_details": {
+   "thinking_tokens": 7777
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 4695,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 10714,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 4695,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 4695
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.062969,
+ "model_seconds": 49.9,
+ "seconds": 59.3,
+ "tests": {
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetBasic::test_basic_write_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetBasic::test_write_all_valid_compressions": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetBasic::test_write_case_insensitive_extension": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetBasic::test_write_pathlib_and_bytes": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetBasic::test_write_pq_extension": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetEdgeCases::test_column_order_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetEdgeCases::test_empty_frame_zero_by_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetEdgeCases::test_file_overwrite": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetEdgeCases::test_index_not_written": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetEdgeCases::test_no_file_created_on_validation_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetEdgeCases::test_zero_rows_with_columns": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "from_pandas",
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetPreserveAttrs::test_preserve_attrs_false_works": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetPreserveAttrs::test_preserve_attrs_not_bool_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetRowGroupSize::test_row_group_size_bool_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetRowGroupSize::test_row_group_size_float_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetRowGroupSize::test_row_group_size_nonpositive_rejected": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetRowGroupSize::test_row_group_size_valid": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetValidationOrder::test_compression_case_sensitive": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetValidationOrder::test_compression_invalid_codec_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetValidationOrder::test_compression_not_string_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetValidationOrder::test_frame_not_arframe_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetValidationOrder::test_path_invalid_extension_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1860.py::TestWriteParquetValidationOrder::test_path_invalid_type_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "write_parquet"
+   ]
+  }
+ }
+}

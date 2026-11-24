@@ -1,0 +1,215 @@
+{
+ "id": "arnio-pr1600",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 8658,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 5657
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.62,
+ "detected": true,
+ "n_tests": 16,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 3644,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11927,
+  "output_tokens_details": {
+   "thinking_tokens": 9594
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 3644,
+    "output_tokens": 11927,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.063279,
+ "model_seconds": 54.5,
+ "seconds": 61.9,
+ "tests": {
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_cell_escaping_pipe_and_newline": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_complete_example_from_documentation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_error_check_order_valueerror_before_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_failed_status_with_error_issues": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_max_issues_equal_count_no_footer": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_max_issues_negative_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_max_issues_truncates_with_footer": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_max_issues_type_error_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_max_issues_type_error_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_max_issues_zero_omits_table_shows_footer": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_no_issues_header_only": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_redact_values_true_hides_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_redact_values_type_error_int": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_value_numpy_scalar_converted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_value_timestamp_isoformat": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1600.py::TestValidationResultToMarkdown::test_warning_only_shows_passed_with_table": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "ValidationIssue",
+    "ValidationResult"
+   ]
+  }
+ }
+}

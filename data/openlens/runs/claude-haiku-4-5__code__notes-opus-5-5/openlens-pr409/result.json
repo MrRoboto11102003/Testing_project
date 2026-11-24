@@ -1,0 +1,68 @@
+{
+ "id": "openlens-pr409",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 16636,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 7935
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 2.94,
+ "detected": false,
+ "n_tests": 1,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 5740,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11451,
+  "output_tokens_details": {
+   "thinking_tokens": 8760
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 5740,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11451,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 5740,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 5740
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.068744,
+ "model_seconds": 53.8,
+ "seconds": 59.6,
+ "tests": {
+  "tests/_generated/test_openlens_pr409.py::tests._generated.test_openlens_pr409": {
+   "clean": "error",
+   "buggy": "error",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

@@ -1,0 +1,197 @@
+{
+ "id": "arnio-pr1493",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 7581,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6011
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.07,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 3324,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10925,
+  "output_tokens_details": {
+   "thinking_tokens": 9108
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 3324,
+    "output_tokens": 10925,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.05794900000000001,
+ "model_seconds": 51.6,
+ "seconds": 62.0,
+ "tests": {
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_conn_missing_or_non_callable_register_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_frame_not_arframe_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_name_empty_or_whitespace_raises_valueerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_name_not_string_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_name_with_spaces_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_propagates_exception_from_register": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_register_called_with_correct_args": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb",
+    "to_pandas"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_register_not_called_on_validation_failure": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_single_character_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_valid_call_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_validation_order_frame_before_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_validation_order_name_type_before_conn": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_validation_order_name_value_before_conn": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_with_real_duckdb": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1493.py::TestRegisterDuckDB::test_zero_row_frame": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "register_duckdb"
+   ]
+  }
+ }
+}

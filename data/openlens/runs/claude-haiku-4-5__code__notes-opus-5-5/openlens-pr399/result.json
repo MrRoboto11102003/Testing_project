@@ -1,0 +1,234 @@
+{
+ "id": "openlens-pr399",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 28337,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 18910
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.78,
+ "detected": true,
+ "n_tests": 18,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 10183,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 13432,
+  "output_tokens_details": {
+   "thinking_tokens": 10713
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 10183,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 13432,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 10183,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 10183
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.08753499999999999,
+ "model_seconds": 61.6,
+ "seconds": 72.7,
+ "tests": {
+  "tests/_generated/test_openlens_pr399.py::TestLensRayTracerTrace::test_trace_surface_aperture_miss": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "RefractionResult",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestLensRayTracerTrace::test_trace_surface_back_hit_after_front": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "RefractionResult",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestLensRayTracerTrace::test_trace_surface_invalid_surface_unchanged": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "RefractionResult",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestLensRayTracerTrace::test_trace_surface_on_axis_front_hit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "RefractionResult",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestLensRayTracerTrace::test_trace_surface_reflect": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "RefractionResult",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestRay3DPropagate::test_propagate_accumulation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestRay3DPropagate::test_propagate_direction_normalized": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestRay3DPropagate::test_propagate_negative_distance": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestRay3DPropagate::test_propagate_optical_path_with_refractive_index": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestRay3DPropagate::test_propagate_positive_distance_moves_ray": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestRay3DPropagate::test_propagate_zero_distance_is_noop": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Ray3D",
+    "vec3"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestSystemRayTracerOffAxis::test_trace_off_axis_rays_default_num_rays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "C"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestSystemRayTracerOffAxis::test_trace_off_axis_rays_distributed_across_diameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr399.py::TestSystemRayTracerOffAxis::test_trace_off_axis_rays_empty_system_returns_empty": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem",
+    "SystemRayTracer3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestSystemRayTracerOffAxis::test_trace_off_axis_rays_on_axis_field_z_zero": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr399.py::TestSystemRayTracerOffAxis::test_trace_off_axis_rays_returns_list_with_correct_count": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Ray3D"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestSystemRayTracerOffAxis::test_trace_off_axis_rays_wavelength_parameter": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "C"
+   ]
+  },
+  "tests/_generated/test_openlens_pr399.py::TestSystemRayTracerOffAxis::test_trace_off_axis_rays_zero_and_one_rays": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

@@ -1,0 +1,275 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.transform.Matrix4x4.from_translation, openlens.transform.Matrix4x4.multiply_point, openlens.transform.Matrix4x4.multiply_vector.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.transform.Matrix4x4.from_translation
+    @staticmethod
+    def from_translation(x: float, y: float, z: float) -> "Matrix4x4":
+        mat = Matrix4x4()
+        mat.m[0][3] = x
+        mat.m[1][3] = y
+        mat.m[2][3] = z
+        return mat
+
+# openlens.transform.Matrix4x4.multiply_point
+    def multiply_point(self, point: Vector3) -> Vector3:
+        """Transforms a point (w=1)."""
+        x = self.m[0][0] * point.x + self.m[0][1] * point.y + self.m[0][2] * point.z + self.m[0][3]
+        y = self.m[1][0] * point.x + self.m[1][1] * point.y + self.m[1][2] * point.z + self.m[1][3]
+        z = self.m[2][0] * point.x + self.m[2][1] * point.y + self.m[2][2] * point.z + self.m[2][3]
+        # w = self.m[3][0] * point.x + self.m[3][1] * point.y
+        #     + self.m[3][2] * point.z + self.m[3][3]
+        # Assuming w is always 1 for affine transforms and we don't need perspective divide for now
+        return Vector3(x, y, z)
+
+# openlens.transform.Matrix4x4.multiply_vector
+    def multiply_vector(self, vector: Vector3) -> Vector3:
+        """Transforms a direction vector (w=0). Translation is ignored."""
+        x = self.m[0][0] * vector.x + self.m[0][1] * vector.y + self.m[0][2] * vector.z
+        y = self.m[1][0] * vector.x + self.m[1][1] * vector.y + self.m[1][2] * vector.z
+        z = self.m[2][0] * vector.x + self.m[2][1] * vector.y + self.m[2][2] * vector.z
+        return Vector3(x, y, z)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.transform.Matrix4x4.from_translation
+
+# Notes: `openlens.transform.Matrix4x4.from_translation(x, y, z)`
+
+## 1. Purpose
+- A `@staticmethod` that builds a 4x4 affine translation matrix.
+- The result is the identity matrix with `x`, `y`, `z` placed in the last column (rows 0–2, column 3).
+
+## 2. Inputs
+- `x`, `y`, `z` are required and positional or keyword. There are no defaults.
+- There is **no validation or conversion**. Values are stored exactly as passed.
+  - An `int` stays an `int`: `from_translation(1, 2, 3).m[0][3] == 1` and `type(...) is int`.
+  - NaN, inf, negatives and even non-numbers are stored without error.
+- Implementation:
+  ```python
+  mat = Matrix4x4()      # data=None -> identity() -> fresh nested lists of floats
+  mat.m[0][3] = x; mat.m[1][3] = y; mat.m[2][3] = z
+  return mat
+  ```
+
+## 3. Raises
+- The function itself never raises. It does not use its arguments in arithmetic.
+- Errors only appear later, when the matrix is used.
+  - Example: `from_translation("a", 0, 0).multiply_point(Vector3(1, 2, 3))` raises `TypeError`, from `float + str` inside `multiply_point`.
+
+## 4. Returns and guarantees
+- Returns a **new** `Matrix4x4` on every call. Its `.m` is a list of 4 row lists.
+- The exact content of `from_translation(5, -2, 3.5).m` is:
+  ```
+  [[1.0, 0.0, 0.0, 5],
+   [0.0, 1.0, 0.0, -2],
+   [0.0, 0.0, 1.0, 3.5],
+   [0.0, 0.0, 0.0, 1.0]]
+  ```
+- All entries other than the three translation cells are float `1.0` or `0.0`. The bottom row is `[0.0, 0.0, 0.0, 1.0]`.
+- Two calls never share row lists. Mutating one result does not affect another, or a later plain `Matrix4x4()`.
+- `Matrix4x4` uses `__slots__ = ("m",)`, so it has no other attributes.
+- `Matrix4x4` does not define `__eq__`. Compare `.m` lists, not the matrix objects.
+
+## 5. Side effects
+- None. There is no global state and no caching.
+
+## 6. Behaviour when combined with other methods (all in this module)
+- **`multiply_point(Vector3(px, py, pz))`** adds the translation.
+  - It computes `1.0*px + 0.0*py + 0.0*pz + x`, and likewise for y and z.
+  - So `from_translation(10, 20, 30).multiply_point(Vector3(1, 2, 3))` gives components `(11, 22, 33)`, as floats.
+- **`multiply_vector(...)`** ignores the translation.
+  - `from_translation(10, 20, 30).multiply_vector(Vector3(1, 2, 3))` gives `(1, 2, 3)`.
+- **`from_translation(0, 0, 0)`** has `.m` equal to the identity, i.e. `Matrix4x4().m`.
+- **Composition:** `(T(a) * T(b)).m[i][3]` equals `a_i + b_i`. The rotation block stays the identity, and the result is commutative.
+- **`inverse()`** of `T(x, y, z)` gives last column `[-x, -y, -z, 1.0]` and the identity elsewhere.
+  - With simple values this is exact, e.g. `T(2, -3, 4).inverse().m[0][3] == -2.0`.
+  - Some entries may come out as `-0.0` where the result is zero. Use `==` (where `-0.0 == 0.0`) or `pytest.approx`.
+- **Combining with `from_euler`:**
+  - `from_translation(...) * from_euler(...)` keeps the translation column unchanged.
+  - The reverse order, `from_euler(...) * from_translation(...)`, rotates the translation.
+  - Example: `(from_euler(0, 0, 90) * from_translation(1, 0, 0)).m` has its last column ≈ `(0, 1, 0)` (use approx).
+
+## 7. Rules from docstrings and comments
+- `multiply_point` assumes w = 1 and does no perspective divide. The bottom row is never read.
+- `multiply_vector`'s docstring says translation is ignored for directions (w = 0).
+
+## 8. Testing hints
+- Assert the full `.m` list exactly. Integer 1 equals 1.0 in Python, so list equality works with mixed types.
+- Good regression checks:
+  - Each of x, y, z lands in **its own row** (0, 1, 2) of **column 3**. Use distinct values such as `(1, 2, 3)` to catch swapped rows or columns.
+  - Nothing is written to row 3 or to the diagonal. The diagonal stays `1.0`.
+  - It is a fresh object: `from_translation(1, 2, 3) is not from_translation(1, 2, 3)`, and mutating `a.m[0][3]` does not change `b`.
+  - Negative and float values are stored unchanged.
+- Use `pytest.approx` for anything involving `from_euler` or non-trivial products.
+- I could not see the `Vector3` source. Read the `.x`, `.y`, `.z` attributes (used by this module) or call `.to_tuple()`. Do not rely on `Vector3.__eq__`.
+- Do not assert any exception from `from_translation` itself.
+
+### openlens.transform.Matrix4x4.multiply_point
+
+# Notes: `openlens.transform.Matrix4x4.multiply_point(self, point)`
+
+## 1. Purpose
+- Applies the affine 4x4 matrix to a 3D point, treating the point as homogeneous with w=1.
+- Translation is included. Row 3 of the matrix is ignored, so there is no perspective divide.
+- Returns a new `Vector3`.
+
+## 2. Inputs
+- `self.m`: a list of 4 lists of 4 numbers, row-major (`m[row][col]`).
+  - `Matrix4x4()` gives the identity matrix.
+  - `Matrix4x4(data)` stores `data` **by reference**; it is not copied.
+  - A falsy `data` such as `None` or `[]` falls back to the identity matrix.
+- `point`: any object with numeric `.x`, `.y`, `.z` attributes, normally `openlens.vector3.Vector3(x, y, z)`.
+  - There is no validation or type check (duck typing).
+- The `Vector3` implementation is in another module and is not shown. Do not rely on `Vector3.__eq__` or `__repr__`. Compare `.x`, `.y`, `.z` individually, or use `.to_tuple()`.
+
+## 3. Raises
+There are no explicit raises. Only incidental errors occur:
+- `AttributeError` if `point` has no `.x`, `.y` or `.z`.
+  - Example: `Matrix4x4().multiply_point((1, 2, 3))`.
+- `IndexError` if `m` has fewer than 3 rows or a row has fewer than 4 entries.
+  - Example: `Matrix4x4([[1, 0, 0]]).multiply_point(Vector3(1, 2, 3))`.
+- `TypeError` for non-numeric entries or coordinates.
+  - Example: a point with `x="a"` and a non-integer matrix entry.
+
+## 4. Returns and guarantees
+The result is `Vector3(x', y', z')`, computed exactly as:
+```
+x' = m[0][0]*x + m[0][1]*y + m[0][2]*z + m[0][3]
+y' = m[1][0]*x + m[1][1]*y + m[1][2]*z + m[1][3]
+z' = m[2][0]*x + m[2][1]*y + m[2][2]*z + m[2][3]
+```
+- The sum is evaluated left to right in this order. With integer-valued floats the result is exact.
+- `m[3][*]` is never read. A matrix with row 3 = `[5, 6, 7, 8]` gives the same result as one with `[0, 0, 0, 1]`.
+- The returned object is always new, never `point` itself. This holds even for the identity matrix.
+
+## 5. Side effects
+- None. Neither `point` nor `self.m` is mutated.
+
+## 6. Branches and edge cases
+There is a single code path. Useful concrete cases:
+- **Identity:** `Matrix4x4().multiply_point(Vector3(1, 2, 3))` gives `(1, 2, 3)`.
+- **Translation:** `Matrix4x4.from_translation(10, -5, 2.5).multiply_point(Vector3(1, 2, 3))` gives `(11, -3, 5.5)`.
+  - Compare with `multiply_vector`, which ignores translation and gives `(1, 2, 3)`.
+- **Origin:** a translation applied to `Vector3(0, 0, 0)` gives `(tx, ty, tz)`.
+- **Scale:** `from_scale(2, 3, 4)` applied to `(1, 1, 1)` gives `(2, 3, 4)`.
+- **Non-symmetric matrix (catches transposition):**
+  - Matrix: `m = [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]]`.
+  - Point: `(1, 1, 1)` gives `(10, 26, 42)`.
+  - Point: `(1, 0, 0)` gives `(1+4, 5+8, 9+12) = (5, 13, 21)`.
+  - Transposed use (`m[j][i]`) would give different numbers.
+- **Row 3 ignored:**
+  - Matrix: `[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,2]]`.
+  - Point `(2, 4, 6)` gives `(2, 4, 6)`, not divided by 2.
+- **Rotations** (use `pytest.approx`, since cos 90° ≈ 6e-17):
+  - `from_euler(0, 0, 90)` on `(1, 0, 0)` gives about `(0, 1, 0)`.
+  - `from_euler(90, 0, 0)` on `(0, 1, 0)` gives about `(0, 0, 1)`.
+  - `from_euler(0, 90, 0)` on `(1, 0, 0)` gives about `(0, 0, -1)`.
+
+## 7. Rules from comments/docstrings
+- Docstring: "Transforms a point (w=1)."
+- Comment: w is assumed to be 1 for affine transforms, and no perspective divide is done.
+
+## 8. Testing hints
+- Imports: `from openlens.transform import Matrix4x4` and `from openlens.vector3 import Vector3`.
+- Build arbitrary matrices with `Matrix4x4([[...], ...])` using 4 rows of 4.
+- **Composition:** `(A * B).multiply_point(p)` ≈ `A.multiply_point(B.multiply_point(p))`. `__mul__` is the standard row-by-column product.
+  - Example: `T = from_translation(1, 0, 0)` and `S = from_scale(2, 2, 2)`, with `p = (1, 1, 1)`.
+  - `(T*S)` gives `(3, 2, 2)`.
+  - `(S*T)` gives `(4, 2, 2)`.
+- **Inverse round trip:** `M.inverse().multiply_point(M.multiply_point(p))` ≈ `p` for an invertible `M`.
+- **Non-mutation:** after the call, check that `point`'s coordinates and `M.m` are unchanged.
+- **Comparisons:**
+  - Use exact `==` only for integer-valued data.
+  - Use `pytest.approx` for rotations and non-integer floats, for example `0.1 + 0.2`-style sums.
+- **Likely regressions to pin down:**
+  - Translation column dropped.
+  - Matrix transposed.
+  - w-divide or row 3 used.
+  - Axes swapped.
+  - Use non-symmetric matrices, nonzero translation, and a non-trivial row 3 to catch these.
+
+### openlens.transform.Matrix4x4.multiply_vector
+
+# Notes: `openlens.transform.Matrix4x4.multiply_vector(self, vector)`
+
+## 1. Purpose
+- Transforms a direction vector by the matrix, treating it as homogeneous `w=0`.
+- Only the upper-left 3×3 block is used. Translation and the bottom row are ignored. There is no perspective divide and no normalisation.
+
+## 2. Inputs
+- `self.m`: the matrix, a 4×4 list of lists, indexed as `m[row][col]`.
+  - `Matrix4x4(data)` stores `data` **by reference** when `data` is truthy.
+  - `Matrix4x4()`, `Matrix4x4(None)` and `Matrix4x4([])` all give the identity, because an empty list is falsy.
+  - Entries may be ints or floats. `from_euler` builds its sub-matrices with int `0`/`1`.
+- `vector`: a `Vector3`, or any object with numeric attributes `.x`, `.y`, `.z` (duck-typed).
+  - There is no validation and no conversion.
+  - `Vector3` is defined in `openlens.vector3`, whose source is not shown. Do not rely on `Vector3.__eq__` or `repr`.
+
+## 3. Raises
+There are no explicit raises.
+- `AttributeError` if `vector` lacks `.x`, `.y` or `.z`. Example: `Matrix4x4().multiply_vector((1, 2, 3))`.
+- `TypeError` if the components are non-numeric. Example: `Matrix4x4().multiply_vector(Vector3("a", 0, 0))` may raise.
+  - It only fails if `Vector3` keeps the string as given; that behaviour is in the other module and is not shown, so do not test it.
+- `IndexError` if `m` is smaller than 3×3. Example: `Matrix4x4([[1]]).multiply_vector(Vector3(1, 1, 1))`.
+
+## 4. Returns and guarantees
+- Returns a **new** `Vector3(x, y, z)` where:
+  ```
+  x = m[0][0]*v.x + m[0][1]*v.y + m[0][2]*v.z
+  y = m[1][0]*v.x + m[1][1]*v.y + m[1][2]*v.z
+  z = m[2][0]*v.x + m[2][1]*v.y + m[2][2]*v.z
+  ```
+- Rows multiply the vector; the matrix is **not** transposed.
+- Never used: `m[0][3]`, `m[1][3]`, `m[2][3]` (translation) and the whole of row 3 (`m[3][*]`).
+- The result is never normalised; its length scales with the matrix.
+
+## 5. Side effects
+- None. Neither `self.m` nor `vector` is mutated.
+- The result is a different object from `vector`, even for the identity matrix.
+
+## 6. Branches and edge cases
+There is a single code path.
+
+- **Identity:** `Matrix4x4().multiply_vector(Vector3(1, 2, 3))` gives `(1, 2, 3)`.
+- **Translation ignored:** `Matrix4x4.from_translation(10, 20, 30).multiply_vector(Vector3(1, 2, 3))` gives `(1, 2, 3)`.
+  - Contrast: `multiply_point` on the same inputs gives `(11, 22, 33)`.
+- **Non-symmetric matrix** (detects a transposition regression):
+  ```python
+  M = Matrix4x4([[1,2,3,10],[4,5,6,20],[7,8,9,30],[0,0,0,1]])
+  M.multiply_vector(Vector3(1,2,3))  # -> (14, 32, 50)
+  ```
+  - A transposed implementation would give `(30, 36, 42)`.
+  - Including translation would give `(24, 52, 80)`, which is what `multiply_point` returns.
+- **Bottom row irrelevant:** setting `m[3] = [5, 5, 5, 5]` in the matrix above still gives `(14, 32, 50)`.
+- **Scale, no normalisation:** `Matrix4x4.from_scale(2, 3, 4).multiply_vector(Vector3(1, 1, 1))` gives `(2, 3, 4)`.
+  - `from_scale(2, 2, 2)` applied to `(1, 0, 0)` gives `(2, 0, 0)`, with magnitude 2.
+- **Zero vector:** any matrix gives `(0, 0, 0)`.
+- **Rotations** (compare with `pytest.approx`, since cos 90° ≈ 6.1e-17):
+  - `from_euler(0, 0, 90)` applied to `(1, 0, 0)` gives ≈ `(0, 1, 0)`.
+  - `from_euler(90, 0, 0)` applied to `(0, 1, 0)` gives ≈ `(0, 0, 1)`.
+  - `from_euler(0, 90, 0)` applied to `(1, 0, 0)` gives ≈ `(0, 0, -1)`. Note the minus sign: `Ry` row 2 is `[-sy, 0, cy]`.
+  - Composition is `R = Rz*Ry*Rx`, so X is applied first. `from_euler(90, 0, 90)` applied to `(0, 1, 0)`:
+    - Rx maps it to `(0, 0, 1)`.
+    - Rz leaves that unchanged, giving `(0, 0, 1)`.
+- **Rotation preserves length:** `from_euler(30, 45, 60)` applied to `(1, 2, 3)` gives a magnitude of `sqrt(14)`, within approx.
+- **Linearity:** `M·(a+b) == M·a + M·b`, componentwise, using the integer matrix above.
+
+## 7. Rules from comments and docstrings
+- Docstring: "Transforms a direction vector (w=0). Translation is ignored."
+- `from_euler` docstring: order is `Z * Y * X`.
+
+## 8. Testing hints
+- Construct inputs with `from openlens.transform import Matrix4x4` and `from openlens.vector3 import Vector3`.
+- Compare `r.x`, `r.y` and `r.z` individually, not whole `Vector3` objects (their equality is unknown).
+  - With integer-valued matrices and vectors the results are exact; use `==` on components.
+  - For rotations, use `pytest.approx(..., abs=1e-12)`.
+- Always include a test with a **non-symmetric** matrix and a non-zero translation column. Identity and diagonal matrices cannot catch index swaps or translation leaking in.
+- Check that the result is a new object: `r is not v`. Also check that `v.x`, `v.y`, `v.z` and `M.m` are unchanged afterwards (deep-copy `M.m` first and compare).
+- Pitfall: `Matrix4x4(data)` aliases `data`. Mutating `data` after construction changes the matrix.
+- Pitfall: do not assume the result is unit length.

@@ -1,0 +1,199 @@
+{
+ "id": "openlens-pr406",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 13634,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 11622
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.2,
+ "detected": false,
+ "n_tests": 15,
+ "n_catching": 0,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 5492,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 13039,
+  "output_tokens_details": {
+   "thinking_tokens": 10730
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 5492,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 13039,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 5492,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 5492
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.076188,
+ "model_seconds": 59.3,
+ "seconds": 66.2,
+ "tests": {
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_builtin_bk7_reference": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_cache_full_clears": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_cache_hit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_custom_sellmeier": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_dispersion_bk7": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_negative_n_squared": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_sellmeier_resonance": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_temperature_effect": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_unknown_material_fallback": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestGetRefractiveIndex::test_zero_wavelength": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestSaveDatabase::test_save_bk7_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestSaveDatabase::test_save_contains_builtins": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestSaveDatabase::test_save_creates_file": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestSaveDatabase::test_save_overwrites": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  },
+  "tests/_generated/test_openlens_pr406.py::TestSaveDatabase::test_save_round_trip": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase"
+   ]
+  }
+ }
+}

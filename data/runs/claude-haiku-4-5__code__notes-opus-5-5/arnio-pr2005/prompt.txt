@@ -1,0 +1,131 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.quality.ProfileComparison.to_dict.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.quality.ProfileComparison.to_dict
+    def to_dict(
+        self,
+        *,
+        redact_sample_values: bool = False,
+        exclude_columns: list[str] | set[str] | tuple[str, ...] | None = None,
+    ) -> dict[str, Any]:
+        """Return a JSON-friendly dictionary representation.
+
+        Parameters
+        ----------
+        redact_sample_values : bool, default False
+            When True, sample values are replaced with ``[REDACTED]`` in
+            both nested profile exports.
+        exclude_columns : list, set, or tuple of str, optional
+            Column names to omit from both nested profile exports.
+        """
+        return {
+            "left_profile": self.left_profile.to_dict(
+                redact_sample_values=redact_sample_values,
+                exclude_columns=exclude_columns,
+            ),
+            "right_profile": self.right_profile.to_dict(
+                redact_sample_values=redact_sample_values,
+                exclude_columns=exclude_columns,
+            ),
+            "status_counts": dict(self.status_counts),
+            "drift_report": {
+                name: _clean_drift_entry(entry)
+                for name, entry in self.drift_report.items()
+            },
+        }
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.quality.ProfileComparison.to_dict
+
+# Notes: `ProfileComparison.to_dict(*, redact_sample_values=False, exclude_columns=None)`
+
+## 1. Purpose
+- Returns a JSON-friendly nested dict of a `ProfileComparison`.
+- It holds both profile exports (via `DataQualityReport.to_dict`), a copy of `status_counts`, and a cleaned `drift_report`.
+
+## 2. Inputs
+- `redact_sample_values` (keyword-only, default `False`): must be a real `bool`. Checked inside `DataQualityReport.to_dict`.
+- `exclude_columns` (keyword-only, default `None`): `None`, or a `list`/`tuple`/`set` of `str`. It is converted to a set and passed unchanged to **both** nested profile exports.
+- `exclude_columns` is **not** applied to `drift_report` or `status_counts`.
+- Usual way to build the object: `ar.compare_profiles(ar.profile(f1), ar.profile(f2))`.
+
+## 3. Raises
+All errors come from `left_profile.to_dict(...)`, which runs first; `right_profile` is exported second. Check order:
+1. `TypeError("redact_sample_values must be a bool")`, e.g. `cmp.to_dict(redact_sample_values=1)` or `="yes"`.
+2. `TypeError("exclude_columns must be a list, tuple, set, or None")`, e.g. `cmp.to_dict(exclude_columns="a")`.
+3. `TypeError("exclude_columns must contain only string column names")`, e.g. `exclude_columns=[1]`.
+4. `KeyError(f"Unknown exclude_columns: {sorted_unknown}. Available columns: {', '.join(columns)}")`
+   - `Available columns` lists names in profile insertion order (the frame's column order), not sorted.
+   - Example: columns `x`, `name` with `exclude_columns=["zz"]` gives the message `Unknown exclude_columns: ['zz']. Available columns: x, name`.
+   - With pytest, `str(KeyError)` adds quotes and the message contains `[`. Use `match=r"Unknown exclude_columns: \['zz'\]"` or `re.escape`.
+- If you construct `ProfileComparison` directly with a `drift_report` entry missing `"status"`, `"changes"` or `"reasons"`, `_clean_drift_entry` raises `KeyError`. Avoid this path.
+
+## 4. Returns and guarantees
+A new `dict` with keys in this exact order: `["left_profile", "right_profile", "status_counts", "drift_report"]`.
+
+**`left_profile` / `right_profile`** (each is `DataQualityReport.to_dict`):
+- Keys in order: `row_count, column_count, memory_usage, duplicate_rows, duplicate_ratio, quality_score, score_components, columns, suggestions`.
+- `columns` is a dict keyed by **sorted** column name, with excluded names omitted.
+- `row_count`, `column_count` and `memory_usage` are **not** changed by exclusion.
+- Each column entry is `ColumnProfile.to_dict`:
+  - Always present: `name, dtype, semantic_type, row_count, null_count, null_ratio, unique_count, unique_ratio, empty_string_count, whitespace_count, suggested_dtype, email_validity_ratio, url_validity_ratio, min, max, mean, std, sample_values, warnings, top_values, top_values_is_approximate, top_values_sample_count, top_values_sample_ratio, histogram`.
+  - Only when dtype is `"int64"` or `"float64"`: `q25, q50, q75, q95, iqr, outlier_lower_bound, outlier_upper_bound, outlier_count, outlier_ratio`, inserted after `std`.
+  - `top_values` is a list of `{"value", "count", "ratio"}` dicts; `histogram` is a list of `{"bucket_start", "bucket_end", "count", "ratio"}` dicts (or `None`).
+- With `redact_sample_values=True`:
+  - every `sample_values` item becomes `"[REDACTED]"` (same length);
+  - every `top_values[i]["value"]` becomes `"[REDACTED]"`, while `count` and `ratio` are kept.
+- `suggestions`:
+  - Sorted by `(step, json.dumps(kwargs, sort_keys=True, default=str))`.
+  - Each item is `{"step", "kwargs", "confidence_score", "confidence_reason"}`.
+  - With exclusions, kwargs keys equal to an excluded name are dropped. This matters for `cast_types`, whose kwargs are `{col: dtype}`.
+  - Excluded names are removed from `subset`/`columns` lists.
+  - In `confidence_reason`, `'col'` (with quotes) is replaced by `'[REDACTED]'`.
+
+**`status_counts`**:
+- `dict(self.status_counts)`, a new dict (equal, but `is not` the original).
+- From `compare_profiles` it always has the keys `ok`, `warning`, `changed`.
+
+**`drift_report`**:
+- Keyed per column, in the original order (sorted when built by `compare_profiles`).
+- Each entry is `{"status": str, "changes": {metric: {"baseline", "comparison", "delta"}}, "reasons": list(...)}`.
+- Values pass through `_clean_scalar`:
+  - NaN/inf become `None`;
+  - numpy scalars become Python scalars via `.item()`.
+- The `delta` of a `dtype` change is `None` (non-numeric).
+- The `reasons` list is a new list object.
+
+## 5. Side effects
+- Nothing is mutated and no files are written.
+- `score_components` inside the nested profile dicts is the **same object** as `report.score_components` (not copied).
+
+## 6. Branches and edge cases
+- **Identical frames:** profile `f = ar.from_pandas(pd.DataFrame({"x":[1,2,3,4],"name":["a","b","c","d"]}))` twice, then compare. Expect:
+  - `status_counts == {"ok":2,"warning":0,"changed":0}`;
+  - every `drift_report[c] == {"status":"ok","changes":{},"reasons":["no drift detected"]}`;
+  - `d["left_profile"] == d["right_profile"]`.
+- **`exclude_columns=["name"]`:**
+  - `"name"` is absent from both `["left_profile"]["columns"]`;
+  - `"name"` is still present in `d["drift_report"]`;
+  - `column_count` is unchanged (2).
+- **`exclude_columns=[]` or `set()`:** same result as `None`.
+- **Numeric column:** `d["left_profile"]["columns"]["x"]` has a `"q25"` key; a string column has none.
+- **Whitespace column** (e.g. `[" a","b"]`): the left suggestions include `{"step":"strip_whitespace","kwargs":{"subset":[...]}}`. Excluding that column empties the subset list.
+
+## 7. Rules from docstrings
+- `redact_sample_values` replaces sample values with `[REDACTED]` "in both nested profile exports".
+- `exclude_columns` omits columns "from both nested profile exports" (only those, not the drift report).
+
+## 8. Testing hints
+- The result must be JSON-serialisable: `json.dumps(d)` must not raise.
+- Use `list(d.keys())` to pin key order.
+- Compare against `cmp.left_profile.to_dict(...)` to check delegation exactly.
+- Do not hardcode `memory_usage`, `min`/`max` exact types, or `dtype` strings beyond `"int64"`. The C++ dtype mapping for strings and nulls is not visible here, so read it from `frame.dtypes` instead of guessing.
+- Do not assume `drift_report` respects `exclude_columns`; it does not.
+- `bool` is rejected for `redact_sample_values` only when it is not a bool. `0`/`1` raise `TypeError`, but `True`/`False` are fine.

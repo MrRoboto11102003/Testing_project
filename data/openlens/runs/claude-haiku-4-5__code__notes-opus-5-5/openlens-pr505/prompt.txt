@@ -1,0 +1,498 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.tolerancing.InverseSensitivityAnalyzer.calculate_sensitivities, openlens.tolerancing.MonteCarloAnalyzer.run.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.tolerancing.InverseSensitivityAnalyzer.calculate_sensitivities
+    def calculate_sensitivities(self, criterion: str = "rms_spot_radius") -> List[Dict[str, Any]]:
+        """
+        Calculate sensitivity of each operand.
+
+        Args:
+            criterion: Performance metric. Only ``"rms_spot_radius"`` is
+                implemented, the same set MonteCarloAnalyzer accepts.
+
+        Returns:
+            List of dicts with 'operand', 'sensitivity', 'change'.
+
+        Raises:
+            ValueError: If *criterion* is unsupported. The argument used to be
+                ignored, so a caller asking for another metric silently got
+                RMS-spot sensitivities and budgeted tolerances against the
+                wrong performance measure.
+        """
+        if criterion != self.SUPPORTED_CRITERIA:
+            raise ValueError(
+                f"Unsupported criterion {criterion!r}; " f"supported: {self.SUPPORTED_CRITERIA!r}"
+            )
+
+        results = []
+
+        # Nominal performance
+        spot_nom = SpotDiagram(self.system)
+        res_nom = spot_nom.trace_spot()
+        # A vignetted nominal reports None; inf keeps the sensitivity
+        # arithmetic below well-defined instead of raising on None.
+        nominal_val = res_nom["rms_radius"]
+        if nominal_val is None:
+            nominal_val = float("inf")
+
+        for i, tol in enumerate(self.tolerances):
+            # Test at max value
+            # Apply single tolerance at max value
+            delta = tol.max_val
+
+            # Save state
+            original_state = self._get_system_state(self.system)
+
+            # The perturbation is applied in place, so the restore has to
+            # happen even if the apply or the trace raises - otherwise the
+            # design is left perturbed and the next save writes that to the
+            # database.
+            try:
+                self._apply_single_tolerance(self.system, tol, delta)
+
+                # Analyze
+                spot = SpotDiagram(self.system)
+                res = spot.trace_spot()
+                val = res["rms_radius"]
+                if val is None:
+                    val = float("inf")
+            except Exception as e:
+                logger.warning("Inverse sensitivity for tolerance %d failed: %s", i, e)
+                val = float("inf")
+            finally:
+                # Restore state
+                self._set_system_state(self.system, original_state)
+
+            change = val - nominal_val
+            # Sensitivity = change / tolerance_value. When either end is a
+            # vignetted inf this is inf - inf, i.e. undefined: the operand
+            # never moved the design between two unmanufacturable states, so
+            # there is no sensitivity to report. NaN says "undefined" without
+            # pretending the operand is infinitely sensitive.
+            sensitivity = change / delta if delta != 0 else 0
+            if not (math.isfinite(change) and math.isfinite(sensitivity)):
+                change = float("nan")
+                sensitivity = float("nan")
+
+            results.append(
+                {
+                    "operand_index": i,
+                    "type": tol.param_type.name,
+                    "element": tol.element_index,
+                    "test_value": delta,
+                    "result_value": val,
+                    "change": change,
+                    "sensitivity": sensitivity,
+                }
+            )
+
+        return results
+
+# openlens.tolerancing.MonteCarloAnalyzer.run
+    def run(
+        self,
+        num_trials: int = 100,
+        criterion: str = "rms_spot_radius",
+        criterion_limit: float = 0.05,
+    ) -> Dict[str, Any]:
+        """
+        Run Monte Carlo simulation.
+
+        Args:
+            num_trials: Number of systems to simulate.
+            criterion: Metric to evaluate. Only ``rms_spot_radius`` is
+                implemented; anything else raises ValueError rather than being
+                echoed back into the results while the RMS statistics were
+                computed regardless.
+            criterion_limit: Pass/Fail threshold.
+
+        Returns:
+            Dictionary with statistics and yield.
+
+        Raises:
+            ValueError: If num_trials is not positive, or criterion is not a
+                supported metric.
+        """
+        if num_trials <= 0:
+            raise ValueError(f"num_trials must be positive, got {num_trials}")
+        if criterion != self.SUPPORTED_CRITERIA:
+            # Silently accepting an unimplemented name meant the caller got
+            # results labelled with a metric that was never evaluated.
+            raise ValueError(
+                f"Unsupported criterion {criterion!r}; " f"supported: {self.SUPPORTED_CRITERIA!r}"
+            )
+
+        self.results = []
+        pass_count = 0
+
+        # Analyze nominal system first. Guarded for the same reason as the
+        # trials: a tracer error here used to propagate straight out of run().
+        nominal_val = self._spot_rms()
+
+        # Save nominal state for restoration instead of deepcopying
+        nominal_state = self._get_system_state(self.nominal_system)
+
+        for i in range(num_trials):
+            # Every trial perturbs the system in place, so the restore has to
+            # happen even when the trial raises: an exception from
+            # _apply_tolerances, the compensator sweep or the trace used to
+            # leave the design perturbed, and the next save would write that
+            # perturbed design to the database.
+            try:
+                # Apply tolerances directly to the system
+                perturbations = self._apply_tolerances(self.nominal_system)
+
+                # Re-optimize compensators (focus and/or mechanical adjusts).
+                comp_values = self._optimize_compensators()
+
+                # Analyze. Goes through _spot_rms, which already wraps the trace
+                # and maps a vignetted result (rms_radius None) or any exception to
+                # inf. Calling trace_spot directly here meant one TIR or tracer
+                # error aborted the whole run and every accumulated self.results
+                # entry was lost with it.
+                val = self._spot_rms(focus_shift_mm=comp_values.get("focus_shift_mm", 0.0))
+            except Exception as e:
+                logger.warning("Monte Carlo trial %d failed: %s", i, e)
+                continue
+            finally:
+                # Restore nominal state
+                self._set_system_state(self.nominal_system, nominal_state)
+
+            passed = val <= criterion_limit
+            if passed:
+                pass_count += 1
+
+            self.results.append(
+                {
+                    "trial": i,
+                    "perturbations": perturbations,
+                    "compensators": comp_values,
+                    "value": val,
+                    "passed": passed,
+                }
+            )
+
+        # Statistics. A vignetted trial contributes inf (an unbounded, and
+        # unmanufacturable, spot radius), which statistics.mean/stdev cannot
+        # reduce - inf - inf is nan. Summarise the finite trials and let max
+        # keep the inf so the failure stays visible instead of being averaged
+        # away or crashing the report.
+        values = [r["value"] for r in self.results]
+        finite = [v for v in values if math.isfinite(v)]
+        yield_pct = (pass_count / num_trials) * 100
+
+        # Operands that could not be applied. The yield above does not include
+        # them, so the report has to say so: a silently ignored tolerance
+        # makes the yield look better than it is.
+        skipped = list(getattr(self, "_skipped_operands", []))
+        if skipped:
+            logger.warning(
+                "Monte Carlo: %d tolerance operand(s) could not be applied and "
+                "were left out of the statistics: %s",
+                len(skipped),
+                ", ".join(skipped),
+            )
+
+        stats = {
+            "nominal": nominal_val,
+            "mean": statistics.mean(finite) if finite else float("inf"),
+            "std_dev": statistics.stdev(finite) if len(finite) > 1 else 0,
+            "min": min(finite) if finite else float("inf"),
+            "max": max(values) if values else 0,
+            "yield": yield_pct,
+            "trials": num_trials,
+            "criterion": criterion,
+            "limit": criterion_limit,
+            "90th_percentile": _percentile(finite, 90.0) if finite else float("inf"),
+            "vignetted_trials": len(values) - len(finite),
+            "skipped_operands": skipped,
+        }
+
+        return stats
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.tolerancing.InverseSensitivityAnalyzer.calculate_sensitivities
+
+# Notes: `InverseSensitivityAnalyzer.calculate_sensitivities(criterion="rms_spot_radius")`
+
+## 1. Purpose
+- Applies each operand in `self.tolerances` on its own, at its `max_val`, to `self.system`.
+- Measures the RMS spot radius for each one and reports how far it moved from the nominal value, along with a sensitivity (change per unit of perturbation).
+
+## 2. Inputs
+- `criterion: str`, default `"rms_spot_radius"`.
+  - Compared by plain string equality with the class constant `SUPPORTED_CRITERIA == "rms_spot_radius"`. Note this constant is a str, not a set.
+- From `__init__(system, tolerances)`:
+  - `self.system` is an `OpticalSystem`.
+  - `self.tolerances` is a list of `ToleranceOperand`. Nothing in it is validated or copied.
+- Only `tol.max_val`, `tol.param_type`, `tol.element_index` and `tol.surface` are used.
+  - `min_val`, `distribution` and `std_dev` are **ignored**.
+
+## 3. Raises
+- `ValueError` when `criterion != "rms_spot_radius"`. This is checked **first**, before any tracing.
+  - Template: `f"Unsupported criterion {criterion!r}; supported: 'rms_spot_radius'"`
+  - Example: `an.calculate_sensitivities("mtf")` gives the message `Unsupported criterion 'mtf'; supported: 'rms_spot_radius'`.
+  - Use `pytest.raises(ValueError, match="Unsupported criterion 'mtf'")`.
+- The nominal trace `SpotDiagram(self.system).trace_spot()` is **not** guarded. Any exception it raises propagates out unchanged.
+- Exceptions raised while applying or tracing a single operand are caught. They produce `val = inf` and log the warning `"Inverse sensitivity for tolerance %d failed: %s"`.
+
+## 4. Returns and guarantees
+The result is a new `list` with one dict per tolerance, in the same order as `self.tolerances`. Each dict has exactly these 7 keys:
+
+| Key | Value |
+|---|---|
+| `"operand_index"` | `i` (0-based position in the tolerances list) |
+| `"type"` | `tol.param_type.name`, e.g. `"RADIUS_1"`, `"FOCUS"` (the enum *name*, not `.value`) |
+| `"element"` | `tol.element_index` |
+| `"test_value"` | `tol.max_val` |
+| `"result_value"` | `val` (rms_radius after the perturbation; `None`→`inf`; exception→`inf`) |
+| `"change"` | `val - nominal` (nominal `None`→`inf`) |
+| `"sensitivity"` | `change / max_val`, or the **int `0`** if `max_val == 0` |
+
+- If `change` or `sensitivity` is not finite, **both** are set to `float("nan")`.
+  - `result_value` keeps its inf in that case.
+- The docstring says the keys are 'operand', 'sensitivity', 'change'. The real keys are the 7 listed above.
+- An empty `tolerances` list returns `[]`, but the nominal trace still runs once.
+
+## 5. Side effects
+- Each operand mutates `self.system` in place, through the module helper `_apply_value`.
+- After each operand the system is restored in a `finally` block via `_restore_state`. The restore covers:
+  - every node's position and rotation;
+  - each lens's r1, r2, thickness, `model_glass_mode`, `model_nd`, `model_vd` and `refractive_index`;
+  - all air-gap thicknesses;
+  - then a call to `system._update_positions()`.
+- So after the call, for example, `lens.radius_of_curvature_1` equals its original value.
+- `REFRACTIVE_INDEX` and `ABBE_NUMBER` operands call `openlens.lens.ensure_model_glass`, which is not visible here. Only the fields listed above are guaranteed to be restored.
+- No files are written and no global state is changed.
+
+## 6. Branches and edge cases
+What `_apply_value` does with `value = max_val` (its return value is ignored here):
+
+| `param_type` | Effect |
+|---|---|
+| `RADIUS_1` / `RADIUS_2` | `+= value`; skipped if that radius is infinite (flat) |
+| `THICKNESS` | `+= value` |
+| `REFRACTIVE_INDEX` | `model_nd += value` (after switching to model glass) |
+| `ABBE_NUMBER` | `model_vd += value` (after switching to model glass) |
+| `DECENTER_Y` / `DECENTER_Z` | `node.position.y/z += value` |
+| `TILT_X` / `TILT_Y` | `node.rotation.x/y += value` |
+| `WEDGE` | `rotation.x += value/120` |
+| `DECENTER_X` | `air_gaps[idx-1] += value`; skipped when `idx <= 0` |
+| `AIR_GAP` | `air_gaps[idx] += value`; skipped when `idx >= len(air_gaps)` |
+| `IRREGULARITY` | Radius solved for the fringe error; skipped if the geometry is unrepresentable |
+| `FOCUS` | Always skipped |
+| Out-of-range `element_index` | Always skipped |
+
+- When a skip happens, the system is unchanged, so `result_value == nominal`, `change == 0.0` and `sensitivity == 0.0`, assuming the trace is deterministic.
+  - Example: `ToleranceOperand(0, ToleranceType.FOCUS, -0.1, 0.1)`.
+- `max_val == 0`: `sensitivity` is the int `0` and `change` stays finite (≈0).
+- Vignetted nominal (`None`): every entry gets `change` and `sensitivity` as nan.
+- Vignetted perturbed trace (`None`), or an exception during it: `result_value == inf`, and `change` and `sensitivity` are nan.
+
+## 7. Rules stated in comments
+- A non-finite change or sensitivity means "undefined". It is reported as NaN, never as an infinite sensitivity.
+- The restore must happen even if the apply or the trace raises, so a design is never left perturbed.
+
+## 8. Testing hints
+**Recommended: monkeypatch `openlens.tolerancing.SpotDiagram`** with a fake that returns scripted values. This gives exact, deterministic results. The real `SpotDiagram` outputs depend on `openlens.analysis`, which is not shown here.
+```python
+import openlens.tolerancing as T
+def fake_factory(seq):
+    it = iter(seq)
+    class Fake:
+        def __init__(self, system): pass
+        def trace_spot(self, **kw):
+            v = next(it)
+            if isinstance(v, Exception): raise v
+            return {"rms_radius": v}
+    return Fake
+monkeypatch.setattr(T, "SpotDiagram", fake_factory([1.0, 1.5, None, RuntimeError("x")]))
+```
+- Each `calculate_sensitivities` call makes 1 nominal trace and then 1 trace per operand, in order.
+- With the sequence above and operands with `max_val` 0.5, 0.5, 0.5:
+  - entry 0: `change == pytest.approx(0.5)`, `sensitivity == pytest.approx(1.0)`;
+  - entries 1 and 2: `result_value == inf`, and `math.isnan` is true for both `change` and `sensitivity`.
+- Nominal `None` followed by `[1.2]`: change is nan.
+- A nominal that raises: `pytest.raises` with that exception type.
+- To show that the criterion check happens first, use a fake whose constructor fails the test. It should never be called when the criterion is unsupported.
+
+**Building a real system:**
+- `s = OpticalSystem(); s.add_lens(Lens())`, then `InverseSensitivityAnalyzer(s, ops)`.
+- With real tracing, do not hard-code rms numbers. Instead check:
+  - key sets;
+  - `type`, `element`, `test_value`;
+  - `sensitivity == approx(change / test_value)` when the value is finite;
+  - that state is restored (radius, thickness, `refractive_index`, `model_glass_mode` all equal to their values before the call).
+
+**Pitfalls:**
+- `"type"` is `.name` (`"RADIUS_1"`), not `.value` (`"Radius 1"`).
+- `test_value` is `max_val` even when `min_val` is larger in magnitude.
+- NaN never compares equal to anything. Use `math.isnan`.
+- Do not assert on `nan` versus `inf` for `result_value`: it is inf, and only change and sensitivity become nan.
+
+### openlens.tolerancing.MonteCarloAnalyzer.run
+
+# Notes: `openlens.tolerancing.MonteCarloAnalyzer.run`
+
+## 1. Purpose
+- Runs `num_trials` randomly perturbed copies of the design, all in place on the same system object.
+- For each trial it reapplies compensators, measures the RMS spot radius, and restores the nominal state afterwards.
+- Returns a statistics dict, and stores per-trial records in `self.results`.
+
+## 2. Inputs
+- `self` is built with `MonteCarloAnalyzer(system, tolerances, seed=None, compensators=None, comp_sweeps=1)`.
+  - `nominal_system` is the **same object** as `system`, not a copy.
+  - `self._rng = random.Random(seed)` is a private generator. The global `random` state is never touched.
+  - `compensators` is converted to a list, or `[]` if falsy.
+  - `comp_sweeps` becomes `max(1, comp_sweeps)`.
+- `num_trials: int = 100`. Must be `> 0`.
+- `criterion: str = "rms_spot_radius"`. This is the only accepted value (`SUPPORTED_CRITERIA == "rms_spot_radius"`, a plain string).
+- `criterion_limit: float = 0.05`. A trial passes when `value <= criterion_limit` (inclusive).
+
+## 3. Raises
+The checks run in this order, before any tracing:
+1. `ValueError(f"num_trials must be positive, got {num_trials}")`
+   - `run(0)` gives `"num_trials must be positive, got 0"`.
+   - `run(-3)` gives `"... got -3"`.
+   - `run(0, criterion="x")` also raises the num_trials message, because this check comes first.
+2. `ValueError(f"Unsupported criterion {criterion!r}; supported: 'rms_spot_radius'")`
+   - `run(1, criterion="mtf")` gives `"Unsupported criterion 'mtf'; supported: 'rms_spot_radius'"`.
+
+Nothing else propagates:
+- Spot evaluation failures become `inf`.
+- A trial that raises is logged as a warning and skipped.
+
+## 4. Returns and guarantees
+The result is a new dict with exactly these 12 keys:
+
+| Key | Value |
+|---|---|
+| `"nominal"` | RMS spot of the unperturbed system. `inf` if the trace fails or `rms_radius` is None. |
+| `"mean"` | `statistics.mean(finite)`, or `inf` if there are no finite values. |
+| `"std_dev"` | `statistics.stdev(finite)` if `len(finite) > 1`, else the int `0`. |
+| `"min"` | `min(finite)`, or `inf`. |
+| `"max"` | `max(values)`. Includes `inf` values. The int `0` if no trial was recorded. |
+| `"yield"` | `pass_count / num_trials * 100`. The denominator is always `num_trials`, even when trials failed. |
+| `"trials"` | `num_trials` |
+| `"criterion"` | `criterion` |
+| `"limit"` | `criterion_limit` (echoed) |
+| `"90th_percentile"` | Linear-interpolated percentile (numpy "linear") of `finite`, or `inf`. |
+| `"vignetted_trials"` | Count of recorded trials whose value is non-finite. |
+| `"skipped_operands"` | List of the operands that could not be applied (see below). |
+
+Details:
+- `finite` is the list of finite `value`s; `values` is all recorded `value`s.
+- `"skipped_operands"` holds sorted unique strings `f"Element {element_index+1} {param_type.value}"`, e.g. `"Element 1 Focus"`.
+  - It is taken from the **last** trial's apply step.
+  - It is `[]` when everything applied.
+
+`self.results` is reset to `[]` at the start of each run. Each successful trial appends:
+```python
+{"trial": i, "perturbations": {...}, "compensators": {...}, "value": float, "passed": bool}
+```
+- `perturbations`:
+  - Keys are `f"El_{element_index}_{param_type.name}"`, e.g. `"El_0_RADIUS_1"`.
+  - Values are the drawn deltas.
+  - The value is recorded **even if the operand was skipped**.
+  - Duplicate keys overwrite each other (for example, IRREGULARITY on surface 1 and surface 2 share one key).
+- `compensators` is `{"focus_shift_mm": 0.0}` when no compensators are given. Otherwise it also holds `El_..` keys for mechanical compensators.
+
+## 5. Side effects
+- The system is perturbed in place during each trial. In a `finally` block it is restored to the state captured **after** the nominal evaluation:
+  - node positions and rotations;
+  - r1, r2, thickness;
+  - `model_glass_mode`, `model_nd`, `model_vd`, `refractive_index`;
+  - air-gap thicknesses.
+- After `run` returns, these lens and gap values equal their values before the call.
+- Sets `self.results` and `self._skipped_operands`.
+- Logs warnings for failed trials and skipped operands.
+- Writes no files.
+
+## 6. Branches and edge cases
+
+**Empty `tolerances=[]`, no compensators.**
+- Every trial is the nominal system, which is deterministic.
+- So `mean == min == max == 90th_percentile == nominal` (when finite).
+- `std_dev == 0`.
+- `skipped_operands == []`.
+- `yield` is `100.0` if `nominal <= limit`, else `0.0`.
+
+**`criterion_limit` extremes.**
+- `criterion_limit=float("inf")` gives `yield == 100.0`, because `inf <= inf` is True.
+- `criterion_limit=-1.0` gives `yield == 0.0` and every `passed` is False.
+
+**`num_trials=1`.**
+- `std_dev == 0` (int).
+- `len(results) == 1`.
+- `90th_percentile` equals the single value.
+
+**Operands that cannot be applied.** `_apply_value` returns False for these, so they are reported in `skipped_operands`:
+- FOCUS in the tolerances list gives `"Element 1 Focus"`.
+- An `element_index` outside the element range gives, e.g. for index 5, `"Element 6 Radius 1"`.
+- DECENTER_X on element 0 gives `"Element 1 Decenter X"`.
+- AIR_GAP with `element_index >= len(air_gaps)`.
+- RADIUS on a non-finite (flat) radius.
+- IRREGULARITY when the fringe radius cannot be found.
+
+Skipped operands still consume an RNG draw, still appear in `perturbations`, and leave the system unchanged.
+
+**Random draws.**
+- Uniform operands draw `rng.uniform(min_val, max_val)`.
+- With `min_val == max_val == v`, the draw is exactly `v`.
+- Gaussian operands draw `rng.gauss(0, sigma)` clamped to `[min, max]`, where `sigma = std_dev`, or `(max - min) / 6` if `std_dev == 0`.
+
+**Exceptions inside a trial.** The trial is omitted from `results` (so `trial` indices can have gaps) but still counts in the yield denominator.
+
+**FOCUS compensators.** A golden-section search over `[min(min_val), max(max_val)]` of the focus ops. This does not use the RNG. If `lo >= hi`, the shift is `lo`.
+
+## 7. Rules from comments and docstrings
+- Unsupported criteria must raise, not be silently echoed back.
+- The restore must happen even when a trial raises, so a perturbed design is never left behind.
+- Vignetted trials (`inf`) are excluded from mean/stdev/min/percentile but kept in `max` and counted in `vignetted_trials`.
+- Operands that are not applied must be reported, because silently ignoring them inflates the yield.
+- A seeded run must be reproducible and isolated from the global `random` module.
+
+## 8. Testing hints
+
+Build a system:
+```python
+from openlens.lens import Lens
+from openlens.optical_system import OpticalSystem, create_doublet
+sys_ = OpticalSystem(); sys_.add_lens(Lens())   # or create_doublet()
+```
+
+Pitfalls (these depend on code outside this module):
+- Absolute RMS values come from `SpotDiagram.trace_spot`, whose code is not shown here. **Do not hard-code spot values.** Instead:
+  - compare values against `stats["nominal"]`;
+  - use `math.isfinite`;
+  - use limit extremes (`inf` / `-1`).
+- Whether `Lens()` has finite radii, and how many air gaps a system has, are also defined in modules not shown. FOCUS and an out-of-range `element_index` are the most reliable ways to trigger skips.
+
+Reproducibility:
+- Two analyzers with the same `seed` produce identical `results[*]["perturbations"]` and identical stats.
+- The perturbation sequence is predictable:
+  ```python
+  r = random.Random(7)
+  expected = [r.uniform(-0.1, 0.1) for _ in range(n_trials)]
+  ```
+  This matches `results[i]["perturbations"]["El_0_THICKNESS"]` for a single uniform operand and no failures.
+- `random.seed(...)` or global `random` calls between runs must not change the results.
+
+Restoration check: save `lens.thickness`, `radius_of_curvature_1` and gap thicknesses before `run`, then assert they are equal afterwards.
+
+Pass/fail checks:
+- `stats["yield"] == 100 * sum(r["passed"] for r in an.results) / num_trials`.
+- `r["passed"] == (r["value"] <= limit)` for every record.
+
+Use `pytest.raises(ValueError, match=...)` with the exact messages, escaping regex characters as needed. `re.escape` is safest.
+
+Type pitfalls:
+- `std_dev` can be the int `0`. Compare with `== 0`, not `is 0.0`.
+- `"criterion"` is the string, and `"trials"` is the int passed in.

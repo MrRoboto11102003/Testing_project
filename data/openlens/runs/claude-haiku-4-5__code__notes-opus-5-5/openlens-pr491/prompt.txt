@@ -1,0 +1,332 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.lens_editor.LensManager.delete_lens, openlens.lens_editor.main.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.lens_editor.LensManager.delete_lens
+    def delete_lens(self) -> None:
+        """
+        Interactive CLI method to delete a lens from the collection.
+
+        Prompts user to select a lens and confirm deletion.
+        Updates storage after deletion.
+        """
+        if not self.lenses:
+            print("\nNo lenses to delete.")
+            return
+
+        self.list_lenses()
+        try:
+            idx = int(input("\nSelect lens number to delete: "))
+            lens = self.get_lens_by_index(idx)
+
+            if not lens:
+                print("Invalid selection.")
+                return
+
+            confirm = input(f"Delete '{lens.name}'? (yes/no): ").strip().lower()
+            if confirm == "yes":
+                # Delete the row explicitly. Popping the in-memory list and
+                # re-saving does NOT delete anything: save_lenses defaults to
+                # reconcile=False and only inserts or replaces rows, so the
+                # lens came straight back on the next start while the CLI
+                # cheerfully reported success.
+                #
+                # Only drop it from memory once the row is really gone, and
+                # never print success when the database refused.
+                if not self._delete_row(lens):
+                    print("Lens kept in the library.")
+                    return
+
+                self.lenses.pop(idx - 1)
+                self.save_lenses()
+                print("✓ Lens deleted successfully!")
+            else:
+                print("Deletion cancelled.")
+
+        except (ValueError, IndexError):
+            print("Invalid input.")
+
+# openlens.lens_editor.main
+def main() -> None:
+    """Main entry point for the interactive CLI lens editor.
+
+    Passing ``mcp`` as the first argument starts the MCP stdio server instead
+    of the interactive menu, so an AI client can launch ``openlens-cli mcp``.
+    """
+    if len(sys.argv) > 1 and sys.argv[1] == "mcp":
+        from .mcp_server import main as mcp_main
+
+        raise SystemExit(mcp_main())
+
+    setup_logging(verbose=verbose_requested())
+    manager = LensManager()
+
+    print("=" * 60)
+    print("   openlens - Optical Lens Creation & Modification Tool")
+    print("=" * 60)
+
+    while True:
+        print("\n--- Menu ---")
+        print("1. Create new lens")
+        print("2. List all lenses")
+        print("3. View lens details")
+        print("4. Modify lens")
+        print("5. Delete lens")
+        print("6. Exit")
+
+        choice = input("\nSelect option: ").strip()
+
+        if choice == "1":
+            manager.create_lens()
+        elif choice == "2":
+            manager.list_lenses()
+        elif choice == "3":
+            manager.view_lens()
+        elif choice == "4":
+            manager.modify_lens()
+        elif choice == "5":
+            manager.delete_lens()
+        elif choice == "6":
+            print("\nGoodbye!")
+            break
+        else:
+            print("Invalid option. Please try again.")
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.lens_editor.LensManager.delete_lens
+
+# Notes: `openlens.lens_editor.LensManager.delete_lens(self) -> None`
+
+## 1. Purpose
+- Interactive CLI step. It lists the lenses, asks for a 1-based number, and asks for confirmation.
+- It deletes the database row first, through `_delete_row`. Only if that succeeds does it remove the lens from `self.lenses` and call `save_lenses()`.
+- It returns `None` on every path. All outcomes show up only as printed text and state changes.
+
+## 2. Inputs
+- No parameters apart from `self`. It uses `self.lenses` (a list of `Lens`) and `self.storage_file`, which `_delete_row` uses.
+- It reads `builtins.input` up to twice:
+  1. `input("\nSelect lens number to delete: ")` is passed to `int(...)`.
+     - `int` itself accepts surrounding whitespace, so `" 2 "` works.
+     - `"2.0"`, `"abc"` and `""` raise `ValueError`.
+  2. `input(f"Delete '{lens.name}'? (yes/no): ")` is passed through `.strip().lower()`.
+     - Only the exact result `"yes"` confirms. `"YES"` and `"  Yes "` confirm.
+     - `"y"`, `"no"` and `""` cancel.
+- Index check (`get_lens_by_index`): valid only when `1 <= idx <= len(self.lenses)`. Otherwise it returns `None`. Values `0` and negatives are invalid, so there is no Python negative indexing.
+
+## 3. Raises
+- In practice nothing escapes for normal string input:
+  - `ValueError` and `IndexError` inside the `try` are caught and print `Invalid input.`.
+  - `_delete_row` catches every `Exception`.
+  - `save_lenses` catches every `Exception`.
+- `EOFError` and `KeyboardInterrupt` from `input` are **not** caught and propagate. For example, a mocked input that raises `StopIteration` will propagate.
+- `list_lenses()` runs before the `try`. An error from `lens.calculate_focal_length()` would propagate.
+
+## 4. Returns / state
+- Always returns `None`.
+- On success:
+  - `self.lenses.pop(idx - 1)` removes that exact object; the remaining order is preserved.
+  - `self.save_lenses()` is called once, after the pop.
+- On every other path, `self.lenses` is unchanged and `save_lenses` is **not** called.
+
+## 5. Side effects
+- Prints to stdout.
+- Database deletion: `_delete_row` imports `LensStorage` from `openlens.gui.storage` at call time and calls `LensStorage(self.storage_file).delete_item(lens.id)`. That code is in another module and its behaviour is not visible here.
+- Unexpected errors are logged with `logger.error` (logger `openlens.lens_editor`).
+
+## 6. Branches (stdout lines, in order; prompts are not printed when `input` is mocked)
+| Case | Inputs | Output after the listing | State |
+|---|---|---|---|
+| Empty list | (no input called) | `"\nNo lenses to delete."` only; no listing at all | unchanged |
+| Non-integer | `"abc"` | `Invalid input.` | unchanged |
+| Out of range | `"0"`, `"-1"`, `"3"` with 2 lenses | `Invalid selection.` (confirmation prompt never asked) | unchanged |
+| Cancelled | `"1"`, `"no"` | `Deletion cancelled.` (`_delete_row` not called) | unchanged |
+| `_delete_row` returns False | `"1"`, `"yes"` | (any message from `_delete_row`), then `Lens kept in the library.` | unchanged, no save |
+| Success | `"1"`, `"yes"` | `✓ Lens deleted successfully!` | lens removed, saved once |
+
+How `_delete_row` returns False:
+- **`STORAGE_AVAILABLE` is False:** it prints nothing extra.
+- **`LensInUseError` is raised:** it prints `f"Cannot delete '{lens.name}': {e}"`. The text of `e` comes from `openlens.database` and is not shown here.
+- **Any other exception `e`:** it prints `f"Could not delete '{lens.name}' from the database: {e}"`. Example: `RuntimeError("boom")` prints `Could not delete 'A' from the database: boom`.
+
+Listing printed first (from `list_lenses`, for a non-empty list):
+- Header: `f"\n=== All Optical Lenses ({n}) ==="`
+- One line per lens: `f"{i}. {name} - {material} ({lens_type}) - f={focal:.2f}mm or Undefined"`
+
+## 7. Rules from comments
+- Popping the list and re-saving does NOT delete anything. `save_lenses` defaults to `reconcile=False` and only inserts or replaces rows. That is why the explicit row delete happens first.
+- The lens is dropped from memory only once the row is really gone.
+- Success is never printed when the database refused the deletion.
+
+## 8. Testing hints
+Build the manager without touching any real database or the storage layer:
+```python
+import openlens.lens_editor as le
+from openlens.lens import Lens
+m = le.LensManager.__new__(le.LensManager)
+m.storage_file = str(tmp_path / "t.db"); m.lenses = [Lens(name="A"), Lens(name="B")]
+saves = []; monkeypatch.setattr(m, "save_lenses", lambda: saves.append(1) or True)
+monkeypatch.setattr(m, "_delete_row", lambda lens: True)   # or False
+answers = iter(["2", "yes"]); prompts = []
+monkeypatch.setattr("builtins.input", lambda p="": (prompts.append(p), next(answers))[1])
+m.delete_lens(); out = capsys.readouterr().out
+```
+
+What to assert:
+- `prompts == ["\nSelect lens number to delete: ", "Delete 'B'? (yes/no): "]`
+- `[l.name for l in m.lenses] == ["A"]`
+- `saves == [1]`
+- `"✓ Lens deleted successfully!" in out`
+
+To exercise the real `_delete_row`:
+- Do not mock `_delete_row`. Instead `monkeypatch.setattr(le, "STORAGE_AVAILABLE", False)`. The global is read at call time, and the result is `Lens kept in the library.`.
+- Alternatively, patch `openlens.gui.storage.LensStorage` with a fake class whose `delete_item` records the `lens.id` argument or raises. The import happens inside the function, so patching that module attribute works.
+- `lens.id` is assumed to be set by `Lens`; it is not visible here.
+
+Spy on `_delete_row` to check it is **not** called when the user cancels or picks an invalid index.
+
+Pitfalls:
+- Use substring checks (`in out`), not exact equality on all of stdout. The listing line depends on the `lens_type` string and the focal length, which are defined elsewhere.
+- `"No lenses to delete."` is preceded by a blank line, because the printed string starts with `\n`.
+- If the mocked `input` runs out of answers, `StopIteration` propagates and the test errors. Supply exactly the answers that path consumes: zero, one or two.
+- Do not call the real `LensManager(...)` with the default path; it may seed or read the user's application database.
+
+### openlens.lens_editor.main
+
+# Notes: `openlens.lens_editor.main()`
+
+## 1. Purpose
+- Entry point for the interactive CLI lens editor.
+- With `mcp` as the first CLI argument, it hands off to the MCP stdio server.
+- Otherwise it runs a text menu loop that dispatches to `LensManager` methods until the user picks "6".
+
+## 2. Inputs
+- No parameters. It reads three things:
+  - `sys.argv`: only `sys.argv[1]` is inspected, and only when `len(sys.argv) > 1`. The match is exact (`== "mcp"`, case-sensitive, not stripped).
+  - `builtins.input`: called with the prompt `"\nSelect option: "`. The result is `.strip()`-ed.
+  - `verbose_requested()`, called with no args. It is defined in `openlens.logging_setup` (not shown here); it reads `sys.argv[1:]`.
+- Module-level names it looks up at call time, all patchable on `openlens.lens_editor`:
+  - `setup_logging`
+  - `verbose_requested`
+  - `LensManager`
+  - `sys`
+
+## 3. Raises
+- **`SystemExit(mcp_main())`** when `sys.argv[1] == "mcp"`.
+  - `.code` is whatever `openlens.mcp_server.main()` returns.
+  - `mcp_server` is imported lazily, inside this branch only.
+  - Example: `sys.argv = ["openlens-cli", "mcp"]` with a fake `mcp_server.main` returning `3` gives `SystemExit` with `.code == 3`.
+- **No try/except in `main`.** Any exception from these propagates unchanged:
+  - `input()`: e.g. `EOFError`, or `StopIteration` from a fake input iterator that runs out.
+  - `LensManager()`.
+  - Any manager method.
+  - `setup_logging`.
+
+## 4. Returns and guarantees
+- Returns `None`, only after choice `"6"` (it `break`s the loop).
+- Creates exactly one `LensManager()` with no arguments, so it uses the default DB path. The real class may seed example data into the user's app DB, so always patch it.
+- Stdout for an immediate `"6"` (with `input` patched, so no prompt text is printed):
+
+```
+============================================================
+   openlens - Optical Lens Creation & Modification Tool
+============================================================
+
+--- Menu ---
+1. Create new lens
+2. List all lenses
+3. View lens details
+4. Modify lens
+5. Delete lens
+6. Exit
+
+Goodbye!
+```
+
+- Formatting details:
+  - Banner lines are `"=" * 60`, i.e. 60 `=` characters.
+  - The title line starts with 3 spaces.
+  - `"\n--- Menu ---"` and `"\nGoodbye!"` each produce a blank line first.
+
+## 5. Side effects
+- Calls `setup_logging(verbose=verbose_requested())` once. This happens only on the menu path, never on the mcp path.
+- Prints to stdout.
+- Any persistence happens inside `LensManager` methods, not in `main` itself.
+
+## 6. Branches and edge cases
+- **mcp path:** `argv[1] == "mcp"`. Extra args are allowed (`["x", "mcp", "--foo"]` still takes this path).
+  - Raises `SystemExit` before `setup_logging` and before `LensManager` is constructed.
+  - `"MCP"`, `" mcp"` and `"mcp2"` do NOT match; they run the menu.
+- **`argv` length ≤ 1** (e.g. `["prog"]`): menu path.
+- **Menu choices** (after strip):
+
+  | Choice | Action |
+  |---|---|
+  | `"1"` | `manager.create_lens()` |
+  | `"2"` | `manager.list_lenses()` |
+  | `"3"` | `manager.view_lens()` |
+  | `"4"` | `manager.modify_lens()` |
+  | `"5"` | `manager.delete_lens()` |
+  | `"6"` | prints `"\nGoodbye!"`, then returns |
+  | anything else | prints `Invalid option. Please try again.` and loops |
+
+  - Each method is called with no args, and its return value is ignored.
+  - "Anything else" includes `""`, `"7"`, `"01"`, `"1.0"`, `"exit"`.
+- **Whitespace is stripped:** `"  2  "` calls `list_lenses`, and `" 6\n"` exits.
+- **The menu reprints before every prompt.** Inputs `["9", "6"]` print the menu block twice, `Invalid option. Please try again.` once, then `Goodbye!`.
+- **One call per choice:** inputs `["1", "1", "6"]` call `create_lens` twice and nothing else.
+
+## 7. Rules stated in comments or docstrings
+- The docstring states that `mcp` as the first argument starts the MCP stdio server instead of the menu (`openlens-cli mcp`).
+
+## 8. Testing hints
+
+Patch everything; never use the real `LensManager`, logging setup, or stdin:
+
+```python
+import sys, types, builtins, pytest
+import openlens.lens_editor as le
+
+class FakeMgr:
+    instances = []
+    def __init__(self, *a, **k):
+        self.calls = []; self.args = (a, k); FakeMgr.instances.append(self)
+    def create_lens(self): self.calls.append("create")
+    def list_lenses(self): self.calls.append("list")
+    def view_lens(self): self.calls.append("view")
+    def modify_lens(self): self.calls.append("modify")
+    def delete_lens(self): self.calls.append("delete")
+
+def run(monkeypatch, answers, argv=("prog",)):
+    FakeMgr.instances = []
+    monkeypatch.setattr(sys, "argv", list(argv))
+    monkeypatch.setattr(le, "LensManager", FakeMgr)
+    monkeypatch.setattr(le, "setup_logging", lambda **k: None)
+    monkeypatch.setattr(le, "verbose_requested", lambda *a: False)
+    it = iter(answers)
+    monkeypatch.setattr(builtins, "input", lambda prompt="": next(it))
+    return le.main()
+```
+
+What to assert:
+- **Dispatch order:** `["1","2","3","4","5","6"]` gives `calls == ["create","list","view","modify","delete"]`.
+- **Constructor:** exactly one instance, with `args == ((), {})`.
+- **Return value:** `main()` returns `None`.
+- **Output:** use `capsys`. Assert on exact lines (e.g. `"Goodbye!"`, `"Invalid option. Please try again."`, the banner title) or on counts, such as `out.count("--- Menu ---") == number of prompts`.
+- **Prompt text:** record the `prompt` argument in the fake input and assert it equals `"\nSelect option: "`.
+- **Logging:** capture `setup_logging` kwargs and assert `{"verbose": <value from fake verbose_requested>}`. Note that `verbose_requested` is called with no args.
+- **mcp path:**
+  - Install a fake module with `monkeypatch.setitem(sys.modules, "openlens.mcp_server", m)`, where `m = types.ModuleType("openlens.mcp_server"); m.main = lambda: 7`.
+  - Assert `pytest.raises(SystemExit)` with `.code == 7`.
+  - Assert `FakeMgr.instances == []` and that `setup_logging` was never called.
+  - Do not rely on the real `mcp_server` (it may need the optional `mcp` package; that module is not shown).
+
+Pitfalls:
+- **Always end the input sequence with `"6"`.** Otherwise `next(it)` raises `StopIteration` out of `main`; you can test that deliberately with `pytest.raises(StopIteration)`.
+- **Banner line length:** it is exactly 60 `=` characters, so don't miscount.
+- **Patch target:** patch `le.LensManager`, not `openlens.lens_editor.LensManager` via a fresh import alias. It is looked up as a module global at call time.

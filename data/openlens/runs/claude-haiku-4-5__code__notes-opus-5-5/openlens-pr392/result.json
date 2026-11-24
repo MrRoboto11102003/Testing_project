@@ -1,0 +1,161 @@
+{
+ "id": "openlens-pr392",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 5410,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 4820
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 0.38,
+ "detected": false,
+ "n_tests": 13,
+ "n_catching": 0,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 2593,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10389,
+  "output_tokens_details": {
+   "thinking_tokens": 8301
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 2593,
+    "output_tokens": 10389,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.054538,
+ "model_seconds": 48.5,
+ "seconds": 55.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_allows_rebuild": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_does_not_modify_materials_dict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_empties_index_cache": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_idempotent": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_invalidates_stale_index": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_per_instance_isolation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialDatabase",
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_preserves_material_identity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_resets_alias_keys_to_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_resets_alias_lookup": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_safe_on_empty_cache": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_with_added_material": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "MaterialProperties"
+   ]
+  },
+  "tests/_generated/test_openlens_pr392.py::TestClearCache::test_clear_cache_with_multiple_entries": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

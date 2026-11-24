@@ -1,0 +1,196 @@
+{
+ "id": "openlens-pr500",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 6882,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 5502
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.0,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 1,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 3083,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7540,
+  "output_tokens_details": {
+   "thinking_tokens": 4437
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 3083,
+    "output_tokens": 7540,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.040783,
+ "model_seconds": 35.2,
+ "seconds": 41.2,
+ "tests": {
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_anchor_position_preserved": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_cascading_positions_multiple_elements": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_empty_lookup_no_changes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_empty_system_no_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_invalid_lookup_type_raises_typeerror": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_non_matching_lookup_no_changes": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_partial_lookup_unmatched_elements_unchanged": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_preserves_air_gap_thickness": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_preserves_decenter_on_elements": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_preserves_element_list_and_lens_id": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_recalculates_positions_with_thicker_lens": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_recalculates_positions_with_thinner_lens": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_returns_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_swaps_lens_object": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr500.py::TestOpticalSystemRefreshReferences::test_refresh_syncs_tree_node_element_model": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "OpticalSystem"
+   ]
+  }
+ }
+}

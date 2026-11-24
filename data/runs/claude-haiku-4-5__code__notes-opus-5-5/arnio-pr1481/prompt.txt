@@ -1,0 +1,218 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.cleaning.filter_rows.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.filter_rows
+def filter_rows(
+    frame: ArFrame | pd.DataFrame,
+    column: str,
+    op: str,
+    value: object,
+) -> ArFrame | pd.DataFrame:
+    """Filter rows based on a column condition.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame. When an ``ArFrame`` is supplied the return value
+        is also an ``ArFrame``; when a ``pd.DataFrame`` is supplied the
+        return value is a ``pd.DataFrame``.
+    column : str
+        Name of the column to filter on.
+    op : str
+        Comparison operator.  Supported values: ``">"``, ``"<"``,
+        ``">="``, ``"<="``, ``"=="``, ``"!="``.
+    value : object
+        Scalar value to compare each cell against.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        Filtered frame of the same type as the input.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> filtered = ar.filter_rows(frame, column="age", op=">", value=18)
+    """
+    from pandas.api.types import is_scalar
+
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+
+    if not isinstance(column, str) or not column.strip():
+        raise TypeError(
+            f"filter_rows: column must be a non-empty string, got {type(column).__name__!r}"
+        )
+
+    if not isinstance(op, str):
+        raise TypeError(f"filter_rows: op must be a string, got {type(op).__name__!r}")
+    df = to_pandas(frame) if is_arframe else frame
+
+    ops = {
+        ">": "gt",
+        "<": "lt",
+        ">=": "ge",
+        "<=": "le",
+        "==": "eq",
+        "!=": "ne",
+    }
+
+    if op not in ops:
+        raise ValueError(f"Unsupported operator: {op}")
+
+    if column not in df.columns:
+        raise ValueError(f"Unknown column: {column}")
+
+    if not is_scalar(value):
+        raise TypeError("filter_rows value must be a scalar")
+
+    try:
+        mask = getattr(df[column], ops[op])(value)
+    except TypeError as exc:
+        raise TypeError(
+            f"filter_rows: cannot compare column {column!r} with value "
+            f"{value!r} using operator {op!r}: {exc}"
+        ) from exc
+
+    mask = mask.fillna(False).astype(bool)
+    filtered = df[mask]
+    if is_arframe:
+        filtered = filtered.reset_index(drop=True)
+
+    return from_pandas(filtered) if is_arframe else filtered
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.cleaning.filter_rows
+
+# Notes: `arnio.cleaning.filter_rows(frame, column, op, value)`
+
+## 1. Purpose
+- Keeps only the rows where `frame[column] <op> value` is True, using a pandas comparison method.
+- The result has the same type as the input: an `ArFrame` gives an `ArFrame`, a `pd.DataFrame` gives a `pd.DataFrame`.
+
+## 2. Inputs
+- **`frame`**: an `ArFrame` or a `pd.DataFrame`.
+  - It is checked with `_validate_frame(frame, allow_pandas=True)`.
+  - An `ArFrame` is converted with `to_pandas(frame)`.
+  - A DataFrame is used directly and is not copied up front.
+- **`column`**: must be a `str` that is not empty after `.strip()`.
+  - It must exist in the pandas columns.
+  - It is not stripped before the lookup, so `" a"` is not the same as `"a"`.
+- **`op`**: must be a `str` and an exact key of this table (no stripping):
+  ```
+  ">"  -> gt
+  "<"  -> lt
+  ">=" -> ge
+  "<=" -> le
+  "==" -> eq
+  "!=" -> ne
+  ```
+- **`value`**: anything where `pandas.api.types.is_scalar(value)` is True.
+  - Accepted: int, float, str, bool, `None`, `np.int64`, `pd.Timestamp`.
+  - Rejected: list, tuple, set, dict, ndarray.
+
+## 3. Raises (in this exact order)
+1. `TypeError("frame must be an ArFrame or a pandas DataFrame")`
+   - Trigger: `filter_rows({"a": [1]}, "a", ">", 1)`
+2. `TypeError(f"filter_rows: column must be a non-empty string, got {type(column).__name__!r}")`
+   - `column=5` gives "...got 'int'".
+   - `column=""` or `"   "` gives "...got 'str'".
+3. `TypeError(f"filter_rows: op must be a string, got {type(op).__name__!r}")`
+   - `op=None` gives "...got 'NoneType'".
+4. `ValueError(f"Unsupported operator: {op}")`
+   - `op="="` gives `"Unsupported operator: ="`.
+   - `"=>"`, `" >"` and `"eq"` also raise this.
+5. `ValueError(f"Unknown column: {column}")`
+   - `column="zzz"` gives `"Unknown column: zzz"`.
+6. `TypeError("filter_rows value must be a scalar")`
+   - Trigger: `value=[1, 2]`.
+7. Any `TypeError` raised by the pandas comparison is re-raised as:
+   - `TypeError(f"filter_rows: cannot compare column {column!r} with value {value!r} using operator {op!r}: {exc}")`, with `__cause__` set to the original error.
+   - Reliable trigger (pandas input, object column):
+     ```python
+     filter_rows(pd.DataFrame({"s": ["a", "b"]}), "s", ">", 1)
+     ```
+     The message starts with `"filter_rows: cannot compare column 's' with value 1 using operator '>': "`.
+   - `"=="` and `"!="` between str and int do not raise; they just give all False / all True.
+
+Ordering pitfalls:
+- `op` is validated before `column`: `filter_rows(f, "missing", "=", 1)` raises "Unsupported operator: =".
+- `column` is validated before `value`: `filter_rows(f, "missing", ">", [1])` raises "Unknown column: missing".
+
+## 4. Returns and guarantees
+- The mask is `getattr(series, op_name)(value).fillna(False).astype(bool)`.
+  - Null comparison results (`pd.NA` from nullable dtypes) count as False and are dropped.
+- **DataFrame input**:
+  - Returns `df[mask]`, a new DataFrame.
+  - The index is **not reset**; the original labels are kept, e.g. `[1, 2]`.
+  - Columns and dtypes are unchanged.
+- **ArFrame input**:
+  - Returns `from_pandas(df[mask].reset_index(drop=True))`, a new `ArFrame`.
+  - Columns keep their original order and row order is preserved.
+  - `_attrs` are **not** deep-copied from the source; there is no `_wrap` call, unlike most other functions.
+- Dtypes of the ArFrame result depend on `from_pandas` inference (in `convert`, not shown here).
+- No rows matching gives 0 rows with the same columns.
+
+## 5. Side effects
+- The input frame or DataFrame is never mutated.
+- No global state is touched and no files are written.
+
+## 6. Branches and edge cases
+Base frame for the examples: `pdf = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})`.
+
+| Call | Result |
+|---|---|
+| `filter_rows(pdf, "a", ">", 1)` | rows `a=[2, 3]`, index `[1, 2]` |
+| `filter_rows(ar.from_pandas(pdf), "a", ">", 1)` | `ArFrame`, `a=[2, 3]`, `b=["y", "z"]`, shape `(2, 2)` |
+| `">="` 2 | `[2, 3]` |
+| `"<"` 2 | `[1]` |
+| `"<="` 2 | `[1, 2]` |
+| `"=="` 2 | `[2]` |
+| `"!="` 2 | `[1, 3]` |
+| string column: `"b", "==", "y"` | 1 row |
+| string column: `"b", ">=", "y"` | rows `y`, `z` (lexicographic) |
+| no match: `"a", ">", 100` | 0 rows, columns `["a", "b"]` |
+
+Float NaN with `"!="`:
+- With pandas input `pd.DataFrame({"f": [1.0, float("nan"), 3.0]})`, `"!="` with `1.0` **keeps** the NaN row (index `[1, 2]`), because `NaN != 1.0` is True in numpy.
+- `">"` with `0` drops the NaN row.
+
+`value=None` or NaN:
+- This follows pandas semantics: `"!="` keeps all rows and the other ops keep none.
+- That behaviour is pandas' own, not arnio's; avoid relying on it heavily.
+
+## 7. Rules from the docstring
+- The output type matches the input type.
+- Only the six listed operators are supported.
+- `value` must be a scalar.
+
+## 8. Testing hints
+Build inputs and read results like this:
+```python
+fr = ar.from_pandas(pdf)
+res = ar.filter_rows(fr, "a", ">", 1)
+out = ar.to_pandas(res)
+assert out["a"].tolist() == [2, 3]
+assert res.columns == ["a", "b"]
+```
+
+What to assert on:
+- **ArFrame result**: assert that the index is `RangeIndex` 0..n-1, e.g. `list(out.index) == [0, 1]`.
+- **pandas result**: assert the original labels, e.g. `list(res.index) == [1, 2]`. This difference between the two paths is a key behaviour to pin.
+- **Immutability**: assert `pdf` is unchanged afterwards (`pdf.equals(original_copy)`).
+- **Error messages**: use `pytest.raises(..., match=re.escape(msg))`.
+  - Operators like `>` and `?` are fine in regex, but strings containing `(`, `[` or `.` need escaping.
+- **Comparison-wrap error**: use a **pandas** DataFrame with an object-dtype string column. The dtype that `to_pandas` gives ArFrame string columns is not visible here.
+
+Pitfalls:
+- Avoid asserting exact dtypes on zero-row ArFrame results, since `from_pandas` inference is not visible here.
+- Do not assume attrs survive on the ArFrame path.
+- Do not rely on how nulls in an ArFrame int column look after `to_pandas` (NaN vs `pd.NA`). The `"!="` + null behaviour differs between them, so test null handling only with pandas float64 input.

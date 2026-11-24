@@ -1,0 +1,133 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.pipeline.unregister_step.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.pipeline.unregister_step
+def unregister_step(name: str) -> None:
+    """Unregister a custom Python pipeline step."""
+    with _REGISTRY_LOCK:
+        if not isinstance(name, str):
+            raise TypeError(
+                f"parameter 'name' must be a string, not {type(name).__name__}"
+            )
+        if not name:
+            raise ValueError("parameter 'name' must be a non-empty string")
+
+        if name not in _PYTHON_STEP_REGISTRY:
+            available_steps = sorted(set(_STEP_REGISTRY) | set(_PYTHON_STEP_REGISTRY))
+            raise UnknownStepError(name, available_steps)
+
+        # Protect only names that were registered as built-ins at module load
+        # time (i.e. present in _BUILTIN_PYTHON_STEP_REGISTRY).  Do NOT use
+        # _is_builtin_python_step here: that helper checks the function's
+        # __module__, which would wrongly block user-defined aliases whose
+        # underlying callable happens to live in arnio.cleaning.
+        if name in _BUILTIN_PYTHON_STEP_REGISTRY:
+            available_steps = sorted(set(_STEP_REGISTRY) | set(_PYTHON_STEP_REGISTRY))
+            raise ValueError(
+                f"Cannot unregister built-in step '{name}'. Only custom user-registered steps can be unregistered."
+            )
+        del _PYTHON_STEP_REGISTRY[name]
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.pipeline.unregister_step
+
+# Notes: `arnio.pipeline.unregister_step(name: str) -> None`
+
+## 1. Purpose
+- Removes a user-registered custom Python pipeline step from the module-level registry `_PYTHON_STEP_REGISTRY`.
+- Built-in steps cannot be removed: neither the C++-backed ones nor the Python-backed ones.
+
+## 2. Inputs
+- `name` must be a `str` (`isinstance` check, so `str` subclasses are accepted).
+- There is no `.strip()`. `" "` passes validation and then fails the registry lookup. This differs from `register_step`, which rejects whitespace-only names.
+- There is no normalisation of any kind:
+  - no case folding;
+  - no `builtin:` prefix resolution;
+  - no deprecated-alias resolution.
+- The lookup is an exact key match in `_PYTHON_STEP_REGISTRY`.
+
+Registry state at import time:
+- **C++ steps** live in `_STEP_REGISTRY` and are **never** in the Python registry. Examples: `drop_nulls`, `drop_columns`, `select_columns`, `fill_nulls`, `drop_duplicates`, `strip_whitespace`, `rename_columns`, `cast_types`, `clean_column_names`, and others.
+- **Protected Python built-ins** live in `_BUILTIN_PYTHON_STEP_REGISTRY`, which is frozen at module load. There are exactly 8:
+  - `standardize_missing_tokens`, `coalesce_columns`, `normalize_whitespace`
+  - `filter_rows`, `drop_columns_matching`, `rename_columns_matching`, `safe_divide_columns`, `replace_values`
+
+## 3. Raises
+The checks run in this order, inside a non-reentrant `threading.Lock`:
+
+1. **`TypeError`** when `name` is not a `str`.
+   - Template: `f"parameter 'name' must be a string, not {type(name).__name__}"`
+   - `unregister_step(123)` gives `"parameter 'name' must be a string, not int"`.
+   - `unregister_step(None)` gives `"... not NoneType"`.
+   - `unregister_step(b"x")` gives `"... not bytes"`.
+2. **`ValueError`** when `name == ""`.
+   - Message: `"parameter 'name' must be a non-empty string"`.
+3. **`UnknownStepError`** (from `arnio.exceptions`) when the name is not in `_PYTHON_STEP_REGISTRY`.
+   - Constructed as `UnknownStepError(name, sorted(set(_STEP_REGISTRY) | set(_PYTHON_STEP_REGISTRY)))`.
+   - Triggers: `unregister_step("does_not_exist")`, `unregister_step("   ")`, `unregister_step("builtin:filter_rows")`.
+   - **C++ step names also raise `UnknownStepError` here, not `ValueError`.** Example: `unregister_step("drop_nulls")`.
+   - The message text and attribute names are defined in `exceptions.py`, which is not shown. Do not assert on them. The class is documented as a subclass of `ArnioError`.
+4. **`ValueError`** when the name is a protected Python built-in.
+   - Template: `f"Cannot unregister built-in step '{name}'. Only custom user-registered steps can be unregistered."`
+   - `unregister_step("filter_rows")` gives `"Cannot unregister built-in step 'filter_rows'. Only custom user-registered steps can be unregistered."`
+   - The same applies to `coalesce_columns`, `standardize_missing_tokens`, and the other protected built-ins.
+
+## 4. Returns and guarantees
+- Returns `None`.
+- After success, the name is gone from `_PYTHON_STEP_REGISTRY`.
+
+## 5. Side effects
+- Mutates the global `_PYTHON_STEP_REGISTRY` with `del`.
+- Leaves `_STEP_REGISTRY` and `_BUILTIN_PYTHON_STEP_REGISTRY` untouched.
+- On every error path, the registry is unchanged. A failed protected-step call leaves the step still listed and still usable.
+
+Observable effects after removal:
+- `ar.list_steps()` no longer contains the name.
+- `ar.pipeline(frame, [(name,)])` raises `UnknownStepError` during step validation.
+- `register_step(name, fn)` succeeds again without `overwrite=True`.
+
+## 6. Branches and edge cases
+- **Custom step:** `register_step("my_step", lambda df: df)` then `unregister_step("my_step")` returns `None`, and `"my_step" not in list_steps()`.
+- **Twice in a row:** the second `unregister_step("my_step")` raises `UnknownStepError`.
+- **Alias of a cleaning function is removable.**
+  - Code: `register_step("my_alias", arnio.cleaning.filter_rows)`, then `unregister_step("my_alias")`.
+  - This succeeds because protection is by name membership in `_BUILTIN_PYTHON_STEP_REGISTRY`, not by the function's `__module__`.
+- **Overwritten custom step:** register, re-register with `overwrite=True`, then unregister once. The name is removed.
+- **Only the target is removed:** unregistering one custom step leaves the other custom steps registered.
+
+## 7. Rules from comments
+- The comment says to protect only names registered as built-ins at load time.
+- It explicitly says not to use `_is_builtin_python_step`, because that would wrongly block user aliases whose callable lives in `arnio.cleaning`.
+
+## 8. Testing hints
+- Use names that are unlikely to collide, e.g. `"zz_test_step"`.
+- Always restore global state. An autouse fixture calling `reset_steps()` after each test works:
+  ```python
+  from arnio.pipeline import register_step, unregister_step, list_steps, reset_steps, pipeline
+  from arnio.exceptions import UnknownStepError
+  ```
+  Importing from `arnio.pipeline` is safest, since top-level re-exports are not shown.
+- `reset_steps()` restores the Python registry to exactly the 8 protected built-ins.
+- Things worth asserting:
+  - `"filter_rows" in list_steps()` still holds after the failed `ValueError` call.
+  - The exact `ValueError` and `TypeError` messages, using `match=re.escape(...)`.
+  - The return value `is None`.
+- Pitfalls to avoid:
+  - Do not expect a C++ step name (`"drop_nulls"`) to raise `ValueError`. It raises `UnknownStepError`.
+  - Do not assert the `UnknownStepError` message text.
+  - Do not assume `UnknownStepError` is a `KeyError` or `ValueError` subclass; that cannot be seen here.
+  - Do not assume a whitespace-only name raises `ValueError`. It raises `UnknownStepError`.
+- End-to-end check:
+  ```python
+  register_step("zz", lambda df: df)
+  unregister_step("zz")
+  with pytest.raises(UnknownStepError):
+      pipeline(ar.from_pandas(pd.DataFrame({"a": [1]})), [("zz",)])
+  ```

@@ -1,0 +1,275 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.io.write_csv.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.io.write_csv
+def write_csv(
+    frame: ArFrame,
+    path: str | os.PathLike[str],
+    *,
+    delimiter: str = ",",
+    write_header: bool = True,
+    line_terminator: str = "\n",
+    escape_formulas: bool = False,
+    encoding: str = "utf-8",
+    encoding_errors: str = "strict",
+) -> None:
+    """Write an ArFrame to a CSV file via C++ backend.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        The data frame to write.
+    path : str
+        Destination file path. Supports .csv, .txt, and .tsv extensions.
+    delimiter : str, default ","
+        Field delimiter character.
+    write_header : bool, default True
+        Whether to write the column header row.
+    line_terminator : str, default "\\n"
+        Line terminator to use between rows.
+    escape_formulas : bool, default False
+        If True, prefix string cell values that begin with spreadsheet formula
+        trigger characters (``=``, ``+``, ``-``, ``@``, tab, or carriage return)
+        with a single quote before CSV quoting. Numeric columns are not changed.
+    encoding : str, default "utf-8"
+        Output file encoding. UTF-8 (default) uses the native writer path
+        directly with no transcoding overhead. Any other encoding supported
+        by Python's ``codecs`` module is accepted; the native writer emits
+        UTF-8 to a temporary file which is then transcoded in bounded chunks.
+    encoding_errors : str, default "strict"
+        How encoding errors are handled: ``"strict"`` raises ``ValueError``
+        for unencodable characters, ``"replace"`` substitutes a replacement
+        character, ``"ignore"`` drops unencodable characters.
+
+    Raises
+    ------
+    TypeError
+        If ``encoding`` or ``encoding_errors`` is not a string.
+    ValueError
+        If ``encoding`` is an unknown codec, ``encoding_errors`` is not one of
+        ``"strict"``, ``"replace"``, or ``"ignore"``, or if a character cannot
+        be encoded in the requested encoding with ``encoding_errors="strict"``.
+    RuntimeError
+        If the file cannot be opened or written.
+
+    Examples
+    --------
+    >>> ar.write_csv(frame, "output.csv")
+    >>> ar.write_csv(frame, "output.tsv", delimiter="\\t")
+    >>> ar.write_csv(frame, "output_latin1.csv", encoding="latin-1")
+    """
+    if not isinstance(frame, ArFrame):
+        raise TypeError("frame must be an ArFrame")
+
+    if not isinstance(path, (str, bytes, os.PathLike)):
+        raise TypeError(
+            f"path must be a string, bytes, or os.PathLike object, got {type(path).__name__!r}"
+        )
+    path = os.fsdecode(os.fspath(path))
+    path_lower = path.lower()
+    if not (
+        path_lower.endswith(".csv")
+        or path_lower.endswith(".txt")
+        or path_lower.endswith(".tsv")
+    ):
+        raise ValueError(
+            f"Unsupported file format: {path}. Only .csv, .txt, and .tsv are supported."
+        )
+
+    delimiter = _validate_delimiter(delimiter)
+    if not isinstance(line_terminator, str):
+        raise TypeError("line_terminator must be a string")
+    if line_terminator not in {"\n", "\r\n", "\r"}:
+        raise ValueError(
+            f"line_terminator must be one of '\\n', '\\r\\n', or '\\r', got {line_terminator!r}"
+        )
+
+    # Validate encoding and encoding_errors before any file I/O.
+    _validate_jsonl_encoding(encoding)
+    _validate_encoding_errors(encoding_errors)
+
+    config = _CsvWriteConfig()
+    config.delimiter = delimiter
+    config.write_header = _validate_bool_option(write_header, "write_header")
+    config.line_terminator = line_terminator
+    config.escape_formulas = _validate_bool_option(escape_formulas, "escape_formulas")
+
+    writer = _CsvWriter(config)
+
+    if _is_utf8_encoding(encoding):
+        # Fast path: native writer emits UTF-8 directly — no transcoding overhead.
+        try:
+            writer.write(frame._frame, path)
+        except RuntimeError as e:
+            raise RuntimeError(str(e)) from e
+        return
+
+    # Non-UTF-8 path: write UTF-8 to a temp file, then transcode in bounded
+    # chunks so the entire file is never held in memory at once.
+    import tempfile
+
+    _CHUNK_SIZE = 1 << 20  # 1 MiB per chunk
+
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".csv")
+    output_tmp_path: str | None = None
+    try:
+        os.close(tmp_fd)
+        try:
+            writer.write(frame._frame, tmp_path)
+        except RuntimeError as e:
+            raise RuntimeError(str(e)) from e
+
+        try:
+            output_fd, output_tmp_path = tempfile.mkstemp(
+                dir=os.path.dirname(os.path.abspath(path)),
+                prefix=f".{os.path.basename(path)}.",
+                suffix=".tmp",
+            )
+            os.close(output_fd)
+
+            # newline="" on both sides preserves the line_terminator written by
+            # the C++ backend exactly — no platform newline translation.
+            with (
+                open(tmp_path, encoding="utf-8", newline="") as src,
+                open(
+                    output_tmp_path,
+                    "w",
+                    encoding=encoding,
+                    errors=encoding_errors,
+                    newline="",
+                ) as dst,
+            ):
+                while True:
+                    chunk = src.read(_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+
+            os.replace(output_tmp_path, path)
+            output_tmp_path = None
+        except UnicodeEncodeError as exc:
+            raise ValueError(
+                f"write_csv: character cannot be encoded in {encoding!r}: {exc}"
+            ) from exc
+        except OSError as exc:
+            raise RuntimeError(str(exc)) from exc
+    finally:
+        if output_tmp_path is not None:
+            try:
+                os.unlink(output_tmp_path)
+            except OSError:
+                pass
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.io.write_csv
+
+# Notes: `arnio.io.write_csv(frame, path, *, delimiter=",", write_header=True, line_terminator="\n", escape_formulas=False, encoding="utf-8", encoding_errors="strict") -> None`
+
+## 1. Purpose
+- Writes an `ArFrame` to a CSV file using the C++ `_CsvWriter`.
+- Non-UTF-8 encodings work in three steps: the C++ writer emits UTF-8 to a temp file, Python transcodes it into a second temp file in the destination directory, then `os.replace` moves it onto `path`.
+
+## 2. Inputs
+- **frame**: must be an `ArFrame` instance. A pandas DataFrame is rejected.
+- **path**: `str`, `bytes` or `os.PathLike`.
+  - Normalised with `os.fsdecode(os.fspath(path))`, so `b"out.csv"` and `pathlib.Path` both work.
+  - The lowercased path must end with `.csv`, `.txt` or `.tsv`. `"OUT.CSV"` is accepted.
+  - A `.tsv` path does **not** change the delimiter. It stays `","` unless you pass one.
+- **delimiter**: must be exactly one character.
+  - Rejected: `"\n"`, `"\r"`, `'"'`, and control characters (codepoint <= 0x1F or 0x7F).
+  - Tab `"\t"` is allowed.
+- **write_header**, **escape_formulas**: must be real `bool`. `1` and `0` are rejected.
+- **line_terminator**: must be one of `"\n"`, `"\r\n"`, `"\r"`.
+- **encoding**: must be a `str` accepted by `codecs.lookup`.
+  - It is treated as UTF-8 (fast path) if `encoding.lower().replace("_","-")` is in `{"utf-8","utf8"}`. So `"UTF-8"`, `"utf_8"` and `"UTF8"` take the fast path.
+  - `"utf-8-sig"` is **not** the fast path; it goes through transcoding.
+- **encoding_errors**: one of `"strict"`, `"replace"`, `"ignore"`. It is validated always but only used on the non-UTF-8 path.
+
+## 3. Raises (in this order; all validation happens before any file is written)
+1. `TypeError("frame must be an ArFrame")`
+   - Trigger: `write_csv(pd.DataFrame(), "a.csv")`
+2. `TypeError(f"path must be a string, bytes, or os.PathLike object, got {type(path).__name__!r}")`
+   - Trigger: `path=123` gives `...got 'int'`.
+3. `ValueError(f"Unsupported file format: {path}. Only .csv, .txt, and .tsv are supported.")`
+   - The path appears without quotes. Trigger: `"out.json"`.
+4. Delimiter checks:
+   - `TypeError("delimiter must be a string")`
+   - `ValueError("delimiter must be a single character; delimiter must be exactly one character")` for `""` or `";;"`
+   - `ValueError("delimiter must not be a newline character")`
+   - `ValueError("delimiter must not be the CSV quote character")` for `'"'`
+   - `ValueError("delimiter must not be a control character")` for `"\x01"` or `"\x7f"`
+5. Line terminator checks:
+   - `TypeError("line_terminator must be a string")`
+   - `ValueError(f"line_terminator must be one of '\\n', '\\r\\n', or '\\r', got {line_terminator!r}")`
+   - The message contains literal backslash sequences, e.g. `line_terminator must be one of '\n', '\r\n', or '\r', got ';'`. Use `pytest.raises(..., match=re.escape(...))` or match only the prefix.
+6. Encoding checks:
+   - `TypeError(f"encoding must be a string, got {type(encoding).__name__!r}")`
+   - `ValueError(f"Unknown encoding: {encoding!r}")`, e.g. `encoding="nope"` gives `Unknown encoding: 'nope'`.
+7. Encoding-errors checks:
+   - `TypeError("encoding_errors must be a string")`
+   - `ValueError("encoding_errors must be one of 'strict', 'replace', or 'ignore'")`
+8. `TypeError(f"write_header must be True or False, got {type(v).__name__}: {v!r}")`
+   - Trigger: `write_header=1` gives `write_header must be True or False, got int: 1`.
+9. Same message pattern for `escape_formulas`, e.g. `escape_formulas="yes"` gives `...got str: 'yes'`.
+10. Write-time errors:
+    - **UTF-8 path:** a C++ `RuntimeError` is re-raised as `RuntimeError(str(e))`, e.g. for a missing parent directory. The exact message comes from C++ and is not visible.
+    - **Non-UTF-8, unencodable character with `strict`:** `ValueError(f"write_csv: character cannot be encoded in {encoding!r}: {exc}")`. Trigger: `"é"` with `encoding="ascii"`.
+    - **Non-UTF-8, `OSError`** (e.g. destination directory does not exist): `RuntimeError(str(exc))`.
+
+## 4. Returns and guarantees
+- Returns `None`.
+- The file content (quoting rules, float formatting, null representation, header layout) is produced by the C++ writer and is **not visible** here.
+- Per the docstring, `escape_formulas=True` prefixes `'` to string cells starting with `=`, `+`, `-`, `@`, tab or CR. Numeric columns are unchanged. This is implemented in C++.
+- On the non-UTF-8 path, files are opened with `newline=""` on both sides, so the line terminator bytes are preserved exactly (no Windows `\n` to `\r\n` translation).
+
+## 5. Side effects
+- Creates or overwrites `path`. The frame is not mutated.
+- Non-UTF-8 path, in more detail:
+  - Uses a system temp `.csv` file and a `.{basename}.XXXX.tmp` file in the destination directory.
+  - Both are deleted in `finally`.
+  - On an encode failure, the destination is not replaced: an existing file keeps its old content, and a new path is not created.
+
+## 6. Branches and edge cases
+- **Validation error:** no file is created, e.g. `write_csv(f, tmp/"x.json")` leaves `x.json` absent.
+- **UTF-8 fast path:** the writer writes directly to `path`; `encoding_errors` is ignored.
+- **Non-UTF-8 path** (e.g. `"latin-1"`) with a column value `"café"`: the file bytes contain `b"caf\xe9"`.
+- **`encoding="ascii"` with value `"café"`:**
+  - `"strict"` raises the `ValueError` above.
+  - `"replace"` writes `caf?`.
+  - `"ignore"` writes `caf`.
+- **`encoding="utf-8-sig"`:** the file starts with `b"\xef\xbb\xbf"` (Python codec behaviour).
+- **`line_terminator="\r\n"`:** use bytes containing `b"\r\n"`. Use `"\r"` for old-Mac style.
+
+## 7. Rules from comments/docstring
+- Validate `encoding` and `encoding_errors` "before any file I/O".
+- Transcode in bounded 1 MiB chunks.
+- `newline=""` preserves the `line_terminator` exactly.
+
+## 8. Testing hints
+- Build frames with `ar.from_pandas(pd.DataFrame({"a": [1, 2], "s": ["x", "y"]}))`, and use pytest's `tmp_path`.
+- **Round trip:** `ar.read_csv(p)`, then compare via `ar.to_pandas`. Prefer ints and plain strings; avoid floats, NaN and exact quoting assertions.
+- Check raw output with `open(p, "rb").read()`:
+  - Safe assertion: `b"\r\n" in data` for `line_terminator="\r\n"`.
+  - Safe assertion: `b"\r\n" not in data` with the default terminator.
+- **Header:**
+  - `write_header=True`: the first decoded line should contain `a` and `s`.
+  - `write_header=False`: the column names should not appear; read back with `has_header=False`.
+- **Delimiter:** with `delimiter=";"`, read back with `ar.read_csv(p, delimiter=";")`, or check that `b";"` appears in the header line.
+- **Formula escaping:** a string value `"=1+1"` with `escape_formulas=True` should read back as `"'=1+1"`. With the default (`False`) it reads back as `"=1+1"`.
+- **Validation order:** e.g. `write_csv(frame, "x.json", delimiter=";;")` raises the file-format `ValueError`, not the delimiter one.
+- After an ascii-strict failure, assert that no `*.tmp` files remain in `tmp_path` and that the destination does not exist.
+- **Pitfalls:**
+  - Do not expect TSV auto-tab.
+  - Do not expect `bool` coercion of `1` and `0`.
+  - The error for an unknown encoding is `ValueError`, not `LookupError`.

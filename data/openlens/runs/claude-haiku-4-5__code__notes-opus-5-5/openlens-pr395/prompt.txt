@@ -1,0 +1,535 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.export_formats.SVGExporter.export_lens, openlens.export_formats.SVGExporter.export_system.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.export_formats.SVGExporter.export_lens
+    @staticmethod
+    def export_lens(
+        lens: Lens,
+        filename: str,
+        width: int = 400,
+        height: int = 300,
+        show_rays: bool = False,
+        show_labels: bool = True,
+    ):
+        """
+        Export lens cross-section as SVG.
+
+        Args:
+            lens: Lens object to export
+            filename: Output SVG filename
+            width: SVG width in pixels
+            height: SVG height in pixels
+            show_rays: Whether to show ray paths (simplified)
+            show_labels: Whether to show dimension labels
+        """
+        # Calculate scaling
+        margin = 40
+        available_width = width - 2 * margin
+        available_height = height - 2 * margin
+
+        # Scale to fit lens
+        max_dimension = max(lens.thickness * 2, lens.diameter)
+        scale = min(available_width, available_height) / max_dimension * 0.8
+
+        # Center position
+        cx = width / 2
+        cy = height / 2
+
+        # Scaled lens dimensions
+        thickness = lens.thickness * scale
+        half_diameter = (lens.diameter / 2) * scale
+
+        # Calculate surface positions
+        front_x = cx - thickness / 2
+        back_x = cx + thickness / 2
+
+        with atomic_write_text(filename) as f:
+            # SVG header
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            f.write(
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+                f'height="{height}" viewBox="0 0 {width} {height}">\n'
+            )
+            f.write("  <defs>\n")
+            f.write("    <style>\n")
+            f.write("      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }\n")
+            f.write("      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }\n")
+            f.write("      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }\n")
+            f.write("      .ray { stroke: #ff6600; stroke-width: 1.5; fill: none; }\n")
+            f.write(
+                "      .label { font-family: Arial, sans-serif; font-size: 12px; fill: #333333; }\n"
+            )
+            f.write(
+                "      .title { font-family: Arial, sans-serif; font-size: 14px; "
+                "font-weight: bold; fill: #333333; }\n"
+            )
+            f.write("    </style>\n")
+            f.write("  </defs>\n")
+            f.write("\n")
+
+            # Background
+            f.write(f'  <rect width="{width}" height="{height}" fill="white"/>\n')
+            f.write("\n")
+
+            # Title
+            f.write(
+                f'  <text x="{width/2}" y="25" class="title" text-anchor="middle">'
+                f"{escape(str(lens.name))}</text>\n"
+            )
+            f.write("\n")
+
+            # Optical axis
+            f.write(
+                f'  <line x1="{margin}" y1="{cy}" x2="{width-margin}" y2="{cy}" class="axis"/>\n'
+            )
+            f.write("\n")
+
+            # Generate lens outline path
+            r1 = lens.radius_of_curvature_1
+            r2 = lens.radius_of_curvature_2
+
+            # Calculate sag (surface deviation from flat)
+            def calc_sag(radius, half_d):
+                if abs(radius) > 1e9:
+                    return 0
+                try:
+                    return abs(radius) - math.sqrt(radius * radius - half_d * half_d)
+                except ValueError as e:
+                    logger.debug("Sag calculation failed: %s", e)
+                    return 0
+
+            sag1 = calc_sag(r1, lens.diameter / 2) * scale
+            sag2 = calc_sag(r2, lens.diameter / 2) * scale
+
+            # Front surface edge x positions
+            if abs(r1) > 1e9:  # Flat
+                front_top_x = front_x
+                front_bot_x = front_x
+            elif r1 > 0:  # Convex front
+                front_top_x = front_x + sag1
+                front_bot_x = front_x + sag1
+            else:  # Concave front
+                front_top_x = front_x - sag1
+                front_bot_x = front_x - sag1
+
+            # Back surface edge x positions
+            if abs(r2) > 1e9:  # Flat
+                back_top_x = back_x
+                back_bot_x = back_x
+            elif r2 < 0:  # Convex back (negative radius)
+                back_top_x = back_x - sag2
+                back_bot_x = back_x - sag2
+            else:  # Concave back
+                back_top_x = back_x + sag2
+                back_bot_x = back_x + sag2
+
+            # Build path for lens outline
+            top_y = cy - half_diameter
+            bot_y = cy + half_diameter
+
+            # Start path
+            path_parts = []
+
+            # Front surface (top to bottom)
+            if abs(r1) > 1e9:  # Flat surface
+                path_parts.append(f"M {front_top_x:.2f} {top_y:.2f}")
+                path_parts.append(f"L {front_bot_x:.2f} {bot_y:.2f}")
+            else:
+                # Curved surface using quadratic bezier approximation
+                # Control point for quadratic bezier
+                if r1 > 0:  # Convex
+                    ctrl_x = front_x
+                else:  # Concave
+                    ctrl_x = front_top_x + sag1 * 2
+
+                path_parts.append(f"M {front_top_x:.2f} {top_y:.2f}")
+                path_parts.append(f"Q {ctrl_x:.2f} {cy:.2f} {front_bot_x:.2f} {bot_y:.2f}")
+
+            # Bottom edge
+            path_parts.append(f"L {back_bot_x:.2f} {bot_y:.2f}")
+
+            # Back surface (bottom to top)
+            if abs(r2) > 1e9:  # Flat surface
+                path_parts.append(f"L {back_top_x:.2f} {top_y:.2f}")
+            else:
+                if r2 < 0:  # Convex back
+                    ctrl_x = back_x
+                else:  # Concave back
+                    ctrl_x = back_bot_x - sag2 * 2
+
+                path_parts.append(f"Q {ctrl_x:.2f} {cy:.2f} {back_top_x:.2f} {top_y:.2f}")
+
+            # Close path
+            path_parts.append("Z")
+
+            path_d = " ".join(path_parts)
+
+            # Draw lens
+            f.write(f'  <path d="{path_d}" class="lens-fill"/>\n')
+            f.write(f'  <path d="{path_d}" class="lens-stroke"/>\n')
+            f.write("\n")
+
+            # Optional rays
+            if show_rays:
+                ray_y_positions = [-half_diameter * 0.7, 0, half_diameter * 0.7]
+                for ray_y in ray_y_positions:
+                    # Simplified parallel rays
+                    f.write(
+                        f'  <line x1="{margin}" y1="{cy + ray_y}" x2="{front_top_x}" '
+                        f'y2="{cy + ray_y}" class="ray"/>\n'
+                    )
+                f.write("\n")
+
+            # Labels
+            if show_labels:
+                # Diameter label
+                f.write(
+                    f'  <text x="{margin + 10}" y="{cy - half_diameter - 5}" '
+                    f'class="label">∅{lens.diameter:.1f}mm</text>\n'
+                )
+
+                # Thickness label
+                f.write(
+                    f'  <text x="{cx}" y="{cy + half_diameter + 20}" class="label" '
+                    f'text-anchor="middle">t={lens.thickness:.1f}mm</text>\n'
+                )
+
+                # Material label
+                f.write(
+                    f'  <text x="{cx}" y="{height - 15}" class="label" text-anchor="middle">'
+                    f"{escape(str(lens.material))} "
+                    f"(n={lens.refractive_index:.4f})</text>\n"
+                )
+
+                # Focal length
+                fl = lens.calculate_focal_length()
+                if fl:
+                    f.write(
+                        f'  <text x="{width - margin - 10}" y="{cy - 10}" class="label" '
+                        f'text-anchor="end">f={fl:.1f}mm</text>\n'
+                    )
+
+            f.write("\n")
+            f.write("</svg>\n")
+
+# openlens.export_formats.SVGExporter.export_system
+    @staticmethod
+    def export_system(system: OpticalSystem, filename: str, width: int = 600, height: int = 300):
+        """Export optical system as SVG diagram"""
+        margin = 40
+
+        with atomic_write_text(filename) as f:
+            # SVG header
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">\n')
+            f.write("  <defs>\n")
+            f.write("    <style>\n")
+            f.write("      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }\n")
+            f.write("      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }\n")
+            f.write("      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }\n")
+            f.write(
+                "      .title { font-family: Arial, sans-serif; font-size: 14px; "
+                "font-weight: bold; }\n"
+            )
+            f.write("    </style>\n")
+            f.write("  </defs>\n")
+
+            # Background
+            f.write(f'  <rect width="{width}" height="{height}" fill="white"/>\n')
+
+            # Title
+            f.write(
+                f'  <text x="{width/2}" y="25" class="title" text-anchor="middle">'
+                f"{escape(str(system.name))}</text>\n"
+            )
+
+            # Optical axis
+            cy = height / 2
+            f.write(
+                f'  <line x1="{margin}" y1="{cy}" x2="{width-margin}" y2="{cy}" class="axis"/>\n'
+            )
+
+            # Calculate total system length for scaling
+            total_length = system.get_total_length() or 100
+
+            # Get max diameter for vertical scaling
+            max_diameter = max((elem.lens.diameter for elem in system.elements), default=50)
+
+            available_width = width - 2 * margin
+            available_height = height - 2 * margin
+
+            scale_x = available_width / total_length * 0.8
+            scale_y = available_height / max_diameter * 0.8
+            scale = min(scale_x, scale_y)
+
+            # Draw each lens element
+            x_pos = margin + 20
+            for i, elem in enumerate(system.elements):
+                lens = elem.lens
+
+                # Add air gap
+                x_pos += _gap_before(system, i) * scale
+
+                # Lens dimensions
+                t = lens.thickness * scale
+                h = lens.diameter / 2 * scale
+
+                # Simple rectangle for each lens (simplified)
+                f.write(
+                    f'  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" '
+                    f'class="lens-fill"/>\n'
+                )
+                f.write(
+                    f'  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" '
+                    f'class="lens-stroke"/>\n'
+                )
+
+                x_pos += t
+
+            f.write("</svg>\n")
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.export_formats.SVGExporter.export_lens
+
+# Notes: `SVGExporter.export_lens(lens, filename, width=400, height=300, show_rays=False, show_labels=True)`
+
+## 1. Purpose
+- Writes a 2D cross-section drawing of one `Lens` as an SVG text file.
+- The drawing contains a title, a dashed optical axis, a filled and stroked outline path, optional rays and optional labels.
+- Returns `None`.
+
+## 2. Inputs
+- `lens`: a `Lens`. The function reads these attributes:
+  - `thickness`, `diameter`, `name`, `material`
+  - `radius_of_curvature_1`, `radius_of_curvature_2` (the raw property values, not the "effective" radii)
+  - `refractive_index`
+  - `calculate_focal_length()`
+- How `Lens` stores, validates or sign-converts radii and the index is in `openlens/lens.py`, which is not shown. Build expected values from the lens's own properties, not from constructor arguments.
+- `filename`: path. It is written through `atomic_write_text(filename)` with the defaults `encoding='utf-8'` and `newline=None`.
+- `width`, `height`: numbers, not validated. They are interpolated with plain `{}` formatting, so ints print as `400` and `300`.
+- `show_rays`, `show_labels`: truthiness only.
+
+## 3. Raises
+- No explicit `raise` statements.
+- `ZeroDivisionError` if `max(thickness*2, diameter) == 0`. This happens before the file is opened. `Lens` probably rejects such values first; that is unverified.
+- Any I/O error comes from `atomic_write_text` (separate module, not shown). The docstring says the target is replaced only on success.
+- Negative or zero available space (e.g. `width=80`) gives `scale <= 0`. No error is raised.
+
+## 4. Returns and guarantees
+Geometry, with `margin=40`:
+- `scale = min(width-80, height-80) / max(lens.thickness*2, lens.diameter) * 0.8`
+- `cx = width/2`, `cy = height/2`
+- `t = thickness*scale`, `h = (diameter/2)*scale`
+- `front_x = cx - t/2`, `back_x = cx + t/2`
+- `top_y = cy - h`, `bot_y = cy + h`
+
+Sag, per surface:
+- `sag = abs(r) - sqrt(r*r - (D/2)**2)`, then multiplied by `scale`.
+- Sag is 0 if `abs(r) > 1e9`.
+- Sag is also 0 when `r*r < (D/2)**2`; the `ValueError` is caught. In that case the surface is still treated as curved.
+
+Edge x positions:
+- Front: flat (`abs(r1) > 1e9`) gives `front_x`. If `r1 > 0`, it is `front_x + sag1`. If `r1 <= 0`, it is `front_x - sag1`.
+- Back: flat gives `back_x`. If `r2 < 0`, it is `back_x - sag2`. Otherwise it is `back_x + sag2`.
+
+Path `d`: the parts are joined with single spaces and every number is formatted `:.2f`. Parts in order:
+1. Front flat: `M fx top_y`, then `L fx bot_y`.
+   Front curved: `M ftop top_y`, then `Q ctrl cy fbot bot_y`. Here `ctrl = front_x` if `r1 > 0`, else `front_top_x + 2*sag1`.
+2. Bottom edge: `L back_bot bot_y`.
+3. Back flat: `L back_top top_y`.
+   Back curved: `Q ctrl cy back_top top_y`. Here `ctrl = back_x` if `r2 < 0`, else `back_bot_x - 2*sag2`.
+4. `Z`.
+
+Worked example: `width=400, height=300`, thickness 5, diameter 50, `r1=100`, `r2=-100`.
+- `scale` = 3.52, `cx` = 200, `cy` = 150, `front_x` = 191.2, `back_x` = 208.8, `h` = 88, `sag` ≈ 11.1775.
+- Resulting path: `M 202.38 62.00 Q 191.20 150.00 202.38 238.00 L 197.62 238.00 Q 208.80 150.00 197.62 62.00 Z`
+
+File content, in order (each line ends `\n`):
+1. `<?xml version="1.0" encoding="UTF-8"?>`
+2. `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">`
+3. A `<defs><style>` block with classes `.lens-fill`, `.lens-stroke`, `.axis`, `.ray`, `.label`, `.title`. These are always present.
+4. Background: `  <rect width="400" height="300" fill="white"/>`
+5. Title: `  <text x="200.0" y="25" class="title" text-anchor="middle">{escape(str(lens.name))}</text>`
+   - `x` is `width/2`, which is always a float.
+   - `xml.sax.saxutils.escape` converts only `&`, `<` and `>`.
+6. Axis: `  <line x1="40" y1="150.0" x2="360" y2="150.0" class="axis"/>`
+7. Outline, two lines with the same `d`:
+   - `  <path d="{d}" class="lens-fill"/>`
+   - `  <path d="{d}" class="lens-stroke"/>`
+8. Optional rays and labels (see section 6).
+9. A blank line, then `</svg>` and a final newline.
+
+## 5. Side effects
+- Creates or replaces `filename` atomically.
+- Does not mutate `lens`. It only calls getters and `calculate_focal_length()`.
+
+## 6. Branches and edge cases
+- **`show_rays=True`:** adds exactly 3 lines of the form `<line x1="40" y1="{cy+ray_y}" x2="{front_top_x}" y2="{cy+ray_y}" class="ray"/>`.
+  - `ray_y` takes the values `-h*0.7`, `0`, `h*0.7`.
+  - These numbers use raw float repr, not `.2f`. For example `y1` may be `88.40000000000001`, so do not assert it exactly.
+  - Default (`show_rays=False`): the substring `class="ray"` is absent.
+- **`show_labels=True` (default):** adds these lines:
+  - `<text x="50" y="{cy-h-5}" class="label">∅{diameter:.1f}mm</text>`, e.g. `∅50.0mm`.
+  - `t={thickness:.1f}mm`, e.g. `t=5.0mm`, at `x="{cx}"`.
+  - `{escape(material)} (n={refractive_index:.4f})`, e.g. `BK7 (n=1.5168)` if the index is 1.5168.
+  - Only if `calculate_focal_length()` is truthy: `<text x="350" y="140.0" class="label" text-anchor="end">f={fl:.1f}mm</text>`. Nothing is written when it is `None` or `0`.
+- **`show_labels=False`:** no `class="label"` text and no `∅`. The `.label {` CSS rule stays in the file.
+- **Flat surfaces:** use `L` segments instead of `Q`. Whether `Lens` accepts `inf` or 1e12 radii is unknown (lens module not shown).
+- **`r` smaller than half the diameter:** a `Q` segment is still drawn, with the control point and endpoints all at `front_x`. `Lens` may reject such a lens at construction.
+
+## 7. Rules from comments
+- Front: `r1 > 0` is convex and `r1 < 0` is concave.
+- Back: `r2 < 0` is convex and `r2 >= 0` is concave.
+- Curved surfaces are drawn as quadratic Béziers, not arcs. The `_generate_arc_path` and `_get_surface_x` helpers are not used here.
+
+## 8. Testing hints
+- **Writing and reading:** use `tmp_path / "l.svg"`. Read it back with `open(p, encoding="utf-8").read()` in text mode, because `newline=None` writes `\r\n` on Windows and `∅` is non-ASCII.
+- **Building the lens:** pass explicit `thickness`/`diameter`, since the default constants are unseen. Then check `lens.thickness`, `lens.diameter` and the radii properties first, and compute expected strings from those values with the formulas above.
+- **Robust assertions:**
+  - `text.startswith('<?xml')` and `text.rstrip().endswith('</svg>')`.
+  - `'width="400" height="300" viewBox="0 0 400 300"'` is present.
+  - `text.count('class="lens-fill"/>') == 1` and the same for `class="lens-stroke"/>`.
+  - Both `<path>` lines carry an identical `d`.
+  - `text.count('class="ray"') == 3` with rays on, `0` with rays off.
+  - `>A &amp; B<` appears for `name="A & B"`.
+  - `f"n={lens.refractive_index:.4f}"` appears.
+  - `x1="40"` and `x2="360"` appear on the axis line.
+- **Custom size:** `width=600, height=400` gives title `x="300.0"`, axis `x2="560"` and `y1="200.0"`, with `scale = 320/maxdim*0.8`.
+- **Focal-length label:** compare it against `lens.calculate_focal_length()` computed in the test. Do not hardcode the value.
+- **Pitfalls:**
+  - `cy` prints as `150.0`, not `150`.
+  - `.2f` is used only inside the path `d`; everywhere else floats are printed raw.
+
+### openlens.export_formats.SVGExporter.export_system
+
+# Notes: `openlens.export_formats.SVGExporter.export_system`
+
+## 1. Purpose
+- Writes a simplified SVG diagram of an `OpticalSystem` to `filename`.
+- Each lens is drawn as two plain rectangles (fill and stroke), placed left to right with the air gaps between them.
+- Returns `None`.
+
+## 2. Inputs
+- `system: OpticalSystem`. The function reads:
+  - `system.name`
+  - `system.elements`, specifically each `elem.lens.thickness` and `elem.lens.diameter`
+  - `system.air_gaps`, through `_gap_before`
+  - `system.get_total_length()`
+- `filename: str`: the path written through `atomic_write_text(filename)` (utf-8, from `openlens.atomic`).
+- `width: int = 600`, `height: int = 300`. Neither is validated. Both are interpolated with plain f-strings, so `600` prints as `600` and `600.0` prints as `600.0`.
+- `margin = 40` is a hard-coded local.
+- Element `position`, decenter and tilt are ignored. Placement uses only the gaps and the thicknesses.
+- `_gap_before(system, i)`:
+  - returns `0.0` when `i <= 0` or when `i-1 >= len(system.air_gaps)`;
+  - otherwise returns `system.air_gaps[i-1].thickness`.
+  - `air_gaps[k]` is the gap *after* element k.
+
+## 3. Raises
+There are no explicit raises. Possible failures:
+- `ZeroDivisionError` if every element has `diameter == 0`, which makes `max_diameter == 0`. Lens validation probably prevents building such a lens, so this is unlikely to be reachable.
+- I/O errors from `atomic_write_text` for an unwritable path. The exact type is defined in another module; it is probably `OSError`.
+- Any exception raised inside the `with` block (for example from `get_total_length`) means the target file is **not** replaced. This follows `atomic_write_text`'s documented contract: it replaces the file only on success.
+
+## 4. Returns and output text
+The function returns `None`. The file content is exactly the following lines, each ending in `\n`, with no blank lines anywhere:
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">
+  <defs>
+    <style>
+      .lens-fill { fill: #b3d9ff; fill-opacity: 0.5; }
+      .lens-stroke { stroke: #0066cc; stroke-width: 2; fill: none; }
+      .axis { stroke: #999999; stroke-width: 1; stroke-dasharray: 5,5; }
+      .title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; }
+    </style>
+  </defs>
+  <rect width="{width}" height="{height}" fill="white"/>
+  <text x="{width/2}" y="25" class="title" text-anchor="middle">{escape(str(system.name))}</text>
+  <line x1="40" y1="{cy}" x2="{width-40}" y2="{cy}" class="axis"/>
+  ...two rect lines per element...
+</svg>
+```
+
+Header details:
+- There is **no `viewBox`** on `<svg>`, unlike `export_lens`.
+- The `.title` rule has no `fill:` and there is no `.ray` or `.label` class.
+- With the defaults:
+  - the title has `x="300.0"` (true division);
+  - `cy = height/2`, so `y1="150.0"`;
+  - `x2="560"` (an int).
+
+Per element `i`, the function writes two lines, fill first and then stroke:
+```
+  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" class="lens-fill"/>
+  <rect x="{x_pos}" y="{cy - h}" width="{t}" height="{h * 2}" class="lens-stroke"/>
+```
+The values come from this arithmetic, in this exact operation order:
+- `total_length = system.get_total_length() or 100`, so `0`/`None` becomes `100`.
+- `max_diameter = max(elem.lens.diameter ...)`, defaulting to `50` when there are no elements.
+- `scale = min((width-80) / total_length * 0.8, (height-80) / max_diameter * 0.8)`
+- `x_pos` starts at `60`. For each element, `x_pos += _gap_before(system, i) * scale` is applied first, and then `x_pos += t` after the element is drawn.
+- `t = lens.thickness * scale`
+- `h = lens.diameter / 2 * scale`
+- The first element's `x` is `60 + 0.0*scale`, which is the float `60.0` and prints as `"60.0"`.
+
+Number formatting:
+- All numbers use the default `str(float)` repr. Nothing is rounded.
+
+## 5. Side effects
+- The function creates or overwrites `filename`.
+- The system and its lenses are not mutated.
+
+## 6. Branches and edge cases
+- **No elements** (`OpticalSystem()`):
+  - no element `<rect>` lines are written; only the background rect remains;
+  - `max_diameter` defaults to 50;
+  - `</svg>` immediately follows the axis line.
+- **`get_total_length()` returns 0 or None:** the value 100 is used instead. What an empty or single system returns is defined in `optical_system` and is not visible here.
+- **Gaps:** element 0 never gets a gap. Element i>0 is shifted by `air_gaps[i-1].thickness * scale`. A gap of 0 shifts nothing, so the next rect's `x` equals the previous `x + t`.
+- **Scale choice:** the vertical limit wins for tall, thin systems and the horizontal limit wins for long systems.
+- **Name escaping:** the name passes through `xml.sax.saxutils.escape`, which escapes only `&`, `<`, `>`.
+  - Example: `"A&B<C>"` becomes `A&amp;B&lt;C&gt;`.
+  - Quotes are **not** escaped.
+
+## 7. Rules from comments and docstrings
+- The `_gap_before` docstring says gaps live in `system.air_gaps`, not on the element. The gap before element i is `air_gaps[i-1]`, and the first element has gap 0.
+- The comment "Simple rectangle for each lens (simplified)" states the intent: element curvature is not drawn.
+
+## 8. Testing hints
+- Build the input like this:
+  ```python
+  s = OpticalSystem(name="Sys")
+  s.add_lens(Lens(thickness=5, diameter=25))
+  s.add_lens(Lens(thickness=4, diameter=20), air_gap_before=10)
+  ```
+  - Pass `thickness` and `diameter` explicitly, because the default constants are not shown here.
+  - Write to `tmp_path / "s.svg"` and read the file back with `encoding="utf-8"`.
+- **Do not hard-code floats.** Recompute the expected values in the test with the identical expressions and order shown in section 4. For example, `(300-80)/25*0.8` may not be exactly `7.04`.
+  - Take `total_length` from `s.get_total_length()`.
+  - Take gap values from `s.air_gaps[k].thickness`. How `add_lens` fills `air_gaps` is not visible here.
+  - Then build the strings with the same f-string patterns, e.g. `f'x="{x}"'`.
+- Robust assertions:
+  - `text.count("<rect") == 1 + 2*len(s.elements)`;
+  - `class="lens-fill"` comes before `class="lens-stroke"` for each element;
+  - `"viewBox" not in text`;
+  - `text.endswith("</svg>\n")`;
+  - `text.startswith('<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300">\n')`;
+  - `'<line x1="40" y1="150.0" x2="560" y2="150.0" class="axis"/>'` is present;
+  - the title `x="300.0"` is present.
+- Custom sizes: `width=800, height=400` gives `x="400.0"`, `x2="760"` and `cy="200.0"`.
+- Positional checks:
+  - the first element's rect starts with `x="60.0"`;
+  - the second element's `x` is `60.0 + t0 + gap0*scale`, computed in that order.
+- Use a name with `&` and `<` to check escaping, and a name with `"` to check that it passes through literally.
+- Pitfalls to avoid:
+  - Assuming a `viewBox`.
+  - Assuming element `position` is used.
+  - Rounding to 2 decimals.
+  - Expecting blank lines; this function, unlike `export_lens`, writes none.

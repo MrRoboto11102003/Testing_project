@@ -1,0 +1,242 @@
+{
+ "id": "arnio-pr1782",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 8175,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 6854
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 1.05,
+ "detected": true,
+ "n_tests": 20,
+ "n_catching": 1,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 3571,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9989,
+  "output_tokens_details": {
+   "thinking_tokens": 8554
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 0,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 3571,
+    "output_tokens": 9989,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.053515999999999994,
+ "model_seconds": 49.2,
+ "seconds": 57.0,
+ "tests": {
+  "tests/_generated/test_arnio_pr1782.py::TestEmailDefaults::test_email_default_values": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailFieldPostInitValidation::test_nullable_must_be_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailFieldPostInitValidation::test_required_if_column_must_be_string": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailFieldPostInitValidation::test_required_if_must_be_tuple_or_none": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailFieldPostInitValidation::test_required_if_must_have_length_2": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailFieldPostInitValidation::test_required_if_value_must_be_scalar": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailFieldPostInitValidation::test_severity_validation": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailFieldPostInitValidation::test_unique_must_be_bool": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailOrderAndBehavior::test_email_equals_equivalent_field": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email",
+    "Field"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailOrderAndBehavior::test_field_is_frozen": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailOrderAndBehavior::test_positional_arguments_not_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailOrderAndBehavior::test_validation_error_before_field_errors": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailOtherParameters::test_nullable_false": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailOtherParameters::test_required_if_tuple": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailOtherParameters::test_severity_warning": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailOtherParameters::test_unique_true": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailValidationParameter::test_validation_invalid_string_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailValidationParameter::test_validation_light": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailValidationParameter::test_validation_not_string_raises_type_error": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Email"
+   ]
+  },
+  "tests/_generated/test_arnio_pr1782.py::TestEmailValidationParameter::test_validation_strict": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Email"
+   ]
+  }
+ }
+}

@@ -1,0 +1,485 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.coating_designer.CoatingDesigner.calculate_reflectivity, openlens.coating_designer.CoatingDesigner.calculate_reflectivity_curve, openlens.coating_designer.CoatingDesigner.design_v_coating.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.coating_designer.CoatingDesigner.calculate_reflectivity
+    def calculate_reflectivity(
+        self, layers: List[CoatingLayer], wavelength_nm: float, angle_deg: float = 0
+    ) -> float:
+        """
+        Calculate reflectivity of coating stack using transfer matrix method.
+
+        Each layer j is represented by its characteristic matrix (Macleod,
+        Thin-Film Optical Filters; Hecht, Optics):
+
+            M_j = [[cos d_j,  i*sin d_j / eta_j],
+                   [i*eta_j*sin d_j, cos d_j]],
+
+        with phase thickness d_j = 2*pi*n_j*t_j*cos(th_j)/lambda and tilted
+        admittances eta_j = n_j*cos(th_j) (s-polarization) or
+        eta_j = n_j/cos(th_j) (p-polarization). Angles inside the stack
+        follow Snell's law from the angle of incidence in air. The system
+        matrix M = prod(M_j) gives
+        [B, C]^T = M.[1, eta_substrate]^T and
+        r = (eta_inc*B - C)/(eta_inc*B + C), R = |r|^2, averaged over both
+        polarizations for unpolarized light.
+
+        Args:
+            layers: List of coating layers (substrate to air)
+            wavelength_nm: Wavelength in nanometers
+            angle_deg: Angle of incidence in degrees from the surface
+                normal, in the incident (air) medium. Must be in [0, 90).
+
+        Returns:
+            Reflectivity (0 to 1)
+
+        Raises:
+            ValueError: If wavelength is not positive or the angle is
+                outside [0, 90) degrees.
+
+        Note:
+            Layer indices are real (lossless films), so transmission is
+            reported as T = 1 - R elsewhere; absorption is neglected.
+        """
+        if wavelength_nm <= 0:
+            raise ValueError(f"Wavelength must be positive, got {wavelength_nm}")
+        if not 0 <= angle_deg < 90:
+            raise ValueError(f"Angle of incidence must be in [0, 90), got {angle_deg}")
+
+        theta_0 = math.radians(angle_deg)
+        sin_0 = math.sin(theta_0)
+        cos_0 = math.cos(theta_0)
+
+        if not layers:
+            # No coating - Fresnel reflection at the bare air/substrate interface.
+            cos_s = cmath.sqrt(1 - (sin_0 / self.substrate_index) ** 2)
+            rs = (self.air_index * cos_0 - self.substrate_index * cos_s) / (
+                self.air_index * cos_0 + self.substrate_index * cos_s
+            )
+            rp = (self.substrate_index * cos_0 - self.air_index * cos_s) / (
+                self.substrate_index * cos_0 + self.air_index * cos_s
+            )
+            return float(min(max((abs(rs) ** 2 + abs(rp) ** 2) / 2.0, 0.0), 1.0))
+
+        # Light is incident from air, so traverse the stored
+        # (substrate-to-air) stack in reverse.
+        incident_order = list(reversed(layers))
+
+        r_sum = 0.0
+        # Unpolarized light: average s- and p-polarized reflectances.
+        for polarization in ("s", "p"):
+            eta_inc = _tilted_admittance(self.air_index, cos_0, polarization)
+            eta_sub = _tilted_admittance(
+                self.substrate_index,
+                cmath.sqrt(1 - (self.air_index * sin_0 / self.substrate_index) ** 2),
+                polarization,
+            )
+            # System matrix M = prod(M_j), identity to start.
+            m11, m12, m21, m22 = 1.0 + 0.0j, 0.0j, 0.0j, 1.0 + 0.0j
+            for layer in incident_order:
+                n = layer.refractive_index
+                cos_t = cmath.sqrt(1 - (self.air_index * sin_0 / n) ** 2)
+                delta = 2 * math.pi * n * layer.thickness_nm * cos_t / wavelength_nm
+                eta = _tilted_admittance(n, cos_t, polarization)
+                cos_d = cmath.cos(delta)
+                sin_d = cmath.sin(delta)
+                a11, a12 = cos_d, 1j * sin_d / eta
+                a21, a22 = 1j * eta * sin_d, cos_d
+                m11, m12, m21, m22 = (
+                    m11 * a11 + m12 * a21,
+                    m11 * a12 + m12 * a22,
+                    m21 * a11 + m22 * a21,
+                    m21 * a12 + m22 * a22,
+                )
+            b = m11 + m12 * eta_sub
+            c = m21 + m22 * eta_sub
+            r = (eta_inc * b - c) / (eta_inc * b + c)
+            r_sum += abs(r) ** 2
+
+        return float(min(max(r_sum / 2.0, 0.0), 1.0))
+
+# openlens.coating_designer.CoatingDesigner.calculate_reflectivity_curve
+    def calculate_reflectivity_curve(
+        self,
+        layers: List[CoatingLayer],
+        wavelength_range: Tuple[float, float],
+        num_points: int = 100,
+    ) -> List[Tuple[float, float]]:
+        """
+        Calculate reflectivity vs wavelength
+
+        Args:
+            layers: Coating layers
+            wavelength_range: (min_nm, max_nm)
+            num_points: Number of wavelength points
+
+        Returns:
+            List of (wavelength_nm, reflectivity) tuples
+        """
+        if num_points < 1:
+            raise ValueError("num_points must be at least 1")
+
+        min_wl, max_wl = wavelength_range
+        if num_points == 1:
+            # A single sample sits at the start of the requested range; the
+            # usual linspace would divide by num_points - 1.
+            wavelengths = [min_wl]
+        else:
+            wavelengths = [
+                min_wl + (max_wl - min_wl) * i / (num_points - 1) for i in range(num_points)
+            ]
+
+        curve = []
+        for wl in wavelengths:
+            R = self.calculate_reflectivity(layers, wl)
+            curve.append((wl, R))
+
+        return curve
+
+# openlens.coating_designer.CoatingDesigner.design_v_coating
+    def design_v_coating(self, wavelength_nm: float) -> List[CoatingLayer]:
+        """Design a broadband V-coating for the visible spectrum.
+
+        A V-coat works precisely because its layers are *not* quarter-wave:
+        the thicknesses trade a good match at the centre against a broad,
+        shallow one. The preset used to express that with unexplained
+        ``x1.2`` and ``x0.9`` factors, which are not a design but an assertion -
+        and stacked Ta2O5 again, giving 18.949% at 550 nm against 4.216%
+        uncoated. Five times worse than no coating.
+
+        The inner layer is held quarter-wave and the two outer thicknesses are
+        solved numerically here, minimising the mean reflection across
+        ``V_COATING_BAND``. Nothing is asserted about the result; the search
+        only ever returns a stack whose measured broadband reflectance beats
+        the bare substrate, because that is the candidate it starts from.
+        """
+        inner_name, n_inner = "Al2O3", self.COATING_MATERIALS["Al2O3"]
+        middle_name, n_middle = "SiO2", self.COATING_MATERIALS["SiO2"]
+        outer_name, n_outer = "MgF2", self.COATING_MATERIALS["MgF2"]
+
+        def build(t_middle: float, t_outer: float) -> List[CoatingLayer]:
+            return [
+                CoatingLayer(inner_name, n_inner, wavelength_nm / (4 * n_inner)),
+                CoatingLayer(middle_name, n_middle, t_middle),
+                CoatingLayer(outer_name, n_outer, t_outer),
+            ]
+
+        def band_cost(t_middle: float, t_outer: float) -> float:
+            layers = build(t_middle, t_outer)
+            total = 0.0
+            for probe in V_COATING_PROBE_WAVELENGTHS_NM:
+                total += self.calculate_reflectivity(layers, probe)
+            return total
+
+        # Start from the uncoated substrate's cost, so the search can only
+        # improve on doing nothing.
+        best_cost = sum(
+            self.calculate_reflectivity([], probe) for probe in V_COATING_PROBE_WAVELENGTHS_NM
+        )
+        best_t = (wavelength_nm / (4 * n_middle), wavelength_nm / (4 * n_outer))
+
+        step = wavelength_nm / (4 * n_outer) / 4.0
+        for _ in range(V_COATING_SEARCH_STEPS):
+            improved = False
+            for d_middle in (-step, 0.0, step):
+                for d_outer in (-step, 0.0, step):
+                    if d_middle == 0.0 and d_outer == 0.0:
+                        continue
+                    candidate = (
+                        max(0.0, best_t[0] + d_middle),
+                        max(0.0, best_t[1] + d_outer),
+                    )
+                    cost = band_cost(*candidate)
+                    if cost < best_cost - V_COATING_TOLERANCE:
+                        best_cost = cost
+                        best_t = candidate
+                        improved = True
+            if not improved:
+                break
+            step /= 2.0
+
+        return build(*best_t)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.coating_designer.CoatingDesigner.calculate_reflectivity
+
+# Notes: `CoatingDesigner.calculate_reflectivity(self, layers, wavelength_nm, angle_deg=0)`
+
+## 1. Purpose
+- Computes the reflectance R of a thin-film stack on a substrate with the transfer-matrix method.
+- Light is unpolarized: R is the mean of the s and p reflectances.
+- The incident medium is air (`self.air_index`, which is 1.0).
+- With no layers it returns the bare Fresnel reflectance.
+
+## 2. Inputs
+- `self.substrate_index`: set by `CoatingDesigner(substrate_index=1.5168)`. Default 1.5168 (BK7). It is not validated.
+- `self.air_index`: always 1.0 after `__init__`. It is a plain attribute that tests could reassign.
+- `layers`: a list of `CoatingLayer(material, refractive_index, thickness_nm)`.
+  - Order is **substrate to air**. Index 0 touches the substrate; the last item faces the air.
+  - Any falsy value (`[]`, `None`) takes the bare-substrate path.
+  - Only `refractive_index` and `thickness_nm` are used. `material` is ignored.
+- `wavelength_nm`: a number that must be > 0.
+- `angle_deg`: angle of incidence in air, in degrees. It must satisfy `0 <= angle_deg < 90`. Default `0` (an int).
+- Layer indices and thicknesses are not validated. A thickness of 0 is allowed.
+
+## 3. Raises (checks run in this order; the wavelength check comes first)
+- `ValueError(f"Wavelength must be positive, got {wavelength_nm}")` when `wavelength_nm <= 0`.
+  - `calculate_reflectivity([], 0)` gives the message `"Wavelength must be positive, got 0"`.
+  - `-5.0` gives `"... got -5.0"`.
+- `ValueError(f"Angle of incidence must be in [0, 90), got {angle_deg}")` when the angle is outside the range.
+  - `calculate_reflectivity([], 550, 90)` gives `"... got 90"`.
+  - `-1` gives `"... got -1"`.
+- If both values are bad, the wavelength message wins: `calculate_reflectivity([], -1, 95)` reports the wavelength.
+- Both checks run even when `layers` is empty.
+- NaN cases:
+  - A NaN wavelength passes the wavelength check, because `nan <= 0` is False.
+  - A NaN angle raises the angle error.
+- Use `pytest.raises(ValueError, match=...)`. Escape the regex characters `[`, `(` and `)` in the angle message, for example with `re.escape`.
+
+## 4. Returns and guarantees
+- Returns a Python `float`, clamped to `[0.0, 1.0]`.
+- The result never depends on `material`.
+- On the bare path (no layers) the result does not depend on `wavelength_nm`.
+- Reference values at normal incidence:
+  - Bare, `substrate_index=1.5`: `0.04` (that is (0.5/2.5)²). Compare with `pytest.approx`.
+  - Bare, default 1.5168: `((0.5168/2.5168))**2 ≈ 0.0421678`. The docstrings call this "4.216%".
+  - Bare, `substrate_index=1.0`: `0.0`.
+- Quarter-wave single layer (thickness `λ/(4 n_c)`), normal incidence:
+  - Formula: `R = ((n_s - n_c**2)/(n_s + n_c**2))**2`.
+  - MgF2 (n=1.38, thickness 550/(4·1.38)) on 1.5168 at λ=550: R ≈ 0.012836.
+  - Substrate `1.38**2 = 1.9044` with the MgF2 quarter-wave layer: R ≈ 0. Use `abs=1e-12`.
+- Layers that act as if absent (the result equals the bare value at any wavelength or angle):
+  - A half-wave layer, thickness `λ/(2n)`, at normal incidence.
+  - A zero-thickness layer (phase δ=0 gives the identity matrix), at any angle.
+  - These match because the matrix path and the bare Fresnel path agree.
+- Scale invariance: on the layered path the phase uses `thickness/λ`. Multiplying all thicknesses and the wavelength by the same k gives the same R.
+
+## 5. Side effects
+- None. `layers` is not mutated; the reversal uses `list(reversed(layers))`.
+- No state is stored on `self`.
+
+## 6. Branches and edge cases
+- **Bare path** (`not layers`):
+  - `cos_s = cmath.sqrt(1 - (sin0/n_s)**2)`.
+  - `rs = (cos0 - n_s cos_s)/(cos0 + n_s cos_s)` and `rp = (n_s cos0 - cos_s)/(n_s cos0 + cos_s)`.
+  - Returns the mean of |rs|² and |rp|².
+- **Brewster check**: `substrate_index=1.5`, `angle_deg=math.degrees(math.atan(1.5))` (≈56.31°).
+  - Here rp=0, so R = rs²/2.
+  - The value is less than both the normal-incidence R and the R at 80°.
+- **Grazing**: the bare R at 89.9° is close to 1 but ≤ 1.0. R increases with angle beyond Brewster.
+- **Layered path**:
+  - The stack is traversed in reverse (air side first).
+  - For each layer: `cos_t = sqrt(1-(sin0/n)^2)` and `δ = 2π n t cos_t / λ`.
+  - Admittance is η = n·cos (s polarization) or n/cos (p polarization).
+  - Then `B,C = M·[1, η_sub]`, `r = (η_inc B − C)/(η_inc B + C)`.
+- **Order matters**: swapping two different layers in a non-trivial stack generally changes R.
+  - Example: TiO2 then MgF2 quarter-waves at λ=550 gives a different R from the reversed order.
+  - Only assert `!=` (or compute the expected value independently); do not hard-code values you have not derived.
+- **Integer inputs**: `angle_deg=0` (int) is fine. `wavelength_nm=550` (int) is fine.
+
+## 7. Rules from docstrings and comments
+- Layers are stored substrate to air; light enters from air.
+- Films are lossless (real indices), so callers report T = 1 − R.
+- The angle must be in [0, 90).
+
+## 8. Testing hints
+- Import it as `from openlens.coating_designer import CoatingDesigner, CoatingLayer`.
+- Always use `pytest.approx(rel=1e-9)` or an `abs` tolerance; never compare floats exactly.
+- Good regression anchors, each derivable by hand:
+  - Exact bare values: 1.5 → 0.04; 1.5168 → 0.042168.
+  - The quarter-wave formula value.
+  - Zero-thickness and half-wave layers equal the bare value.
+  - Oblique incidence: compute the bare Fresnel value independently with the formulas in §6.
+  - Error messages and the order of the checks.
+  - Boundaries: angle 0 is accepted; 90 is rejected; 89.999 is accepted.
+  - Wavelength: `1e-9` is accepted; `0` is rejected.
+- Cross-check: `coated_reflectance(layers, n_s, wl, angle)` returns exactly the same value (it wraps this method).
+- Do not assume any particular `design_dual_layer_ar` or `design_v_coating` output values. Only `R(design) <= R([])` is guaranteed.
+
+### openlens.coating_designer.CoatingDesigner.calculate_reflectivity_curve
+
+# Notes: `CoatingDesigner.calculate_reflectivity_curve(layers, wavelength_range, num_points=100)`
+
+## 1. Purpose
+- Samples the reflectivity of a coating stack at evenly spaced wavelengths.
+- Returns a list of `(wavelength_nm, R)` tuples.
+- Each `R` is exactly `self.calculate_reflectivity(layers, wl)` at normal incidence (angle 0).
+
+## 2. Inputs
+- `self`: a `CoatingDesigner(substrate_index=1.5168)`. The default substrate is BK7. `self.air_index` is always `1.0`.
+- `layers`: a list of `CoatingLayer(material, refractive_index, thickness_nm)` in substrate-to-air order.
+  - `[]` is allowed and means an uncoated surface (bare Fresnel reflection).
+  - It is only read, never validated.
+- `wavelength_range`: unpacked as `min_wl, max_wl = wavelength_range`, so it must have exactly 2 items.
+  - It is not validated or sorted.
+  - `min > max` is allowed and gives descending wavelengths.
+  - `min == max` is allowed and repeats the same wavelength.
+- `num_points`: an int, default `100`.
+  - It is checked for `< 1` first.
+  - It is used in `range()`, so a non-int such as `2.5` gives a `TypeError` from `range`.
+- There is no angle parameter. The angle is always the `calculate_reflectivity` default, `0`.
+
+## 3. Raises (in this order)
+1. `ValueError("num_points must be at least 1")` when `num_points < 1`.
+   - Example: `d.calculate_reflectivity_curve([], (400, 700), 0)`; `-3` also triggers it.
+   - This check runs before the range is unpacked, so `curve([], (1, 2, 3), 0)` still gives this message.
+2. Tuple-unpacking `ValueError` when `wavelength_range` does not have 2 items.
+   - Examples: `(400,)` and `(400, 500, 600)`. This is Python's own message ("not enough / too many values to unpack").
+3. From `calculate_reflectivity`, for the first sample with `wl <= 0`: `ValueError(f"Wavelength must be positive, got {wavelength_nm}")`.
+   - `d.calculate_reflectivity_curve([], (0, 700), 3)` gives `"Wavelength must be positive, got 0.0"`. The value is a float because it was computed.
+   - `d.calculate_reflectivity_curve([], (0, 700), 1)` gives `"...got 0"`. The original int is passed through unchanged.
+   - Use `pytest.raises(ValueError, match="Wavelength must be positive")`.
+- The angle check in `calculate_reflectivity` can never fire, because the angle is 0.
+
+## 4. Returns and guarantees
+- A new `list` of length exactly `num_points`.
+- Each element is a `tuple` `(wl, R)`, not a list.
+- Wavelength formula:
+  - `num_points == 1`: `wavelengths = [min_wl]`. This is the original object, so an int stays an int.
+  - `num_points > 1`: `wl_i = min_wl + (max_wl - min_wl) * i / (num_points - 1)` for `i = 0..n-1`. The multiply happens before the divide, and every result is a float.
+  - With integer inputs the values are exact. `(400, 700), 4` gives `[400.0, 500.0, 600.0, 700.0]`. `(400, 700), 2` gives `[400.0, 700.0]`.
+  - The first point equals `min_wl`, and the last equals `min_wl + (max_wl - min_wl)`, which is exact for ints.
+- `R` is a Python `float` clamped to `[0, 1]`. It equals `d.calculate_reflectivity(layers, wl)` bit-for-bit, so `==` is safe for that comparison.
+- Order follows `i` ascending, i.e. from `min_wl` toward `max_wl`.
+
+## 5. Side effects
+- None. `layers` and the designer are not mutated, and nothing is cached.
+- Calling the method twice gives equal lists.
+
+## 6. Branches and edge cases
+- **Single point:** `num_points == 1` gives `[(min_wl, R(min_wl))]`, and `max_wl` is ignored. `curve([], (500, 900), 1) == [(500, R)]`.
+- **Uncoated (`layers == []`):** R does not depend on wavelength.
+  - It equals `((n-1)/(n+1))**2`.
+  - BK7 1.5168 gives ≈ `0.042164` (approx 4.216%). `n = 1.5` gives `0.04`; use approx.
+  - So all R values in the curve are identical.
+- **Quarter-wave MgF2 on BK7 at design λ = 550:**
+  - The layer is `CoatingLayer("MgF2", 1.38, 550/(4*1.38) ≈ 99.6377)`; `design_single_layer_ar(550)` returns exactly this.
+  - At wl = 550, R = `((1.5168-1.38**2)/(1.5168+1.38**2))**2 ≈ 0.012835`.
+  - At 400 and 700, R is larger than at 550 but still below the bare value of 0.042164.
+- **Reversed range:** `(700, 400), 4` gives wavelengths `[700.0, 600.0, 500.0, 400.0]`.
+- **Equal bounds:** `(550, 550), 3` gives three entries at `550.0` with equal R.
+
+## 7. Rules from comments and docstrings
+- The single-sample case deliberately avoids dividing by `num_points - 1` and sits at the start of the range.
+- `layers` are in substrate-to-air order. `calculate_reflectivity` reverses them internally because light enters from air.
+- Reflectivity is the unpolarized average of s and p, with lossless films.
+
+## 8. Testing hints
+- `from openlens.coating_designer import CoatingDesigner, CoatingLayer`, then `d = CoatingDesigner()`.
+- Useful oracles:
+  - `len(curve) == num_points`.
+  - `[w for w, _ in curve]` equals the expected list.
+  - `all(isinstance(p, tuple) for p in curve)`.
+  - `r == d.calculate_reflectivity(layers, w)` for every point.
+- Check the default length: `len(d.calculate_reflectivity_curve([], (400, 700))) == 100`.
+  - The second point is `400 + 300*1/99`; compare it with `pytest.approx`.
+- Use `pytest.approx` for physics values such as 0.042164 and 0.012835. Use exact `==` only for integer-friendly wavelength grids or for comparisons against `calculate_reflectivity`.
+- Pitfalls:
+  - Do not expect the range to be sorted or validated.
+  - Do not expect an error for `min > max`.
+  - Do not pass an angle; there is no such argument.
+  - The `num_points` check comes before any wavelength check.
+
+### openlens.coating_designer.CoatingDesigner.design_v_coating
+
+# Notes: `CoatingDesigner.design_v_coating(self, wavelength_nm)`
+
+## 1. Purpose
+- Builds a 3-layer broadband visible "V-coat" in substrate-to-air order: Al2O3 / SiO2 / MgF2.
+- The inner layer is always quarter-wave.
+- The middle and outer thicknesses come from a greedy, deterministic grid search. The search minimises the **sum** of reflectance at 7 fixed probe wavelengths.
+
+## 2. Inputs
+- `self.substrate_index`
+  - Set in `__init__`, default `1.5168`.
+  - Used only through `self.calculate_reflectivity`, so it changes only the searched middle/outer thicknesses.
+  - It never changes the materials or the inner thickness.
+- `self.air_index` is always `1.0`.
+- `wavelength_nm` (number, no validation) is the design wavelength. It sets:
+  - the inner thickness `wavelength_nm/(4*1.63)`;
+  - the start point `(wavelength_nm/(4*1.46), wavelength_nm/(4*1.38))`;
+  - the initial step `step = wavelength_nm/(4*1.38)/4`. This is always based on MgF2's index.
+- `wavelength_nm` is **not** passed to `calculate_reflectivity`. Reflectance is only evaluated at the module constants:
+  - `V_COATING_PROBE_WAVELENGTHS_NM = (400, 450, 500, 550, 600, 650, 700)`
+  - `V_COATING_SEARCH_STEPS = 12` (maximum number of rounds)
+  - `V_COATING_TOLERANCE = 1e-9`
+- Indices come from `COATING_MATERIALS`: Al2O3 = 1.63, SiO2 = 1.46, MgF2 = 1.38.
+
+## 3. Raises
+- No explicit raises. Because the probes are fixed and positive, `calculate_reflectivity` never raises its "Wavelength must be positive" error here.
+- `wavelength_nm=0` or negative values do **not** raise.
+  - `0`: step is 0, every neighbour equals (0, 0) and is skipped, so the result is three layers with `thickness_nm == 0.0`.
+- A non-numeric value (e.g. `"550"`) raises `TypeError` from arithmetic such as `"550"/(4*1.63)`.
+
+## 4. Returns and guarantees
+- Returns a new `list` of 3 new `CoatingLayer` objects, always in this order:
+  - `[0]`: `CoatingLayer("Al2O3", 1.63, wavelength_nm/(4*1.63))`. For 550 nm the thickness is 84.355828…
+  - `[1]`: `CoatingLayer("SiO2", 1.46, t_middle)`
+  - `[2]`: `CoatingLayer("MgF2", 1.38, t_outer)`
+- Both searched thicknesses satisfy `t_middle >= 0` and `t_outer >= 0` (each candidate is clamped with `max(0.0, …)`).
+- The result is deterministic: repeated calls, or a new instance with the same substrate, give equal lists (dataclass `==`).
+
+**Search algorithm (exact):**
+- `best_cost` starts as the **uncoated** cost: `sum(calculate_reflectivity([], p) for p in probes)`.
+- `best_t` starts at the quarter-wave pair. The start point itself is never scored.
+- Each round loops over `d_middle in (-step, 0, step)` (outer loop) and `d_outer in (-step, 0, step)` (inner loop), skipping `(0, 0)`. That is 8 candidates.
+- Each candidate is `(max(0, best_t[0]+dm), max(0, best_t[1]+do))`.
+- It is accepted only if `cost < best_cost - 1e-9`. Acceptance is greedy: `best_t` updates mid-round, and later candidates offset from the new best.
+- If a round has no acceptance, the search breaks. Otherwise `step /= 2`.
+
+**Consequence:** if nothing ever beats the uncoated cost, the result is the unscored quarter-wave start. In that case the docstring's claim "beats the bare substrate" does not hold. If anything was accepted, `band_cost(result) < uncoated_cost - 1e-9`.
+
+## 5. Side effects
+- Does not change `self.substrate_index`, `self.air_index` or `COATING_MATERIALS`.
+- No I/O.
+- Calls `self.calculate_reflectivity(layers, probe)` with 2 positional arguments. An instance-level monkeypatch therefore takes effect.
+
+## 6. Branches and edge cases (use monkeypatching for exact values)
+Set `d = CoatingDesigner()`, `wl = 550`, `qm = 550/(4*1.46) = 94.178082…`, `qo = 550/(4*1.38) = 99.637681…`, `step = qo/4 = 24.909420…`.
+
+- **No improvement ever** (`d.calculate_reflectivity = lambda L, w, a=0: 0.5`)
+  - The candidate cost 3.5 is not less than 3.5 − 1e-9, so the search breaks after round 1.
+  - Result thicknesses: `(qm, qo)`.
+  - 63 calls in total (7 uncoated + 8×7).
+- **Single improvement** (`lambda L, w, a=0: 0.0 if L else 1.0`)
+  - The first candidate `(-step, -step)` is accepted. In round 2, `0 < 0 - 1e-9` is false, so the search breaks.
+  - Result: `t_middle = qm - step ≈ 69.268662`, `t_outer = qo - step ≈ 74.728261`.
+  - 119 calls in total.
+- **Always improving** (`lambda L, w, a=0: L[1].thickness_nm + L[2].thickness_nm if L else 1e9`)
+  - All 12 rounds run, and each round accepts `(-step, -step)` first.
+  - Result: `t = start - step*(2 - 2**-11)`, i.e. `t_outer ≈ qo/2 + tiny`. Use `pytest.approx`.
+  - 7 + 12×56 = 679 calls.
+- **`wavelength_nm=0`**: all thicknesses are 0.0 and there is no exception.
+
+## 7. Rules from the docstring and comments
+- The inner layer is held quarter-wave.
+- The two outer thicknesses are solved numerically, minimising mean reflection over the 400–700 nm band.
+- The search "starts from" the uncoated cost, so an accepted stack always beats bare glass.
+- The old ×1.2/×0.9 Ta2O5 design is gone. Ta2O5 is never used.
+
+## 8. Testing hints
+- Check `[l.material for l in res] == ["Al2O3", "SiO2", "MgF2"]` and the indices `[1.63, 1.46, 1.38]`.
+- Check the inner thickness with `pytest.approx(wl/(4*1.63))`. Test several wavelengths and substrates; the inner thickness is independent of the substrate.
+- `coating_label(res) == "3L AR (Al2O3+SiO2+MgF2)"`.
+- `design_preset("V-coating", 1.5168, 550) == CoatingDesigner(1.5168).design_v_coating(550)`.
+- For the real (unpatched) result, do not hard-code `t_middle` or `t_outer`; they are not given here. Instead assert either:
+  - `cost(res) < cost([]) - 1e-9`, **or**
+  - the thicknesses equal `(qm, qo)` exactly.
+
+  Compute `cost` with `sum(d.calculate_reflectivity(L, p) for p in (400, 450, …, 700))`.
+- Use the monkeypatch scenarios in section 6 to pin the following, with `pytest.approx(rel=1e-9)`:
+  - the step size `qo/4`;
+  - the tolerance (e.g. a patch whose improvement is only 1e-10 must leave the start unchanged);
+  - the greedy order;
+  - the 12-round cap;
+  - the call counts.
+
+  Patch on the instance, e.g. `d.calculate_reflectivity = fn`, with an `fn` that takes `(layers, wl, angle=0)`.
+- Tolerance check in detail: with a patch returning `1.0` for `[]` and `1.0 - 1e-10/7` otherwise, the result is the start point.
+- Do not assert that the thicknesses differ from quarter-wave, and do not compare against reflectance at `wavelength_nm` itself; it is not what the search optimises.

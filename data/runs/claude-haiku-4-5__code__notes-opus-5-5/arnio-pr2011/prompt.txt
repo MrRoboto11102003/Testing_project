@@ -1,0 +1,291 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.frame.ArFrame.drop_columns, arnio.frame.ArFrame.select_columns.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.frame.ArFrame.drop_columns
+    def drop_columns(self, cols: list[str] | tuple[str, ...]) -> ArFrame:
+        """Return a new ArFrame with the specified columns removed.
+
+        Parameters
+        ----------
+        cols : list[str] | tuple[str, ...]
+            Column names to drop. Duplicates are silently ignored.
+            An empty list returns a copy of the frame unchanged.
+
+        Returns
+        -------
+        ArFrame
+            New ArFrame without the dropped columns. Original column
+            order is preserved.
+
+        Raises
+        ------
+        TypeError
+            If cols is not a list, or contains non-string elements.
+        ValueError
+            If any name in cols does not exist in the frame.
+
+        Examples
+        --------
+        >>> frame = ar.read_csv("data.csv")
+        >>> smaller = frame.drop_columns(["col1", "col2"])
+        >>> smaller = frame.drop_columns(("col1", "col2"))
+        """
+        if not isinstance(cols, (list, tuple)):
+            raise TypeError(
+                f"cols must be a list or tuple of column names, got {type(cols).__name__!r}"
+            )
+
+        if any(not isinstance(col, str) for col in cols):
+            raise TypeError("All column names in cols must be strings.")
+
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        unique_cols: list[str] = []
+        for col in cols:
+            if col not in seen:
+                seen.add(col)
+                unique_cols.append(col)
+
+        # Validate all names exist
+        missing = [col for col in unique_cols if col not in self.columns]
+        if missing:
+            raise ValueError(
+                f"Unknown column(s): {missing}. Available columns: {self.columns}"
+            )
+
+        # Empty input — return unchanged copy
+        if not unique_cols:
+            return ArFrame(
+                self._frame.select_columns(self.columns),
+                attrs=copy.deepcopy(self._attrs),
+            )
+
+        # Preserve original order of remaining columns
+        drop_set = set(unique_cols)
+        remaining = [col for col in self.columns if col not in drop_set]
+
+        # Dropping all columns is not supported
+        if not remaining:
+            raise ValueError("drop_columns cannot remove all columns from the frame")
+
+        return ArFrame(
+            self._frame.select_columns(remaining), attrs=copy.deepcopy(self._attrs)
+        )
+
+# arnio.frame.ArFrame.select_columns
+    def select_columns(self, columns: list[str]) -> ArFrame:
+        """Return a new ArFrame with only the selected columns.
+
+        Parameters
+        ----------
+        columns : list[str]
+            List of column names to select.
+
+        Returns
+        -------
+        ArFrame
+            New ArFrame containing only the selected columns.
+
+        Raises
+        ------
+        TypeError
+            If columns is not a valid sequence of strings.
+        ValueError
+            If the selection is empty, contains duplicates,
+            or includes unknown columns.
+        """
+        if isinstance(columns, str):
+            raise TypeError("columns must be a sequence of column names, not a string.")
+
+        if not isinstance(columns, (list, tuple)):
+            raise TypeError("columns must be a list or tuple of column names.")
+
+        if not columns:
+            raise ValueError("Column selection cannot be empty.")
+
+        if any(not isinstance(col, str) for col in columns):
+            raise TypeError("All column names must be strings.")
+
+        if len(columns) != len(set(columns)):
+            raise ValueError("Duplicate column names are not allowed.")
+
+        missing = [col for col in columns if col not in self.columns]
+
+        if missing:
+            raise ValueError(f"Unknown columns: {missing}")
+
+        return ArFrame(
+            self._frame.select_columns(columns), attrs=copy.deepcopy(self._attrs)
+        )
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.frame.ArFrame.drop_columns
+
+# Notes: `ArFrame.drop_columns(self, cols)` (arnio/frame.py)
+
+## 1. Purpose
+- Returns a new `ArFrame` without the named columns.
+- The remaining columns keep their original order, and every row is kept.
+- This is the **method** on `ArFrame`. It is different from the module function `ar.drop_columns` in `arnio.cleaning`, so call `frame.drop_columns(...)`.
+
+## 2. Inputs
+- `cols` must be a `list` or a `tuple`. A `str`, `set`, `None`, generator or dict raises TypeError (no special case for `str`).
+- Every element must be a `str` (checked with `isinstance`). Ints, bools and None each raise TypeError.
+- Duplicates are removed, keeping the order of first appearance. `["a", "a"]` behaves like `["a"]`.
+- An empty `[]` or `()` is allowed and returns an unchanged copy.
+
+## 3. Raises (checks run in this order)
+1. **Not a list or tuple** → `TypeError(f"cols must be a list or tuple of column names, got {type(cols).__name__!r}")`
+   - `f.drop_columns("a")` → `"cols must be a list or tuple of column names, got 'str'"`
+   - `f.drop_columns({"a"})` → `... got 'set'`
+   - `f.drop_columns(None)` → `... got 'NoneType'`
+2. **A non-string element** → `TypeError("All column names in cols must be strings.")`
+   - `f.drop_columns(["a", 1])`
+   - This check runs before the existence check, so `["zz", 1]` also gives this TypeError.
+3. **Unknown names** → `ValueError(f"Unknown column(s): {missing}. Available columns: {self.columns}")`
+   - `missing` is a list of the deduplicated unknown names, in input order.
+   - With columns `a, b, c`: `f.drop_columns(["z", "a", "z"])` → `"Unknown column(s): ['z']. Available columns: ['a', 'b', 'c']"`
+   - This runs before the all-columns check, so `["a", "b", "c", "zz"]` gives this error and not error 4.
+4. **Every column would be removed** → `ValueError("drop_columns cannot remove all columns from the frame")`
+   - `f.drop_columns(["a", "b", "c"])`
+   - Duplicates do not matter: `["a", "a"]` on a one-column frame `a` also raises this.
+
+## 4. Returns and guarantees
+- Always a **new** `ArFrame`, so `result is not frame`, even for an empty `cols`.
+- `result.columns` equals `[c for c in frame.columns if c not in cols]`. The order of `cols` has no effect: dropping `["c", "a"]` from `a, b, c, d` gives `["b", "d"]`.
+- The row count is unchanged.
+- Values and nulls in the kept columns are carried over by the C++ `select_columns`. That code is not visible, but it is expected to preserve `dtypes`.
+- `result._attrs` is a **`copy.deepcopy`** of `frame._attrs`, so it is equal to the original but a separate object, including nested dicts.
+
+## 5. Side effects
+- None. The input frame is not changed: its columns, data and `_attrs` stay the same.
+
+## 6. Branches and edge cases
+| Case | Input (frame columns `a, b, c`) | Result |
+|---|---|---|
+| Empty list or tuple | `[]` or `()` | Copy with columns `['a', 'b', 'c']`, `result == frame` is True, `result is not frame` |
+| Normal drop | `["b"]` | `['a', 'c']` |
+| Tuple input | `("a", "c")` | `['b']` |
+| Duplicates | `["b", "b"]` | `['a', 'c']` |
+| Drop all | `["a", "b", "c"]` | ValueError (error 4 above) |
+
+- Avoid calling `[]` on a zero-column frame. That path goes into C++ `select_columns([])`, whose behaviour is not visible.
+
+## 7. Rules from the docstring and comments
+- "Duplicates are silently ignored."
+- "An empty list returns a copy of the frame unchanged."
+- "Original column order is preserved."
+- "Dropping all columns is not supported."
+
+## 8. Testing hints
+- Build the frame:
+  ```python
+  f = ar.from_pandas(pd.DataFrame({"a": [1, 2, 3], "b": ["x", None, "z"], "c": [1.5, 2.5, 3.5]}))
+  ```
+- Check columns with `r.columns`, rows with `len(r)` or `r.shape`, and values with `r["a"]` (returns a list) or `r.to_dict()`.
+- Dtypes: compare `r.dtypes` with `{k: v for k, v in f.dtypes.items() if k in r.columns}`. Do not hard-code dtype strings for columns that contain None.
+- Testing attrs: whether `from_pandas` sets attrs depends on the convert module, which is not shown. Use explicit attrs instead:
+  ```python
+  g = ar.ArFrame(f._frame, attrs={"meta": {"k": 1}})
+  r = g.drop_columns(["a"])
+  assert r._attrs == {"meta": {"k": 1}}
+  assert r._attrs is not g._attrs
+  assert r._attrs["meta"] is not g._attrs["meta"]
+  ```
+  - Mutate `r._attrs["meta"]["k"]` and assert that `g` is unchanged. This works for the empty-list branch too.
+- Matching messages: they contain `(`, `)`, `[` and `'`. Use `pytest.raises(..., match=re.escape(full_msg))`, or compare `str(exc.value)` exactly.
+- Non-mutation: after the call, assert that `f.columns == ['a', 'b', 'c']` and `f.shape == (3, 3)`.
+- Confirm check order with inputs that break two rules at once, such as `["zz", 1]` (TypeError) and `["a", "b", "c", "zz"]` (Unknown, not "cannot remove all").
+
+### arnio.frame.ArFrame.select_columns
+
+# Notes: `ArFrame.select_columns(self, columns)` (arnio/frame.py)
+
+## 1. Purpose
+- Returns a **new** ArFrame that holds only the requested columns. Every row is kept.
+- The column projection itself happens in the C++ core (`self._frame.select_columns(columns)`).
+- This is the **method**. It is a different function from the module-level `ar.select_columns` in `arnio.cleaning`, whose code is not shown. Call it as `frame.select_columns([...])`.
+
+## 2. Inputs
+- `columns`: must be a `list` or `tuple` of `str`.
+  - It must be non-empty.
+  - It must not contain duplicates.
+  - Every name must exist in `self.columns`.
+- There is no normalisation: no dedup, no stripping and no case folding. Names must match exactly, including case and whitespace.
+- There are no other parameters and no defaults.
+
+## 3. Raises (checks run in this exact order)
+1. `columns` is a `str` → `TypeError("columns must be a sequence of column names, not a string.")`
+   - Example: `f.select_columns("a")`
+2. `columns` is not a list or tuple → `TypeError("columns must be a list or tuple of column names.")`
+   - Examples: `f.select_columns({"a"})`, `f.select_columns(None)`, `f.select_columns(b"a")`, `f.select_columns(iter(["a"]))`
+3. `columns` is empty → `ValueError("Column selection cannot be empty.")`
+   - Examples: `f.select_columns([])`, `f.select_columns(())`
+4. Any element is not a `str` → `TypeError("All column names must be strings.")`
+   - Examples: `f.select_columns(["a", 1])`, `f.select_columns([1, 1])`
+   - `[1, 1]` hits this TypeError, not the duplicate error, because the type check comes first.
+5. Duplicates are present → `ValueError("Duplicate column names are not allowed.")`
+   - Example: `f.select_columns(["a", "a"])`
+   - `["zz", "zz"]` with `zz` missing also gives the **duplicate** error, because this check runs before the existence check.
+6. Unknown names → `ValueError(f"Unknown columns: {missing}")`
+   - `missing` is a list in **request order** that contains only the absent names.
+   - Example: `f.select_columns(["x", "a", "y"])` gives the message `Unknown columns: ['x', 'y']`.
+- Nothing is returned partially; the whole call fails.
+
+## 4. Returns and guarantees
+- Returns a new `ArFrame`; `result is not f`.
+- Row count is unchanged: `len(result) == len(f)`.
+- Column count: `result.shape == (len(f), len(columns))`.
+- Each selected column keeps its dtype and its values: `result.dtypes[c] == f.dtypes[c]` and `result[c] == f[c]`.
+- Column order is decided by the C++ core, whose code is not shown.
+  - It is very likely the request order, but that is not verified.
+  - It is certain that selecting in the frame's original order gives that order back.
+- Metadata: `result._attrs == copy.deepcopy(f._attrs)`.
+  - The result's attrs are equal to the original's but are a separate object.
+  - Nested containers are not shared either.
+
+## 5. Side effects
+- None. The original frame's columns, values, dtypes and `_attrs` are not mutated. There is no global state and no I/O.
+
+## 6. Branches and edge cases
+- **Select all columns**, e.g. `f.select_columns(["a", "b", "c"])`: works and gives a frame equal to `f` (`result == f` is True).
+- **Tuple input**, e.g. `f.select_columns(("a",))`: works the same as a list.
+- **Single column**: shape is `(n, 1)` and `result.columns == ["a"]`.
+- **Zero-row frame**: the validation is the same. The result shape should be `(0, k)`, but this relies on the C++ core.
+- **Other callers**:
+  - `f[["a", "b"]]` (`__getitem__` with a list) calls this method. However, `__getitem__` first raises its own errors: **KeyError** for missing names and a different TypeError for non-strings.
+    - Duplicates passed through `f[["a", "a"]]` still reach this method and raise the duplicate ValueError.
+  - `select_dtypes` calls it with matched columns in original order.
+
+## 7. Rules from the docstring
+- Raises TypeError for an invalid sequence type or non-string names.
+- Raises ValueError for an empty selection, duplicates, or unknown columns.
+- The returned frame contains only the selected columns.
+
+## 8. Testing hints
+- **Build input:**
+  ```python
+  f = ar.from_pandas(pd.DataFrame({"a": [1, 2, 3], "b": [1.5, 2.5, 3.5], "c": ["x", "y", "z"]}))
+  ```
+- **Observe the result** through `.columns`, `.shape`, `len()`, `.dtypes`, `res["a"]`, `res.to_dict()` (gives `{'a': [1, 2, 3], 'c': ['x', 'y', 'z']}`), and `==`.
+  - Prefer `dtypes` and `columns` comparisons against the original over hard-coded dtype strings, unless you are confident of them.
+  - Expected values are `"int64"`, `"float64"` and `"string"`.
+- **Messages:** match exactly with `pytest.raises(ValueError, match=re.escape("Unknown columns: ['x', 'y']"))`.
+  - Escape the brackets and the trailing periods.
+  - Pin the order of the checks with combined-fault inputs such as `[1, 1]`, `["zz", "zz"]` and `[]`.
+- **Attrs:** these are only reachable privately. Build `g = ar.ArFrame(f._frame, attrs={"meta": {"k": [1]}})`, then `r = g.select_columns(["a"])`.
+  - Assert `r._attrs == {"meta": {"k": [1]}}`.
+  - Assert `r._attrs is not g._attrs` and `r._attrs["meta"] is not g._attrs["meta"]`.
+  - Mutate `r._attrs["meta"]["k"].append(2)`, then assert that `g._attrs` is unchanged.
+- **Non-mutation:** after the call, assert `f.columns == ["a", "b", "c"]` and `f.shape == (3, 3)`.
+- **Pitfalls:**
+  - For a reversed request such as `["c", "a"]`, assert only `set(res.columns) == {"a", "c"}` and the length, because the order is C++-dependent.
+  - Avoid nulls and NaN in value assertions. Their Python representation (`None` vs `nan`) is decided by the C++ core and `from_pandas`, which are not shown.
+  - Don't use `pd.DataFrame` as the argument (it is not a list or tuple, so it raises the TypeError from check 2).

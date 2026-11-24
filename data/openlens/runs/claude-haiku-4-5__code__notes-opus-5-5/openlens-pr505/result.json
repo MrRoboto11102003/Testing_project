@@ -1,0 +1,354 @@
+{
+ "id": "openlens-pr505",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 24249,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 15378
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 3.75,
+ "detected": true,
+ "n_tests": 25,
+ "n_catching": 1,
+ "n_false_alarms": 1,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 8189,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11774,
+  "output_tokens_details": {
+   "thinking_tokens": 6374
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 8189,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 11774,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 8189,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 8189
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.075257,
+ "model_seconds": 55.0,
+ "seconds": 65.7,
+ "tests": {
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_criterion_unsupported_raises_before_tracing": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_empty_tolerances_returns_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_exception_during_trace_caught_and_logged": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_nominal_trace_exception_propagates": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_operand_index_matches_position": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_return_dict_has_all_required_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_sensitivity_equals_change_divided_by_test_value": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_supported_criterion_accepted": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_type_field_is_param_type_name": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_vignetted_nominal_gives_nan_change_and_sensitivity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_vignetted_perturbed_gives_inf_result_and_nan_stats": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestInverseSensitivityAnalyzerCalculateSensitivities::test_zero_max_val_gives_integer_zero_sensitivity": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "InverseSensitivityAnalyzer",
+    "Lens",
+    "OpticalSystem",
+    "ToleranceOperand",
+    "ToleranceType"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_criterion_and_limit_echoed_in_result": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_criterion_limit_all_fail": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_criterion_limit_all_pass": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_criterion_unsupported_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_empty_tolerances_gives_deterministic_results": {
+   "clean": "failed",
+   "buggy": "failed",
+   "false_alarm": true,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_num_trials_negative_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_num_trials_validation_before_criterion": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_num_trials_zero_raises_value_error": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_pass_failed_per_trial_based_on_criterion_limit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_results_attribute_reset_each_run": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_return_dict_has_all_required_keys": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_std_dev_is_integer_zero_for_single_trial": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  },
+  "tests/_generated/test_openlens_pr505.py::TestMonteCarloAnalyzerRun::test_vignetted_trials_excluded_from_mean_stdev_min_percentile": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": [
+    "Lens",
+    "MonteCarloAnalyzer",
+    "OpticalSystem"
+   ]
+  }
+ }
+}

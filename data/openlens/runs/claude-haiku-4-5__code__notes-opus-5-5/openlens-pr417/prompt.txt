@@ -1,0 +1,784 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.global_optimizer.GlobalOptimizer.optimize_genetic, openlens.global_optimizer.GlobalOptimizer.optimize_simulated_annealing, openlens.tolerancing.ToleranceOperand.generate_value, openlens.tolerancing.serialize_operands.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.global_optimizer.GlobalOptimizer.optimize_genetic
+    def optimize_genetic(
+        self,
+        population_size: int = 50,
+        generations: int = 50,
+        mutation_rate: float = 0.1,
+        crossover_rate: float = 0.7,
+        callback: Optional[Callable[[int, float, List[float]], None]] = None,
+    ) -> OptimizationResult:
+        """
+        Genetic Algorithm global optimization.
+        Uses real-valued encoding.
+        """
+
+        # Initialize population
+        population = []
+        for _ in range(population_size):
+            individual = []
+            for var in self.variables:
+                # Random value in range
+                val = self._rng.uniform(var.min_value, var.max_value)
+                individual.append(val)
+            population.append(individual)
+
+        # Add current design to population to ensure we don't regress
+        current_design = [var.current_value for var in self.variables]
+        population[0] = current_design
+
+        best_overall_merit = float("inf")
+        # Seeded with the starting design so it is never None. It used to
+        # start as None and only be replaced when some design beat inf, so a
+        # merit that never beat inf (NaN, or generations=0) left it None and
+        # the elitism copy below raised TypeError.
+        best_overall_design = list(current_design)
+        best_overall_merit = self._evaluate_design(best_overall_design)
+        # Captured separately: best_overall_merit is replaced whenever a
+        # better design is found, so by the end it holds the best merit seen,
+        # not the merit of the starting design.
+        starting_merit = best_overall_merit
+
+        history_merit = []
+
+        for gen in range(generations):
+            # Callback
+            if callback and best_overall_design:
+                callback(gen, best_overall_merit, best_overall_design)
+
+            # Evaluate population
+            merits = []
+            for ind in population:
+                # Also checked here, not just once per generation: the merit
+                # can take seconds per evaluation, so a whole population of
+                # 30 is over a minute during which the GUI's Stop does
+                # nothing. The generation index is reported so the caller
+                # still sees generation granularity.
+                if callback and best_overall_design:
+                    callback(gen, best_overall_merit, best_overall_design)
+                m = self._evaluate_design(ind)
+                merits.append(m)
+
+            # Track best
+            min_merit = min(merits)
+            best_idx = merits.index(min_merit)
+
+            # isfinite guards the comparison: NaN < x is False for every x, so
+            # a NaN-scored generation would otherwise be skipped silently and
+            # the elite kept unchanged.
+            if math.isfinite(min_merit) and min_merit < best_overall_merit:
+                best_overall_merit = min_merit
+                best_overall_design = list(population[best_idx])
+
+            history_merit.append(best_overall_merit)
+
+            # Selection (Tournament)
+            new_population = []
+
+            # Elitism: Keep best
+            new_population.append(list(best_overall_design))
+
+            while len(new_population) < population_size:
+                # Select two parents
+                parent1 = self._tournament_select(population, merits)
+                parent2 = self._tournament_select(population, merits)
+
+                # Crossover
+                if self._rng.random() < crossover_rate:
+                    child = self._crossover(parent1, parent2)
+                else:
+                    child = list(parent1)
+
+                # Mutation
+                self._mutate(child, mutation_rate)
+
+                new_population.append(child)
+
+            population = new_population
+
+        # Final refinement. As in the simulated-annealing path: the start is
+        # passed explicitly rather than written into the caller's variable
+        # objects, and the _apply_variables call was dead code.
+        local_result = self.optimize_simplex(
+            max_iterations=50, start=best_overall_design, callback=callback
+        )
+
+        # starting_merit is the merit of the design the search began from.
+        # history_merit[0] would be the best of generation 0 - after up to 50
+        # random mutations - and is empty entirely when generations=0, so
+        # neither can serve as the baseline. iterations counts generations,
+        # not the generations*population_size evaluations the old code
+        # reported, and success comes from _finalize's bounds check rather
+        # than a hardcoded True.
+        return self._finalize(
+            best_values=local_result.best_values,
+            final_merit=local_result.final_merit,
+            initial_merit=starting_merit,
+            iterations=generations + local_result.iterations,
+            variable_history=local_result.variable_history,
+            merit_history=history_merit,
+            converged_message=f"GA Completed {generations} generations",
+            out_of_bounds_message=(
+                f"GA finished {generations} generations outside variable bounds"
+            ),
+        )
+
+# openlens.global_optimizer.GlobalOptimizer.optimize_simulated_annealing
+    def optimize_simulated_annealing(
+        self,
+        max_iterations: int = 1000,
+        initial_temperature: float = 100.0,
+        cooling_rate: Optional[float] = None,
+        restart_threshold: float = 1e-4,
+        callback: Optional[Callable[[int, float, List[float]], None]] = None,
+    ) -> OptimizationResult:
+        """Simulated annealing global optimization.
+
+        Args:
+            max_iterations: Iterations to run. The default cooling schedule is
+                derived from this, so the run lasts as long as asked for.
+            initial_temperature: Starting temperature.
+            cooling_rate: Geometric cooling factor. ``None`` (the default)
+                derives one from ``max_iterations`` that reaches the annealing
+                floor at exactly that many iterations. Pass a value to impose
+                your own schedule; the run then ends when the temperature hits
+                the floor, which may be well before ``max_iterations``.
+            restart_threshold: Unused; retained for API compatibility.
+            callback: Per-iteration progress callback. The GUI's cooperative
+                cancel raises from here, so it is also consulted by the final
+                local refinement.
+
+        Returns:
+            OptimizationResult with the best design found.
+        """
+        current_values = [var.current_value for var in self.variables]
+        current_merit = self._evaluate_design(current_values)
+        # Captured now because the annealing loop reassigns current_merit to
+        # whichever neighbour it is currently sitting on.
+        starting_merit = current_merit
+
+        best_values = list(current_values)
+        best_merit = current_merit
+
+        variable_history = []
+        merit_history = [current_merit]
+
+        n_vars = len(self.variables)
+
+        # temperature / initial_temperature is evaluated every iteration, so a
+        # non-positive initial_temperature raised ZeroDivisionError on the very
+        # first pass. Clamped rather than rejected: a zero *cooling* start is a
+        # reasonable thing for a caller to mean.
+        if initial_temperature <= 0:
+            logger.warning(
+                "initial_temperature=%r is not positive; clamping to a small "
+                "positive value so annealing stays well defined.",
+                initial_temperature,
+            )
+            initial_temperature = 1e-6
+
+        # Initialise the loop variable *after* the clamp: assigning it first
+        # copied the unclamped value, so a negative start made the first
+        # iteration break on the temperature floor and no annealing ran.
+        temperature = initial_temperature
+
+        # The schedule has to fit inside max_iterations, or the run stops on
+        # the temperature floor long before the caller asked it to. With the
+        # defaults (T0 = 100, cooling 0.95) the floor at 1e-6 was reached at
+        # ~360 iterations, so the GUI's max_iterations=500 was unreachable and
+        # every annealing run silently stopped early.
+        if cooling_rate is None:
+            cooling_rate = self._derive_cooling_rate(initial_temperature, max_iterations)
+
+        # max_iterations <= 0 leaves the loop body unentered, and `iteration` was
+        # then read below for the iteration count - UnboundLocalError. -1 makes
+        # that read yield 0 iterations.
+        iteration = -1
+
+        for iteration in range(max_iterations):
+            # Callback
+            if callback:
+                callback(iteration, best_merit, best_values)
+
+            # Create neighbor solution
+            # Perturb one or more variables
+            neighbor_values = list(current_values)
+
+            # Adaptive perturbation based on temperature
+            # At high T, larger jumps. At low T, smaller jumps.
+            scale_factor = max(0.01, min(1.0, temperature / initial_temperature))
+
+            # Select random variable to modify
+            idx = self._rng.randint(0, n_vars - 1)
+            var = self.variables[idx]
+
+            # Random perturbation
+            # Range is heuristic: step_size * scale * Gaussian
+            delta = var.step_size * scale_factor * self._rng.gauss(0, 1)
+            neighbor_values[idx] = var.clamp(neighbor_values[idx] + delta)
+
+            # Evaluate neighbor
+            neighbor_merit = self._evaluate_design(neighbor_values)
+
+            # Acceptance probability
+            delta_E = neighbor_merit - current_merit
+
+            if delta_E < 0:
+                # Better solution: always accept
+                accept = True
+            else:
+                # Worse solution: accept with probability exp(-delta_E / T)
+                # Avoid overflow
+                if temperature < 1e-9:
+                    prob = 0.0
+                else:
+                    prob = math.exp(-delta_E / temperature)
+
+                accept = self._rng.random() < prob
+
+            if accept:
+                current_values = neighbor_values
+                current_merit = neighbor_merit
+
+                # Update best found so far
+                if current_merit < best_merit:
+                    best_merit = current_merit
+                    best_values = list(current_values)
+
+            # Cool down
+            temperature *= cooling_rate
+
+            # History
+            variable_history.append(dict(zip([v.name for v in self.variables], current_values)))
+            merit_history.append(current_merit)
+
+            # Early stop if converged (optional, usually SA runs full course)
+            if temperature < 1e-6:
+                break
+
+        # Final refinement: Run local simplex from the best point found.
+        # The start is passed explicitly. It used to be transferred by writing
+        # into self.variables[i].current_value - i.e. by mutating the caller's
+        # OptimizationVariable objects, which the GUI also reads and saves, so
+        # a simulated-annealing run silently overwrote the user's inputs. The
+        # adjacent self._apply_variables(best_values) was dead code: it returns
+        # a deepcopy and never mutates self.system.
+        local_result = self.optimize_simplex(
+            max_iterations=50, start=best_values, callback=callback
+        )
+
+        # Combine results. initial_merit is the *starting* design's merit:
+        # merit_history[0] is the best of the first step, after a random
+        # perturbation, so it understates the starting point and inflates
+        # improvement. success comes from _finalize, which validates the bounds
+        # instead of asserting True.
+        return self._finalize(
+            best_values=local_result.best_values,
+            final_merit=local_result.final_merit,
+            initial_merit=starting_merit,
+            iterations=iteration + 1 + local_result.iterations,
+            variable_history=variable_history + local_result.variable_history,
+            merit_history=merit_history + local_result.merit_history,
+            converged_message=(
+                f"SA Converged after {iteration + 1} iterations"
+                f" + {local_result.iterations} local steps"
+            ),
+            out_of_bounds_message=(
+                f"SA finished after {iteration + 1} iterations"
+                f" + {local_result.iterations} local steps outside variable bounds"
+            ),
+        )
+
+# openlens.tolerancing.ToleranceOperand.generate_value
+    def generate_value(self, rng: Optional["random.Random"] = None) -> float:
+        """Generate a random deviation value based on distribution.
+
+        Args:
+            rng: Source of randomness. Defaults to the module-level ``random``
+                when not supplied, so a standalone caller keeps working - but
+                MonteCarloAnalyzer always passes its own generator, so a seeded
+                run is reproducible and cannot be perturbed by unrelated
+                ``random`` calls elsewhere in the process.
+        """
+        source = rng if rng is not None else random
+        if self.distribution == "gaussian":
+            # If std_dev is not provided, assume range is +/- 3 sigma
+            sigma = self.std_dev
+            if sigma == 0:
+                sigma = (self.max_val - self.min_val) / 6.0
+
+            val = source.gauss(0, sigma)
+            # Clamp to limits? Typically yes for manufacturing
+            return max(self.min_val, min(self.max_val, val))
+        else:
+            # Uniform
+            return source.uniform(self.min_val, self.max_val)
+
+# openlens.tolerancing.serialize_operands
+def serialize_operands(operands: List[ToleranceOperand]) -> List[Dict[str, Any]]:
+    """Convert tolerance operands to a JSON-serialisable list of dicts.
+
+    The inverse of :func:`deserialize_operands`, so a saved tolerance set
+    round-trips exactly instead of being written with no read path.
+
+    Args:
+        operands: The operands to serialise.
+
+    Returns:
+        List of plain dicts safe to store in a model's metadata.
+    """
+    return [
+        {
+            "element_index": op.element_index,
+            "type": op.param_type.value,
+            "min_val": op.min_val,
+            "max_val": op.max_val,
+            "distribution": getattr(op, "distribution", "uniform"),
+            "std_dev": getattr(op, "std_dev", 0.0),
+            "surface": getattr(op, "surface", 1),
+        }
+        for op in operands
+    ]
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.global_optimizer.GlobalOptimizer.optimize_genetic
+
+# Notes: `GlobalOptimizer.optimize_genetic` (openlens/global_optimizer.py)
+
+## 1. Purpose
+- A real-valued genetic algorithm over `self.variables`. It uses tournament selection, arithmetic crossover, Gaussian mutation and elitism.
+- It then runs a local `optimize_simplex` from the best design and returns `self._finalize(...)`.
+
+## 2. Inputs
+- `population_size: int = 50`: number of individuals. Not validated.
+- `generations: int = 50`: number of GA loops (`range(generations)`). Values ≤ 0 mean no loop.
+- `mutation_rate: float = 0.1`: chance per gene of a Gaussian mutation (`rng.random() < rate`).
+- `crossover_rate: float = 0.7`: chance per child of crossover (`rng.random() < crossover_rate`). Otherwise the child is a copy of parent1.
+- `callback(gen, best_merit, best_design)`: optional. Also passed on to `optimize_simplex(callback=callback)`.
+- Instance state used:
+  - `self.variables`: list of `OptimizationVariable` with `current_value`, `min_value`, `max_value`, `clamp()`.
+  - `self._rng = random.Random(seed)`, built in `__init__`.
+- The following are inherited from `LensOptimizer` in `openlens/optimizer.py`, which is NOT shown, so their behaviour is unknown:
+  - `self._evaluate_design(values)`
+  - `self.optimize_simplex(max_iterations=50, start=..., callback=...)`
+  - `self._finalize(**kw)`
+
+## 3. Raises
+- `population_size <= 0` raises `IndexError: list assignment index out of range`.
+  - Cause: `population[0] = current_design` on an empty list.
+  - This happens before any evaluation and even when `generations=0`.
+  - Example: `opt.optimize_genetic(population_size=0)`.
+- An exception raised inside `callback` propagates unchanged. This is the GUI's cancel mechanism.
+  - Example: `callback=lambda *a: (_ for _ in ()).throw(RuntimeError("stop"))` raises `RuntimeError("stop")` on the first call.
+  - The first call is `callback(0, start_merit, design)`, but only if `generations >= 1` and there is at least one variable.
+- `_tournament_select`'s `ValueError("cannot select from an empty population")` cannot be reached through this method.
+- Any error from `_evaluate_design`, `optimize_simplex` or `_finalize` comes from unseen code.
+
+## 4. Returns / guarantees
+Returns whatever `self._finalize(...)` returns, normally an `OptimizationResult`. It is called with exactly these keyword arguments:
+- `best_values = local_result.best_values`
+- `final_merit = local_result.final_merit`
+- `initial_merit = starting_merit`
+  - This is `_evaluate_design([v.current_value for v in variables])`, computed once before the loop.
+- `iterations = generations + local_result.iterations`
+  - This counts generations, not evaluations.
+- `variable_history = local_result.variable_history`
+  - Only the simplex history; the GA adds nothing.
+- `merit_history = history_merit`
+  - One entry per generation, so `len == max(generations, 0)`.
+  - Each entry is the best-so-far merit, so the list is non-increasing.
+  - It does NOT include the starting merit.
+- `converged_message = f"GA Completed {generations} generations"`
+- `out_of_bounds_message = f"GA finished {generations} generations outside variable bounds"`
+
+How `_finalize` maps these to `success`, `message`, `improvement` and `optimized_system` is in the unseen module.
+
+## 5. Side effects
+- The `OptimizationVariable` objects are not mutated (`current_value` is unchanged). The source comment says this is deliberate.
+- `self._rng` state advances.
+- Whether `self.system` changes depends on the unseen `_evaluate_design` and `_finalize`. A comment says `_apply_variables` returns a deepcopy.
+
+## 6. Branches and edge cases
+**Initial population**
+- `population_size` individuals, each with one `rng.uniform(min, max)` per variable.
+- Individual 0 is then replaced by the current design. That design is not clamped, so it may lie outside the bounds.
+
+**Each generation `gen`**
+- The callback fires once at the start of the generation, then once before each individual's evaluation.
+  - That is `1 + population_size` calls per generation, all with the same `gen`.
+  - Condition: `callback and best_overall_design`. With zero variables the design is `[]` (falsy), so the callback is never called in the GA loop.
+- The best design is updated only if `math.isfinite(min_merit) and min_merit < best_overall_merit`.
+  - Ties keep the old design.
+  - NaN or inf minima are ignored.
+- The next population is built as follows:
+  - Slot 0 is the elite: a copy of the best design.
+  - Every other slot is a child of two tournament winners. Tournament size is `k = min(3, len(population))`, sampled without replacement, and the lowest merit wins.
+- `population_size=1`: only the elite survives, so no selection or crossover happens.
+
+**Crossover and mutation**
+- Crossover gives `child[i] = a*p1[i] + (1-a)*p2[i]`, with one `a = rng.random()` per child. This is not clamped.
+- Mutation adds `gauss(0, 0.1*(max-min))` to a gene and then clamps it with `var.clamp`.
+  - With `min == max`, sigma is 0.
+
+**Other cases**
+- `generations=0`:
+  - There is no GA loop and no GA callback.
+  - `merit_history == []` and `iterations == 0 + local.iterations`.
+  - The message is `"GA Completed 0 generations"`.
+  - The simplex starts from the current design.
+- The simplex `start` is the best design list. With 1 generation and a deterministic merit, it is a design whose merit is ≤ `starting_merit`, because the current design is in generation 0.
+
+## 7. Rules from comments
+- `best_overall_design` is seeded with the starting design, so it is never `None`. Elitism must not raise `TypeError` on NaN or on `generations=0`.
+- `initial_merit` must be the starting design's merit, not `history_merit[0]`.
+- `iterations` counts generations, not `generations * population_size`.
+- `success` comes from `_finalize`'s bounds check, not a hard-coded `True`.
+
+## 8. Testing hints
+Isolate the method from the unseen code by stubbing on the instance:
+```python
+opt = GlobalOptimizer(system, [var], [target], seed=1)
+opt._evaluate_design = lambda v: (v[0] - 50.0) ** 2
+calls = {}
+def fake_simplex(**kw):
+    calls.update(kw)
+    return types.SimpleNamespace(best_values=list(kw["start"]), final_merit=0.5,
+                                 iterations=3, variable_history=[{"x": 1}], merit_history=[9])
+opt.optimize_simplex = fake_simplex
+opt._finalize = lambda **kw: kw   # returns the kwargs dict for exact checks
+```
+
+Building the inputs:
+- System: `OpticalSystem(); system.add_lens(Lens())`.
+- Variable: `OptimizationVariable("x", 0, "radius_of_curvature_1", 50.0, 20.0, 100.0)`.
+  - Which parameter and target names are valid is defined in `optimizer.py` (unseen). With the stubs above they do not matter, assuming `LensOptimizer.__init__` accepts them.
+- Target: `OptimizationTarget("focal_length", 100.0)`.
+
+What to check:
+- `out["iterations"] == generations + 3`.
+- `out["merit_history"]` has length `generations` and is non-increasing.
+- `out["variable_history"] == [{"x": 1}]`.
+- The exact message strings.
+- `out["initial_merit"] == (start - 50)**2`.
+- `calls["max_iterations"] == 50`.
+- `calls["callback"] is cb`.
+- Callback count `== generations * (population_size + 1)`.
+- The first callback is `(0, starting_merit, [current])`.
+- `var.current_value` is unchanged afterwards.
+
+Reproducibility:
+- The same seed with deterministic stubs gives identical outputs.
+- Do not assert specific random values.
+
+Pitfalls:
+- The callback receives the live `best_overall_design` list. Copy it if you record it.
+- Crossover children can leave the bounds when the start design is out of bounds. Mutated genes cannot.
+- Don't assert `success`, `improvement` or `message` from the real `_finalize`. Its logic is unseen.
+
+### openlens.global_optimizer.GlobalOptimizer.optimize_simulated_annealing
+
+# Notes: `GlobalOptimizer.optimize_simulated_annealing`
+
+## 1. Purpose
+- Runs a seeded simulated-annealing search over `self.variables`.
+- Then runs a local simplex refinement (`optimize_simplex(max_iterations=50, start=best_values, callback=callback)`) from the best point found.
+- Returns the result built by `self._finalize(...)`.
+
+**Not visible here:** `_evaluate_design`, `optimize_simplex`, `_finalize` and `OptimizationVariable.clamp` live in `openlens.optimizer`. Anything about merit values, `success`, and which message is chosen depends on that module.
+
+## 2. Inputs
+- **`max_iterations`** (int, default `1000`)
+  - Upper bound on SA loop iterations (`range(max_iterations)`).
+  - `<= 0` means the loop never runs.
+- **`initial_temperature`** (float, default `100.0`)
+  - If `<= 0`: logs a WARNING on logger `openlens.global_optimizer` (`"initial_temperature=%r is not positive; clamping ..."`) and sets it to `1e-6`.
+  - It is not rejected.
+- **`cooling_rate`** (float or None, default `None`)
+  - `None` → `_derive_cooling_rate(T0, max_iterations)`:
+    - returns `1.0` if `max_iterations <= 0`;
+    - returns `1.0` if `ratio = 1e-6 / T0` is `>= 1.0` (i.e. `T0 <= 1e-6`);
+    - otherwise returns `ratio ** (1/max_iterations)`.
+  - An explicit value is used as-is, with no validation.
+- **`restart_threshold`**: unused.
+- **`callback(iteration, best_merit, best_values)`**
+  - Called at the start of every SA iteration.
+  - Also forwarded to `optimize_simplex`, so it is called more times after the SA loop.
+  - Exceptions it raises propagate (this is how the GUI cancels).
+- **Seed**: comes from `GlobalOptimizer(..., seed=...)` → private `random.Random(seed)`. The module-level `random` is never touched.
+
+## 3. Raises
+- **No explicit raises.**
+- **Empty `variables` with `max_iterations >= 1`**: `self._rng.randint(0, -1)` raises `ValueError`.
+  - The message varies by Python version, so assert the type only.
+- **Exceptions from `callback`** propagate unchanged. For example, `def cb(*a): raise RuntimeError("stop")` → `pytest.raises(RuntimeError)`.
+
+## 4. Returns / guarantees
+- Returns an `OptimizationResult` from `_finalize`.
+- **Arguments passed to `_finalize`** (n = number of SA iterations actually run, m = `local_result.iterations`):
+  - `initial_merit` = `_evaluate_design([v.current_value for v in variables])`. This is the start design's merit, computed before any perturbation.
+  - `iterations` = `n + m`.
+  - `best_values` and `final_merit` are taken from the simplex result.
+  - `variable_history` = SA history (n dicts `{var.name: value}` of the *current*, accepted point after each step) + simplex history.
+  - `merit_history` = `[starting_merit]` + n current merits + simplex `merit_history`.
+- **Messages:**
+  - Converged: `f"SA Converged after {n} iterations + {m} local steps"`.
+  - Out of bounds: `f"SA finished after {n} iterations + {m} local steps outside variable bounds"`.
+  - Which one is used, and `success`, is decided by `_finalize` (unseen). The likely rule is the converged message when inside the bounds; verify loosely with `startswith("SA ")` or `"iterations + " in msg`.
+- **Value of n:**
+  - Derived rate and T0 > 1e-6: n == `max_iterations` (the floor is reached at the last step).
+  - `max_iterations <= 0`: n = 0, because `iteration` starts at -1. SA `variable_history` is empty and the SA part of `merit_history` is `[starting_merit]`.
+  - Explicit rate: the loop breaks after the cooling step once `temperature < 1e-6`. Example: `initial_temperature=1.0, cooling_rate=0.5, max_iterations=100` → n = 20 (2^-20 ≈ 9.5e-7; 2^-19 ≈ 1.9e-6).
+  - `cooling_rate >= 1` with T0 > 1e-6: never cools, so n = `max_iterations`.
+
+## 5. Side effects
+- Does **not** write to `var.current_value` of the caller's `OptimizationVariable` objects (the comment says this explicitly).
+- Consumes the instance's private RNG, so a second call on the same instance draws different numbers.
+- Logs a warning only for `initial_temperature <= 0`.
+- Mutation of `self.system` by simplex/_finalize is not visible here; the comment says `_apply_variables` returns a deepcopy.
+
+## 6. Branches / edge cases
+- **Each step:**
+  - Picks one random index, `delta = step_size * clamp(T/T0, 0.01, 1.0) * gauss(0,1)`.
+  - The neighbour value is `var.clamp(old + delta)`.
+  - Only ONE variable changes per step.
+- **Acceptance:**
+  - `delta_E < 0` → accept.
+  - Otherwise, if `T < 1e-9` → prob 0.
+  - Otherwise prob = `exp(-delta_E/T)`, accepted if `rng.random() < prob`.
+  - The best point is updated only on strict improvement.
+- **`initial_temperature <= 0`** (e.g. `-5` or `0`):
+  - Clamped to `1e-6`; the derived rate is `1.0`.
+  - Temperature stays at `1e-6`, which is not `< 1e-6`, so the run lasts the full `max_iterations` and a warning is logged.
+- **`0 < initial_temperature < 1e-6`** (e.g. `1e-12`), not clamped:
+  - Derived rate is `1.0`, and the temperature is already below the floor.
+  - Breaks after exactly **1** SA iteration.
+  - Since `T < 1e-9`, worse neighbours are never accepted.
+- **`max_iterations=0`**: SA is skipped; the simplex still runs from the start values.
+
+## 7. Rules from comments
+- `seed=` must make runs reproducible, using a private generator.
+- The default schedule must last exactly `max_iterations`.
+- `initial_merit` is the starting design's merit, not `merit_history[0]` after a perturbation.
+- Caller variables must not be mutated.
+- The callback is also consulted during the final refinement.
+
+## 8. Testing hints
+- **Building inputs:**
+  - Build a system with `sys = OpticalSystem(); sys.add_lens(Lens())`.
+  - Build variables like `OptimizationVariable("r1", 0, "radius_of_curvature_1", 50.0, 20.0, 200.0, step_size=5.0)`.
+  - Use a target like `OptimizationTarget("focal_length", 100.0)`.
+  - Valid parameter and target names are defined in `openlens.optimizer` (unseen). Use the obvious ones above and avoid asserting merit values.
+- **Speed:** keep `max_iterations` small (5–30), since the simplex adds up to 50 iterations.
+- **Robust assertions:**
+  - Same seed with two freshly built optimizers gives equal `best_values`, `final_merit` and `merit_history`.
+  - `result.initial_merit == GlobalOptimizer(...)._evaluate_design([v.current_value for v in vars])`, or equivalently equals `merit_history[0]`.
+  - `variables[i].current_value` is unchanged after the run.
+  - Record callback args; the first call is `(0, initial_merit, start_values)`.
+  - Count the calls whose first arg comes from the SA phase: `callback` is called at least n times, and the first n calls have iteration = 0..n-1 in order.
+  - `max_iterations=0` → `"after 0 iterations"` appears in the message.
+  - Explicit `T0=1.0, rate=0.5` → message contains `"after 20 iterations"`.
+  - `T0=1e-12` → `"after 1 iterations"`.
+  - With the derived rate and `max_iterations=10` → `"after 10 iterations"`.
+  - `T0=-1` emits a WARNING (`caplog`) and runs the full `max_iterations`.
+  - SA part of `variable_history`: the first n entries have keys = variable names, all values within [min, max], and consecutive entries differ in at most one key.
+- **Pitfalls:**
+  - `best_values` passed to the callback may be the same list object later rebound; copy it when recording.
+  - Do not assert the exact `success` value or the exact simplex iteration count; both come from unseen code.
+  - The total `iterations` field is `>= n`, not `== n`.
+
+### openlens.tolerancing.ToleranceOperand.generate_value
+
+# Notes: `openlens.tolerancing.ToleranceOperand.generate_value`
+
+## 1. Purpose
+- Draws one random deviation for a tolerance operand.
+- Uses a uniform draw in `[min_val, max_val]`, or a zero-mean Gaussian draw clamped to `[min_val, max_val]`.
+
+## 2. Inputs
+- `self` is a `ToleranceOperand` dataclass, built positionally or by keyword:
+  `ToleranceOperand(element_index, param_type, min_val, max_val, distribution="uniform", std_dev=0.0, surface=1)`.
+  - Only `min_val`, `max_val`, `distribution` and `std_dev` are used here.
+  - `element_index`, `param_type` and `surface` are ignored. Any `ToleranceType` works, e.g. `ToleranceType.THICKNESS`.
+- `rng` (optional, default `None`) is any object with `.uniform(a, b)` and `.gauss(mu, sigma)` methods.
+  - If it is `None`, the stdlib module `random` is used: `source = rng if rng is not None else random`.
+  - The check is `is not None`, so any non-None object is used as the source.
+- Nothing is validated. Distribution names, `std_dev` sign and `min_val <= max_val` are never checked.
+
+## 3. Raises
+- The function raises nothing itself.
+- Errors come only from the source object. For example, an `rng` without a `.gauss` method raises `AttributeError` on the gaussian path.
+
+## 4. Returns and guarantees
+**Gaussian branch** (only when `distribution == "gaussian"`, exact, case-sensitive string compare):
+- `sigma = self.std_dev`.
+- If `sigma == 0` (so `0` or `0.0`), then `sigma = (max_val - min_val) / 6.0`.
+- It draws `val = source.gauss(0, sigma)`. The mean is always **0**, not the midpoint of the range.
+- It returns `max(self.min_val, min(self.max_val, val))`.
+- When clamped, the returned object **is** `min_val` or `max_val` itself. If you passed ints, you get the int back (e.g. `-1`, not `-1.0`).
+
+**Every other distribution value** (`"uniform"`, `"Gaussian"`, `"normal"`, `""`, …):
+- Returns `source.uniform(self.min_val, self.max_val)`.
+- Python's `uniform(a, b)` is `a + (b-a)*random()`, so it does not error when `min_val > max_val`.
+
+Common to both branches:
+- The result is not stored. The operand object is unchanged.
+
+## 5. Side effects
+- The only side effect is consuming the RNG state: `rng`'s state, or the global `random` state when `rng` is `None`.
+- No fields of `self` are modified.
+
+## 6. Branches / edge cases
+| Input | Result |
+|---|---|
+| `ToleranceOperand(0, T, -0.1, 0.1)` with `rng=random.Random(42)` | equals `random.Random(42).uniform(-0.1, 0.1)` exactly |
+| uniform, `min=max=0.5` | `0.5` |
+| `distribution="gaussian", std_dev=0.0, min=-0.6, max=0.6` | sigma = 0.2; equals `max(-0.6, min(0.6, random.Random(s).gauss(0, 0.2)))` |
+| gaussian, `std_dev=0.05` (nonzero) | uses sigma 0.05, ignoring the range |
+| gaussian, `std_dev=100, min=-0.1, max=0.1` | essentially always exactly `-0.1` or `0.1` (clamped) |
+| gaussian, `min=1.0, max=2.0` | mean 0, so almost always exactly `1.0` (clamped to min) |
+| gaussian, `min=max=0, std_dev=0` | sigma 0, so `gauss(0, 0)` gives `0.0`; returns `0` (the int `min_val` if ints were passed) |
+| gaussian, `min_val > max_val`, e.g. `min=1, max=-1` | always returns `min_val` (`1`), because `max(min_val, …)` wins |
+| `distribution="Gaussian"` (capital G) | takes the **uniform** path |
+
+## 7. Rules from comments / docstring
+- When `std_dev` is not provided (it is 0), the range is assumed to be ±3 sigma, so sigma = (max - min)/6.
+- Gaussian draws are clamped to the limits ("typically yes for manufacturing").
+- `MonteCarloAnalyzer` always passes its own `random.Random(seed)`, so seeded runs are reproducible. The module-level `random` is only a fallback.
+
+## 8. Testing hints
+- For deterministic checks, compare against a fresh, identically seeded generator.
+  - Example: `op.generate_value(random.Random(7)) == random.Random(7).uniform(lo, hi)`.
+  - Use a **new** `Random` for each side, because `gauss` caches a second value internally.
+- A fake rng pins the arguments exactly. This is the strongest test.
+  ```python
+  class Fake:
+      def __init__(s, ret): s.ret, s.calls = ret, []
+      def gauss(s, mu, sigma): s.calls.append(("gauss", mu, sigma)); return s.ret
+      def uniform(s, a, b): s.calls.append(("uniform", a, b)); return s.ret
+  op = ToleranceOperand(0, ToleranceType.THICKNESS, -0.3, 0.3, "gaussian")
+  f = Fake(5.0)
+  assert op.generate_value(f) == 0.3
+  assert f.calls == [("gauss", 0, pytest.approx(0.1))]
+  ```
+  - With the fake: gaussian returning `-5.0` gives `-0.3`; returning `0.01` gives `0.01` (inside the range, not clamped).
+  - On the uniform path, `calls == [("uniform", -0.3, 0.3)]` and the return value is passed through unchanged, even when it is outside the range (uniform results are not clamped).
+- The `rng=None` path can be checked in two ways:
+  - `random.seed(3)`, call the function, then compare with `random.seed(3); random.uniform(lo, hi)`.
+  - Or `monkeypatch.setattr(random, "uniform", lambda a, b: 123.0)`. The module uses stdlib `random` directly.
+- Check that a gaussian draw stays inside `[min_val, max_val]` over many draws (e.g. 1000 with a seeded rng).
+- Check that the default `"uniform"` path also stays inside the range for `min <= max`.
+- Pitfalls:
+  - Do not assume the Gaussian mean is the midpoint of the range.
+  - Do not assume a nonzero `std_dev` is overridden by the range.
+  - Do not expect errors for bad distribution names.
+  - Use `pytest.approx` for sigma, since (max - min)/6 is float arithmetic.
+
+### openlens.tolerancing.serialize_operands
+
+# Notes: `openlens.tolerancing.serialize_operands(operands)`
+
+## 1. Purpose
+- Turns a list of `ToleranceOperand` objects into a list of plain dicts that can be stored as JSON.
+- It is the inverse of `deserialize_operands`, so a saved tolerance set loads back the same.
+
+## 2. Inputs
+- `operands`: any iterable of operand-like objects. A list comprehension walks it, so a list, tuple or generator all work.
+- Each item must have these attributes, read directly with no default:
+  - `element_index`
+  - `param_type`, which must have a `.value` (normally a `ToleranceType` member)
+  - `min_val`
+  - `max_val`
+- These three are read with `getattr` and a default, so they may be missing:
+  - `distribution` → `"uniform"` if missing
+  - `std_dev` → `0.0` if missing
+  - `surface` → `1` if missing
+- A real `ToleranceOperand` dataclass always has all three. The defaults only apply to duck-typed objects such as `types.SimpleNamespace`.
+- **No validation or conversion at all.**
+  - Values are copied exactly as they are: an int `min_val=1` stays `1`.
+  - `distribution="foo"` comes out as `"foo"`.
+  - `surface=7` comes out as `7`.
+  - A negative `element_index` passes through unchanged.
+
+## 3. Raises
+- No explicit `raise` in the function.
+- `AttributeError` if an item is missing a required attribute:
+  - `serialize_operands([object()])` → `AttributeError` (no `element_index`).
+  - `serialize_operands([SimpleNamespace(element_index=0, param_type="x", min_val=0, max_val=1)])` → `AttributeError`, because `str` has no `.value`.
+- `TypeError` if `operands` is not iterable, e.g. `serialize_operands(None)`.
+  - This differs from `deserialize_operands(None)`, which returns `[]`.
+
+## 4. Returns and guarantees
+- Returns a new `list`, one dict per operand, in the same order as the input.
+- Each dict has exactly 7 keys, in this insertion order:
+  ```python
+  {"element_index": op.element_index,
+   "type": op.param_type.value,      # the enum VALUE string, not the name
+   "min_val": op.min_val, "max_val": op.max_val,
+   "distribution": op.distribution, "std_dev": op.std_dev, "surface": op.surface}
+  ```
+- The key is `"type"`, not `"param_type"`.
+- Concrete example:
+  - Input: `ToleranceOperand(0, ToleranceType.RADIUS_1, -0.1, 0.1)`
+  - Output: `{"element_index": 0, "type": "Radius 1", "min_val": -0.1, "max_val": 0.1, "distribution": "uniform", "std_dev": 0.0, "surface": 1}`
+- Enum values that go into `"type"`:
+
+  | Member | `"type"` value |
+  |---|---|
+  | `RADIUS_1` | `"Radius 1"` |
+  | `RADIUS_2` | `"Radius 2"` |
+  | `THICKNESS` | `"Thickness"` |
+  | `REFRACTIVE_INDEX` | `"Refractive Index"` |
+  | `DECENTER_X` | `"Decenter X"` |
+  | `DECENTER_Y` | `"Decenter Y"` |
+  | `TILT_X` | `"Tilt X"` |
+  | `TILT_Y` | `"Tilt Y"` |
+  | `DECENTER_Z` | `"Decenter Z"` |
+  | `AIR_GAP` | `"Air Gap"` |
+  | `ABBE_NUMBER` | `"Abbe Number"` |
+  | `IRREGULARITY` | `"Surface Irregularity"` |
+  | `WEDGE` | `"Wedge"` |
+  | `FOCUS` | `"Focus"` |
+
+- Every call builds fresh dicts and a fresh list. Changing the output does not change the operands.
+
+## 5. Side effects
+- None: the operands are not changed, nothing is logged, and nothing is written to disk.
+
+## 6. Branches and edge cases
+- `serialize_operands([])` → `[]`.
+- Gaussian operand:
+  - Input: `ToleranceOperand(2, ToleranceType.IRREGULARITY, -0.25, 0.25, "gaussian", 0.05, surface=2)`
+  - Output: `{"element_index": 2, "type": "Surface Irregularity", "min_val": -0.25, "max_val": 0.25, "distribution": "gaussian", "std_dev": 0.05, "surface": 2}`
+- Duck-typed item with no optional attributes:
+  - Input: `SimpleNamespace(element_index=1, param_type=ToleranceType.TILT_X, min_val=-1, max_val=1)`
+  - Output: `distribution "uniform"`, `std_dev 0.0`, `surface 1`, and `min_val -1` stays an int.
+- Duck-typed item with explicit optional values: `SimpleNamespace(..., distribution="gaussian", std_dev=0.3, surface=2)` keeps those exact values.
+- Duplicate operands are all kept; there is no de-duplication.
+- `FOCUS` (compensator-only) is serialised like any other type: `"type": "Focus"`.
+
+## 7. Rules from the docstring
+- The output must round-trip through `deserialize_operands`, so a saved set comes back unchanged. The docstring says it "round-trips exactly instead of being written with no read path".
+- The output must be "safe to store in a model's metadata": `json.dumps(result)` succeeds for normal operands.
+
+## 8. Testing hints
+- Imports: `from openlens.tolerancing import serialize_operands, deserialize_operands, ToleranceOperand, ToleranceType, tolerances_for_system`.
+- Check whole dicts with `==` against literal expected dicts. This catches renamed keys, `.name` used instead of `.value`, and dropped fields.
+- To pin the key order, use `list(d.keys()) == ["element_index", "type", "min_val", "max_val", "distribution", "std_dev", "surface"]`.
+- Round-trip test: `deserialize_operands(serialize_operands(ops)) == ops`. The dataclass compares fields, and an int bound `1` equals `1.0` after `float()`. Use valid distributions and `surface` ≥ 1 for this, because:
+  - an unknown distribution comes back as `"uniform"`
+  - `surface=0` comes back as `1`
+- Test with a non-default `surface` and `std_dev`, so that hard-coding the defaults would be caught.
+- Larger fixture: `tolerances_for_system(system)` builds 12 operands per element plus 1 per gap. The output length must match, and the order must be preserved.
+- Pitfalls:
+  - Do not expect float conversion: `min_val=1` stays `1`. Python's `1 == 1.0` hides this anyway.
+  - Do not expect `None` input to give `[]`; it raises `TypeError`.
+  - Do not assert any logging.

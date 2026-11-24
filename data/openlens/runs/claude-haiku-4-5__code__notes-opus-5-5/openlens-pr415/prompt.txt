@@ -1,0 +1,612 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.analysis.beam_synthesis.BeamSynthesisPropagator.propagate_to_image, openlens.analysis.beam_synthesis.GaussianBeam.R_x, openlens.analysis.beam_synthesis.GaussianBeam.advance_q, openlens.analysis.beam_synthesis.GaussianBeam.w_x, openlens.analysis.beam_synthesis.GaussianBeam.w_y.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.analysis.beam_synthesis.BeamSynthesisPropagator.propagate_to_image
+    def propagate_to_image(
+        self,
+        wavelength_mm: float = WAVELENGTH_GREEN * NM_TO_MM,
+        grid_size: int = 32,
+        image_plane_x: Optional[float] = None,
+        detector_size: float = 0.1,
+        detector_pixels: int = 64,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Decompose pupil into Gaussian beamlets, propagate them, and sum the
+        coherent field at the image plane.
+
+        Returns:
+            Y, Z grids (detector) and Intensity map.
+        """
+        if not NUMPY_AVAILABLE:
+            raise ImportError("numpy is required for BSP calculation.")
+
+        # 1. Define Pupil Grid and Beamlets
+        if not self.system.elements:
+            return np.array([]), np.array([]), np.array([])
+
+        ep_diam = self.system.elements[0].lens.diameter
+        max_r = ep_diam / 2.0
+
+        # Beamlet spacing. The grid is np.linspace(-max_r, max_r, grid_size),
+        # which spans 2*max_r in grid_size-1 intervals, so the spacing is
+        # ep_diam/(grid_size-1). Dividing by grid_size overstated the spacing
+        # by grid_size/(grid_size-1) - 3% at grid_size=32 - and that error went
+        # straight into the beamlet waist below.
+        delta = (2.0 * max_r) / (grid_size - 1) if grid_size > 1 else 2.0 * max_r
+        # Beamlet waist w0. Overlap factor ~1.5
+        w0 = 1.5 * delta
+
+        # Initial q (planar wavefront at pupil)
+        # 1/q = 1/R - i * lambda / (pi * w0^2)
+        # R = inf -> 1/q = -i * lambda / (pi * w0^2)
+        # q = i * (pi * w0^2 / lambda) = i * zR
+        zR = math.pi * w0**2 / wavelength_mm
+        q0 = complex(0, zR)
+
+        beamlets = []
+
+        # Grid loop (using simple loops for beamlet creation)
+        start_x = self.system.elements[0].position - 20
+        direction = vec3(1, 0, 0)
+
+        y_vals = np.linspace(-max_r, max_r, grid_size)
+        z_vals = np.linspace(-max_r, max_r, grid_size)
+
+        pupil_x = self.system.elements[0].position
+        dist = pupil_x - start_x
+        element_tracers = self._element_tracers()
+
+        for py in y_vals:
+            for pz in z_vals:
+                if py**2 + pz**2 > max_r**2:
+                    continue
+
+                # Create ray
+                origin = vec3(pupil_x, py, pz) - direction * dist
+                ray = Ray3D(origin, direction, wavelength=wavelength_mm)
+
+                # Create beamlet
+                beam = GaussianBeam(wavelength_mm, q0, q0, ray)
+
+                # Manual trace loop:
+                self._trace_beamlet(beam, element_tracers)
+
+                if not beam.ray.terminated:
+                    beamlets.append(beam)
+
+        # 2. Define Detector Grid
+        if image_plane_x is None:
+            image_plane_x = self._default_image_plane(wavelength_mm)
+
+        det_y = np.linspace(-detector_size / 2, detector_size / 2, detector_pixels)
+        det_z = np.linspace(-detector_size / 2, detector_size / 2, detector_pixels)
+        DY, DZ = np.meshgrid(det_y, det_z)
+
+        E_field = np.zeros_like(DY, dtype=complex)
+
+        # 3. Sum Beamlets
+        for beam in beamlets:
+            # Intersect ray with image plane
+            if abs(beam.ray.direction.x) < 1e-6:
+                continue
+
+            t = (image_plane_x - beam.ray.origin.x) / beam.ray.direction.x
+            # Propagate beam to image plane
+            beam.propagate(t)
+
+            center_y = beam.ray.origin.y
+            center_z = beam.ray.origin.z
+
+            # Beam width at image plane
+            wx = beam.w_x
+            wy = beam.w_y
+
+            # Radius of curvature
+            Rx = beam.R_x
+            Ry = beam.R_y
+
+            # Local coordinates on detector
+            local_y = DY - center_y
+            local_z = DZ - center_z
+
+            # Simplified Gaussian field
+            amp = (w0 / wx) * np.exp(-(local_y**2) / (wx**2) - (local_z**2) / (wy**2))
+
+            # Phase
+            k = 2 * np.pi / wavelength_mm
+            phase_curv = k * (local_y**2 / (2 * Rx) + local_z**2 / (2 * Ry))
+            phase_opl = k * beam.ray.optical_path_length
+
+            E_beam = amp * np.exp(-1j * (phase_curv + phase_opl))
+            E_field += E_beam
+
+        Intensity = np.abs(E_field) ** 2
+        return DY, DZ, Intensity
+
+# openlens.analysis.beam_synthesis.GaussianBeam.R_x
+    @property
+    def R_x(self) -> float:
+        """Radius of curvature of wavefront in X plane"""
+        inv_q = 1.0 / self.q_x
+        if inv_q.real == 0:
+            return float("inf")
+        return 1.0 / inv_q.real
+
+# openlens.analysis.beam_synthesis.GaussianBeam.advance_q
+    def advance_q(self, distance: float) -> None:
+        """Advance q by a physical distance d, without moving the ray.
+
+        q is defined against the *local* medium - ``refract`` uses the reduced
+        form ``1/q' = (n1/n2)(1/q) - Phi/n2`` - so the propagation step inside
+        glass is d/n, not d. Advancing by d made w_x jump across an n=1.0->1.5
+        surface (0.1323 -> 0.1621 mm for R=50).
+
+        Kept separate from :meth:`propagate` because the BSP ray tracer has
+        already moved the ray itself and must not move it twice.
+        """
+        step = distance / self.n if self.n else distance
+        self.q_x += step
+        self.q_y += step
+
+# openlens.analysis.beam_synthesis.GaussianBeam.w_x
+    @property
+    def w_x(self) -> float:
+        """Beam radius (1/e^2 intensity) in X plane"""
+        if self.q_x.imag == 0:
+            return 0.0
+        return math.sqrt(-self.wavelength / (math.pi * (1.0 / self.q_x).imag))
+
+# openlens.analysis.beam_synthesis.GaussianBeam.w_y
+    @property
+    def w_y(self) -> float:
+        """Beam radius (1/e^2 intensity) in Y plane"""
+        if self.q_y.imag == 0:
+            return 0.0
+        return math.sqrt(-self.wavelength / (math.pi * (1.0 / self.q_y).imag))
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.analysis.beam_synthesis.BeamSynthesisPropagator.propagate_to_image
+
+# Notes: `BeamSynthesisPropagator.propagate_to_image`
+
+## 1. Purpose
+- Splits the entrance pupil (the first element's full diameter) into a square grid of Gaussian beamlets.
+- Traces each beamlet through every element and sums their complex fields on a square detector plane perpendicular to x.
+- Returns the detector grids `(DY, DZ)` and the intensity `|E|²`.
+
+## 2. Inputs
+- `self`: built with `BeamSynthesisPropagator(system)`. The constructor stores `self.system` and creates `self.tracer = SystemRayTracer3D(system)`.
+- `wavelength_mm` (default `WAVELENGTH_GREEN * NM_TO_MM`, from `openlens.constants`):
+  - This is the vacuum wavelength in mm. It is not validated.
+  - It is used for the beamlet Rayleigh range `zR = π·w0²/λ`, for the phase `k = 2π/λ`, and for the paraxial-focus search, which receives `wavelength_mm / NM_TO_MM` nm.
+- `grid_size` (int, default 32):
+  - Pupil samples per axis: `np.linspace(-r, r, grid_size)`, where `r = elements[0].lens.diameter/2`.
+  - `delta = 2r/(grid_size-1)` when `grid_size > 1`, otherwise `2r`. The beamlet waist is `w0 = 1.5*delta`.
+  - Only points with `py²+pz² <= r²` become beamlets; the boundary is included.
+- `image_plane_x` (float or None, default None):
+  - It is not validated.
+  - If None, the plane comes from `_default_image_plane` (see §6).
+- `detector_size` (float, default 0.1 mm) and `detector_pixels` (int, default 64):
+  - Grid: `det = np.linspace(-size/2, size/2, pixels)` on both axes.
+  - Neither value is validated.
+
+## 3. Raises
+- `ImportError("numpy is required for BSP calculation.")`: only when numpy is missing (`NUMPY_AVAILABLE` False). This is checked first and is not practically testable.
+- A negative `grid_size` or `detector_pixels` raises numpy's `ValueError` from `linspace` ("Number of samples, -1, must be non-negative."). This is only reached when the system has elements.
+- No other explicit raises. Tracing errors from `tracer_3d` or `paraxial` would propagate; that code is not visible here.
+
+## 4. Returns and guarantees
+- Empty system (`not system.elements`): returns the tuple `(np.array([]), np.array([]), np.array([]))`.
+  - Each array has shape `(0,)`.
+  - This path does no tracing and no image-plane lookup.
+- Otherwise it returns the tuple `(DY, DZ, Intensity)`, built from `DY, DZ = np.meshgrid(det_y, det_z)`:
+  - All three arrays have shape `(detector_pixels, detector_pixels)`.
+  - `DY[i, j] == det_y[j]`: values vary along axis 1.
+  - `DZ[i, j] == det_z[i]`: values vary along axis 0.
+  - `DY[0,0] == -detector_size/2` and `DY[0,-1] == detector_size/2`.
+  - `Intensity = np.abs(E_field)**2` is a real float64 array with values `>= 0`.
+- With no surviving beamlets, `Intensity` is exactly all `0.0`.
+- Per-beamlet details:
+  - Each beamlet starts at `x = elements[0].position - 20`, at `(py, pz)`, travelling along `+x`.
+  - It starts with `q0 = 1j*zR`.
+  - Beamlets whose ray is terminated (front or back surface not `REFRACTED`) are dropped.
+  - Beamlets with `|direction.x| < 1e-6` are skipped.
+  - Each remaining beamlet is propagated by `t = (image_plane_x - origin.x)/direction.x`; `t` may be negative.
+  - Its field is `(w0/wx)·exp(-ly²/wx² - lz²/wy²)·exp(-1j·k·(ly²/(2Rx)+lz²/(2Ry)+OPL))`.
+- New arrays are created on every call, and the call is deterministic: the same inputs give an identical result.
+
+## 5. Side effects
+- New `LensRayTracer3D` objects are built per call, from the global node transforms when `system.root` has one flat element node per element, otherwise from `x_offset=element.position`.
+- Beamlet rays are local objects, so the system is not mutated as far as this module shows.
+- Logs at WARNING on logger `openlens.analysis.beam_synthesis`:
+  - `"Beam synthesis: ignoring non-finite image plane %r"` when the configured plane is unusable.
+  - `"Beam synthesis: no paraxial focus (afocal or untraceable system); placing the detector %.1f mm past the last surface at x=%.3f"` when the focus search fails.
+
+## 6. Branches and edge cases
+- `OpticalSystem()` with no lenses returns three empty arrays (§4).
+- `grid_size=1`: `linspace` returns `[-r]`, and the point `(-r,-r)` lies outside the circle, so there are no beamlets and `Intensity` is all zeros. The image plane is still resolved.
+- `grid_size=0` also gives all zeros.
+- `detector_pixels=0` gives empty `(0,0)` arrays.
+- `detector_pixels=1` gives `DY == [[-size/2]]`.
+- Image-plane resolution when `image_plane_x is None`, in order:
+  1. `getattr(system, "image_plane_x_mm", None)`. It is not visible here whether `OpticalSystem` defines this attribute. If the value is not None, it is converted with `float()`. If that succeeds and the result is finite, it is used.
+  2. If the value is non-convertible (e.g. `"abc"`) or non-finite (`inf`, `nan`), the warning is logged and resolution falls through to step 3.
+  3. `find_paraxial_focus(system, wavelength_mm/NM_TO_MM, tracer=self.tracer)`. A finite result is used.
+  4. If the focus is None or non-finite, the plane is `system.get_total_length() + 50.0` (`DEFAULT_IMAGE_PLANE_PAST_LAST_SURFACE`), and the warning is logged.
+- An explicit `image_plane_x` skips all of the above, including the warnings.
+
+## 7. Rules from comments and docstrings
+- Beamlet spacing is `diameter/(grid_size-1)`, deliberately not `/grid_size`.
+- The default detector sits at the paraxial focus, the same plane `DiffractionPSF` uses. It is not "50 mm past the last vertex" unless the system is afocal or untraceable.
+- `q` is advanced by `distance/n` inside glass.
+- Refraction of a beamlet's `q`:
+  - Front surface: from the beam's current `n` (air) into `lens.refractive_index`, using `R1`.
+  - Back surface: from `lens.refractive_index` into 1.0, using `R2`.
+  - After each refraction the beam's wavelength is rescaled by `n1/n2`.
+
+## 8. Testing hints
+Build a system:
+```python
+from openlens.lens import Lens
+from openlens.optical_system import OpticalSystem
+from openlens.analysis.beam_synthesis import BeamSynthesisPropagator
+import openlens.analysis.beam_synthesis as bs
+
+s = OpticalSystem()
+s.add_lens(Lens(diameter=25.0))
+p = BeamSynthesisPropagator(s)
+DY, DZ, I = p.propagate_to_image(grid_size=8, detector_pixels=16)
+```
+- Keep `grid_size` small (6–10) so tests run fast.
+- Check `I.shape == (16,16)`, `np.isrealobj(I)`, `(I >= 0).all()`, and `np.isfinite(I).all()`.
+- Check the grids with `np.allclose(DY[0], np.linspace(-0.05, 0.05, 16))` and `np.allclose(DZ[:,0], same)`.
+- Check `grid_size=1` gives `I.sum() == 0` (exact), and that an empty system gives all `.size == 0`.
+- Check the default plane equals the paraxial focus:
+  - Compare `propagate_to_image(grid_size=6)` against an explicit `image_plane_x=find_paraxial_focus(s)` (from `openlens.analysis.paraxial`) using `np.allclose`.
+  - Use `allclose`, not exact equality: `WAVELENGTH_GREEN*NM_TO_MM/NM_TO_MM` may differ in the last bit.
+- Check the fallback plane with `monkeypatch.setattr(bs, "find_paraxial_focus", lambda *a, **k: None)`:
+  - The default call should equal `image_plane_x=s.get_total_length()+50.0`, using `np.array_equal` or `allclose`.
+  - `caplog` should contain `"no paraxial focus"`.
+  - Repeat with the patch returning `float("nan")`.
+- Check the configured plane by setting `s.image_plane_x_mm = <focus value>`:
+  - The default call should equal the explicit call with the same x.
+  - With `s.image_plane_x_mm = "abc"` or `float("inf")`, the call should fall back, and `caplog` should contain `"ignoring non-finite image plane"`.
+  - Whether attribute assignment works on `OpticalSystem` is not visible here; prefer the monkeypatch tests.
+- Determinism: two identical calls should give `np.array_equal` intensities.
+- Changing `image_plane_x` far from focus (e.g. focus ± 20 mm) should change the intensity: assert `not np.allclose(...)`.
+- Pitfalls:
+  - Do not assert exact peak locations or values.
+  - Do not assert exact y/z symmetry; use a loose tolerance if you check it.
+  - Do not pass `wavelength_mm` in nm.
+
+### openlens.analysis.beam_synthesis.GaussianBeam.R_x
+
+# Notes: `GaussianBeam.R_x` (property, `openlens.analysis.beam_synthesis`)
+
+## 1. Purpose
+- Read-only property. It returns the wavefront radius of curvature in the X (meridional) plane, computed from the complex beam parameter `q_x`.
+- Formula: `R = 1 / Re(1/q_x)`. It returns `float("inf")` when `Re(1/q_x) == 0` (a flat wavefront).
+
+## 2. Inputs
+- No arguments. It reads only `self.q_x`.
+- It does **not** use `q_y`, `wavelength`, `n` or `ray`.
+- `GaussianBeam` is a plain `@dataclass(wavelength, q_x, q_y, ray, n=1.0)` and validates nothing.
+  - `q_x` can be a `complex`, a `float` or an `int`. Python's `1.0 / x` and `.real` work for all three.
+- Code:
+  ```python
+  inv_q = 1.0 / self.q_x
+  if inv_q.real == 0: return float("inf")
+  return 1.0 / inv_q.real
+  ```
+
+## 3. Raises
+- `ZeroDivisionError` when `q_x == 0`. The message depends on the type and Python version, so match only the type:
+  - `GaussianBeam(5e-4, 0j, 1j, None).R_x` raises on complex division by zero.
+  - `q_x=0.0` (float) also raises `ZeroDivisionError`.
+- `AttributeError` when assigning: `beam.R_x = 1.0`. The property has no setter.
+
+## 4. Returns and guarantees
+- The result is a Python `float`, computed fresh on every access. Nothing is cached.
+- For `q = z + i*zR`: `R = (z² + zR²)/z = z + zR²/z`. The sign follows `z`:
+  - `z > 0` gives a positive R.
+  - `z < 0` gives a negative R.
+- Concrete values (use `pytest.approx`):
+  - `q_x = 1+1j`: `1/q = 0.5-0.5j`, so `R_x == 2.0`.
+  - `q_x = 2+1j`: `1/q = 0.4-0.2j`, so `R_x == 2.5`.
+  - `q_x = -3+4j`: `1/q = -0.12-0.16j`, so `R_x == -25/3 ≈ -8.3333`.
+  - `q_x = 3+4j`: `R_x == 25/3`.
+  - `q_x = 4+0j` (real q): `R_x == 4.0`.
+  - `q_x = 5.0` (plain float): `R_x == 5.0`.
+  - `q_x = 2j`, or any purely imaginary value (beam at its waist): `1/q = -0.5j`, real part `0.0`, so `R_x == float("inf")`.
+  - `q_x = -7j`: also `inf`. It is never `-inf`, because the special case always returns `+inf`.
+
+## 5. Side effects
+- None. The beam's state is not mutated.
+
+## 6. Branches and edge cases
+- **`inv_q.real == 0` branch**: returns `+inf`.
+  - Reached by pure-imaginary `q_x`, for example the initial pupil beamlet `q0 = complex(0, zR)`.
+  - Test it with `math.isinf(r) and r > 0`.
+- **Normal branch**: returns `1.0/inv_q.real`, which is finite and keeps the sign.
+- **`q_x == 0`**: raises `ZeroDivisionError` (see section 3).
+- `q_x = complex(inf, 0)`: `refract` sets this for a "plane wave". `1/q` evaluates to roughly `0j`, which gives `inf`. This depends on the details of CPython's complex division, so do **not** test it.
+- NaN `q_x` returns NaN, because `nan == 0` is False. Avoid testing this.
+
+## 7. Rules from comments/docstrings
+- The class docstring says `1/q = 1/R - i*lambda/(pi*w²)`, so `R` is the reciprocal of the real part of `1/q`.
+- The pupil beamlets start with a planar wavefront, `q = i*zR`, which means R is infinite.
+- `advance_q(d)` adds `d/n` to both `q_x` and `q_y`. If `n` is falsy, it adds `d` instead.
+
+## 8. Testing hints
+- Construction: the `ray` argument is not touched by `R_x`, so `GaussianBeam(5e-4, q_x, q_y, None)` works.
+  - If you want a real ray instead:
+    ```python
+    from openlens.ray import Ray3D
+    from openlens.vector3 import vec3
+    ray = Ray3D(vec3(0, 0, 0), vec3(1, 0, 0))
+    ```
+- Pin **independence from `q_y`**:
+  - `GaussianBeam(5e-4, 1+1j, 2j, None)` gives `R_x == 2.0` and `R_y == inf`.
+  - Swapping the q values swaps the results.
+- Pin that `wavelength` and `n` do not matter: `R_x` for `q_x=1+1j` is `2.0` with `wavelength=1.0` and with `n=1.5`.
+- Via `advance_q`:
+  - `b = GaussianBeam(5e-4, 1j, 1j, None)` starts with `R_x == inf`.
+  - `b.advance_q(1.0)` makes `q_x = 1+1j`, so `R_x == 2.0`.
+  - With `n=1.5`: `advance_q(3.0)` adds a step of 2, making `q_x = 2+1j`, so `R_x == 2.5`. A regression that ignores `n` would give `q = 3+1j`, so `R = 10/3`.
+- Via `refract` on a flat surface (radius 0 means `Phi = 0`):
+  - `b = GaussianBeam(5e-4, 1+1j, 1+1j, None)`, then `b.refract(1.0, 2.0, 0.0)`.
+  - Now `1/q = 0.25-0.25j`, so `R_x == 4.0`.
+- Via `propagate(d)`: it calls `ray.propagate`, so you need a real `Ray3D` (not `None`).
+- Pitfalls:
+  - Use `pytest.approx` for every finite value.
+  - Compare infinity with `== float("inf")` or `math.isinf`; do not use `approx`.
+  - Do not assert on `ZeroDivisionError` message text.
+  - The property never returns `0.0` and never returns `-inf`.
+
+### openlens.analysis.beam_synthesis.GaussianBeam.advance_q
+
+# Notes: `GaussianBeam.advance_q(self, distance: float) -> None`
+
+## 1. Purpose
+- Advances the complex beam parameters `q_x` and `q_y` by a physical distance inside the beam's local medium.
+- Does **not** move the central ray. The BSP tracer has already moved the ray, so it must not be moved twice.
+
+## 2. Inputs
+- `self` is a `GaussianBeam` dataclass with fields `wavelength`, `q_x`, `q_y`, `ray`, and `n=1.0`.
+  - The dataclass does not validate types.
+- `distance`: a number (int or float). It is not validated.
+  - Negative and zero values are accepted.
+- The step is computed from `self.n` exactly as written:
+  ```python
+  step = distance / self.n if self.n else distance
+  self.q_x += step
+  self.q_y += step
+  ```
+  - If `self.n` is truthy (e.g. `1.0`, `1.5`, `-2`), then `step = distance / self.n`.
+  - If `self.n` is falsy (`0`, `0.0`, `None`), then `step = distance` and no division happens.
+
+## 3. Raises
+- The function raises nothing itself.
+- The only realistic error is a `TypeError` from the arithmetic.
+  - Example: `beam.advance_q("a")` with `n=1.0` gives `TypeError: unsupported operand type(s) for /: 'str' and 'float'`.
+  - With `n=0`, `"a"` is not divided; instead `q_x += "a"` raises a `TypeError` (complex + str).
+- No `ZeroDivisionError` is possible from `n == 0`, because that case is guarded.
+
+## 4. Returns and guarantees
+- Returns `None`.
+- `q_x` and `q_y` each get the **same real** increment, `step`.
+  - The imaginary parts are unchanged, so the Rayleigh range (zR) is preserved.
+- `q_x` and `q_y` are updated independently, so different starting values stay different by the same offset.
+- These are unchanged: `wavelength`, `n`, and `ray` (its origin, direction and path).
+
+## 5. Side effects
+- Mutates `self.q_x` and `self.q_y` in place (they are rebound to new complex values).
+- No global state, logging, or I/O.
+
+## 6. Branches and edge cases
+- `n=1.0`, `q=10j`, `advance_q(5.0)` → `q_x == q_y == (5+10j)`.
+- `n=1.5`, `q=10j`, `advance_q(3.0)` → `q == (2+10j)`.
+  - `3/1.5 == 2.0` exactly, so `==` is safe here.
+- `n=2.0`, `advance_q(-4.0)` → real part decreases by `2.0`.
+- `n=0.0`, `q=10j`, `advance_q(3.0)` → `q == (3+10j)` (falsy-index fallback, no division).
+- `advance_q(0)` → `q` unchanged.
+- Calls accumulate: `n=1.5`, `advance_q(1.5)` twice → real part `+2.0`.
+- `n` changes after `refract(n1, n2, R)`, which sets `self.n = n2`. A later `advance_q` divides by the new `n`.
+
+## 7. Rules from docstrings and comments
+- "q is defined against the *local* medium … so the propagation step inside glass is d/n, not d."
+  - Advancing by the full `d` was the old bug (w_x 0.1323 → 0.1621 mm for R=50).
+- Kept separate from `propagate`:
+  - `propagate(d)` calls `advance_q(d)` and then `self.ray.propagate(d)`.
+  - So `propagate` moves the ray by the **physical** `d`, but advances `q` by `d/n`.
+
+## 8. Testing hints
+- Build a beam:
+  ```python
+  from openlens.analysis.beam_synthesis import GaussianBeam
+  from openlens.ray import Ray3D
+  from openlens.vector3 import vec3
+  ray = Ray3D(vec3(0, 0, 0), vec3(1, 0, 0))
+  b = GaussianBeam(wavelength=5.5e-4, q_x=complex(0, 10), q_y=complex(0, 20), ray=ray, n=1.5)
+  ```
+  - `ray` is never touched by `advance_q`, but use a real `Ray3D` anyway.
+- Key regression checks:
+  - Real part increases by `distance / n`, not `distance` (use `n != 1` to tell them apart).
+  - Both `q_x` and `q_y` change.
+  - Imaginary parts are unchanged.
+  - `n == 0` does not raise and uses the raw distance.
+  - The ray origin is unchanged: compare `ray.origin.x/y/z` before and after.
+  - `b.n` and `b.wavelength` are unchanged.
+- Contrast with `propagate`:
+  - Setup: `n=1.5` and `b.propagate(3.0)`.
+  - Expected: `q_x.real` increases by 2.0.
+  - The ray origin x moves by 3.0. This assumes `Ray3D.propagate` moves `origin` along `direction`, which is defined in another module; I have not verified it here.
+- Derived property check: `w_x` depends only on `Im(1/q)`. After advancing, it is `sqrt(-λ/(π·Im(1/q)))` with the new q. Compute the expected value with the same formula and compare using `pytest.approx`.
+- Use `pytest.approx` (or `abs(a-b) < 1e-12`) for non-exact quotients like `1/1.5`.
+- Pitfall: do not assume `R_x` stays infinite. Once the real part is nonzero, `R_x` becomes finite.
+
+### openlens.analysis.beam_synthesis.GaussianBeam.w_x
+
+# Notes: `openlens.analysis.beam_synthesis.GaussianBeam.w_x` (property)
+
+## 1. Purpose
+- Returns the 1/e² beam radius in the X (meridional) plane, computed from the complex beam parameter `q_x` and the beam's local `wavelength`.
+
+## 2. Inputs
+- This is a read-only `@property` with no arguments. It reads only `self.q_x` and `self.wavelength`.
+- It ignores `q_y`, `ray` and `n`. Changing them does not change `w_x`.
+- `GaussianBeam` is a plain `@dataclass(wavelength, q_x, q_y, ray, n=1.0)` and validates nothing. The constructor accepts `ray=None`, and `w_x` never touches the ray.
+- Exact formula from the source:
+  ```python
+  if self.q_x.imag == 0: return 0.0
+  return math.sqrt(-self.wavelength / (math.pi * (1.0 / self.q_x).imag))
+  ```
+- `q_x` can be any object with `.imag` that supports `1.0 / q`. That includes `complex`, `float` and `int`; for a float or int, `.imag == 0`, so the result is `0.0`.
+
+## 3. Raises
+- **`ValueError: math domain error`** (from `math.sqrt`) when the argument under the root is negative:
+  - `q_x` has a negative imaginary part, e.g. `GaussianBeam(1.0, -1j*math.pi, 1j, None).w_x`. Here 1/q = +i/π, so the root argument is −1.
+  - `wavelength` is negative while `q_x` is normal, e.g. `GaussianBeam(-1.0, 1j*math.pi, 1j, None).w_x`.
+- When `q_x.imag == 0`, there is no division and nothing is raised. This covers `q_x = 0j`, `5+0j` and `complex(inf, 0)`.
+
+## 4. Returns and guarantees
+- Returns a Python `float`. It is recomputed on every access (no caching).
+- Math: with `q = z + i·zR`, the result is w = sqrt(λ·(z² + zR²) / (π·zR)).
+- At a waist (q = i·zR), the result is sqrt(λ·zR/π).
+- Concrete values (λ = `wavelength`):
+  - `wavelength=1.0, q_x=1j*math.pi` → `1.0`
+  - `wavelength=1.0, q_x=4j*math.pi` → `2.0`
+  - `wavelength=1.0, q_x=math.pi + 1j*math.pi` → `sqrt(2)` ≈ 1.41421356
+  - `wavelength=4.0, q_x=1j*math.pi` → `2.0` (scales as sqrt(λ))
+  - `wavelength=0.0, q_x=1j` → `0.0`
+- Round trip with the module's own convention: with `zR = math.pi*w0**2/wavelength` and `q_x = 1j*zR`, `w_x == w0` (within float tolerance). For example, `wavelength=0.00055, w0=0.1` gives `w_x ≈ 0.1`.
+
+## 5. Side effects
+- None. It does not mutate the beam and has no global state.
+
+## 6. Branches and edge cases
+- **Zero imaginary part:** `q_x.imag == 0` → returns exactly `0.0`.
+  - Covers `GaussianBeam(1.0, 0j, 1j, None)`, `(1.0, 3+0j, …)`, `(1.0, complex(float('inf'),0), …)`, and `(1.0, 2.0, …)` with a float `q_x`.
+- **Normal path:** positive imaginary part and positive wavelength → positive float, as in the table above.
+- **Larger |z| gives a wider beam:**
+  - For fixed zR = π and λ = 1:
+    - z = 0 → 1.0
+    - z = π → √2
+    - z = −π → √2 (symmetric in the sign of z)
+
+## 7. Rules stated in comments/docstrings
+- The docstring says "Beam radius (1/e^2 intensity) in X plane".
+- The class docstring gives the convention 1/q = 1/R − i·λ/(π·w²).
+- `wavelength` is the **local** wavelength (vacuum/n).
+- `refract()` rescales `wavelength` by n1/n2 together with q, so the beam radius is preserved across a flat interface.
+- `advance_q` steps q by `distance / n` (or by `distance` if `n` is 0).
+
+## 8. Testing hints
+- Import with `from openlens.analysis.beam_synthesis import GaussianBeam`. Pass `ray=None` for pure `w_x` tests.
+- Compare floats with `pytest.approx` / `math.isclose`. Use `== 0.0` only for the zero-imaginary branch.
+- Useful invariants that tie `w_x` to the other methods (none of them need a ray):
+  - **Flat refraction keeps the radius:** `b = GaussianBeam(1.0, 1j*math.pi, 1j*math.pi, None)`; `b.refract(1.0, 1.5, 0.0)`.
+    - Afterwards `b.w_x ≈ 1.0`, `b.wavelength ≈ 1/1.5` and `b.n == 1.5`.
+    - The radius 0.0 counts as flat (|R| < 1e-9).
+  - **Advancing q divides by n:** `b = GaussianBeam(1.0, 1j*math.pi, 1j*math.pi, None, n=2.0)`; `b.advance_q(2*math.pi)`.
+    - Then `q_x == math.pi + 1j*math.pi` and `w_x ≈ sqrt(2)`.
+    - With `n=1.0`, `advance_q(math.pi)` gives the same result.
+  - Do **not** call `propagate()` with `ray=None`, because it calls `self.ray.propagate`. To use `propagate`, build a real ray: `GaussianBeam.__module__`'s `Ray3D(vec3(0,0,0), vec3(1,0,0))`, with `vec3` from `openlens.vector3`.
+- **Pitfalls to avoid:**
+  - Do not expect `w_x` to depend on `q_y` or `n`.
+  - Do not expect an exception for `q_x = 0j`; it returns `0.0`.
+  - A negative-imaginary `q_x` raises `ValueError`; it does not return NaN.
+
+### openlens.analysis.beam_synthesis.GaussianBeam.w_y
+
+# Notes: `GaussianBeam.w_y` (property)
+
+## 1. Purpose
+- Returns the beam radius (1/e² intensity) in the Y (sagittal) plane.
+- It is computed from the complex beam parameter `q_y` and the local wavelength each time it is read.
+- Source:
+  ```python
+  if self.q_y.imag == 0:
+      return 0.0
+  return math.sqrt(-self.wavelength / (math.pi * (1.0 / self.q_y).imag))
+  ```
+
+## 2. Inputs (dataclass fields read)
+- `GaussianBeam` is a `@dataclass` with these fields, in order:
+  - `wavelength: float` (the LOCAL wavelength, in mm)
+  - `q_x: complex`
+  - `q_y: complex`
+  - `ray: Ray3D`
+  - `n: float = 1.0`
+- `w_y` reads only `self.q_y` and `self.wavelength`.
+  - It does **not** read `q_x`, `n` or `ray`.
+  - `ray` is not type-checked, so `None` works for `w_y` tests.
+- Construct a beam like this:
+  `GaussianBeam(wavelength, q_x, q_y, None)`
+  or `GaussianBeam(wavelength=..., q_x=..., q_y=..., ray=None, n=1.0)`.
+- No validation is done. A plain int or float `q_y` is accepted, because its `.imag` is 0, so the result is `0.0`.
+
+## 3. Raises
+- **`ValueError: math domain error`** (from `math.sqrt`) when the argument is negative. Example:
+  - `GaussianBeam(1.0, 1j, -1j, None).w_y`
+  - Here 1/(-1j) = 1j, the imaginary part is +1, so the sqrt argument is -1/π.
+- **`ValueError`** also when `wavelength < 0` and `q_y` has positive imaginary part. Example: `GaussianBeam(-1.0, 1j, 1j, None).w_y`.
+- **No `ZeroDivisionError` for `q_y = 0j`**: the `imag == 0` check runs before `1/q_y`, so the result is `0.0`.
+
+## 4. Returns and guarantees
+- Returns a Python `float`. Nothing is cached.
+- When `q_y.imag != 0`:
+  - Formula: `w_y = sqrt(-λ / (π · Im(1/q_y)))`.
+  - For `q_y = z + i·zR` this equals `sqrt(λ·(z² + zR²) / (π·zR))`, which is `w0·sqrt(1 + (z/zR)²)` with `w0 = sqrt(λ·zR/π)`.
+- Exact checkable values:
+
+| wavelength | q_y | w_y |
+|---|---|---|
+| `math.pi` | `1j` | `1.0` (1/q = -1j) |
+| `math.pi` | `1+1j` | `sqrt(2)` ≈ 1.41421356 (Im(1/q) = -0.5) |
+| `math.pi` | `4j` | `2.0` |
+| `0.001` | `1j*math.pi` | `sqrt(0.001)` ≈ 0.0316227766 |
+| `0.0` | `1j` | `0.0` (sqrt(-0.0) is 0.0) |
+| any | `5+0j`, `0j`, `complex(float('inf'), 0)`, `3.0` | `0.0` |
+
+- Waist round-trip: with `zR = π·w0²/λ` and `q_y = 1j*zR`, `w_y ≈ w0`.
+  - Example: λ = 0.00055, w0 = 0.05.
+
+## 5. Side effects
+- None. This is a pure read and does not modify the beam.
+
+## 6. Branches and edge cases
+- `q_y.imag == 0` gives `0.0`. This is an early return and includes the plane-wave value `complex(inf, 0)` that `refract` can set.
+- Otherwise the result comes from the sqrt formula, which raises if its argument is negative.
+- Independence from `q_x`: for `GaussianBeam(math.pi, 0j, 1j, None)`, `w_y == 1.0` and `w_x == 0.0`.
+  - Use different `q_x` and `q_y` values so that an x/y mix-up would be caught.
+- Independence from `n`: `GaussianBeam(math.pi, 1j, 1j, None, n=1.5).w_y == 1.0`.
+
+## 7. Rules from comments and docstrings
+- `wavelength` is the LOCAL wavelength (vacuum / n). `q` is defined against the local medium.
+- `refract` rescales `wavelength` by `n1/n2` so that `w` stays correct inside glass.
+- `advance_q(d)` adds `d / n` to both `q_x` and `q_y`. It falls back to adding `d` when `n` is 0.
+  - It does not move the ray, so `ray=None` is fine.
+- The docstring describes `1/q = 1/R - i·λ/(π·w²)`.
+
+## 8. Testing hints
+- Import with `from openlens.analysis.beam_synthesis import GaussianBeam`. Compare with `pytest.approx`.
+- Propagation through `advance_q` (safe with `ray=None`):
+  - `b = GaussianBeam(math.pi, 1j, 1j, None)`, then `b.advance_q(1.0)`, gives `q_y == 1+1j` and `b.w_y ≈ sqrt(2)`.
+  - With `n=2.0`, `advance_q(2.0)` gives the same `sqrt(2)`, because the step is d/n = 1.
+- Flat-surface refraction preserves `w_y`:
+  - Steps: `b = GaussianBeam(math.pi, 1j, 1j, None)`, then `b.refract(1.0, 1.5, 0.0)`.
+  - Expected state: `b.q_y ≈ 1.5j`, `b.wavelength ≈ math.pi/1.5`, `b.n == 1.5`.
+  - Result: `b.w_y ≈ 1.0` (unchanged).
+  - This catches regressions where `refract` forgets to rescale the wavelength. In that case `w_y` would become `sqrt(1.5)` ≈ 1.2247.
+- Do not call `propagate()` with `ray=None`, because it calls `self.ray.propagate`. Use `advance_q` instead.
+- Pitfalls:
+  - The sign convention is that positive Im(q) gives a real result; negative Im(q) raises.
+  - Zero imaginary part returns exactly `0.0`; it does not raise.

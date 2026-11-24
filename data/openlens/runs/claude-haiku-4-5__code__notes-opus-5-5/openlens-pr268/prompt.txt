@@ -1,0 +1,401 @@
+Library: openlens (import openlens), an optical lens design and simulation library (lens and multi-element system models, ray tracing, aberrations, materials, optimization).
+
+Write pytest tests for these functions: openlens.material_database.MaterialDatabase.clear_cache, openlens.material_database.MaterialDatabase.get_transmission, openlens.material_database.MaterialProperties.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# openlens.material_database.MaterialDatabase.clear_cache
+    def clear_cache(self):
+        """Clear this instance's refractive index cache.
+
+        Previously this called cache_clear() on the class-wide lru_cache
+        wrapper, so one instance adding a material wiped every other
+        instance's cache.
+        """
+        self._index_cache.clear()
+        self._alias_keys = None
+
+# openlens.material_database.MaterialDatabase.get_transmission
+    def get_transmission(
+        self, material_name: str, wavelength_nm: float, thickness_mm: float = 10.0
+    ) -> float:
+        """
+        Get internal transmission for a specific thickness.
+        Normalizes from the catalog reference thickness using Beer-Lambert law:
+        T2 = T1^(thickness2 / thickness1)
+        """
+        mat = self.get_material(material_name)
+        if not mat or not mat.transmission_data:
+            # Default fallback: 99% per 10mm
+            return 0.99 ** (thickness_mm / 10.0)
+
+        # Get base transmission from catalog data
+        t_base = self._interpolate_transmission(mat.transmission_data, wavelength_nm)
+
+        if t_base <= 0:
+            return 0.0
+
+        # Scale for thickness
+        exponent = thickness_mm / mat.transmission_thickness
+        return t_base**exponent
+
+# openlens.material_database.MaterialProperties
+@dataclass
+class MaterialProperties:
+    """Optical material properties"""
+
+    name: str
+    catalog: str  # Schott, Ohara, Hoya, Custom
+    nd: float  # Refractive index at d-line (587.6 nm)
+    vd: float  # Abbe number
+
+    # Sellmeier coefficients for wavelength-dependent refractive index
+    # n^2 = 1 + B1*λ^2/(λ^2-C1) + B2*λ^2/(λ^2-C2) + B3*λ^2/(λ^2-C3)
+    B1: float = 0.0
+    B2: float = 0.0
+    B3: float = 0.0
+    C1: float = 0.0
+    C2: float = 0.0
+    C3: float = 0.0
+
+    # Temperature coefficients for the Schott TIE-19 model of the
+    # ABSOLUTE refractive index (vs. vacuum, reference T0 = 20 C):
+    #   dn/dT = (n^2-1)/(2n) * [D0 + 2*D1*dT + 3*D2*dT^2
+    #                           + (E0 + 2*E1*dT)/(wl_um^2 - tk_um^2)]
+    #   dn    = (n^2-1)/(2n) * [D0*dT + D1*dT^2 + D2*dT^3
+    #                           + (E0*dT + E1*dT^2)/(wl_um^2 - tk_um^2)]
+    # with dT = T - 20 C and wavelength in micrometers. All-zero
+    # coefficients mean "no thermal data": no correction is applied.
+    D0: float = 0.0
+    D1: float = 0.0
+    D2: float = 0.0
+    E0: float = 0.0
+    E1: float = 0.0
+    lambda_tk_um: float = 0.0  # TIE-19 thermal resonance wavelength (um)
+
+    # Thermal properties
+    thermal_expansion: float = 7.1e-6  # α (1/K)
+
+    # Transmission data (wavelength in nm, transmission 0-1)
+    transmission_data: List[Tuple[float, float]] = field(default_factory=list)
+    transmission_thickness: float = 10.0  # Thickness for transmission data (mm)
+
+    # Physical properties
+    density: float = 2.51  # g/cm³
+
+    # Chemical properties
+    climate_resistance: int = 1  # 0-4 scale
+    acid_resistance: int = 1
+    alkali_resistance: int = 1
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary"""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Create from dictionary"""
+        return cls(**data)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### openlens.material_database.MaterialDatabase.clear_cache
+
+# Notes: `MaterialDatabase.clear_cache(self)`
+
+## 1. Purpose
+- Empties **this instance's** refractive-index cache (`self._index_cache.clear()`).
+- Drops the name-alias map (`self._alias_keys = None`) so it is rebuilt on the next lookup miss.
+- Call it after mutating `db.materials` directly.
+
+## 2. Inputs
+- No parameters besides `self`. No validation is done.
+
+## 3. Raises
+- Nothing. It is safe on an empty cache and safe to call repeatedly.
+
+## 4. Returns and guarantees
+- Returns `None`.
+- Afterwards, `db._index_cache == {}` and `db._alias_keys is None`.
+- `db.materials` is not touched. The same dict and the same `MaterialProperties` objects remain.
+- The effect is per instance: other `MaterialDatabase` objects keep their caches. This is the point of the docstring; it used to be a class-wide `lru_cache.cache_clear()`.
+
+## 5. Side effects
+- Only the two private attributes above change.
+- No file I/O and no global state.
+
+Callers inside the module:
+- `add_material` calls `clear_cache()` after storing the material, before the optional save.
+- `_load_database` calls it at the end of a successful load.
+
+## 6. Branches and edge cases
+- There is a single code path with no branching.
+
+How the cache behaves, which is what makes `clear_cache` observable:
+- `get_refractive_index(name, wl, T)` uses the key `(name, wl, T)` with the **exact** name string, so `"BK7"` and `"bk7"` are separate entries.
+- On a hit (stored value not `None`), it returns the stored value without recomputing, even if `materials` changed meanwhile.
+- On a miss, it computes the value and stores it. It also sets `_alias_keys = None` on every miss.
+
+How the alias map behaves:
+- `get_material(name)` first tries `materials[name.upper()]`.
+- If that misses, it uses `_normalised_keys()`. That map is built once, from the catalog keys at that moment, as an alphanumeric-uppercase key mapped to the real key. It is cached until reset.
+- So a key added directly to `materials` after the map was built is invisible to the normalised lookup until `clear_cache()` or a `get_refractive_index` miss.
+
+## 7. Rules from comments/docstrings
+- "Call clear_cache() after mutating `materials` directly." (from `get_refractive_index`)
+- "one instance adding a material wiped every other instance's cache" was the old bug. Clearing must not affect other instances.
+
+## 8. Testing hints
+Build an isolated database so the real user catalog is never read or written. A non-existent file means only the built-ins load (BK7, N-BK7, SF11, F2, FUSEDSILICA, S-LAH79, E-FD60):
+```python
+from openlens.material_database import MaterialDatabase, MaterialProperties
+db = MaterialDatabase(db_path=str(tmp_path / "m.json"))
+```
+
+**Deterministic way to make stale vs fresh values visible:** replace BK7 with a material whose B coefficients are all zero. Then `n_sq` stays `1.0`, and with no temperature correction at T=20.0 the result is exactly `1.0`.
+```python
+before = db.get_refractive_index("BK7", 587.6)        # ≈1.5168, use abs tol 1e-3
+db.materials["BK7"] = MaterialProperties(name="BK7", catalog="X", nd=1.6, vd=40.0)
+assert db.get_refractive_index("BK7", 587.6) == before   # stale cache hit
+db.clear_cache()
+assert db.get_refractive_index("BK7", 587.6) == 1.0      # recomputed
+```
+
+**Per-instance isolation:**
+- Create `db1` and `db2` with separate tmp paths and warm `"BK7"@587.6` on both.
+- Replace `materials["BK7"]` on both with the zero-B material.
+- Call `db1.clear_cache()` only.
+- Expect `db1` to return `1.0` and `db2` to still return about `1.5168`.
+
+**Alias reset.** Do not call `get_refractive_index` between these steps, because a miss there also resets aliases:
+```python
+assert db.get_material("foo bar") is None             # builds alias map
+m = MaterialProperties(name="FOO_BAR", catalog="X", nd=1.5, vd=50.0)
+db.materials["FOO_BAR"] = m
+assert db.get_material("foo bar") is None             # stale alias map
+db.clear_cache()
+assert db.get_material("foo bar") is m
+```
+
+Other checks:
+- **Private state:** `db._index_cache == {}` and `db._alias_keys is None` after the call. This is acceptable to assert, but behavioural tests like the ones above are stronger.
+- **Materials untouched:** `list_materials()` and the identity of `db.materials` objects are unchanged after `clear_cache()`.
+- `db.clear_cache()` returns `None`, and calling it twice in a row does not raise.
+
+Pitfalls:
+- Do not use `MaterialDatabase()` without `db_path`; it reads the real per-user file.
+- Do not use `get_material_database()`, because it returns a shared singleton.
+- Use `add_material(..., save=False)` if you add materials; otherwise it writes the JSON file. It already calls `clear_cache` itself, so it cannot demonstrate staleness.
+- Compare real glass indices with a tolerance, not equality.
+
+### openlens.material_database.MaterialDatabase.get_transmission
+
+# Notes: `MaterialDatabase.get_transmission(material_name, wavelength_nm, thickness_mm=10.0)`
+
+## 1. Purpose
+- Returns the internal transmission (0–1) of a glass at one wavelength and thickness.
+- It linearly interpolates the material's `transmission_data`, then scales by Beer–Lambert: `T = t_base ** (thickness_mm / mat.transmission_thickness)`.
+
+## 2. Inputs
+- `material_name: str` is resolved via `self.get_material(name)`:
+  - First it tries the exact `name.upper()` key.
+  - Then it tries the alphanumeric-only uppercase form, so `"bk7"`, `"Fused Silica"`, `"fused-silica"` and `"FUSEDSILICA"` all resolve.
+  - Normalised alias: the first catalog key wins. `"nbk7"` resolves to `"N-BK7"`, not BK7.
+- `wavelength_nm: float` is not validated.
+- `thickness_mm: float = 10.0` is not validated. Zero and negative values are accepted.
+- Results are not cached, unlike `get_refractive_index`.
+
+## 3. Raises
+There are no explicit raises. Incidental errors:
+- `material_name` not a str: `AttributeError` from `.upper()`. Example: `db.get_transmission(None, 500)`.
+- A material with data and `transmission_thickness == 0`: `ZeroDivisionError`. This needs a custom material.
+- Non-numeric `wavelength_nm` with data present: `TypeError` from comparison or subtraction.
+
+## 4. Returns
+The result is a float. The code path, in order:
+1. `mat` is None (unknown name), or `mat.transmission_data` is empty: return `0.99 ** (thickness_mm / 10.0)`. In this case `transmission_thickness` is ignored.
+2. Compute `t_base = _interpolate_transmission(data, wl)`:
+   - `data` is sorted with `sorted(data)`. This makes a new list; the stored list is not mutated.
+   - `wl <= data[0][0]`: return the first T (clamped).
+   - `wl >= data[-1][0]`: return the last T (clamped).
+   - Otherwise, use the first segment `w1 <= wl <= w2`: `t1 + (wl-w1)/(w2-w1)*(t2-t1)`.
+   - If no segment matches, return `0.95`. In practice only `wl = float('nan')` reaches this.
+3. `t_base <= 0`: return `0.0`. This happens before exponentiation, so it holds even for thickness 0.
+4. Otherwise return `t_base ** (thickness_mm / mat.transmission_thickness)`.
+
+## 5. Side effects
+None. No file I/O, no cache changes, and no mutation of the material.
+
+## 6. Built-in data and concrete values
+The default `transmission_thickness` is 10.0.
+
+**Materials with data:** only `"BK7"` and `"FUSEDSILICA"`.
+- BK7: (380,.95) (400,.97) (500,.995) (600,.998) (700,.998) (800,.998) (1000,.997) (1500,.99) (2000,.98) (2500,.5)
+- FUSEDSILICA: (200,.9) (250,.95) (300,.98) (400,.995) (600,.998) (1000,.998) (2000,.98) (3000,.5)
+
+**Materials with no data** (they use the fallback): `N-BK7`, `SF11`, `F2`, `S-LAH79`, `E-FD60`.
+
+Expected values (use `pytest.approx`):
+
+| Call | Result |
+|---|---|
+| `("BK7", 500)` | 0.995 |
+| `("BK7", 500, 20)` | 0.995**2 = 0.990025 |
+| `("BK7", 500, 5)` | 0.995**0.5 |
+| `("BK7", 450)` | 0.97 + 0.5·0.025 = 0.9825 |
+| `("BK7", 2250)` | 0.98 + 0.5·(0.5−0.98) = 0.74 |
+| `("BK7", 300)` (below range) | 0.95 |
+| `("BK7", 3000)` (above range) | 0.5 |
+| `("BK7", 380)` / `("BK7", 2500)` | 0.95 / 0.5 |
+| `("BK7", 500, 0)` | 1.0 |
+| `("bk7", 500)` | 0.995 (same as BK7) |
+| `("FUSEDSILICA", 2500)` | 0.98 + 0.5·(0.5−0.98) = 0.74 |
+| `("Fused Silica", 250)` | 0.95 |
+| `("FUSEDSILICA", 100)` | 0.9 |
+| `("FUSEDSILICA", 350)` | 0.98 + 0.5·0.015 = 0.9875 |
+| `("N-BK7", 500)` | 0.99 (fallback, not BK7 data) |
+| `("Unobtainium", 500)` | 0.99 |
+| `("Unobtainium", 500, 20)` | 0.9801 |
+| `("Unobtainium", 500, 0)` | 1.0 |
+| `("Unobtainium", 500, -10)` | 1/0.99 |
+| `("BK7", float('nan'))` | 0.95 (falls through the loop; then 0.95**1.0) |
+
+Fallback calls are wavelength-independent: `("SF11", 300)` and `("SF11", 900)` both return 0.99.
+
+## 7. Rules from docstring and comments
+- "Normalizes from the catalog reference thickness using Beer-Lambert law: T2 = T1^(thickness2 / thickness1)".
+- "Default fallback: 99% per 10mm".
+
+## 8. Testing hints
+- **Always build the database with a nonexistent temp path:** `db = MaterialDatabase(db_path=str(tmp_path / "m.json"))`.
+  - `MaterialDatabase()` loads the user's real catalog, which could override BK7.
+  - Avoid `get_material_database()` for the same reason.
+- **Custom materials:** add them with `db.add_material(MaterialProperties(...), save=False)` so nothing is written to disk. Required fields are `name`, `catalog`, `nd`, `vd`.
+  - `transmission_data=[(600, 0.8), (400, 0.6)]`, i.e. unsorted. At wl 500, thickness 10, the result is 0.7. This proves the data is sorted.
+  - `transmission_thickness=5.0` with data `[(500, 0.81)]` at thickness 10 gives 0.81**2 = 0.6561. This proves the divisor is the material's thickness, not 10.
+  - Data `[(400, 0.0), (600, 0.0)]` gives exactly `0.0`, even with `thickness_mm=0`.
+  - Data `[(400, -0.2), (600, -0.2)]` gives `0.0`.
+  - `transmission_data=[]` gives the fallback, 0.99 at thickness 10.
+  - Afterwards, `mat.transmission_data` still has its original (unsorted) order.
+- **Pitfalls:**
+  - Use `pytest.approx` for interpolated and exponentiated values.
+  - Exact equality is safe for the clamped endpoints (0.95, 0.5) at thickness 10, because the exponent is exactly 1.0.
+  - Do not assume N-BK7 shares BK7's transmission.
+
+### openlens.material_database.MaterialProperties
+
+# Notes: `openlens.material_database.MaterialProperties`
+
+## 1. Purpose
+- A plain `@dataclass` that holds one optical glass: its index and Abbe number, Sellmeier coefficients, TIE-19 thermal coefficients, transmission table, and physical and chemical data.
+- It has two methods, `to_dict` and `from_dict`. Neither validates anything.
+
+## 2. Inputs (constructor fields, in declaration order)
+Positional construction follows this exact order:
+
+| # | field | type | default |
+|---|-------|------|---------|
+| 1 | `name` | str | required |
+| 2 | `catalog` | str | required |
+| 3 | `nd` | float | required |
+| 4 | `vd` | float | required |
+| 5–10 | `B1, B2, B3, C1, C2, C3` | float | `0.0` each |
+| 11–15 | `D0, D1, D2, E0, E1` | float | `0.0` each |
+| 16 | `lambda_tk_um` | float | `0.0` |
+| 17 | `thermal_expansion` | float | `7.1e-6` |
+| 18 | `transmission_data` | List[Tuple[float, float]] | `field(default_factory=list)`, a new `[]` per instance |
+| 19 | `transmission_thickness` | float | `10.0` |
+| 20 | `density` | float | `2.51` |
+| 21–23 | `climate_resistance, acid_resistance, alkali_resistance` | int | `1` each |
+
+- That is 23 fields in total.
+- No `__post_init__`, so there is no normalisation or validation:
+  - types are not checked;
+  - `name` is not uppercased;
+  - negative or NaN values are accepted and stored as given.
+- `from_dict(data)` is exactly `cls(**data)`.
+
+## 3. Raises
+- **Constructor, missing required field:** `TypeError`.
+  - Trigger: `MaterialProperties("X", "Custom", 1.5)` (no `vd`).
+  - Assert only the type; Python versions word the message differently.
+- **`from_dict` with an unknown key:** `TypeError` (unexpected keyword argument).
+  - Trigger: `MaterialProperties.from_dict({"name":"X","catalog":"C","nd":1.5,"vd":60,"foo":1})`.
+- **`from_dict` with a missing required key:** `TypeError`.
+  - Trigger: `from_dict({"name":"X"})`.
+- **`from_dict` with a non-mapping:** `TypeError`.
+  - Trigger: `from_dict([1, 2])` (`**` needs a mapping).
+- **Hashing:** `hash(m)` raises `TypeError`. The dataclass is `eq=True` and not frozen, so `__hash__` is `None`.
+  - `m` cannot be used in a set or as a dict key.
+
+## 4. Returns and guarantees
+**`to_dict()`**
+- Returns `dataclasses.asdict(self)`: a new `dict` with all 23 keys, in field-declaration order.
+- `list(d.keys())` equals the field order in the table above.
+- `transmission_data` is copied recursively:
+  - the dict's value is a new `list`, not the instance's own list (`d["transmission_data"] is not m.transmission_data`);
+  - its elements stay `tuple`s, e.g. `[(380, 0.95)]` → `[(380, 0.95)]`;
+  - mutating the returned dict or list does not affect the instance.
+- Values are stored as given: no float conversion, so `nd=2` stays the int `2`.
+
+**`from_dict(data)`**
+- Returns a new `MaterialProperties`.
+- It does not copy anything: `m.transmission_data is data["transmission_data"]` holds when that key is supplied.
+- Extra keys are rejected (see Raises). Missing optional keys get the defaults.
+
+**Round trip**
+- `MaterialProperties.from_dict(m.to_dict()) == m`.
+- Equality is the generated `__eq__`, comparing all fields in order.
+
+**Other generated behaviour**
+- `__repr__` starts with `MaterialProperties(name='...', catalog='...', nd=...`.
+- Instances are mutable: assigning an attribute works.
+
+## 5. Side effects
+- None. No I/O, and no global state is touched.
+- Instances do not share their default list: `MaterialProperties("A","C",1.5,60).transmission_data is not MaterialProperties("B","C",1.5,60).transmission_data`.
+
+## 6. Branches and edge cases
+- **Minimal construction:** `m = MaterialProperties("X", "Custom", 1.5, 60.0)` gives:
+  - `m.B1 == 0.0`
+  - `m.thermal_expansion == 7.1e-6`
+  - `m.transmission_thickness == 10.0`
+  - `m.density == 2.51`
+  - `m.climate_resistance == m.acid_resistance == m.alkali_resistance == 1`
+  - `m.transmission_data == []`
+- **Positional Sellmeier values:** `MaterialProperties("X","C",1.5,60, 1.0,2.0,3.0, 0.1,0.2,0.3)` gives `B1=1.0, B2=2.0, B3=3.0, C1=0.1, C2=0.2, C3=0.3`. All B's come before all C's.
+- **`from_dict({"name":"x","catalog":"c","nd":1.0,"vd":1.0})`:** works, and `name` stays `'x'` (lowercase).
+- **Equality:** two instances that differ in any one field, e.g. `density`, compare unequal.
+
+## 7. Rules from comments and docstrings
+- Sellmeier model: n² = 1 + Σ Bᵢλ²/(λ² − Cᵢ), with λ in µm.
+- TIE-19 temperature model for the absolute index:
+  - reference temperature is T0 = 20 °C;
+  - `lambda_tk_um` is the resonance wavelength in µm;
+  - all-zero D/E coefficients mean "no thermal data": no correction is applied.
+- Units:
+  - `thermal_expansion` is in 1/K;
+  - `transmission_data` pairs are (nm, fraction from 0 to 1) at `transmission_thickness` mm;
+  - `density` is in g/cm³;
+  - resistances are on a 0–4 scale.
+- `from_dict` does no key filtering. `MaterialDatabase._load_database` relies on catching that `TypeError`, logging it, and skipping the bad entry.
+
+## 8. Testing hints
+- Import with `from openlens.material_database import MaterialProperties`.
+- **Pin every default** (all 23 fields) and check `list(m.to_dict())` against the exact key order.
+- **Pin `to_dict` values exactly**, e.g. `d["thermal_expansion"] == 7.1e-6` and `d["transmission_data"] == [(500, 0.99)]`.
+  - Use tuples in the comparison: a list of lists does not equal a list of tuples.
+- **Test defensive copying:** `d = m.to_dict(); d["transmission_data"].append((1, 1)); assert m.transmission_data == [...]` (unchanged).
+- **Test the per-instance default list:** append to one instance's `transmission_data`; another default instance should still have `[]`.
+- **Test the round trip and the `TypeError`s** listed in Raises.
+- **Optional integration test with `MaterialDatabase`:**
+  - Use `MaterialDatabase(db_path=str(tmp_path / "m.json"))`. With no path it reads and writes the real user catalog, so never construct it without a path.
+  - `db.add_material(m, save=False)` stores the instance under `m.name.upper()`, and `db.get_material("x") is m`.
+- **Pitfalls:**
+  - Do not expect validation or coercion.
+  - Do not call `hash()` and expect success.
+  - Do not assert exact `TypeError` message text.
+  - Use `pytest.approx` only for computed values. Stored values come back exactly as given.

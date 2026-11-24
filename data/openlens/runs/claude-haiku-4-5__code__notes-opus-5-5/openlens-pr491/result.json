@@ -1,0 +1,180 @@
+{
+ "id": "openlens-pr491",
+ "model": "claude-haiku-4-5",
+ "run": "claude-haiku-4-5__code__notes-opus-5-5",
+ "context": {
+  "mode": "code",
+  "chars": 15887,
+  "notes": "claude-opus-5-5",
+  "notes_chars": 12693
+ },
+ "level": "unit",
+ "cache_docs": false,
+ "max_thinking": null,
+ "with_source": false,
+ "notes": "claude-opus-5-5",
+ "mean_arnio_calls": 0.47,
+ "detected": true,
+ "n_tests": 15,
+ "n_catching": 7,
+ "n_false_alarms": 0,
+ "clean_collection_errors": [],
+ "usage": {
+  "input_tokens": 9,
+  "cache_creation_input_tokens": 5874,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 14804,
+  "output_tokens_details": {
+   "thinking_tokens": 10985
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 5874,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "not_available",
+  "iterations": [
+   {
+    "input_tokens": 9,
+    "output_tokens": 14804,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 5874,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 5874
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "cost_usd": 0.08577699999999999,
+ "model_seconds": 62.7,
+ "seconds": 82.1,
+ "tests": {
+  "tests/_generated/test_openlens_pr491.py::TestDeleteLens::test_delete_lens_cancelled_by_user": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr491.py::TestDeleteLens::test_delete_lens_confirmation_case_and_whitespace": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr491.py::TestDeleteLens::test_delete_lens_database_delete_fails": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr491.py::TestDeleteLens::test_delete_lens_empty_list": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr491.py::TestDeleteLens::test_delete_lens_invalid_index": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr491.py::TestDeleteLens::test_delete_lens_non_integer_input": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr491.py::TestDeleteLens::test_delete_lens_partial_confirmation_rejected": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr491.py::TestDeleteLens::test_delete_lens_successful_deletion": {
+   "clean": "passed",
+   "buggy": "failed",
+   "false_alarm": false,
+   "detects_bug": true,
+   "arnio_calls": [
+    "Lens"
+   ]
+  },
+  "tests/_generated/test_openlens_pr491.py::TestMain::test_main_all_menu_options": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr491.py::TestMain::test_main_invalid_choice_repeats_menu": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr491.py::TestMain::test_main_mcp_case_sensitive": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr491.py::TestMain::test_main_mcp_path_raises_system_exit": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr491.py::TestMain::test_main_simple_exit_menu": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr491.py::TestMain::test_main_verbose_flag_passed_to_setup_logging": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  },
+  "tests/_generated/test_openlens_pr491.py::TestMain::test_main_whitespace_in_input": {
+   "clean": "passed",
+   "buggy": "passed",
+   "false_alarm": false,
+   "detects_bug": false,
+   "arnio_calls": []
+  }
+ }
+}

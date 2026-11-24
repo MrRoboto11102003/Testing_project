@@ -1,0 +1,280 @@
+Library: arnio (import arnio as ar), a pandas data-preparation library.
+
+Write pytest tests for these functions: arnio.cleaning.drop_constant_columns, arnio.cleaning.drop_empty_columns.
+Test the documented behavior, including edge cases the documentation implies.
+Use only the public API and pandas/numpy. Keep it to at most 15 focused tests.
+
+## Source code of the target functions
+
+# arnio.cleaning.drop_constant_columns
+def drop_constant_columns(
+    frame: ArFrame | pd.DataFrame,
+) -> ArFrame | pd.DataFrame:
+    """Remove columns with exactly one unique value.
+
+    Nulls are counted as values when determining whether a column is constant.
+    This means columns like ``[None, None]`` are dropped, while columns like
+    ``[1, 1, None]`` are kept. Empty columns in zero-row frames are also kept,
+    since they have zero unique values rather than one.
+
+    If every column is dropped, the resulting zero-column frame preserves the
+    original row count.
+
+    Parameters
+    ----------
+    frame : ArFrame or pd.DataFrame
+        Input data frame.
+
+    Returns
+    -------
+    ArFrame or pd.DataFrame
+        New frame without constant columns.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> reduced = ar.drop_constant_columns(frame)
+    """
+    from .convert import from_pandas, to_pandas
+
+    frame, is_arframe = _validate_frame(frame, allow_pandas=True)
+    df = to_pandas(frame) if is_arframe else frame
+    if len(df.index) == 0:
+        result_df = df.copy(deep=True)
+
+        if is_arframe:
+            result = from_pandas(result_df)
+
+            if getattr(frame, "_attrs", None) is not None:
+                result._attrs = copy.deepcopy(frame._attrs)
+
+            return result
+
+        return result_df
+
+    nunique_counts = df.nunique(dropna=False)
+    constant_columns = nunique_counts[nunique_counts == 1].index.tolist()
+    result_df = df.drop(columns=constant_columns)
+    return from_pandas(result_df) if is_arframe else result_df
+
+# arnio.cleaning.drop_empty_columns
+def drop_empty_columns(frame: ArFrame) -> ArFrame:
+    """Remove columns whose values are entirely null or empty strings.
+
+    String values containing only whitespace are treated as empty.
+
+    Parameters
+    ----------
+    frame : ArFrame
+        Input data frame.
+
+    Returns
+    -------
+    ArFrame
+        New frame without fully empty columns.
+
+    Examples
+    --------
+    >>> frame = ar.read_csv("data.csv")
+    >>> reduced = ar.drop_empty_columns(frame)
+    """
+    _validate_arframe(frame)
+    from .convert import to_pandas
+
+    if frame.shape[0] == 0:
+        attrs = copy.deepcopy(frame._attrs) if frame._attrs is not None else None
+        empty_columns_data: dict[str, list[object]] = {}
+        empty_dtype_hints: dict[str, _DType] = {}
+        for col_name in frame.columns:
+            empty_columns_data[col_name] = []
+            empty_dtype_hints[col_name] = frame._frame.column_by_name(col_name).dtype()
+        return ArFrame(
+            _Frame.from_dict(empty_columns_data, empty_dtype_hints, 0), attrs=attrs
+        )
+
+    df = to_pandas(frame)
+    empty_columns: list[str] = []
+    for column in df.columns:
+        series = df[column]
+        is_empty = series.isna() | (
+            series.map(lambda value: isinstance(value, str) and value.strip() == "")
+        )
+        if bool(is_empty.all()):
+            empty_columns.append(column)
+
+    remaining_columns = [
+        column for column in frame.columns if column not in empty_columns
+    ]
+    attrs = copy.deepcopy(frame._attrs) if frame._attrs is not None else None
+    if remaining_columns:
+        columns_data: dict[str, list[object]] = {}
+        dtype_hints: dict[str, _DType] = {}
+        for column in remaining_columns:
+            cpp_column = frame._frame.column_by_name(column)
+            columns_data[column] = cpp_column.to_python_list()
+            dtype_hints[column] = cpp_column.dtype()
+        return ArFrame(_Frame.from_dict(columns_data, dtype_hints), attrs=attrs)
+
+    try:
+        return ArFrame(_Frame.from_dict({}, {}, frame.shape[0]), attrs=attrs)
+    except TypeError:
+        return ArFrame(_Frame(), attrs=attrs)
+
+## ===== Expert notes on the target functions =====
+(Written by a senior engineer from the full clean source of each module, to help you write precise tests.)
+
+### arnio.cleaning.drop_constant_columns
+
+# Notes: `arnio.cleaning.drop_constant_columns(frame)`
+
+## 1. Purpose
+- Removes every column that has exactly one distinct value.
+- Nulls count as a value (`nunique(dropna=False) == 1`).
+- Accepts an `ArFrame` or a `pd.DataFrame` and returns the same kind of object.
+
+## 2. Inputs
+- `frame`: an `ArFrame` or a `pandas.DataFrame`. There are no other parameters.
+- Validation is done by `_validate_frame(frame, allow_pandas=True)`:
+  - `ArFrame` → ArFrame path.
+  - `pd.DataFrame` → pandas path.
+  - Anything else → `TypeError`.
+- An `ArFrame` is converted with `ar.to_pandas(frame)`. A pandas input is used directly; it is not mutated, because `drop` and `copy` return new objects.
+
+## 3. Raises
+- `TypeError("frame must be an ArFrame or a pandas DataFrame")` for any other type.
+  - Examples: `ar.drop_constant_columns({"a": [1]})`, `ar.drop_constant_columns(None)`, a list, a `pd.Series`.
+- This is the only explicit raise. Pandas `nunique` may raise for unhashable cell values (e.g. lists in an object column). Do not test that.
+
+## 4. Returns and guarantees
+- **Return type:** an `ArFrame` for `ArFrame` input, a `pd.DataFrame` for DataFrame input. It is always a new object, never the input itself (`result is not frame`).
+- **Column order:** the remaining columns keep their original relative order (`df.drop(columns=...)`).
+- **Which columns are dropped:** `nunique_counts[nunique_counts == 1]`.
+  - Columns with ≥2 distinct values (null counted as one distinct value) are kept.
+- **Null handling:**
+  - `[None, None]` / `[nan, nan]` → 1 unique → dropped.
+  - `[1, 1, None]` → 2 unique (1 and NaN) → kept.
+- **Rows:** never changed. Values and dtypes of the kept columns are unchanged in the pandas path.
+- **Pandas path:** the index is preserved as-is (no `reset_index`).
+- **attrs (ArFrame):**
+  - Zero-row path: explicitly sets `result._attrs = copy.deepcopy(frame._attrs)`, when not None.
+  - Non-empty path: returns `from_pandas(result_df)` with no explicit attrs copy. Whether attrs survive depends on `to_pandas`/`from_pandas` in `arnio.convert`, which is not visible here. Do not assert attrs in the non-empty path.
+
+## 5. Side effects
+- None. The input `ArFrame` or DataFrame is unchanged (columns and values identical afterwards).
+- No global state is touched and no I/O is performed.
+
+## 6. Branches and edge cases
+- **Zero rows** (`len(df.index) == 0`): returns a deep copy with **all columns kept**, even though they have 0 unique values.
+  - `pd.DataFrame({"a": [], "b": []})` → result has columns `["a", "b"]` and 0 rows, and is not the same object.
+  - ArFrame: `from_pandas(copy)`, with attrs deep-copied (so mutating `result._attrs` does not affect `frame._attrs`).
+- **Mixed columns:** `pd.DataFrame({"a": [1, 1, 1], "b": [1, 2, 3], "c": ["x", "x", "x"]})` → columns `["b"]`.
+- **Nothing constant:** `{"a": [1, 2], "b": ["x", "y"]}` → both columns kept, values equal to the input.
+- **Single row:** every column has nunique 1, so **all** columns are dropped.
+  - Pandas: result has `columns == []` and `len(result) == 1` (row count preserved, per the docstring).
+- **Every column constant:** `{"a": [5, 5], "b": ["z", "z"]}` → pandas result has 0 columns and `len == 2`.
+  - The ArFrame row count for a 0-column result depends on `from_pandas` (not visible). Assert only `result.columns == []`.
+- **Null-related columns:**
+  - All-null column `{"a": [None, None, None], "b": [1, 2, 3]}` → `["b"]`.
+  - Partly null `{"a": [1.0, 1.0, None], "b": [1, 2, 3]}` → both kept (`["a", "b"]`).
+- **Bool column** `[True, True]` → dropped. `[True, False]` → kept.
+
+## 7. Rules from the docstring
+- "Nulls are counted as values"; `[None, None]` is dropped and `[1, 1, None]` is kept.
+- "Empty columns in zero-row frames are also kept, since they have zero unique values rather than one."
+- "If every column is dropped, the resulting zero-column frame preserves the original row count."
+
+## 8. Testing hints
+- **Build inputs:** `ar.from_pandas(pd.DataFrame({...}))`.
+- **Observe results:**
+  - `result.columns` (list of str, ordered), `result.shape`, and `ar.to_pandas(result)[col].tolist()`.
+  - Check the return type with `isinstance(result, ar.ArFrame)` / `isinstance(result, pd.DataFrame)`.
+- **Use the pandas-input path for exact assertions** (row count with 0 columns, index, dtypes). `pd.testing.assert_frame_equal(result, df[["b"]])` works for the pandas path.
+- **Test the threshold exactly.** Best regression catchers:
+  - A 2-value column is kept.
+  - The null-vs-value distinction: `[1, 1, None]` kept, `[None, None]` dropped. This catches a `dropna=True` change.
+  - The zero-row branch keeps columns.
+  - Column order is preserved, e.g. `{"x": [1, 2], "c": [0, 0], "y": [3, 4]}` → `["x", "y"]`.
+  - The input is not mutated: check `df.columns.tolist()` after the call.
+- **Pitfalls:**
+  - Don't mix `None` and `NaN` in one column, or mix `1` and `"1"`. Pandas/arnio coercion makes the unique count uncertain.
+  - Don't assert attrs or the ArFrame row count for the all-dropped, non-empty case.
+  - For zero-row ArFrames, build them via `ar.from_pandas(pd.DataFrame({"a": pd.Series([], dtype="int64")}))`. Assert only the columns and `shape[0] == 0`.
+  - To set attrs, assign `frame._attrs = {"k": [1]}` (a private attribute). Use it only in the zero-row test.
+
+### arnio.cleaning.drop_empty_columns
+
+# Notes: `arnio.cleaning.drop_empty_columns(frame)`
+
+## 1. Purpose
+- Returns a new ArFrame without the columns whose every value is null, `""`, or a whitespace-only string.
+- The other columns are rebuilt unchanged: same values, same dtypes, same original order.
+
+## 2. Inputs
+- `frame`: must be an `ArFrame`. It is checked by `_validate_arframe(frame)`, which lives in `arnio.frame` and is not visible here.
+- There are no other parameters. There is no `subset`, and pandas DataFrames are not accepted.
+
+## 3. Raises
+- A non-ArFrame input, e.g. `ar.drop_empty_columns(pd.DataFrame({"a": [1]}))`, raises from `_validate_arframe`.
+  - That code is not visible, so the type is most likely `TypeError` and the message is unknown.
+  - Use `pytest.raises(TypeError)` without `match=`.
+- Nothing else is raised by this function's own code.
+- An all-empty frame does NOT raise. Compare `drop_columns`, which refuses to remove all columns.
+
+## 4. Returns and guarantees
+- Always a **new** `ArFrame` object, never the input itself (`result is not frame`).
+- **Column order** is the original `frame.columns` order with the empty columns removed.
+- **Kept columns** are rebuilt from `cpp_column.to_python_list()` with the original C++ dtype as a hint. So:
+  - `result.dtypes[c] == frame.dtypes[c]`.
+  - Values are identical. Whitespace in kept columns is NOT stripped, e.g. `["  ", "a"]` stays `["  ", "a"]`.
+  - Nulls in kept columns stay null.
+- **Attrs**: `result._attrs` is a `copy.deepcopy` of `frame._attrs`, or `None` if the source's was `None`. Equal to the source, but not the same object (on every path).
+- **Row count**:
+  - Unchanged when at least one column remains.
+  - When all columns are dropped: `_Frame.from_dict({}, {}, nrows)` is used, which is expected to give shape `(nrows, 0)`.
+  - If that call raises `TypeError` (C++ behaviour, not visible), the fallback is `_Frame()`, likely shape `(0, 0)`.
+
+## 5. Side effects
+- None. The input frame and its attrs are not mutated; only a deep copy of attrs is made.
+- No global state is changed and no files are written.
+
+## 6. Branches and edge cases
+- **Zero rows** (`frame.shape[0] == 0`): early return.
+  - ALL columns are kept, even though they are "empty".
+  - Each keeps its original dtype.
+  - Example: `ar.from_pandas(pd.DataFrame({"a": pd.Series([], dtype="int64"), "b": pd.Series([], dtype="float64")}))` gives columns `["a", "b"]`, shape `(0, 2)`, and the same dtypes.
+- **Emptiness test** (rows > 0), per column on `to_pandas(frame)`: `series.isna() | series.map(lambda v: isinstance(v, str) and v.strip() == "")`. The column is dropped iff this is all True.
+  - Dropped: `[None, None]`, `[np.nan, np.nan]` (float64), `["", "  "]`, `["\t", None, ""]`.
+    - `str.strip()` removes `\t`, `\n`, and Unicode whitespace.
+  - Kept: `["", "a"]`, `[None, "x"]`, `[0, 0]`, `[False, False]`, `[0.0, np.nan]`.
+    - `0`, `False`, and `0.0` are not empty.
+- **Mix**: `{"a": [1, 2], "b": [None, None], "c": ["x", " "]}` gives columns `["a", "c"]`, shape `(2, 2)`, and `c` values `["x", " "]`.
+- **No empty columns**: the result equals the input in columns, dtypes, and values, but is still a new object.
+- **All columns empty, rows > 0**: e.g. `{"a": [None, None], "b": ["", " "]}` gives `result.columns == []` and `shape[1] == 0`.
+  - `shape[0]` is probably 2; see the row-count caveat in section 4.
+
+## 7. Rules from the docstring
+- "String values containing only whitespace are treated as empty."
+- Columns that are entirely null or empty strings are removed.
+
+## 8. Testing hints
+- **Build input**:
+  ```python
+  f = ar.from_pandas(pd.DataFrame({...}))
+  ```
+- **Check structure** with `result.columns`, `result.shape`, and `result.dtypes`.
+- **Check values** with `ar.to_pandas(result)[col].tolist()`. For nulls, use `pd.isna(...)` rather than comparing to `None`.
+- **Check dtype preservation**: e.g. int64 `[1, 2]` next to an empty column gives `result.dtypes["a"] == "int64"`.
+- **Check attrs**:
+  ```python
+  f._attrs = {"src": {"x": [1]}}
+  r = ar.drop_empty_columns(f)
+  assert r._attrs == f._attrs and r._attrs is not f._attrs
+  ```
+  Also check that mutating `r._attrs["src"]["x"]` leaves `f._attrs` unchanged.
+- **Check order**: `{"z": [1], "e": [None], "a": ["k"]}` gives `["z", "a"]`.
+- **Pitfalls**:
+  - Do not expect the zero-row branch to drop anything.
+  - Do not expect whitespace stripping in kept columns.
+  - Do not use `match=` on the non-ArFrame error.
+  - Whether `from_pandas` turns `""` into null depends on C++. It does not matter for dropping, but avoid asserting that a kept column contains a literal `""` vs null. Use `" "` or real text instead.
+  - The all-dropped row count depends on the C++ `from_dict`, so assert `shape[1] == 0` firmly and `shape[0]` softly.
