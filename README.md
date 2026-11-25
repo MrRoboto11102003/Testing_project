@@ -34,13 +34,47 @@ Full tables, paired tests and metrics: [RESULTS.md](RESULTS.md).
 
 ## Setup
 
-- Windows, Python 3.12. Pipeline venv: `python -m venv .venv && .venv/Scripts/pip install -r requirements.txt`.
-- openLens tests run in their own venv: `workspace/venvs/openlens` with `requirements-openlens.txt`.
-- arnio's C++ extension is built once with `python -m pipeline.setup_ext` (needs MSVC Build Tools).
-- Models are called through the Claude Code CLI (`claude -p --model ... --tools ""`, prompt on stdin,
-  run from a temp directory), so `claude` must be on PATH and logged in. Nothing uses the API directly.
-- The project under test is picked with `TP_PROJECT` (`arnio` by default, or `openlens`); see
-  `pipeline/config.py`. Clones, worktrees and venvs live in `workspace/` (gitignored).
+Tested only on **Windows** with **Python 3.12** (3.12.10); paths such as `.venv/Scripts/` assume Windows.
+Commands below are for Git Bash, run from the repo root.
+
+**What you need for which part:**
+
+| To do this | You need |
+|---|---|
+| Recheck the reported results: scores, metrics, baseline, `compare` (no model calls; all generated tests are saved in `data/`) | Python 3.12, git, the two project clones (arnio also needs the MSVC Build Tools for its C++ extension) |
+| Run new model conditions or regenerate the Opus notes | the first row, plus Claude Code with a **paid** account |
+| Mine new bugs (`pipeline.mine`) | the first row, plus the GitHub CLI (`gh`), logged in (no Claude account) |
+
+**1. Python environments.** The version matters: the pinned packages are built for 3.12.
+
+```sh
+py -3.12 -m venv .venv                      # Windows launcher; elsewhere: python3.12 -m venv .venv
+.venv/Scripts/pip install -r requirements.txt
+
+py -3.12 -m venv workspace/venvs/openlens   # separate venv that runs openLens's own tests
+workspace/venvs/openlens/Scripts/pip install -r requirements-openlens.txt
+```
+
+**2. The projects under test.** Clone them into `workspace/` (gitignored), then build arnio's C++
+extension once (needs the MSVC Build Tools):
+
+```sh
+git clone https://github.com/im-anishraj/arnio workspace/arnio
+git clone https://github.com/pmaasz/openLens workspace/openlens
+.venv/Scripts/python -m pipeline.setup_ext
+```
+
+**3. Claude Code (only for new model runs).** Models are called through the Claude Code CLI
+(`claude -p --model ... --tools ""`, prompt on stdin, run from a temp directory), never the API
+directly. Install Claude Code, make sure `claude` is on PATH, and log in with an account that can
+use it: a **paid Claude subscription** (Pro or Max) or an Anthropic Console account with API credits.
+The free Claude plan does not include Claude Code. The account must have access to
+`claude-haiku-4-5` (test writer) and `claude-opus-5-5` (notes). For scale: one 50-bug condition cost
+about $2–4 in Haiku usage, and the notes cost $10–21 per project, written once. On a subscription,
+long runs can hit the usage limit; `--stop-on-limit` stops cleanly, and rerunning resumes.
+
+The project under test is picked with `TP_PROJECT` (`arnio` by default, or `openlens`); see
+`pipeline/config.py`.
 
 ## Pipeline
 
