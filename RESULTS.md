@@ -1,4 +1,4 @@
-# Results (annex)
+# Annex: full results
 
 All numbers come from saved runs, with no model calls. Regenerate them with
 `python -m pipeline.compare --markdown --per-bug` (prefix `TP_PROJECT=openlens` for openLens).
@@ -13,7 +13,7 @@ but not caught · **tgt line/branch** = coverage inside the target functions · 
 tests passing on clean · **suite** = the project's own test suite at the base release, with each bug's
 own fix tests (added or changed by its fix PR) left out (`pipeline.baseline`).
 
-## arnio (v1.20.0)
+## A.1 arnio (v1.20.0)
 
 | condition | caught | FA tests | bugs w/ FA | cost $ | reached | reach+miss | tgt line | tgt branch | asserts/test | clean pass |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -28,21 +28,20 @@ own fix tests (added or changed by its fix PR) left out (`pipeline.baseline`).
 | p50+src (system) | 24 | 97 | 37 | 3.06 | 47 | 23 | 0.84 | 0.79 | 2.50 | 0.89 |
 | suite | 17 |  |  |  | 44 | 28 | 0.92 |  |  |  |
 
+Paired comparisons, exact two-sided McNemar (bugs caught only by A / only by B):
 
-Paired comparisons (exact two-sided McNemar; A-only / B-only bugs):
-
-```
-    p50+src+notes vs p50+src          9 /  1  p=0.021
-    p50+src+notes vs full+src         9 /  0  p=0.0039
-    p50+src+notes vs code            16 /  0  p=3.1e-05
-       code+notes vs code            16 /  1  p=0.00027
-       code+notes vs p50+src+notes    1 /  2  p=1
-         full+src vs code             9 /  2  p=0.065
-          p50+src vs code            10 /  2  p=0.039
-         full+src vs p50+src          2 /  3  p=1
-            suite vs code            11 / 15  p=0.56
-            suite vs p50+src+notes    6 / 26  p=0.00054
-```
+| A | B | A only | B only | p |
+|---|---|---|---|---|
+| p50+src+notes | p50+src | 9 | 1 | 0.021 |
+| p50+src+notes | full+src | 9 | 0 | 0.0039 |
+| p50+src+notes | code | 16 | 0 | 3.1e-05 |
+| code+notes | code | 16 | 1 | 0.00027 |
+| code+notes | p50+src+notes | 1 | 2 | 1 |
+| full+src | code | 9 | 2 | 0.065 |
+| p50+src | code | 10 | 2 | 0.039 |
+| full+src | p50+src | 2 | 3 | 1 |
+| suite | code | 11 | 15 | 0.56 |
+| suite | p50+src+notes | 6 | 26 | 0.00054 |
 
 - caught by at least one model condition: 39; never caught: 11
 
@@ -101,7 +100,7 @@ Paired comparisons (exact two-sided McNemar; A-only / B-only bugs):
 | pr2029 |  | x | x | x |  |  |  |  |  | x | 4 |
 | pr2030 | x | x | x | x | x |  | x |  |  |  | 6 |
 
-## openLens (openlens-v0.8.0)
+## A.2 openLens (openlens-v0.8.0)
 
 | condition | caught | FA tests | bugs w/ FA | cost $ | reached | reach+miss | tgt line | tgt branch | asserts/test | clean pass |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -112,25 +111,24 @@ Paired comparisons (exact two-sided McNemar; A-only / B-only bugs):
 | code+notes | 26 | 54 | 27 | 3.93 | 34 | 11 | 0.59 | 0.52 | 2.26 | 0.70 |
 | suite | 28 |  |  |  | 45 | 20 | 0.86 |  |  |  |
 
+Paired comparisons, exact two-sided McNemar (bugs caught only by A / only by B):
 
-Paired comparisons (exact two-sided McNemar; A-only / B-only bugs):
-
-```
-    p50+src+notes vs p50+src         16 /  2  p=0.0013
-    p50+src+notes vs full+src        15 /  2  p=0.0023
-    p50+src+notes vs code            15 /  0  p=6.1e-05
-       code+notes vs code            12 /  4  p=0.077
-       code+notes vs p50+src+notes    1 /  8  p=0.039
-         full+src vs code             9 /  7  p=0.8
-          p50+src vs code             8 /  7  p=1
-         full+src vs p50+src          5 /  4  p=1
-            suite vs code            15 /  5  p=0.041
-            suite vs p50+src+notes    9 / 14  p=0.4
-```
+| A | B | A only | B only | p |
+|---|---|---|---|---|
+| p50+src+notes | p50+src | 16 | 2 | 0.0013 |
+| p50+src+notes | full+src | 15 | 2 | 0.0023 |
+| p50+src+notes | code | 15 | 0 | 6.1e-05 |
+| code+notes | code | 12 | 4 | 0.077 |
+| code+notes | p50+src+notes | 1 | 8 | 0.039 |
+| full+src | code | 9 | 7 | 0.8 |
+| p50+src | code | 8 | 7 | 1 |
+| full+src | p50+src | 5 | 4 | 1 |
+| suite | code | 15 | 5 | 0.041 |
+| suite | p50+src+notes | 9 | 14 | 0.4 |
 
 - caught by at least one model condition: 36; never caught: 14
 
-### Per-bug catches (openlens)
+### Per-bug catches (openLens)
 
 | bug | code | full+src | p50+src | p50+src+notes | code+notes | suite | caught by |
 |---|---|---|---|---|---|---|---|
@@ -185,7 +183,7 @@ Paired comparisons (exact two-sided McNemar; A-only / B-only bugs):
 | pr515 | x | x | x | x |  | x | 5 |
 | pr516 |  |  |  | x | x |  | 2 |
 
-## Own-suite baseline
+## A.3 Own-suite baseline
 
 | | arnio | openLens |
 |---|---|---|
@@ -201,7 +199,7 @@ Fix tests are the test functions the fix PR's test patch added or changed, mappe
 fix commit, plus the instance's fail-to-pass tests. Fix tests that were later renamed or moved are not
 recognised. Branch coverage cannot be split per test, so it is not reported for the suite.
 
-## Cost
+## A.4 Cost
 
 | | arnio | openLens |
 |---|---|---|
@@ -210,7 +208,7 @@ recognised. Branch coverage cannot be split per test, so it is not reported for 
 | Haiku, p50+src+notes run | $3.18 | $3.70 |
 | Haiku, code+notes run | $3.16 | $3.93 |
 
-## Failure analysis (openLens)
+## A.5 Failure analysis (openLens)
 
 `pipeline.fa_probe` reruns saved test files on clean code and sorts each failure into setup
 (the test broke before checking anything) or expectation (an assert or `pytest.raises` that did not
@@ -226,7 +224,7 @@ hold). Read by hand on the never-caught bugs:
 - code+notes on openLens: 13 test files failed to import (wrong module paths without docs); on the
   37 bugs whose file loaded, code+notes 26 vs p50+src+notes 27.
 
-## What the notes changed (arnio, p50+src+notes vs p50+src)
+## A.6 What the notes changed (arnio, p50+src+notes vs p50+src)
 
 | Bug | Mechanism | What the note said |
 |---|---|---|
