@@ -1,112 +1,112 @@
-# LLM test generation on real bugs (arnio prototype)
+# Cheap models, expert notes: LLM test generation on real bugs
 
-Research question and design: see [PLAN.md](PLAN.md).
+Can a small, cheap LLM (Claude Haiku 4.5) write unit tests that catch **real** bugs in a library
+it has never seen? What context does it need?
 
-The project under test is [im-anishraj/arnio](https://github.com/im-anishraj/arnio), a pandas
-data-preparation library created May 2026 (after Claude Haiku 4.5's Jul 2025 training cutoff).
-Every instance is built on release **v1.20.0**: main currently doesn't compile and v2.0.0 is an
-unrelated rewrite.
+We port 50 real, previously fixed bugs back into each of two Python libraries created after the
+model's training cutoff, let Haiku write one-shot pytest files under different context conditions,
+and score each test on the clean and the buggy version.
+
+| Project | What it is | Base release | Bugs used |
+|---|---|---|---|
+| [im-anishraj/arnio](https://github.com/im-anishraj/arnio) | pandas data preparation, C++ core | v1.20.0 | 50 of 106 |
+| [pmaasz/openLens](https://github.com/pmaasz/openLens) | optics simulation, pure Python | openlens-v0.8.0 | 50 of 111 |
+
+## Headline results
+
+Bugs caught out of 50 (one seed). A bug is caught when some generated test passes on clean code
+and fails on buggy code. "suite" = the project's own test suite at the base release, without the
+tests each bug's own fix added.
+
+| Condition | What Haiku sees | arnio | openLens |
+|---|---|---|---|
+| code | source of the target functions | 21 | 18 |
+| p50+src / full+src | docs + target source | 29 / 28 | 19 / 20 |
+| code+notes | target source + Opus 5.5 expert notes | 36 | 26 |
+| p50+src+notes | docs + target source + Opus 5.5 expert notes | **37** | **33** |
+| own suite (fix tests left out) | n/a | 17 | 28 |
+
+- Adding documentation to the code helps a little on arnio and not at all on openLens; the amount of it never mattered (p = 1).
+- Short per-function "expert notes" written once by a stronger model (Claude Opus 5.5) add 8–14
+  catches and cut false-alarm tests by 58–69%. Once notes exist, the docs add nothing on arnio.
+
+Full tables, paired tests and metrics: [RESULTS.md](RESULTS.md).
+
+## Setup
+
+- Windows, Python 3.12. Pipeline venv: `python -m venv .venv && .venv/Scripts/pip install -r requirements.txt`.
+- openLens tests run in their own venv: `workspace/venvs/openlens` with `requirements-openlens.txt`.
+- arnio's C++ extension is built once with `python -m pipeline.setup_ext` (needs MSVC Build Tools).
+- Models are called through the Claude Code CLI (`claude -p --model ... --tools ""`, prompt on stdin,
+  run from a temp directory), so `claude` must be on PATH and logged in. Nothing uses the API directly.
+- The project under test is picked with `TP_PROJECT` (`arnio` by default, or `openlens`); see
+  `pipeline/config.py`. Clones, worktrees and venvs live in `workspace/` (gitignored).
 
 ## Pipeline
 
-| Step | Command | Output |
+Every step is resumable and skips finished work. Prefix with `TP_PROJECT=openlens` for openLens.
+
+| Step | Command | Output (under `data/`, or `data/openlens/`) |
 |---|---|---|
-| 0. Build the C++ extension once (needs MSVC Build Tools) | `python -m pipeline.setup_ext` | `workspace/ext/_arnio_cpp*.pyd` |
-| 1. Mine closed bug issues + merged fix PRs | `python -m pipeline.mine` | `data/raw/issues.json`, `data/candidates.jsonl` |
-| 2. Port each fix back into v1.20.0 as a bug, keep it if some fix test fails on buggy and passes on clean | `python -m pipeline.build` | `data/instances/<id>/`, `data/instances.jsonl`, `data/build_log.jsonl` |
-| 3. LLM writes tests from docs, scored on clean vs buggy | `python -m pipeline.generate --limit 5 --context full` | `data/runs/<model>__<context>/<id>/` |
-| 3b. Doc-ablation grid (all context modes on the same bugs, resumable) | `python -m pipeline.ablation --limit 20` | same, plus a summary table |
-| 3c. Test-quality metrics (coverage, bug reach, asserts; no model calls) | `python -m pipeline.metrics` | `data/runs/<run>/<id>/metrics.json`, `data/results_metrics.csv` |
-| 4. Export results to CSV | `python -m pipeline.export` | `data/results_bugs.csv`, `data/results_tests.csv` |
-| UI: pick model, context and bugs, run, browse results | `python -m pipeline.server` | opens http://localhost:8765 |
+| 1. Mine closed bug issues + merged fix PRs | `python -m pipeline.mine` | `raw/issues.json`, `candidates.jsonl` |
+| 2. Port each fix back into the base release as a bug; keep it if a fix test fails on buggy and passes on clean | `python -m pipeline.build` | `instances/<id>/`, `instances.jsonl`, `build_log.jsonl` |
+| 3. Expert notes: Opus writes a contract note per public target function (no bug info) | `python -m pipeline.notes --limit-bugs 50` | `notes/<model>/` |
+| 4. Haiku writes tests under each condition, scored on clean vs buggy | `python -m pipeline.ablation --limit 50 --conditions code,full+src --cache-docs` | `runs/<model>__<condition>/<id>/` |
+| 5. Test-quality metrics (coverage, bug reach, asserts) | `python -m pipeline.metrics` | `runs/.../metrics.json`, `results_metrics.csv` |
+| 6. Own-suite baseline (fix tests left out per bug) | `python -m pipeline.baseline --limit 50` | `baseline/`, `results_baseline.csv` |
+| 7. Paired comparison of the main conditions | `python -m pipeline.compare` | printed tables |
+| 8. Why tests fail on clean code (setup vs expectation) | `python -m pipeline.fa_probe` | `fa_probe.json` |
+| Export per-bug and per-test CSVs | `python -m pipeline.export` | `results_bugs.csv`, `results_tests.csv` |
+| UI: pick model, context and bugs, run, browse results | `python -m pipeline.server` | http://localhost:8765 |
 
-### Context modes
+The exact runs behind the results are in `scripts/` (`openlens_run_all.sh`, `code_notes_run_all.sh`,
+`metrics_baseline_run_all.sh`); their logs are in `data/logs/`.
 
-The model is always told which public functions to test. What it sees about them depends on `--context`:
+### Conditions
 
-| Mode | What the model sees | Size |
+The model is always told which public functions to test and gets one call to write a test file.
+What it sees about them:
+
+| Flag | Run label | Adds |
 |---|---|---|
-| `signatures` | signatures of the target functions only | <1 KB |
-| `targeted` | README quickstart + target docstrings + API_REFERENCE sections naming them | ~6 KB |
-| `full` | all user-facing docs at v1.20.0 (README, API reference, guides, `docs/*.md`; not CHANGELOG) + target docstrings | ~150 KB |
-| `partial` | the `full` pool split into ~80 sections, keeping `--keep` of them (seeded; 25% is a subset of 50%) | scales with keep |
+| `--context full` | `__full` | all user-facing docs at the base release (README, API reference, guides; not the CHANGELOG) + target docstrings |
+| `--context partial --keep 0.5` | `__partial50_s0` | a seeded 50% of the doc sections |
+| `--context code` | `__code` | the full clean source of each target function, no docs |
+| `--context codeapi` | `__codeapi` | `code` + the package's public API index |
+| `--with-source` | `__src` | the target source on top of any docs condition (`full+src`, `partial50+src`) |
+| `--notes claude-opus-5-5` | `__notes-opus-5-5` | the cached Opus note of each target function |
+| `--level system` | `__system` | asks for end-to-end tests instead of unit tests |
+| `--cache-docs` | `__cachedocs` | same content, docs moved to the (cached) system prompt to save tokens |
 
-### Test levels
+In `ablation`, conditions are written as `code`, `full+src`, `partial50+src`, etc.
 
-`--level` (also in `pipeline.ablation` and the UI) picks the kind of test asked for. The context options
-are independent of it. Non-unit runs get a `__<level>` suffix on the run folder.
+### Scoring and metrics
 
-| Level | Asked for |
-|---|---|
-| `unit` (default) | tests that call the target functions directly (the original prompt, unchanged) |
-| `integration` | each test combines a target with at least one other public arnio component (`from_pandas`/`read_csv`, `pipeline`, `Schema`, `profile`, `to_pandas`) |
-| `system` | end-to-end user workflows: files on disk via `tmp_path`, the pandas `.arnio` accessor, the CLI via `python -m arnio.cli` |
-
-Scoring is the same at every level. For each generated test, `arnio_calls` records which arnio entry
-points it touches (found by a static scan), and `mean_arnio_calls` is the per-run average. Use these to
-check that integration and system tests actually span more of the library than unit tests. arnio's real
-CLI is small (just `scan`), so most system tests go through files and the Python API. Use `full` or
-`partial` context for system runs: `targeted` leaves out the workflow guides.
-
-`data/runs/claude-haiku-4-5__targeted-v0/` is the first run, made with an earlier prompt that did not name
-the target functions.
-
-Run everything with the project venv (`.venv/Scripts/python`, Python 3.12 with pandas, numpy,
-pytest, hypothesis, PyYAML, pyarrow, duckdb).
+- **Caught**: some test passes on clean and fails on buggy. **False alarm**: a test that fails on clean.
+- **Reached**: some test executes a clean-side line the bug patch changes; **reached but missed**: reached, not caught.
+- Target line/branch coverage inside the target functions, assertions per test, share of tests passing on clean.
+- Comparisons are paired on the same bugs, exact two-sided McNemar test.
 
 ### Instances
 
-`data/instances/<id>/` holds:
+`data/instances/<id>/` (and `data/openlens/instances/<id>/`) hold `meta.json` (issue and PR text,
+fix commit, target symbols, fail-to-pass and pass-to-pass tests), `bug.patch` (applied to the base
+release gives the buggy version) and `fix_tests.patch` (the tests the fix PR added; reference only).
 
-- `meta.json`: issue and PR text, fix commit, target symbols, fail-to-pass (F2P) and pass-to-pass tests
-- `bug.patch`: applied to v1.20.0, gives the buggy version
-- `fix_tests.patch`: the tests the fix PR added (reference only)
+Porting tries a clean reverse patch, then `git revert`, then hunk-by-hunk reverse application;
+`meta.port_method` records which one worked.
 
-Porting tries, in order: a clean reverse patch, then `git revert` (three-way merge), then
-hunk-by-hunk reverse application with one line of context. `meta.port_method` records which one
-worked. Partial ports are only kept when F2P validation shows they reintroduce a failure.
-
-### Harness
+## Data layout
 
 ```
-# run arnio's own tests (default: the instance's F2P tests) on one version
-python -m pipeline.harness run arnio-pr1234 --variant buggy
-
-# score any test file on clean vs buggy
-python -m pipeline.harness check arnio-pr1234 path/to/test_file.py
+data/                      arnio (TP_PROJECT=arnio)
+  instances/ notes/ runs/  bugs, Opus notes, generated tests + scores (+ metrics.json)
+  runs/_pilot/             docs-only, early 20-bug ablation and trial runs (not in the results)
+  baseline/                own-suite results per bug (coverage cache gitignored)
+  probe/                   escalation probe (does Haiku predict its own misses?)
+  logs/                    run logs
+  results_*.csv            exports
+data/openlens/             the same for openLens
+scripts/                   the shell scripts that ran the experiments
+pipeline/                  all code
 ```
-
-A test **detects** the bug when it passes on clean and fails on buggy. It is a **false alarm**
-when it fails on clean.
-
-### Models
-
-Models are called through the Claude Code CLI, not the API:
-`claude -p --model claude-haiku-4-5 --tools "" --system-prompt ... --output-format json`, with
-the prompt on stdin. Disabling tools and running from a temp directory keeps the model's context
-to the prompt alone.
-
-### Token use and the subscription limit
-
-- `--cache-docs` (generate, ablation, UI checkbox) puts the shared doc files in the system prompt and the
-  per-bug docstrings and instructions in the message. Claude Code caches the system prompt for an hour,
-  so after the first bug of a full/partial condition ~43k of ~45k input tokens are cache reads (about 70%
-  cheaper per call in a 3-bug test). Same content, different placement: it is its own run label
-  (`__cachedocs`), so don't mix it with uncached runs.
-- `--max-thinking N` caps thinking tokens (0 = off; label `__thinkN`). Roughly halves time and cost, but
-  changes the condition: trial runs only.
-- At the usage limit, calls sleep until the reset time in the error message and carry on.
-
-### Test-quality metrics
-
-`python -m pipeline.metrics` reruns each saved test file on clean code under branch coverage with
-per-test contexts. Per bug: line and branch coverage inside the target functions, package line coverage,
-whether any test executes a clean-side line the bug patch changes (`reached_bug`, and
-`reached_but_missed` when none of those tests catch it), assertions per test and tests without asserts.
-It only reruns new or changed test files. Needs `coverage` in the venv.
-
-## Not built yet
-
-- Clarifying Q&A on top of partial docs
-- Mutation score
-- A second project (the pipeline is still arnio-specific)

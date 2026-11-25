@@ -1,0 +1,10 @@
+# Pipeline venv (.venv, Python 3.12). Also runs arnio's tests; arnio's C++ extension is built
+# separately with `python -m pipeline.setup_ext` (needs MSVC Build Tools).
+# Model calls go through the `claude` CLI (Claude Code), which must be on PATH.
+coverage==7.17.1
+duckdb==2.0.0
+hypothesis==6.170.13
+pandas==3.1.0
+pyarrow==26.0.0
+pytest==9.2.0
+PyYAML==6.0.3

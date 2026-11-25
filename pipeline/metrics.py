@@ -25,6 +25,7 @@ import argparse
 import ast
 import csv
 import json
+import os
 import queue
 import re
 import shutil
@@ -134,7 +135,8 @@ def run_coverage(path: Path, test_file: Path) -> dict:
     dest = dest_dir / test_file.name
     shutil.copy2(test_file, dest)
     (path / ".coveragerc-metrics").write_text(RCFILE, encoding="utf-8")
-    common = dict(cwd=path, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    env = dict(os.environ, **config.TEST_ENV, PYTHONPATH=str(path) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    common = dict(cwd=path, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     subprocess.run([config.PYTHON, "-m", "coverage", "run", "--rcfile=.coveragerc-metrics",
                     "-m", "pytest", dest.relative_to(path).as_posix(),
                     "-q", "-p", "no:cacheprovider", "-o", "addopts="],

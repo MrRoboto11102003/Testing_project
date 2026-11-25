@@ -1,10 +1,451 @@
-﻿run,model,context,keep,prompt_chars,bug,issue_title,detected,tests,catching,false_alarms,cost_usd,seconds
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,5289,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,False,12,0,4,0.054938,70.3
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,6141,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",False,25,0,1,0.041951,51.5
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,6349,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,False,22,0,0,0.039752,47.9
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,6967,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,False,20,0,0,0.032753,40.0
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,14200,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,17,0,2,0.046185000000000004,47.4
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,5190,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,17,0,0,0.054391,63.0
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,4425,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,False,22,0,0,0.033915999999999995,39.9
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,5270,arnio-pr1481,Bug: validate filter_rows column and operator types,False,14,0,0,0.058451,63.3
-claude-haiku-4-5__targeted-v0,claude-haiku-4-5,targeted,1.0,6995,arnio-pr2491,write_csv: preserve destination and RuntimeError contract on transcoding failures,False,17,0,5,0.050118,68.1
+﻿run,model,context,keep,prompt_chars,level,mean_arnio_calls,bug,issue_title,detected,tests,catching,false_alarms,cost_usd,seconds
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2636,unit,1.93,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,15,1,1,0.052977,58.1
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,5290,unit,1.14,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",False,22,0,7,0.050956999999999995,57.9
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,5586,unit,1.0,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,15,2,0,0.062452,62.9
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,6547,unit,1.27,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,True,15,1,8,0.06458720000000001,66.6
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,19667,unit,0.68,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,28,0,0,0.06746,55.4
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2445,unit,1.93,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,15,0,14,0.035554999999999996,57.4
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2856,unit,0.0,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,False,18,0,18,0.036136,41.5
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2389,unit,1.2,arnio-pr1481,Bug: validate filter_rows column and operator types,True,15,2,0,0.054024,54.5
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1606,unit,1.0,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,True,15,1,0,0.044421,48.0
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1408,unit,1.31,arnio-pr1493,Bug: validate DuckDB connection objects before registration,False,13,0,12,0.052270000000000004,68.2
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,5195,unit,2.0,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,22,0,0,0.058406,52.2
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,6547,unit,1.47,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,False,15,0,15,0.040893,44.9
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,20746,unit,2.27,arnio-pr1508,Bug: validate pipeline frame input before execution,True,22,1,1,0.060726999999999996,52.8
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1879,unit,2.56,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,16,0,9,0.047012,46.6
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1752,unit,1.0,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,False,15,0,0,0.049204,46.4
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2389,unit,1.0,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,15,1,0,0.048741,55.9
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2469,unit,0.08,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,False,13,0,11,0.057463,62.7
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,542,unit,1.21,arnio-pr1553,Bug: validate Schema rules during construction,False,14,0,14,0.040393,41.5
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2839,unit,0.27,arnio-pr1600,Security: validate redact_values in validation markdown,True,15,1,0,0.0458,52.8
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,20746,unit,2.55,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,20,4,1,0.056631,50.0
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,3375,unit,1.0,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,16,3,0,0.057082,56.4
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2904,unit,1.0,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,14,6,0,0.042266000000000005,43.6
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,9830,unit,1.63,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,True,19,2,0,0.055008999999999995,54.2
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1509,unit,1.07,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,15,0,0,0.055408,50.5
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,3967,unit,1.0,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,15,3,0,0.050986,51.4
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1159,unit,1.0,arnio-pr1782,Bug: validate Email schema validation mode type,True,15,2,0,0.034047999999999995,33.7
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,5195,unit,1.0,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,False,15,0,0,0.07211000000000001,74.9
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,4854,unit,2.0,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,18,1,0,0.06757899999999999,65.0
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,25820,unit,1.06,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,16,0,0,0.10547,91.1
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,9830,unit,1.0,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,16,14,0,0.042533,57.5
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1587,unit,1.0,arnio-pr1857,DX: clarify from_dict nested object error message,False,15,0,0,0.041579000000000005,42.6
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,4839,unit,1.07,arnio-pr1860,Bug: validate writer output path arguments,False,15,0,8,0.055445999999999995,57.7
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,3078,unit,1.15,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,True,13,1,0,0.079476,80.4
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,4839,unit,1.13,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,False,15,0,1,0.049992999999999996,68.3
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,7508,unit,1.0,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,24,0,24,0.062846,65.3
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,10804,unit,3.95,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,False,20,0,13,0.04866899999999999,47.8
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,3827,unit,0.07,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,False,15,0,9,0.045867,44.3
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1734,unit,1.0,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,15,10,0,0.03656,38.0
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2207,unit,2.0,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,14,0,1,0.048419,49.6
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,7747,unit,0.0,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,False,15,0,0,0.056849000000000004,60.5
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,5980,unit,1.74,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,True,23,1,0,0.052154,57.0
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1272,unit,0.0,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,13,0,13,0.037915,39.9
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,4839,unit,1.13,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,False,15,0,8,0.059518,54.9
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,1345,unit,1.36,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,False,14,0,1,0.05300799999999999,51.0
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,3958,unit,0.0,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,15,1,10,0.048319999999999995,52.8
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,4010,unit,2.6,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,15,0,3,0.052481,62.8
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,3808,unit,1.39,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,18,0,0,0.038263,44.0
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2607,unit,1.07,arnio-pr2028,Bug: validate string schema length bound values,False,15,0,0,0.058789,57.3
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,2445,unit,2.0,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,False,15,0,13,0.054143,65.8
+claude-haiku-4-5__code,claude-haiku-4-5,code,1.0,6661,unit,1.0,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,True,19,1,1,0.038209,39.9
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,9053,unit,1.87,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,15,1,0,0.07478699999999999,72.2
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,34760,unit,2.33,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",True,15,1,0,0.089569,66.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,18843,unit,1.0,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,19,1,0,0.07059800000000001,64.8
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,15042,unit,2.14,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,False,1,0,1,0.059396000000000004,58.3
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,46833,unit,1.0,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,1,0,0,0.077216,46.4
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,9585,unit,1.0,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,25,0,3,0.066597,64.6
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,11410,unit,2.12,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,True,16,4,0,0.07949999999999999,68.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,8663,unit,1.13,arnio-pr1481,Bug: validate filter_rows column and operator types,True,15,2,0,0.072099,70.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,7812,unit,1.13,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,True,15,1,0,0.0523,55.7
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,7581,unit,1.07,arnio-pr1493,Bug: validate DuckDB connection objects before registration,True,15,1,0,0.05794900000000001,62.0
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,15323,unit,1.7,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,30,0,0,0.052302,44.3
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,15042,unit,2.21,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,True,29,1,0,0.065983,57.4
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,30716,unit,2.39,arnio-pr1508,Bug: validate pipeline frame input before execution,True,23,1,1,0.075712,61.0
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,16331,unit,2.47,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,15,0,1,0.06434100000000001,59.0
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,7714,unit,1.12,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,True,16,3,0,0.052079,52.2
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,8663,unit,1.2,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,15,1,0,0.055503,52.4
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,7419,unit,0.4,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,True,15,1,0,0.040493999999999995,46.6
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,8536,unit,3.07,arnio-pr1553,Bug: validate Schema rules during construction,False,15,0,2,0.04285599999999999,43.4
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,8658,unit,1.62,arnio-pr1600,Security: validate redact_values in validation markdown,True,16,1,0,0.063279,61.9
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,30716,unit,2.42,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,19,5,0,0.072919,54.8
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,9857,unit,1.2,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,15,3,0,0.06454700000000001,61.7
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,17081,unit,1.0,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,15,5,0,0.06603300000000001,57.7
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,20315,unit,1.06,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,True,16,2,0,0.057105,49.9
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,7132,unit,1.07,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,15,0,0,0.071982,72.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,10979,unit,1.0,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,15,3,0,0.067171,69.5
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,8175,unit,1.05,arnio-pr1782,Bug: validate Email schema validation mode type,True,20,1,0,0.053515999999999994,57.0
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,15323,unit,2.0,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,True,16,1,0,0.058075,50.2
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,17325,unit,2.67,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,11,1,2,0.076395,65.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,88427,unit,1.25,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,16,0,2,0.089851,45.6
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,20315,unit,1.0,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,15,12,0,0.059174000000000004,51.3
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,8549,unit,1.24,arnio-pr1857,DX: clarify from_dict nested object error message,True,17,1,4,0.03976,43.0
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,12355,unit,1.17,arnio-pr1860,Bug: validate writer output path arguments,True,23,2,0,0.062969,59.3
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,16725,unit,2.0,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,True,15,1,0,0.04830400000000001,41.5
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,12355,unit,1.06,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,True,16,1,0,0.073664,60.3
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,37224,unit,1.13,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,31,0,1,0.084746,62.2
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,20834,unit,3.35,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,True,23,2,1,0.061073,50.8
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,9909,unit,0.0,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,True,15,3,0,0.071968,73.6
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,8632,unit,1.0,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,15,10,0,0.051142,50.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,7157,unit,2.0,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,15,0,2,0.047375,45.3
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,24381,unit,0.13,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,True,13,2,1,0.069729,57.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,13339,unit,1.96,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,True,25,1,0,0.069491,60.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,7867,unit,0.0,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,15,0,0,0.057728,59.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,12355,unit,1.93,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,True,14,1,0,0.090459,82.1
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,7428,unit,2.47,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,True,15,1,0,0.036633,38.3
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,14670,unit,0.18,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,11,2,0,0.072166,63.2
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,11080,unit,2.73,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,15,0,4,0.059383000000000005,55.3
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,14086,unit,1.67,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,15,0,1,0.050825999999999996,44.4
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,10782,unit,1.02,arnio-pr2028,Bug: validate string schema length bound values,True,46,2,0,0.047068000000000006,45.7
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,8748,unit,2.07,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,False,15,0,2,0.047063999999999995,43.7
+claude-haiku-4-5__code__notes-opus-5-5,claude-haiku-4-5,code,1.0,23596,unit,1.0,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,True,23,2,0,0.068084,63.1
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2636,system,2.05,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,19,1,0,0.041705,73.4
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,5290,system,1.56,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",False,18,0,7,0.070914,74.9
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,5586,system,2.0,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,False,13,0,6,0.074208,68.2
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,6547,system,1.24,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,False,1,0,1,0.061971,62.1
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,19667,system,1.29,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,1,0,1,0.07261400000000001,63.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2445,system,3.0,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,14,0,0,0.091398,82.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2856,system,0.0,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,False,16,0,16,0.044534,48.5
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2389,system,1.93,arnio-pr1481,Bug: validate filter_rows column and operator types,True,15,2,8,0.037630000000000004,42.5
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1606,system,1.07,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,False,15,0,1,0.046284,49.7
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1408,system,1.93,arnio-pr1493,Bug: validate DuckDB connection objects before registration,True,15,2,0,0.060490999999999996,60.9
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,5195,system,1.95,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,19,0,1,0.065323,62.5
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,6547,system,1.38,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,True,26,1,9,0.045495,59.1
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,20746,system,1.95,arnio-pr1508,Bug: validate pipeline frame input before execution,False,20,0,4,0.071625,62.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1879,system,2.56,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,16,0,14,0.055364,63.2
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1752,system,1.24,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,False,17,0,6,0.045246,50.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2389,system,1.94,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,17,1,4,0.127121,104.0
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2469,system,1.07,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,True,14,1,0,0.056145,57.4
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,542,system,1.93,arnio-pr1553,Bug: validate Schema rules during construction,False,15,0,14,0.05536,62.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2839,system,4.0,arnio-pr1600,Security: validate redact_values in validation markdown,False,15,0,15,0.050807,58.6
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,20746,system,2.26,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,23,10,1,0.073765,64.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,3375,system,2.64,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,14,3,1,0.070997,75.1
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2904,system,1.15,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,20,5,4,0.036232999999999994,40.1
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,9830,system,1.12,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,True,17,2,0,0.070424,60.3
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1509,system,2.69,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,16,0,1,0.046890999999999995,48.6
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,3967,system,1.0,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,23,3,11,0.046574,48.2
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1159,system,2.0,arnio-pr1782,Bug: validate Email schema validation mode type,True,17,1,7,0.043116,51.5
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,5195,system,1.95,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,False,20,0,2,0.061009,62.5
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,4854,system,1.93,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,14,1,8,0.087671,84.7
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,25820,system,1.93,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,15,0,11,0.08216299999999999,72.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,9830,system,1.07,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,15,13,0,0.067762,66.1
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1587,system,1.0,arnio-pr1857,DX: clarify from_dict nested object error message,False,17,0,0,0.058881,60.4
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,4839,system,1.0,arnio-pr1860,Bug: validate writer output path arguments,False,21,0,0,0.078196,80.9
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,3078,system,1.88,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,False,16,0,2,0.06307700000000001,65.0
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,4839,system,1.93,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,False,15,0,14,0.072207,70.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,7508,system,1.0,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,21,0,21,0.06639199999999999,66.9
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,10804,system,4.27,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,True,26,1,11,0.059481000000000006,57.2
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,3827,system,1.0,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,True,14,1,1,0.038792999999999994,41.4
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1734,system,1.0,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,15,9,0,0.037221000000000004,42.4
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2207,system,2.0,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,14,0,13,0.050252000000000005,55.9
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,7747,system,1.0,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,False,15,0,4,0.07675100000000001,76.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,5980,system,1.94,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,True,16,1,0,0.039283,42.9
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1272,system,2.0,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,14,0,14,0.06480799999999999,65.5
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,4839,system,1.94,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,True,17,1,0,0.07453900000000001,75.1
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,1345,system,2.65,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,False,17,0,8,0.061221,64.3
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,3958,system,1.0,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,16,2,0,0.0528,57.2
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,4010,system,2.65,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,17,0,10,0.037891999999999995,42.2
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,3808,system,2.07,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,15,0,14,0.057700999999999995,63.8
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2607,system,2.5,arnio-pr2028,Bug: validate string schema length bound values,False,20,0,15,0.053637,57.1
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,2445,system,2.0,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,False,15,0,4,0.036826,42.5
+claude-haiku-4-5__code__system,claude-haiku-4-5,code,1.0,6661,system,1.13,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,True,15,1,0,0.08036200000000002,77.7
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33717,unit,1.94,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,17,1,0,0.05634499999999999,44.3
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,36371,unit,1.12,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",True,16,2,0,0.072011,57.0
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,36667,unit,1.0,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,17,3,0,0.076522,55.0
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,37628,unit,1.6,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,True,30,1,0,0.071419,52.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,50748,unit,1.03,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,30,0,12,0.076207,51.0
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33526,unit,3.07,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,15,0,0,0.06334200000000001,45.0
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33937,unit,0.0,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,False,17,0,0,0.061169,45.4
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33470,unit,1.67,arnio-pr1481,Bug: validate filter_rows column and operator types,True,15,1,1,0.060829,44.1
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32687,unit,1.07,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,False,15,0,0,0.055799,39.8
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32489,unit,1.92,arnio-pr1493,Bug: validate DuckDB connection objects before registration,True,13,1,1,0.048608,36.6
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,36276,unit,2.06,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,17,0,0,0.083542,54.0
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,37628,unit,2.68,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,True,22,1,0,0.073175,51.3
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,51827,unit,1.46,arnio-pr1508,Bug: validate pipeline frame input before execution,True,28,1,0,0.06436,38.8
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32960,unit,3.13,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,15,0,1,0.07044500000000001,51.4
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32833,unit,2.94,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,False,16,0,1,0.06257499999999999,43.0
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33470,unit,2.55,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,20,1,0,0.057554,36.4
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33550,unit,0.2,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,True,15,2,0,0.061606,41.5
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,31623,unit,3.2,arnio-pr1553,Bug: validate Schema rules during construction,False,15,0,2,0.06727,51.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33920,unit,1.53,arnio-pr1600,Security: validate redact_values in validation markdown,True,15,2,0,0.062452,43.8
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,51827,unit,2.35,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,26,13,1,0.08014500000000001,54.3
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,34456,unit,2.56,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,16,3,1,0.06358,42.6
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33985,unit,1.14,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,14,4,0,0.075942,58.6
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,40911,unit,1.0,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,True,17,3,0,0.06528400000000001,43.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32590,unit,1.13,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,15,0,0,0.058188000000000004,36.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,35048,unit,1.06,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,16,2,0,0.073647,54.4
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32240,unit,1.07,arnio-pr1782,Bug: validate Email schema validation mode type,True,15,2,0,0.047545,30.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,36276,unit,1.15,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,False,13,0,0,0.060081999999999997,39.8
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,35935,unit,2.68,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,19,1,1,0.067315,45.5
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,56901,unit,2.81,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,21,0,0,0.08924599999999999,59.5
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,40911,unit,1.33,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,18,15,0,0.057992,41.1
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32668,unit,1.0,arnio-pr1857,DX: clarify from_dict nested object error message,False,15,0,2,0.070313,53.4
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,35920,unit,1.73,arnio-pr1860,Bug: validate writer output path arguments,False,17,0,0,0.070238,48.6
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,34159,unit,1.94,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,False,18,0,0,0.05332,37.0
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,35920,unit,1.77,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,False,18,0,0,0.102356,71.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,38589,unit,0.54,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,13,0,0,0.100351,75.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,41885,unit,4.0,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,True,20,2,3,0.064429,46.6
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,34908,unit,0.0,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,True,20,1,1,0.048298999999999995,32.2
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32815,unit,1.0,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,15,10,0,0.056181,37.7
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33288,unit,2.0,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,15,0,1,0.067403,44.5
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,38828,unit,0.0,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,False,21,0,1,0.074985,53.1
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,37061,unit,1.43,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,True,14,1,0,0.10185799999999999,76.2
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32353,unit,2.0,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,15,0,0,0.08914899999999999,59.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,35920,unit,2.0,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,False,25,0,0,0.074541,50.8
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,32426,unit,2.16,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,False,19,0,3,0.060341,42.5
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,35039,unit,0.0,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,15,1,0,0.076231,53.4
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,35091,unit,2.81,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,16,0,10,0.076101,55.1
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,34889,unit,1.71,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,24,0,0,0.06309200000000001,45.0
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33688,unit,0.0,arnio-pr2028,Bug: validate string schema length bound values,False,1,0,1,0.046993999999999994,28.7
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,33526,unit,2.0,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,False,15,0,1,0.054606,39.9
+claude-haiku-4-5__codeapi,claude-haiku-4-5,codeapi,1.0,37742,unit,1.53,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,False,17,0,0,0.063306,44.7
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152948,unit,1.93,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,15,1,0,0.114284,42.0
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,156515,unit,2.33,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",True,18,1,1,0.0498833,53.9
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,157156,unit,2.05,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,20,2,0,0.0560363,57.8
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,158650,unit,2.67,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,True,15,1,0,0.0534993,46.4
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,178960,unit,0.72,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,1,0,1,0.0623093,46.7
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152856,unit,3.0,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,15,0,0,0.0346863,40.1
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152502,unit,0.0,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,False,14,0,0,0.0457483,41.4
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152714,unit,1.13,arnio-pr1481,Bug: validate filter_rows column and operator types,True,15,3,1,0.0356793,36.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,151674,unit,1.27,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,False,15,0,1,0.049126300000000005,43.5
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,151595,unit,1.33,arnio-pr1493,Bug: validate DuckDB connection objects before registration,True,15,1,2,0.060816300000000004,60.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,156013,unit,2.0,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,15,0,1,0.0369543,40.2
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,158650,unit,1.37,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,True,19,1,3,0.0518423,43.6
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,174224,unit,2.5,arnio-pr1508,Bug: validate pipeline frame input before execution,True,16,1,1,0.06183430000000001,55.9
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152179,unit,2.87,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,15,0,1,0.058371299999999994,55.6
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,151748,unit,2.79,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,False,14,0,2,0.0370353,39.7
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152714,unit,1.67,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,15,1,0,0.037306299999999994,34.2
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152766,unit,0.13,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,True,15,1,0,0.0255733,25.4
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,150335,unit,3.25,arnio-pr1553,Bug: validate Schema rules during construction,False,16,0,1,0.0439013,50.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152906,unit,0.0,arnio-pr1600,Security: validate redact_values in validation markdown,True,16,1,0,0.035558299999999994,39.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,174224,unit,2.41,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,17,8,0,0.0487233,35.8
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,153844,unit,2.53,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,15,3,2,0.061049299999999994,50.2
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,153505,unit,1.0,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,21,4,0,0.0281303,31.5
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,163641,unit,1.26,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,True,19,2,0,0.0593503,47.9
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,151503,unit,2.47,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,15,0,0,0.037232299999999996,32.8
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,154195,unit,1.06,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,18,2,0,0.0316513,34.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,151156,unit,3.13,arnio-pr1782,Bug: validate Email schema validation mode type,True,15,1,1,0.04128129999999999,36.2
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,156013,unit,1.94,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,False,18,0,1,0.0379043,33.0
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,156511,unit,2.67,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,12,1,0,0.0387583,35.5
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,185304,unit,2.68,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,22,0,0,0.0629803,48.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,163641,unit,1.13,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,15,13,1,0.0440853,45.4
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,151234,unit,1.33,arnio-pr1857,DX: clarify from_dict nested object error message,False,15,0,1,0.037274299999999996,41.1
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,156322,unit,1.35,arnio-pr1860,Bug: validate writer output path arguments,True,24,1,0,0.0396083,33.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,153660,unit,2.6,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,False,15,0,0,0.0348773,33.0
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,156322,unit,1.53,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,False,21,0,0,0.0431683,42.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,157924,unit,2.0,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,19,0,0,0.0466323,39.6
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,161131,unit,4.07,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,True,15,1,1,0.0352633,35.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,154652,unit,0.0,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,True,15,2,1,0.0434643,35.7
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,151227,unit,1.0,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,15,8,0,0.04493029999999999,47.5
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152066,unit,2.07,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,15,0,0,0.0321723,35.4
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,160161,unit,0.0,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,False,11,0,0,0.0517373,48.4
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,157601,unit,1.95,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,True,22,1,1,0.0481473,48.1
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,151261,unit,0.0,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,14,0,14,0.0385433,43.5
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,156322,unit,1.06,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,True,21,1,0,0.046574300000000006,49.4
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,150820,unit,2.67,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,False,15,0,1,0.0445243,47.1
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,154888,unit,0.0,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,17,1,0,0.051740299999999996,52.7
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,154401,unit,2.6,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,15,0,1,0.0643293,61.6
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,154569,unit,1.92,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,14,0,1,0.0307333,44.2
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152992,unit,1.0,arnio-pr2028,Bug: validate string schema length bound values,False,16,0,0,0.0259623,28.9
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,152593,unit,2.8,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,True,15,1,1,0.0307003,32.3
+claude-haiku-4-5__full__src__cachedocs,claude-haiku-4-5,full,1.0,157591,unit,1.5,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,True,22,1,1,0.0392763,34.7
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152948,system,2.6,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,25,3,2,0.114926,37.6
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,156515,system,3.05,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",True,22,1,3,0.056757,53.4
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,157156,system,2.53,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,19,3,1,0.053718,51.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,158650,system,2.81,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,True,27,1,2,0.076633,69.7
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,178960,system,2.32,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),True,19,1,2,0.069622,60.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152856,system,2.87,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,15,0,0,0.06661999999999998,60.0
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152502,system,2.0,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,True,15,1,0,0.141833,56.0
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152714,system,1.8,arnio-pr1481,Bug: validate filter_rows column and operator types,True,15,1,1,0.049678,48.5
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,151674,system,2.33,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,False,15,0,1,0.057385,54.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,151595,system,2.2,arnio-pr1493,Bug: validate DuckDB connection objects before registration,True,15,1,1,0.064972,61.3
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,156013,system,2.07,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,15,0,3,0.069881,63.1
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,158650,system,2.8,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,False,15,0,3,0.04799900000000001,46.1
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,174224,system,2.36,arnio-pr1508,Bug: validate pipeline frame input before execution,False,28,0,6,0.07086,59.4
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152179,system,4.56,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,18,0,2,0.140673,55.3
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,151748,system,3.06,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,False,18,0,2,0.04269,42.1
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152714,system,2.08,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,24,1,1,0.05829700000000001,52.5
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152766,system,0.73,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,True,15,1,0,0.05249300000000001,47.6
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,150335,system,4.94,arnio-pr1553,Bug: validate Schema rules during construction,False,18,0,1,0.05420199999999999,51.3
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152906,system,4.57,arnio-pr1600,Security: validate redact_values in validation markdown,True,14,1,2,0.060107,58.2
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,174224,system,2.67,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,27,16,3,0.071398,58.0
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,153844,system,2.6,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,15,1,1,0.06489400000000001,57.7
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,153505,system,3.63,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,19,1,0,0.065652,59.3
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,163641,system,1.93,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,False,15,0,1,0.07249799999999999,61.4
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,151503,system,2.72,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,18,0,0,0.043479,40.7
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,154195,system,2.63,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,19,1,0,0.051650999999999996,53.1
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,151156,system,3.83,arnio-pr1782,Bug: validate Email schema validation mode type,True,24,1,1,0.050186,51.3
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,156013,system,2.16,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,False,19,0,2,0.06758,73.2
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,156511,system,2.78,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,18,1,2,0.053982999999999996,48.4
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,185304,system,3.62,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,13,0,2,0.08379400000000001,68.6
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,163641,system,2.13,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,15,13,0,0.076527,68.2
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,151234,system,2.2,arnio-pr1857,DX: clarify from_dict nested object error message,False,15,0,1,0.04922600000000001,47.7
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,156322,system,2.04,arnio-pr1860,Bug: validate writer output path arguments,False,29,0,8,0.06576499999999999,58.2
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,153660,system,3.63,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,True,19,1,3,0.07466400000000001,64.6
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,156322,system,2.29,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,False,20,0,1,0.063985,55.6
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,157924,system,2.0,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,21,0,0,0.058557000000000005,52.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,161131,system,4.56,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,True,16,1,1,0.051874,45.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,154652,system,1.44,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,True,18,1,2,0.06187400000000001,56.9
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,151227,system,1.8,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,25,6,2,0.053556000000000006,58.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152066,system,2.3,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,20,0,1,0.049421,46.1
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,160161,system,1.79,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,False,19,0,2,0.055817,53.5
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,157601,system,2.12,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,False,24,0,4,0.060456,55.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,151261,system,3.0,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,13,0,0,0.07338800000000001,64.3
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,156322,system,2.32,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,True,23,1,3,0.05213,49.3
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,150820,system,4.6,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,False,15,0,1,0.04679300000000001,44.1
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,154888,system,1.68,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,19,3,5,0.054097000000000006,50.2
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,154401,system,2.65,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,20,0,1,0.063611,56.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,154569,system,2.42,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,19,0,0,0.067543,63.8
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152992,system,3.67,arnio-pr2028,Bug: validate string schema length bound values,False,18,0,2,0.057504999999999994,53.4
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,152593,system,2.4,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,False,15,0,2,0.047087000000000004,45.9
+claude-haiku-4-5__full__src__system__cachedocs,claude-haiku-4-5,full,1.0,157591,system,2.38,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,False,16,0,2,0.13883600000000001,58.3
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89351,unit,1.94,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,16,1,0,0.086495,42.9
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,92964,unit,2.41,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",False,17,0,1,0.0419684,49.6
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,92301,unit,2.56,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,18,4,1,0.106865,65.3
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,93262,unit,2.53,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,True,19,1,1,0.0424084,48.7
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,109482,unit,1.14,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),True,21,1,7,0.0693247,65.8
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89160,unit,3.0,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,15,0,1,0.048713400000000004,53.1
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89571,unit,2.0,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,True,16,1,1,0.0320554,33.2
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89444,unit,1.81,arnio-pr1481,Bug: validate filter_rows column and operator types,True,16,1,0,0.030130899999999995,32.9
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,88321,unit,2.53,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,False,15,0,0,0.026940400000000003,30.6
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,88325,unit,1.29,arnio-pr1493,Bug: validate DuckDB connection objects before registration,True,14,2,1,0.0298439,36.0
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,91910,unit,1.07,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,15,0,1,0.0298234,33.6
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,93262,unit,2.68,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,True,19,1,1,0.05299220000000001,55.1
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,107461,unit,1.52,arnio-pr1508,Bug: validate pipeline frame input before execution,True,25,1,0,0.0634984,59.5
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,88594,unit,2.81,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,16,0,3,0.038542400000000004,45.3
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,88467,unit,2.81,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,False,16,0,1,0.0300514,34.1
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89444,unit,2.6,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,15,1,2,0.037243899999999996,33.2
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89496,unit,0.13,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,True,15,1,0,0.041767900000000004,46.6
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,87257,unit,3.41,arnio-pr1553,Bug: validate Schema rules during construction,False,17,0,1,0.0345694,35.7
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89636,unit,0.0,arnio-pr1600,Security: validate redact_values in validation markdown,True,14,1,0,0.0429399,42.7
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,107461,unit,2.45,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,20,9,1,0.049206400000000004,45.4
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,90090,unit,2.62,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,16,2,1,0.0335974,37.9
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89619,unit,1.64,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,14,2,0,0.038057400000000005,41.8
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,96545,unit,1.27,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,True,15,1,0,0.0403454,41.2
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,88224,unit,1.33,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,15,0,0,0.021052400000000002,21.5
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,90925,unit,1.33,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,15,2,0,0.0448429,42.0
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,87886,unit,1.0,arnio-pr1782,Bug: validate Email schema validation mode type,True,15,1,0,0.0342289,39.9
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,91910,unit,1.93,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,False,15,0,0,0.0420254,44.4
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,92122,unit,1.82,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,17,1,1,0.07088389999999999,59.7
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,116841,unit,2.87,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,15,0,0,0.0669894,48.7
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,96545,unit,1.2,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,15,13,1,0.0368404,40.5
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,87964,unit,1.07,arnio-pr1857,DX: clarify from_dict nested object error message,False,14,0,1,0.038209900000000005,35.9
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,91554,unit,1.07,arnio-pr1860,Bug: validate writer output path arguments,True,15,1,0,0.06328940000000001,57.5
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89895,unit,2.43,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,False,14,0,0,0.0549246,60.1
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,91554,unit,1.95,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,True,25,1,0,0.054821400000000006,53.8
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,94850,unit,2.0,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,18,0,0,0.057039400000000004,59.2
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,97519,unit,4.25,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,True,20,1,2,0.04041840000000001,37.0
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,90542,unit,0.0,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,True,14,1,0,0.038042400000000004,35.9
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,88449,unit,1.0,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,14,9,0,0.0473784,49.7
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,88922,unit,2.93,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,15,0,1,0.0291434,35.0
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,95452,unit,1.0,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,False,15,0,0,0.0688754,74.1
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,94331,unit,1.07,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,True,15,1,1,0.0466589,51.7
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,87991,unit,0.0,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,14,0,14,0.03393089999999999,41.3
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,91554,unit,1.94,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,False,20,0,1,0.0400522,45.1
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,87550,unit,2.47,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,False,15,0,2,0.0437169,44.6
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,90985,unit,0.0,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,12,1,0,0.043281900000000005,44.0
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,91131,unit,2.62,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,16,0,2,0.0534909,47.8
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,90523,unit,2.86,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,15,0,0,0.0458724,44.0
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89322,unit,1.07,arnio-pr2028,Bug: validate string schema length bound values,False,15,0,0,0.0282274,36.8
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,89323,unit,2.79,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,True,14,1,0,0.039084900000000006,45.3
+claude-haiku-4-5__partial50_s0__src__cachedocs,claude-haiku-4-5,partial,0.5,93376,unit,1.0,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,True,11,1,4,0.07847420000000001,82.9
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,95768,unit,1.87,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,22,3,0,0.0734864,66.0
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,122434,unit,2.24,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",True,25,1,0,0.10998300000000001,56.5
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,105558,unit,1.17,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,14,1,1,0.08051939999999999,70.2
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,101757,unit,2.52,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,True,33,1,0,0.0725674,66.0
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,136648,unit,1.05,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,1,0,0,0.12169,47.2
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,96300,unit,1.1,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,21,0,0,0.111624,60.1
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,98125,unit,1.19,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,True,16,4,0,0.055330399999999995,51.9
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,95718,unit,1.2,arnio-pr1481,Bug: validate filter_rows column and operator types,True,15,2,0,0.118587,65.3
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,94527,unit,1.87,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,True,15,1,0,0.045217400000000005,41.9
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,94498,unit,1.87,arnio-pr1493,Bug: validate DuckDB connection objects before registration,True,20,2,0,0.0474989,51.4
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,102038,unit,2.0,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,25,0,2,0.0584054,51.1
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,101757,unit,2.18,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,True,28,1,0,0.0661004,58.0
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,117431,unit,2.45,arnio-pr1508,Bug: validate pipeline frame input before execution,True,20,1,1,0.0696734,53.5
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,103046,unit,2.53,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,15,0,0,0.0516224,46.2
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,94429,unit,1.2,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,True,15,2,0,0.0726164,65.8
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,95718,unit,1.2,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,15,1,0,0.0633619,61.6
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,94446,unit,0.07,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,True,15,1,0,0.039545899999999995,38.5
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,95251,unit,3.0,arnio-pr1553,Bug: validate Schema rules during construction,False,19,0,2,0.050017400000000004,47.4
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,95455,unit,1.64,arnio-pr1600,Security: validate redact_values in validation markdown,True,14,1,0,0.0507909,46.9
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,117431,unit,2.75,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,20,7,3,0.057457400000000006,44.5
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,96572,unit,1.17,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,18,3,0,0.0419674,41.8
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,103796,unit,1.52,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,23,6,0,0.050519400000000006,40.1
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,107030,unit,1.13,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,True,15,1,0,0.0580684,45.7
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,93847,unit,2.0,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,15,0,0,0.0507244,44.4
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,97937,unit,1.0,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,15,2,0,0.055865899999999996,50.2
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,94902,unit,1.8,arnio-pr1782,Bug: validate Email schema validation mode type,True,15,1,0,0.0410569,37.5
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,102038,unit,2.0,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,True,16,1,0,0.0568854,45.0
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,104593,unit,2.62,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,26,1,0,0.0597789,47.7
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,179448,unit,1.26,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,39,0,0,0.0849634,32.6
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,107030,unit,1.19,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,16,10,0,0.0531534,44.7
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,94926,unit,1.19,arnio-pr1857,DX: clarify from_dict nested object error message,True,16,1,0,0.112917,58.0
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,99070,unit,1.92,arnio-pr1860,Bug: validate writer output path arguments,True,26,1,0,0.0318624,33.3
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,103542,unit,1.8,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,True,15,1,0,0.107188,53.1
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,99070,unit,1.94,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,True,16,1,0,0.0419654,38.7
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,124566,unit,1.27,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,22,0,0,0.07964840000000001,57.4
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,107549,unit,3.95,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,True,19,1,1,0.0536564,46.8
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,96624,unit,0.07,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,True,14,2,0,0.0664564,59.7
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,95347,unit,1.0,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,15,5,0,0.0665994,62.4
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,93872,unit,2.07,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,15,0,0,0.04012040000000001,35.1
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,112086,unit,0.05,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,True,37,2,1,0.0376344,26.8
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,101690,unit,2.07,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,True,15,1,0,0.0652139,56.3
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,94586,unit,3.0,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,14,0,0,0.0390499,34.7
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,99070,unit,1.95,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,True,25,1,0,0.046632400000000004,42.6
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,93633,unit,2.25,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,False,31,0,0,0.0499059,45.3
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,101697,unit,0.0,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,15,1,0,0.0657659,51.5
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,98201,unit,2.67,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,15,0,3,0.034759899999999996,33.0
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,100801,unit,1.92,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,15,0,1,0.050984400000000006,46.3
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,97497,unit,1.78,arnio-pr2028,Bug: validate string schema length bound values,True,27,1,0,0.0458884,42.2
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,95626,unit,2.19,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,True,16,1,2,0.101657,54.0
+claude-haiku-4-5__partial50_s0__src__notes-opus-5-5__cachedocs,claude-haiku-4-5,partial,0.5,110311,unit,1.07,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,True,15,2,0,0.0722294,65.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89351,system,2.32,arnio-pr1226,bug: `arnio.Schema` crashes with `AttributeError` when initialized with a list of fields,True,19,1,3,0.10550300000000001,56.4
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,92964,system,3.11,arnio-pr1312,"Bug: Schema.to_json() raises ValueError when cross-field rules are present, blocking CI data-contract serialization",True,18,1,1,0.048868100000000005,51.7
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,92301,system,2.41,arnio-pr1322,Bug: Whitespace around NULL values is not normalized,True,17,1,2,0.0628791,64.6
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,93262,system,2.14,arnio-pr1338,Bug: auto_clean() returns undocumented tuple when dry_run=True and return_report=True are combined — violates type annotation and docstring contract,True,14,1,4,0.0520361,52.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,109482,system,2.48,arnio-pr1340,Bug:  Memory Exhaustion (OOM) via unbounded source.read() in _materialize_csv_input(),False,23,0,6,0.113589,59.3
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89160,system,2.93,arnio-pr1360,Bug: compare_profiles raises ValueError when profiles are built with different exclude_columns no user warning,False,14,0,0,0.0486051,52.0
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89571,system,1.93,arnio-pr1479,Security: exclude_columns leaks cast_types suggestions,True,15,1,0,0.08476700000000001,46.3
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89444,system,2.53,arnio-pr1481,Bug: validate filter_rows column and operator types,True,15,2,1,0.083429,38.9
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,88321,system,2.8,arnio-pr1491,Bug: drop_columns_matching crashes on non-string pandas labels,False,15,0,1,0.0518061,54.9
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,88325,system,2.67,arnio-pr1493,Bug: validate DuckDB connection objects before registration,True,15,1,0,0.04701060000000001,51.7
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,91910,system,2.05,arnio-pr1495,Bug: validate profile exclude_columns before length checks,False,22,0,2,0.0497251,47.4
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,93262,system,2.95,arnio-pr1502,Bug: validate auto_clean return_report as a boolean,True,21,1,2,0.0474881,48.3
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,107461,system,2.62,arnio-pr1508,Bug: validate pipeline frame input before execution,False,21,0,3,0.056363100000000006,50.6
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,88594,system,3.68,arnio-pr1516,Bug: CurrencyCode accepts invalid ISO 4217 values,False,19,0,1,0.0525821,49.7
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,88467,system,2.93,arnio-pr1522,Bug: validate normalize_whitespace columns before iterating,False,15,0,0,0.0678111,60.5
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89444,system,2.71,arnio-pr1535,Bug: validate scalar filter_rows comparison values,True,24,1,4,0.050242600000000005,47.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89496,system,1.71,arnio-pr1539,Bug: drop_columns has inconsistent all-column behavior across public APIs,True,21,1,1,0.04499260000000001,44.7
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,87257,system,3.94,arnio-pr1553,Bug: validate Schema rules during construction,False,16,0,1,0.059184099999999996,59.5
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89636,system,4.87,arnio-pr1600,Security: validate redact_values in validation markdown,True,15,1,2,0.0583166,57.2
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,107461,system,2.38,arnio-pr1635,Bug: pipeline dry_run validates later steps against the original frame,True,16,10,2,0.0747391,62.9
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,90090,system,1.94,arnio-pr1726,Bug: validate standardize_missing_tokens token inputs,True,16,2,2,0.04504910000000001,51.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89619,system,4.0,arnio-pr1738,Bug: reject invalid URL allowed_schemes values,True,20,1,3,0.0565091,52.6
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,96545,system,2.2,arnio-pr1749,Bug: read_csv and read_csv_chunked use inconsistent skip-row parameter names,False,15,0,0,0.06086910000000001,55.9
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,88224,system,2.8,arnio-pr1757,Bug: make drop_columns empty-list behavior return a new frame,False,20,0,1,0.0655301,61.3
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,90925,system,2.14,arnio-pr1772,Bug: validate from_records column names before pandas construction,True,28,1,1,0.0447306,44.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,87886,system,3.62,arnio-pr1782,Bug: validate Email schema validation mode type,True,16,1,1,0.0368656,37.3
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,91910,system,1.88,arnio-pr1826,Bug: reject NaN approx_top_values_min_ratio in profile,False,16,0,0,0.06878210000000001,60.7
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,92122,system,2.89,arnio-pr1851,Bug: normalize_case allows out-of-bounds case_type configurations instead of raising ValueError,True,18,1,0,0.0599996,82.2
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,116841,system,2.8,arnio-pr1852,Bug: validate frame type consistently across cleaning helpers,False,15,0,4,0.10389309999999999,77.9
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,96545,system,2.27,arnio-pr1854,Bug: auto-detect TSV delimiter in read_csv_chunked,True,15,6,9,0.0658051,57.6
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,87964,system,1.93,arnio-pr1857,DX: clarify from_dict nested object error message,False,29,0,2,0.0435176,43.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,91554,system,2.38,arnio-pr1860,Bug: validate writer output path arguments,True,25,1,2,0.0663711,62.7
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89895,system,2.81,arnio-pr1862,Bug: prevent custom steps from overwriting Python-backed built-ins,False,16,0,1,0.090941,45.5
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,91554,system,2.25,arnio-pr1866,Bug: validate write_parquet compression type before codec lookup,True,28,1,0,0.06583910000000001,62.4
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,94850,system,2.0,arnio-pr1868,Bug: validate public quality report dataclass invariants,False,20,0,2,0.0560061,52.7
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,97519,system,4.78,arnio-pr1965,Bug: validate(max_errors=0) reports invalid data as passed,True,18,1,4,0.0525981,49.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,90542,system,1.53,arnio-pr1978,Bug: select_dtypes should preserve row count for empty matches,False,19,0,2,0.039834100000000004,37.4
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,88449,system,1.82,arnio-pr1987,Bug: validate CleanExplanation result object fields,True,28,9,1,0.052683100000000004,55.3
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,88922,system,2.24,arnio-pr1996,Bug: avoid returning original frame from drop_empty_columns zero-row path,False,17,0,0,0.047731100000000005,50.5
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,95452,system,1.64,arnio-pr1999,Bug: ArFrame column selection methods drop attrs metadata,False,25,0,0,0.0669471,66.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,94331,system,2.44,arnio-pr2004,Bug: restrict write_csv line terminators to newline values,True,25,1,0,0.05559560000000001,47.8
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,87991,system,3.07,arnio-pr2005,Bug: validate ProfileComparison status_counts values,False,15,0,15,0.053954600000000005,53.2
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,91554,system,2.26,arnio-pr2007,Bug: preserve row count when writing zero-column frames to Parquet,False,31,0,3,0.056499100000000003,53.9
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,87550,system,4.6,arnio-pr2008,Bug: custom aliases of Arnio cleaning steps cannot be unregistered,False,15,0,1,0.056987600000000006,52.7
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,90985,system,1.76,arnio-pr2011,Bug: align ArFrame.drop_columns tuple handling with ar.drop_columns,True,17,2,1,0.0744036,63.2
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,91131,system,2.69,arnio-pr2015,Bug: validate parse_bool_strings token container types,False,16,0,4,0.0556436,51.3
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,90523,system,2.91,arnio-pr2026,Bug: avoid returning original object from drop_constant_columns empty-input path,False,24,0,1,0.0549431,53.1
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89322,system,3.53,arnio-pr2028,Bug: validate string schema length bound values,False,17,0,0,0.0509191,49.4
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,89323,system,2.38,arnio-pr2029,Bug: clean_column_names returns original frame on no-op,False,16,0,1,0.047931600000000005,45.8
+claude-haiku-4-5__partial50_s0__src__system__cachedocs,claude-haiku-4-5,partial,0.5,93376,system,2.83,arnio-pr2030,Bug: validate schema export metadata before returning dictionaries,False,23,0,0,0.098602,57.8
